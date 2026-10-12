@@ -34,32 +34,32 @@ export const GamecenterCardBig: React.FC<GamecenterCardBigProps> = ({
       tabIndex={0}
       onClick={() => onClick?.(id)}
       onKeyDown={(e) => e.key === "Enter" && onClick?.(id)}
-      className="w-[250px]   bg-[var(--bg-card)] rounded-card overflow-hidden cursor-pointer flex flex-col pb-4"
+      className="w-full bg-[var(--bg-card)] rounded-card overflow-hidden cursor-pointer flex flex-col pb-4 border border-[var(--border-subtle)] hover:border-[var(--border-color)] transition-all"
     >
       {/* Image */}
-      <div className="relative w-full  aspect-[16/9] bg-[var(--foreground)]">
+      <div className="relative w-full aspect-[16/9] bg-[var(--foreground)]">
         <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
         {discountPercent ? (
-          <span className="absolute top-3 left-3 px-3 pt-1 pb-0 rounded-full bg-[var(--primary)] text-[#101014] text-sm font-black flex items-center">
-            {toPersianDigits(discountPercent)}٪
+          <span className="absolute top-3 left-3 px-3 pt-1 pb-0.5 rounded-full bg-[var(--primary)] text-[#101014] text-xs font-black flex items-center">
+            {toPersianDigits(discountPercent)}٪ تخفیف
           </span>
         ) : null}
       </div>
 
       {/* Info */}
-      <div className="px-4 pt-3 flex flex-col gap-2">
-        <div className="flex items-center gap-1.5 text-sm text-[var(--primary)]">
-          <span>{toPersianDigits(rating.toFixed(1))}</span>
-          <span>({toPersianDigits(reviewsCount)} دیدگاه)</span>
+      <div className="px-4 pt-3 flex flex-col gap-1.5">
+        <div className="flex items-center gap-1.5 text-xs text-[var(--primary)] font-bold">
+          <span>★ {toPersianDigits(rating.toFixed(1))}</span>
+          <span className="text-[var(--text-muted)]">({toPersianDigits(reviewsCount)} دیدگاه)</span>
         </div>
 
-        <h3 className="text-lg font-extrabold text-[var(--text-white)] line-clamp-1">{name}</h3>
+        <h3 className="text-base font-extrabold text-[var(--text-white)] line-clamp-1">{name}</h3>
 
-        <p className="text-sm text-[var(--text-muted)] line-clamp-1">{location}</p>
+        <p className="text-xs text-[var(--text-muted)] line-clamp-1">{location}</p>
       </div>
 
       {/* Price pill */}
-      <div className="mx-4 mt-4 h-11 rounded-full bg-[var(--foreground)]/50 px-4 flex items-center justify-between text-sm">
+      <div className="mx-4 mt-3 h-10 rounded-full bg-[var(--foreground)]/50 px-4 flex items-center justify-between text-xs">
         <span className="font-extrabold text-[var(--text-white)]">
           {formatPrice(hourlyPrice)} <span className="font-bold">تومان</span>
         </span>
