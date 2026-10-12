@@ -87,7 +87,7 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
                 aria-pressed={isSelected}
                 className={[
                   "relative min-w-0 min-h-0 overflow-hidden",
-                  "rounded-xl border-2 transition-all duration-200",
+                  "rounded-card border-2 transition-all duration-200",
                   "focus-visible:outline-none focus-visible:ring-2",
                   "focus-visible:ring-white",
                   style.position,

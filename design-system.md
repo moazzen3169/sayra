@@ -116,7 +116,7 @@
 
 ```tsx
 // نمونه دکمه اصلی با استفاده از متغیرها و کلاس‌های دیزاین سیستم
-<button className="bg-[var(--primary)] text-[#101014] hover:bg-[var(--primary-hover)] font-bold py-3 px-6 rounded-xl transition-all">
+<button className="bg-[var(--primary)] text-[#101014] hover:bg-[var(--primary-hover)] font-bold py-3 px-6 rounded-card transition-all">
   رزرو سریع
 </button>
 ```

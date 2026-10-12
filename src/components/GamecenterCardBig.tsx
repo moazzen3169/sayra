@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 
 export interface GamecenterCardBigProps {
@@ -29,18 +30,20 @@ export const GamecenterCardBig: React.FC<GamecenterCardBigProps> = ({
   onClick,
 }) => {
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => onClick?.(id)}
-      onKeyDown={(e) => e.key === "Enter" && onClick?.(id)}
-      className="w-full bg-[var(--bg-card)] rounded-card overflow-hidden cursor-pointer flex flex-col pb-4 border border-[var(--border-subtle)] hover:border-[var(--border-color)] transition-all"
+    <Link
+      href={`/gamecenter/${id}`}
+      onClick={(e) => {
+        if (onClick) {
+          onClick(id);
+        }
+      }}
+      className="w-full bg-[var(--bg-card)] rounded-card overflow-hidden cursor-pointer flex flex-col pb-4 border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all group shadow-md"
     >
       {/* Image */}
-      <div className="relative w-full aspect-[16/9] bg-[var(--foreground)]">
-        <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
+      <div className="relative w-full aspect-[16/9] bg-[var(--foreground)] overflow-hidden">
+        <img src={imageUrl} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
         {discountPercent ? (
-          <span className="absolute top-3 left-3 px-3 pt-1 pb-0.5 rounded-full bg-[var(--primary)] text-[#101014] text-xs font-black flex items-center">
+          <span className="absolute top-3 left-3 px-3 pt-1 pb-0.5 rounded-full bg-[var(--primary)] text-[#101014] text-xs font-black flex items-center shadow-lg">
             {toPersianDigits(discountPercent)}٪ تخفیف
           </span>
         ) : null}
@@ -53,7 +56,7 @@ export const GamecenterCardBig: React.FC<GamecenterCardBigProps> = ({
           <span className="text-[var(--text-muted)]">({toPersianDigits(reviewsCount)} دیدگاه)</span>
         </div>
 
-        <h3 className="text-base font-extrabold text-[var(--text-white)] line-clamp-1">{name}</h3>
+        <h3 className="text-base font-extrabold text-[var(--text-white)] line-clamp-1 group-hover:text-[var(--primary)] transition-colors">{name}</h3>
 
         <p className="text-xs text-[var(--text-muted)] line-clamp-1">{location}</p>
       </div>
@@ -65,6 +68,6 @@ export const GamecenterCardBig: React.FC<GamecenterCardBigProps> = ({
         </span>
         <span className="text-[var(--text-muted)]">/ {durationLabel}</span>
       </div>
-    </div>
+    </Link>
   );
 };

@@ -22,7 +22,7 @@ const popularCenters = [
   {
     id: "gc-2",
     name: "گیم‌کلاب سایبرسکی",
-    imageUrl: "/img/gamnet-1.webp",
+    imageUrl: "/img/gamnet-2.webp",
     location: "تبریز، آبرسان، پاساژ نسیم",
     rating: 4.6,
     reviewsCount: 312,
@@ -32,7 +32,7 @@ const popularCenters = [
   {
     id: "gc-3",
     name: "مجموعه گیمینگ وی‌آر پلاس",
-    imageUrl: "/img/gamnet-1.webp",
+    imageUrl: "/img/gamnet-3.webp",
     location: "تبریز، شاهگلی، فلکه خیام",
     rating: 4.9,
     reviewsCount: 520,
@@ -45,7 +45,7 @@ const featuredCenters = [
   {
     id: "f-1",
     name: "گیمنت اختصاصی وی‌آی‌پِی گرگدن",
-    imageUrl: "/img/gamnet-1.webp",
+    imageUrl: "/img/gamnet-4.webp",
     location: "تبریز، ولیعصر، بعد از میدان معلم، روبروی کتابخانه",
     rating: 4.9,
     reviewsCount: 980,
@@ -55,7 +55,7 @@ const featuredCenters = [
   {
     id: "f-2",
     name: "مرکز بازی‌های رایانه‌ای ماتریکس",
-    imageUrl: "/img/gamnet-1.webp",
+    imageUrl: "/img/gamnet-5.webp",
     location: "تبریز، رشدیه، بلوار بهارستان",
     rating: 4.7,
     reviewsCount: 410,
@@ -112,11 +112,7 @@ export default function HomePage() {
 
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
             {popularCenters.map((item) => (
-              <GamecenterCardMini
-                key={item.id}
-                {...item}
-                onClick={(id) => alert(`گیمنت ${id} انتخاب شد`)}
-              />
+              <GamecenterCardMini key={item.id} {...item} />
             ))}
           </div>
         </section>
@@ -130,11 +126,7 @@ export default function HomePage() {
 
           <div className="flex flex-col gap-4">
             {featuredCenters.map((item) => (
-              <GamecenterCardBig
-                key={item.id}
-                {...item}
-                onClick={(id) => alert(`کارت ویژه ${id} انتخاب شد`)}
-              />
+              <GamecenterCardBig key={item.id} {...item} />
             ))}
           </div>
         </section>
