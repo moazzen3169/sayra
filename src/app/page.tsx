@@ -9,7 +9,7 @@ import { GamecenterCardMini } from "@/components/GamecenterCardMini";
 const sample = {
   id: "1",
   name: "گیمنت گرگدن",
-  imageUrl: "/design/gamecenter-big.png",
+  imageUrl: "/img/gamnet-1.webp",
   location: "تبریز ولیعصر بعد از میدان معلم روبروی کتابخانه",
   rating: 4.7,
   reviewsCount: 744,
@@ -39,7 +39,7 @@ export default function HomePage() {
                 key={n}
                 {...sample}
                 id={`mini-${n}`}
-                imageUrl="/design/gamecenter-mini.png"
+                imageUrl="/img/gamnet-1.webp"
                 onClick={(id) => alert(id)}
               />
             ))}

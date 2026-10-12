@@ -34,13 +34,13 @@ export const GamecenterCardBig: React.FC<GamecenterCardBigProps> = ({
       tabIndex={0}
       onClick={() => onClick?.(id)}
       onKeyDown={(e) => e.key === "Enter" && onClick?.(id)}
-      className="w-full bg-[var(--bg-card)] rounded-3xl overflow-hidden cursor-pointer flex flex-col pb-4"
+      className="w-[250px]   bg-[var(--bg-card)] rounded-card overflow-hidden cursor-pointer flex flex-col pb-4"
     >
       {/* Image */}
-      <div className="relative w-full aspect-[5/3] bg-[var(--foreground)]">
+      <div className="relative w-full  aspect-[16/9] bg-[var(--foreground)]">
         <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
         {discountPercent ? (
-          <span className="absolute top-3 left-3 px-3 h-7 rounded-full bg-[var(--primary)] text-[#101014] text-sm font-black flex items-center">
+          <span className="absolute top-3 left-3 px-3 pt-1 pb-0 rounded-full bg-[var(--primary)] text-[#101014] text-sm font-black flex items-center">
             {toPersianDigits(discountPercent)}٪
           </span>
         ) : null}
@@ -49,8 +49,8 @@ export const GamecenterCardBig: React.FC<GamecenterCardBigProps> = ({
       {/* Info */}
       <div className="px-4 pt-3 flex flex-col gap-2">
         <div className="flex items-center gap-1.5 text-sm text-[var(--primary)]">
-          <span>({toPersianDigits(reviewsCount)} دیدگاه)</span>
           <span>{toPersianDigits(rating.toFixed(1))}</span>
+          <span>({toPersianDigits(reviewsCount)} دیدگاه)</span>
         </div>
 
         <h3 className="text-lg font-extrabold text-[var(--text-white)] line-clamp-1">{name}</h3>

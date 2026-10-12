@@ -63,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
       <button
         type="button"
         onClick={onSearchClick}
-        className="w-full h-12 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] px-4 flex items-center gap-2 text-sm text-[var(--text-white)] text-right"
+        className="w-full h-12 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] px-4 flex items-center gap-2 text-sm text-[var(--text-white)] text-right"
       >
         <span>جستجو در</span>
         {/* TODO: جایگزینی با لوگوی SVG سایرا */}
