@@ -77,7 +77,7 @@ export default function HomePage() {
         onSearchClick={() => alert("جستجوی گیمنت و ایستگاه بازی")}
       />
 
-      <main className="flex-1 px-4 py-3 flex flex-col gap-6">
+      <main className="flex-1 px-4 py-3 flex flex-col gap-6 mt-[124px]">
         {/* ۱. بخش اطلاع‌رسانی تخفیف و بنر تبلیغاتی */}
         <section>
           <PromoBanner

@@ -93,7 +93,7 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
                   style.position,
                   style.background,
                   isSelected
-                    ? "border-white shadow-lg scale-[0.98]"
+                    ? "border-transparent shadow-lg scale-[0.98]"
                     : "border-transparent hover:brightness-95",
                 ].join(" ")}
               >
