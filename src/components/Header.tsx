@@ -1,140 +1,84 @@
 import React from "react";
+import { toPersianDigits } from "@/lib/format";
 
 interface HeaderProps {
   locationName?: string;
   unreadNotificationsCount?: number;
-  userName?: string;
-  isLoggedIn?: boolean;
-  onNotificationClick?: () => void;
-  onProfileClick?: () => void;
   onLocationClick?: () => void;
+  onNotificationClick?: () => void;
+  onSearchClick?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  locationName = "تهران، سعادت‌آباد",
-  unreadNotificationsCount = 2,
-  userName,
-  isLoggedIn = false,
-  onNotificationClick,
-  onProfileClick,
+  locationName = "تبریز",
+  unreadNotificationsCount = 0,
   onLocationClick,
+  onNotificationClick,
+  onSearchClick,
 }) => {
   return (
-    <header className="sticky top-0 z-40 w-full bg-[var(--bg-body)]/95 backdrop-blur-md border-b border-[var(--border-color)] px-4 py-3 transition-all">
-      <div className="flex items-center justify-between gap-3">
-        {/* Right side: Logo & App Brand */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl bg-[var(--primary)] text-[#101014] font-black flex items-center justify-center text-xl shadow-[0_0_15px_rgba(255,255,61,0.25)]">
-            S
-          </div>
-          <div className="flex flex-col">
-            <span className="font-extrabold text-lg tracking-tight text-[var(--text-white)]">
-              سایرا <span className="text-[var(--primary)] text-xs font-normal">SAYRA</span>
+    <header className="sticky top-0 z-40 w-full bg-[var(--bg-body)]/95 backdrop-blur-md px-4 pt-4 pb-3 flex flex-col gap-4">
+      {/* Row 1: Location (right) + Bell (left) */}
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onLocationClick}
+          className="flex items-center gap-2 text-sm text-[var(--text-white)]"
+        >
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 21s7-5.686 7-11a7 7 0 10-14 0c0 5.314 7 11 7 11z" />
+            <circle cx="12" cy="10" r="2.5" />
+          </svg>
+          <span>{locationName}</span>
+          <svg className="w-5 h-5 text-[var(--text-muted)] mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          onClick={onNotificationClick}
+          aria-label="اعلانات"
+          className="relative w-8 h-8 flex items-center justify-center text-[var(--text-white)]"
+        >
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15 17h5l-1.4-1.4a2 2 0 01-.6-1.4V11a6 6 0 00-4-5.66V5a2 2 0 10-4 0v.34C7.67 6.17 6 8.39 6 11v3.2c0 .54-.21 1.05-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+            />
+          </svg>
+          {unreadNotificationsCount > 0 && (
+            <span
+              className="absolute top-0 left-0 min-w-4 h-4 px-1 rounded-full bg-[var(--primary)] text-[#101014] text-[9px] font-black flex items-center justify-center"
+              aria-label={`${toPersianDigits(unreadNotificationsCount)} اعلان خوانده‌نشده`}
+            >
+              {unreadNotificationsCount > 9 ? "+۹" : toPersianDigits(unreadNotificationsCount)}
             </span>
-            <button
-              onClick={onLocationClick}
-              className="flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors text-right"
-            >
-              <svg
-                className="w-3.5 h-3.5 text-[var(--primary)] shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
-              <span className="truncate max-w-[140px]">{locationName}</span>
-              <svg
-                className="w-3 h-3 text-[var(--text-subtle)]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Left side: Notification Bell & Auth / User Profile */}
-        <div className="flex items-center gap-2">
-          {/* Notification Button */}
-          <button
-            onClick={onNotificationClick}
-            className="relative w-10 h-10 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-white)] hover:border-[var(--primary)] transition-colors"
-            aria-label="اعلانات"
-          >
-            <svg
-              className="w-5 h-5 text-[var(--text-white)]"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-              />
-            </svg>
-            {unreadNotificationsCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-[var(--primary)] text-[#101014] text-[10px] font-black flex items-center justify-center border-2 border-[var(--bg-body)]">
-                {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
-              </span>
-            )}
-          </button>
-
-          {/* Profile / Auth Button */}
-          <button
-            onClick={onProfileClick}
-            className="flex items-center gap-2 h-10 px-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-white)] hover:border-[var(--primary)] transition-colors text-xs font-medium"
-          >
-            {isLoggedIn ? (
-              <>
-                <div className="w-6 h-6 rounded-lg bg-[var(--primary-muted)] text-[var(--primary)] font-bold flex items-center justify-center text-xs">
-                  {userName ? userName.substring(0, 1) : "U"}
-                </div>
-                <span className="max-w-[80px] truncate hidden sm:inline">
-                  {userName || "کاربر"}
-                </span>
-              </>
-            ) : (
-              <>
-                <svg
-                  className="w-4 h-4 text-[var(--primary)]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
-                  />
-                </svg>
-                <span>ورود / ثبت‌نام</span>
-              </>
-            )}
-          </button>
-        </div>
+          )}
+        </button>
       </div>
+
+      {/* Row 2: Search bar */}
+      <button
+        type="button"
+        onClick={onSearchClick}
+        className="w-full h-12 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] px-4 flex items-center gap-2 text-sm text-[var(--text-white)] text-right"
+      >
+        <span>جستجو در</span>
+        {/* TODO: جایگزینی با لوگوی SVG سایرا */}
+        <span className="font-black text-lg leading-none text-[var(--primary)]">سایرا</span>
+        <svg
+          className="w-5 h-5 text-[var(--text-muted)] mr-auto"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.6}
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path strokeLinecap="round" d="M20 20l-3.5-3.5" />
+        </svg>
+      </button>
     </header>
   );
 };
