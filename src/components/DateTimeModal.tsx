@@ -1,0 +1,213 @@
+"use client";
+
+import React, { useState } from "react";
+import { generateTenDays, DateOption } from "@/lib/dates";
+import { generateHourlySlots, TimeSlotOption } from "@/lib/slots";
+import { formatPrice, toPersianDigits } from "@/lib/format";
+import { CartItem } from "./CartModal";
+
+interface DateTimeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  cartItems: CartItem[];
+  onConfirmReservation: (details: {
+    selectedDate: DateOption;
+    selectedSlots: TimeSlotOption[];
+    totalHours: number;
+    grandTotal: number;
+  }) => void;
+  extraControllerPricePerHour?: number;
+}
+
+export const DateTimeModal: React.FC<DateTimeModalProps> = ({
+  isOpen,
+  onClose,
+  cartItems,
+  onConfirmReservation,
+  extraControllerPricePerHour = 30000,
+}) => {
+  const [dateOptions] = useState<DateOption[]>(() => generateTenDays());
+  const [selectedDateId, setSelectedDateId] = useState<string>("day-0");
+
+  const [timeSlots] = useState<TimeSlotOption[]>(() => generateHourlySlots());
+  const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>(["slot-14", "slot-15"]);
+
+  if (!isOpen) return null;
+
+  const handleToggleSlot = (slotId: string) => {
+    setSelectedSlotIds((prev) => {
+      if (prev.includes(slotId)) {
+        if (prev.length === 1) return prev; // keep at least 1
+        return prev.filter((id) => id !== slotId);
+      } else {
+        return [...prev, slotId];
+      }
+    });
+  };
+
+  const totalHours = selectedSlotIds.length;
+
+  const totalPricePerHour = cartItems.reduce((acc, item) => {
+    const base = item.device.pricePerHour * item.quantity;
+    const extra = item.extraControllersCount * extraControllerPricePerHour;
+    return acc + base + extra;
+  }, 0);
+
+  const grandTotal = totalPricePerHour * totalHours;
+
+  const selectedDateObj = dateOptions.find((d) => d.id === selectedDateId) || dateOptions[0];
+  const selectedSlots = timeSlots.filter((s) => selectedSlotIds.includes(s.id));
+
+  const handleFinalConfirm = () => {
+    onConfirmReservation({
+      selectedDate: selectedDateObj,
+      selectedSlots,
+      totalHours,
+      grandTotal,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm animate-fadeIn">
+      <div
+        className="w-full max-w-[780px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card p-4 sm:p-5 flex flex-col gap-4 max-h-[90vh] shadow-2xl relative overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-card bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 className="text-base font-black text-[var(--text-white)]">انتخاب تاریخ و تایم رزرو</h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-white)] hover:bg-[var(--foreground)] flex items-center justify-center text-lg transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-5 overflow-y-auto max-h-[60vh] pr-1 scrollbar-thin">
+          {/* Reservation Summary Brief */}
+          <div className="bg-[var(--foreground)]/40 rounded-card p-3 border border-[var(--border-subtle)] flex flex-col gap-1.5 text-xs">
+            <div className="font-extrabold text-[var(--primary)]">خلاصه رزرو شما:</div>
+            <div className="flex flex-wrap gap-2 text-[var(--text-white)]">
+              {cartItems.map((item) => (
+                <span key={item.device.id} className="bg-[var(--bg-card)] px-2 py-1 rounded-lg border border-[var(--border-subtle)]">
+                  {toPersianDigits(item.quantity)}× {item.device.name}
+                  {item.extraControllersCount > 0 ? ` (+${toPersianDigits(item.extraControllersCount)} دسته)` : ""}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Date Selection */}
+          <div className="flex flex-col gap-2.5">
+            <h4 className="text-sm font-extrabold text-[var(--text-white)]">
+              ۱. انتخاب روز رزرو
+            </h4>
+            <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-none">
+              {dateOptions.map((dateObj) => {
+                const isSelected = selectedDateId === dateObj.id;
+                return (
+                  <button
+                    key={dateObj.id}
+                    type="button"
+                    onClick={() => setSelectedDateId(dateObj.id)}
+                    className={`w-24 min-w-[96px] h-16 shrink-0 rounded-card flex flex-col items-center justify-center gap-0.5 border transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-[var(--primary)] text-[#101014] border-[var(--primary)] font-black shadow-lg scale-[1.02]"
+                        : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
+                    }`}
+                  >
+                    <span className="text-xs font-extrabold truncate w-full text-center px-1">
+                      {dateObj.dayName}
+                    </span>
+                    <span
+                      className={`text-[11px] ${
+                        isSelected ? "text-[#101014]/80 font-bold" : "text-[var(--text-muted)]"
+                      }`}
+                    >
+                      {dateObj.dateStr}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Time Slot Selection */}
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-extrabold text-[var(--text-white)]">
+                ۲. انتخاب ساعات بازی (۱ ساعته)
+              </h4>
+              <span className="text-[11px] text-[var(--text-muted)]">
+                امکان انتخاب چند ساعت
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {timeSlots.map((slot) => {
+                const isSelected = selectedSlotIds.includes(slot.id);
+                return (
+                  <button
+                    key={slot.id}
+                    type="button"
+                    onClick={() => handleToggleSlot(slot.id)}
+                    className={`h-11 rounded-card flex items-center justify-between px-3 text-xs font-bold border transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-[var(--primary)] text-[#101014] border-[var(--primary)] font-black shadow-md"
+                        : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
+                    }`}
+                  >
+                    <span>{slot.timeLabel}</span>
+                    {isSelected && (
+                      <span className="w-4 h-4 rounded-full bg-[#101014] text-[var(--primary)] text-[10px] flex items-center justify-center font-black">
+                        ✓
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Pricing & Final Action Footer */}
+        <div className="flex flex-col gap-3 pt-3 border-t border-[var(--border-color)] bg-[var(--bg-card)]">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] text-[var(--text-muted)]">
+                مدت زمان: {toPersianDigits(totalHours)} ساعت ({selectedDateObj.dayName})
+              </span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-[var(--text-muted)]">مبلغ نهایی:</span>
+                <span className="text-lg font-black text-[var(--primary)]">
+                  {formatPrice(grandTotal)}
+                </span>
+                <span className="text-xs text-[var(--text-white)]">تومان</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleFinalConfirm}
+              className="h-12 px-6 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+            >
+              <span>تکمیل و ثبت رزرو</span>
+              <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
