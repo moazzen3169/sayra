@@ -53,9 +53,9 @@ export const CartModal: React.FC<CartModalProps> = ({
   }, 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed  inset-0 z-50 flex items-end  justify-center bg-black/70 backdrop-blur-sm animate-fadeIn">
       <div
-        className="w-full max-w-[780px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card p-4 sm:p-5 flex flex-col gap-4 max-h-[85vh] shadow-2xl relative overflow-hidden"
+        className="w-full max-w-[780px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card pb-[12px] p-4 sm:p-5 flex flex-col gap-4 max-h-[95vh] shadow-2xl relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -67,14 +67,14 @@ export const CartModal: React.FC<CartModalProps> = ({
               </svg>
             </div>
             <h3 className="text-base font-black text-[var(--text-white)]">سبد رزرو</h3>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--foreground)] text-[var(--primary)] font-bold">
+            <span className="text-xs px-2 py-0.5 rounded-full  text-[var(--primary)] font-bold">
               {toPersianDigits(totalDeviceCount)} دستگاه
             </span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-white)] hover:bg-[var(--foreground)] flex items-center justify-center text-lg transition-colors"
+            className="w-8 h-8 rounded-lg text-[var(--text-muted)]  flex items-center justify-center text-lg transition-colors"
           >
             ✕
           </button>
@@ -212,10 +212,8 @@ export const CartModal: React.FC<CartModalProps> = ({
               onClick={onProceedToDateTime}
               className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
             >
-              <span>انتخاب تاریخ و رزرو</span>
-              <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
+              <span>انتخاب تاریخ و ساعت</span>
+
             </button>
           </div>
         )}

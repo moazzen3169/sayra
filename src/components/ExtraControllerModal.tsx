@@ -62,7 +62,7 @@ export const ExtraControllerModal: React.FC<ExtraControllerModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-white)] hover:bg-[var(--foreground)] flex items-center justify-center text-lg transition-colors"
+            className="w-8 h-8 rounded-lg text-[var(--text-muted)]  flex items-center justify-center text-lg transition-colors"
           >
             ✕
           </button>
