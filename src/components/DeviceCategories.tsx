@@ -46,15 +46,15 @@ const imageMap: Record<DeviceCategory["iconType"], string> = {
 
 const cardStyles: Record<string, { background: string; position: string }> = {
   pc: {
-    background: "bg-[#B9FFA9]",
+    background: "bg-[#ffff3d] ",
     position: "col-start-1 row-span-2",
   },
   ps5: {
-    background: "bg-[#ACCEFF]",
+    background: "bg-[#2f77b1] text-[#fff]",
     position: "col-start-2 row-start-1",
   },
   xbox: {
-    background: "bg-[#FFFFA5]",
+    background: "bg-[#0e7a0d] text-[#313131]",
     position: "col-start-2 row-start-2",
   },
 };
@@ -105,7 +105,7 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
                     <img
                       src={imageMap[cat.iconType]}
                       alt={cat.name}
-                      className="mix-blend-darken h-[72%] w-[88%] object-contain"
+                      className="  h-[72%] w-[88%] object-contain"
                     />
 
                     <span className="text-sm sm:text-base font-bold text-[#151515]">
@@ -116,16 +116,16 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
                   <div
                     dir="rtl"
                     className="flex h-full items-center justify-between gap-1 px-2"
-                  >
-                    <span className="flex-1  text-center text-xs sm:text-sm font-bold text-[#151515]">
-                      {cat.name}
-                    </span>
-
+                    >
                     <img
                       src={imageMap[cat.iconType]}
                       alt={cat.name}
-                      className="mix-blend-darken h-[85%] w-[38%] shrink-0 object-contain"
+                      className="  h-[85%] w-[38%] shrink-0 object-contain"
                     />
+                    <span className="flex-1  text-center text-xs sm:text-sm font-black text-[#fff]">
+                      {cat.name}
+                    </span>
+
                   </div>
                 )}
               </button>

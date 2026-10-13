@@ -17,7 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSearchClick,
 }) => {
   return (
-    <header className="fixed top-0 z-40 w-full bg-[var(--bg-body)] px-4 pt-4 pb-3 flex flex-col gap-4">
+    <header className="fixed top-0 z-40 w-full max-w-[780px] bg-[var(--bg-body)] px-4 pt-4 pb-3 flex flex-col gap-4">
       {/* Row 1: Location (right) + Bell (left) */}
       <div className="flex items-center justify-between">
         <button
