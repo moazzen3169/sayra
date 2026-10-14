@@ -7,6 +7,9 @@ import { GamecenterDetailHeader } from "@/components/GamecenterDetailHeader";
 import { ExtraControllerModal } from "@/components/ExtraControllerModal";
 import { CartModal, CartItem, DeviceOption } from "@/components/CartModal";
 import { DateTimeModal } from "@/components/DateTimeModal";
+import { AuthModal } from "@/components/AuthModal";
+import { PaymentSuccessModal, ReservationSummaryDetails } from "@/components/PaymentSuccessModal";
+import { useAuth } from "@/context/AuthContext";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 
 const devicesData: DeviceOption[] = [
@@ -76,9 +79,13 @@ export default function GameCenterDetailPage({
 }) {
   const router = useRouter();
   const { id: gameCenterId } = use(params);
+  const { isLoggedIn, login } = useAuth();
 
   // Basket State: list of selected devices with quantity and extra controllers
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+
+  // Pending Reservation details stored during checkout flow
+  const [pendingReservation, setPendingReservation] = useState<ReservationSummaryDetails | null>(null);
 
   // Modals state
   const [pendingConsoleDevice, setPendingConsoleDevice] = useState<DeviceOption | null>(null);
@@ -87,6 +94,8 @@ export default function GameCenterDetailPage({
 
   const [isCartModalOpen, setIsCartModalOpen] = useState<boolean>(false);
   const [isDateTimeModalOpen, setIsDateTimeModalOpen] = useState<boolean>(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isPaymentSuccessModalOpen, setIsPaymentSuccessModalOpen] = useState<boolean>(false);
 
   // Scroll detection for sticky header title
   const [showStickyTitle, setShowStickyTitle] = useState<boolean>(false);
@@ -180,6 +189,7 @@ export default function GameCenterDetailPage({
     setIsDateTimeModalOpen(true);
   };
 
+  // Called when user clicks "تکمیل و ثبت رزرو" in DateTimeModal
   const handleFinalConfirmReservation = (details: {
     selectedDate: { dayName: string; dateStr: string };
     selectedSlots: { timeLabel: string }[];
@@ -198,15 +208,35 @@ export default function GameCenterDetailPage({
       )
       .join("، ");
 
-    const hoursSummary = details.selectedSlots.map((s) => s.timeLabel).join("، ");
+    const hoursSummary = details.selectedSlots.map((s) => s.timeLabel);
 
-    alert(
-      `رزرو نهایی گیمنت کد ${gameCenterId}\n\n` +
-        `دستگاه‌های انتخابی: ${devicesSummary}\n` +
-        `تاریخ: ${details.selectedDate.dayName} (${details.selectedDate.dateStr})\n` +
-        `ساعات انتخاب‌شده (${toPersianDigits(details.totalHours)} ساعت): ${hoursSummary}\n` +
-        `مبلغ کل: ${formatPrice(details.grandTotal)} تومان`
-    );
+    const reservationDetails: ReservationSummaryDetails = {
+      gameCenterTitle: "گیمنت اختصاصی گرگدن",
+      dateStr: details.selectedDate.dateStr,
+      dayName: details.selectedDate.dayName,
+      timeSlots: hoursSummary,
+      totalHours: details.totalHours,
+      grandTotal: details.grandTotal,
+      devicesSummary,
+    };
+
+    setPendingReservation(reservationDetails);
+
+    if (isLoggedIn) {
+      // User is already logged in -> direct payment success message
+      setIsPaymentSuccessModalOpen(true);
+    } else {
+      // User is NOT logged in -> open AuthModal first
+      setIsAuthModalOpen(true);
+    }
+  };
+
+  // Callback when OTP verification completes in AuthModal
+  const handleAuthSuccess = (fullName: string, phone: string) => {
+    login(fullName, phone);
+    setIsAuthModalOpen(false);
+    // Directly & automatically proceed to payment gateway message
+    setIsPaymentSuccessModalOpen(true);
   };
 
   const totalSelectedDevicesCount = cartItems.reduce(
@@ -562,6 +592,24 @@ export default function GameCenterDetailPage({
             : 0
         }
         pricePerController={EXTRA_CONTROLLER_PRICE_PER_HOUR}
+      />
+
+      {/* Auth / Login Modal (Shown if user is not logged in) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
+      />
+
+      {/* Payment Success Modal */}
+      <PaymentSuccessModal
+        isOpen={isPaymentSuccessModalOpen}
+        onClose={() => {
+          setIsPaymentSuccessModalOpen(false);
+          setCartItems([]); // Clear cart upon successful reservation & payment
+          setPendingReservation(null);
+        }}
+        details={pendingReservation}
       />
     </div>
   );

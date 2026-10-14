@@ -100,10 +100,10 @@ function toJalali(gy: number, gm: number, gd: number) {
     jy += Math.floor((days - 1) / 365);
     days = (days - 1) % 365;
   }
-  let jm =
+  const jm =
     days < 186
       ? 1 + Math.floor(days / 31)
       : 7 + Math.floor((days - 186) / 30);
-  let jd = 1 + (days < 186 ? days % 31 : (days - 186) % 30);
+  const jd = 1 + (days < 186 ? days % 31 : (days - 186) % 30);
   return { year: jy, month: jm, day: jd };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 
 interface ExtraControllerModalProps {
@@ -21,12 +21,6 @@ export const ExtraControllerModal: React.FC<ExtraControllerModalProps> = ({
   pricePerController = 30000,
 }) => {
   const [count, setCount] = useState<number>(initialCount);
-
-  useEffect(() => {
-    if (isOpen) {
-      setCount(initialCount);
-    }
-  }, [isOpen, initialCount]);
 
   if (!isOpen) return null;
 
@@ -62,7 +56,7 @@ export const ExtraControllerModal: React.FC<ExtraControllerModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg text-[var(--text-muted)]  flex items-center justify-center text-lg transition-colors"
+            className="w-8 h-8 rounded-lg text-[var(--text-muted)] flex items-center justify-center text-lg transition-colors"
           >
             ✕
           </button>
