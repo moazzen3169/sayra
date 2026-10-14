@@ -4,6 +4,8 @@ import React, { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GamecenterDetailHeader } from "@/components/GamecenterDetailHeader";
 import { StatusBadge } from "@/components/StatusBadge";
+import { AuthModal } from "@/components/AuthModal";
+import { useAuth } from "@/context/AuthContext";
 import { isAbortError } from "@/lib/api/client";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import {
@@ -95,6 +97,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 export default function ReservationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { id } = use(params);
+  const { isLoggedIn, login } = useAuth();
 
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [proposals, setProposals] = useState<ReservationTimeProposal[]>([]);
@@ -107,10 +110,18 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
   const [isCancelling, setIsCancelling] = useState(false);
   const [busyProposalId, setBusyProposalId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   useEffect(() => {
+    if (!isLoggedIn) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     let active = true;
     const controller = new AbortController();
+
     reservationService
       .get(id, controller.signal)
       .then(async (r) => {
@@ -140,7 +151,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
       active = false;
       controller.abort();
     };
-  }, [id, router, reloadToken]);
+  }, [id, router, reloadToken, isLoggedIn]);
 
   const handleCancel = async () => {
     if (isCancelling) return;
@@ -184,6 +195,11 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
     }
   };
 
+  const handleAuthSuccess = (fullName: string, phone: string, token?: string) => {
+    login(fullName, phone, token);
+    setIsAuthModalOpen(false);
+  };
+
   const pendingProposals = proposals.filter((p) => p.status === "PENDING");
   const canCancel = reservation?.status === "PENDING" || reservation?.status === "CONFIRMED";
   const isFailedState = reservation?.status === "CANCELED" || reservation?.status === "NO_SHOW";
@@ -199,8 +215,46 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
       />
 
       <main className="flex-1 flex flex-col gap-4 mt-16 px-4 py-4">
+        {/* Unauthenticated State */}
+        {!isLoggedIn && (
+          <div className="flex flex-col items-center justify-center gap-4 py-16 px-4 text-center">
+            <div className="w-20 h-20 rounded-full bg-[var(--bg-card)] border border-[var(--border-color)] flex items-center justify-center text-[var(--primary)] shadow-lg">
+              <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <div className="flex flex-col gap-2 max-w-sm">
+              <h2 className="text-base font-black text-[var(--text-white)]">
+                مشاهده جزییات رزرو نیازمند ورود است
+              </h2>
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                برای دسترسی به اطلاعات کامل این رزرو و مدیریت آن، ابتدا وارد حساب کاربری شوید.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 w-full max-w-xs mt-2">
+              <button
+                type="button"
+                onClick={() => setIsAuthModalOpen(true)}
+                className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+              >
+                <span>ورود / ثبت‌نام در حساب کاربری</span>
+                <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/reservations")}
+                className="h-10 w-full rounded-card bg-[var(--bg-card)] border border-[var(--border-color)] text-xs font-bold text-[var(--text-white)]"
+              >
+                بازگشت به تاریخچه رزروها
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Loading */}
-        {loading && (
+        {isLoggedIn && loading && (
           <div className="flex flex-col gap-4 animate-pulse">
             <div className="h-40 rounded-card bg-[var(--bg-card)]" />
             <div className="h-24 rounded-card bg-[var(--bg-card)]" />
@@ -209,7 +263,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
         )}
 
         {/* Error */}
-        {!loading && error && (
+        {isLoggedIn && !loading && error && (
           <div className="p-4 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 flex flex-col items-center gap-3 text-center">
             <p className="text-sm font-bold text-[var(--accent-red)]">{error}</p>
             <button
@@ -222,7 +276,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
           </div>
         )}
 
-        {!loading && !error && reservation && (
+        {isLoggedIn && !loading && !error && reservation && (
           <>
             {actionError && (
               <div className="p-3 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold">
@@ -406,6 +460,12 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
           </>
         )}
       </main>
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
+      />
 
       {/* Cancel confirmation */}
       {isCancelConfirmOpen && (

@@ -1,9 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { ACCESS_TOKEN_KEY } from "@/lib/api/config";
+import { authService } from "@/services/authService";
 
 export interface UserProfile {
+  id?: string;
   fullName: string;
   phone: string;
   token?: string;
@@ -11,16 +13,20 @@ export interface UserProfile {
 
 interface AuthContextType {
   isLoggedIn: boolean;
+  isLoading: boolean;
   user: UserProfile | null;
   login: (fullName: string, phone: string, token?: string) => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
+  isLoading: true,
   user: null,
   login: () => {},
   logout: () => {},
+  refreshUser: async () => {},
 });
 
 const AUTH_STORAGE_KEY = "sayra_user_auth";
@@ -32,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem(AUTH_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.fullName && parsed.phone) {
+        if (parsed && (parsed.fullName || parsed.phone)) {
           return parsed;
         }
       }
@@ -42,10 +48,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return null;
   });
 
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => !!user);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    return !!token || !!user;
+  });
+
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const refreshUser = async () => {
+    if (typeof window === "undefined") return;
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const me = await authService.getMe();
+      if (me) {
+        setUser((prev) => {
+          const updated: UserProfile = {
+            id: me.id,
+            fullName: me.fullName || prev?.fullName || "کاربر سایرا",
+            phone: me.phone || prev?.phone || "",
+            token,
+          };
+          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
+          return updated;
+        });
+        setIsLoggedIn(true);
+      }
+    } catch (e: unknown) {
+      // If token is invalid or expired (401), clear session
+      const status = (e as { status?: number })?.status;
+      if (status === 401) {
+        logout();
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshUser();
+  }, []);
 
   const login = (fullName: string, phone: string, token?: string) => {
-    const newUser = { fullName, phone, token };
+    const newUser: UserProfile = { fullName, phone, token };
     setUser(newUser);
     setIsLoggedIn(true);
     try {
@@ -70,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, user, login, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn, isLoading, user, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

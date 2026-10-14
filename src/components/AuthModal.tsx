@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { ACCESS_TOKEN_KEY } from "@/lib/api/config";
 import { toPersianDigits } from "@/lib/format";
-
 import { getErrorMessage } from "@/lib/reservationUi";
 import { authService } from "@/services/authService";
 
@@ -24,6 +24,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [timer, setTimer] = useState(120);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Reset modal state when opened
+  useEffect(() => {
+    if (isOpen) {
+      setStep("info");
+      setError("");
+      setOtpCode(["", "", "", ""]);
+    }
+  }, [isOpen]);
 
   // Countdown timer for OTP
   useEffect(() => {
@@ -68,7 +77,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) {
-      // Handle paste
       const digits = value.replace(/[^\d]/g, "").slice(0, 4).split("");
       const newOtp = [...otpCode];
       digits.forEach((d, i) => {
@@ -83,7 +91,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     newOtp[index] = clean;
     setOtpCode(newOtp);
 
-    // Auto focus next input
     if (clean && index < 3) {
       const nextInput = document.getElementById(`otp-input-${index + 1}`);
       nextInput?.focus();
@@ -111,7 +118,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(true);
     try {
       const res = await authService.verifyOtp(cleanPhone, fullCode);
-      onSuccess(fullName.trim(), cleanPhone, res?.accessToken);
+      const token = res?.accessToken;
+
+      if (token) {
+        try {
+          localStorage.setItem(ACCESS_TOKEN_KEY, token);
+        } catch {
+          // Ignore
+        }
+      }
+
+      let finalFullName = fullName.trim();
+      try {
+        const me = await authService.getMe();
+        if (me && me.fullName) {
+          finalFullName = me.fullName;
+        }
+      } catch {
+        // Fallback to user entered full name
+      }
+
+      onSuccess(finalFullName || "کاربر سایرا", cleanPhone, token);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -174,7 +201,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {step === "info" ? (
           <form onSubmit={handleInfoSubmit} className="flex flex-col gap-4">
             <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-              جهت تکمیل رزرو و دریافت پیامک تایید نوبت، لطفاً اطلاعات زیر را وارد کنید.
+              جهت ورود یا ایجاد حساب کاربری، لطفاً نام و شماره موبایل خود را وارد کنید.
             </p>
 
             {error && (
@@ -286,7 +313,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               disabled={loading}
               className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
             >
-              <span>{loading ? "در حال بررسی..." : "تایید و ثبت رزرو"}</span>
+              <span>{loading ? "در حال بررسی..." : "تایید و ورود"}</span>
               {!loading && (
                 <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
