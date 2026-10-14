@@ -712,6 +712,7 @@ export default function GameCenterDetailPage({
         isOpen={isDateTimeModalOpen}
         onClose={() => setIsDateTimeModalOpen(false)}
         cartItems={cartItems}
+        gamingCenterSlug={gameCenterId}
         onConfirmReservation={handleFinalConfirmReservation}
         extraControllerPricePerHour={EXTRA_CONTROLLER_PRICE_PER_HOUR}
       />

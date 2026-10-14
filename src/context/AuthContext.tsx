@@ -1,16 +1,18 @@
 "use client";
 
 import React, { createContext, useContext, useState } from "react";
+import { ACCESS_TOKEN_KEY } from "@/lib/api/config";
 
 export interface UserProfile {
   fullName: string;
   phone: string;
+  token?: string;
 }
 
 interface AuthContextType {
   isLoggedIn: boolean;
   user: UserProfile | null;
-  login: (fullName: string, phone: string) => void;
+  login: (fullName: string, phone: string, token?: string) => void;
   logout: () => void;
 }
 
@@ -42,12 +44,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => !!user);
 
-  const login = (fullName: string, phone: string) => {
-    const newUser = { fullName, phone };
+  const login = (fullName: string, phone: string, token?: string) => {
+    const newUser = { fullName, phone, token };
     setUser(newUser);
     setIsLoggedIn(true);
     try {
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
+      if (token) {
+        localStorage.setItem(ACCESS_TOKEN_KEY, token);
+      }
     } catch {
       // Ignore storage error
     }
@@ -58,6 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoggedIn(false);
     try {
       localStorage.removeItem(AUTH_STORAGE_KEY);
+      localStorage.removeItem(ACCESS_TOKEN_KEY);
     } catch {
       // Ignore storage error
     }

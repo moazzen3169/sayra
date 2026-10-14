@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { BottomBar } from "@/components/BottomBar";
 import { FirstReservationStrip } from "@/components/FirstReservationStrip";
@@ -15,28 +15,32 @@ export default function ReservationsHistoryPage() {
   const [items, setItems] = useState<Reservation[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ratingTarget, setRatingTarget] = useState<Reservation | null>(null);
-
-  const load = useCallback(async (signal?: AbortSignal) => {
-    setError(null);
-    try {
-      const data = await reservationService.list(signal);
-      setItems(data);
-    } catch (e) {
-      if (isAbortError(e)) return;
-      setError(getErrorMessage(e));
-      setItems([]);
-    }
-  }, []);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
+    let active = true;
     const controller = new AbortController();
-    load(controller.signal);
-    return () => controller.abort();
-  }, [load]);
+    reservationService
+      .list(controller.signal)
+      .then((data) => {
+        if (!active) return;
+        setItems(data);
+        setError(null);
+      })
+      .catch((e) => {
+        if (!active || isAbortError(e)) return;
+        setError(getErrorMessage(e));
+        setItems([]);
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [reloadToken]);
 
   const handleRetry = () => {
     setItems(null);
-    load();
+    setReloadToken((v) => v + 1);
   };
 
   return (
@@ -109,7 +113,7 @@ export default function ReservationsHistoryPage() {
         onClose={() => setRatingTarget(null)}
         onSuccess={() => {
           setRatingTarget(null);
-          load();
+          setReloadToken((v) => v + 1);
         }}
       />
 
