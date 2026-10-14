@@ -348,8 +348,8 @@ export default function GameCenterDetailPage({
   };
 
   // Callback when OTP verification completes in AuthModal
-  const handleAuthSuccess = (fullName: string, phone: string) => {
-    login(fullName, phone);
+  const handleAuthSuccess = (fullName: string, phone: string, token?: string) => {
+    login(fullName, phone, token);
     setIsAuthModalOpen(false);
     if (pendingBooking) {
       finalizeReservation(pendingBooking, { fullName, phone });

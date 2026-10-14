@@ -26,12 +26,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [loading, setLoading] = useState(false);
 
   // Reset modal state when opened
+  const prevIsOpenRef = React.useRef(isOpen);
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpenRef.current) {
       setStep("info");
       setError("");
       setOtpCode(["", "", "", ""]);
     }
+    prevIsOpenRef.current = isOpen;
   }, [isOpen]);
 
   // Countdown timer for OTP
