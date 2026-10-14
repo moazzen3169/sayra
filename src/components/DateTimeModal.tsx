@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { generateTenDays, DateOption } from "@/lib/dates";
 import { generateHourlySlots, TimeSlotOption } from "@/lib/slots";
 import { formatPrice, toPersianDigits } from "@/lib/format";
@@ -32,7 +32,16 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
   const [timeSlots] = useState<TimeSlotOption[]>(() => generateHourlySlots());
   const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>(["slot-14", "slot-15"]);
 
+  const dateListRef = useRef<HTMLDivElement>(null);
+
   if (!isOpen) return null;
+
+  const scrollDates = (direction: "left" | "right") => {
+    if (dateListRef.current) {
+      const scrollAmount = direction === "right" ? -180 : 180;
+      dateListRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+    }
+  };
 
   const handleToggleSlot = (slotId: string) => {
     setSelectedSlotIds((prev) => {
@@ -68,9 +77,12 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end  justify-center bg-black/75 backdrop-blur-sm animate-fadeIn">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-sm animate-fadeIn"
+      onClick={onClose}
+    >
       <div
-        className="w-full max-w-[780px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card p-4 sm:p-5 flex justify-between flex-col  gap-4 h-[95vh] shadow-2xl relative overflow-hidden"
+        className="w-full max-w-[780px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card p-4 sm:p-5 flex justify-between flex-col gap-4 max-h-[92vh] shadow-2xl relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -86,19 +98,19 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg text-[var(--text-muted)]  flex items-center justify-center text-lg transition-colors"
+            className="w-8 h-8 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-white)] flex items-center justify-center text-lg transition-colors"
           >
             ✕
           </button>
         </div>
 
-        <div className="flex flex-col gap-5 overflow-y-auto  pr-1 scrollbar-thin">
+        <div className="flex flex-col gap-5 overflow-y-auto pr-0.5">
           {/* Reservation Summary Brief */}
-          <div className=" flex flex-col gap-1.5 text-xs">
+          <div className="flex flex-col gap-1.5 text-xs">
             <div className="font-extrabold text-[var(--primary)]">خلاصه رزرو شما:</div>
             <div className="flex flex-wrap gap-2 text-[var(--text-white)]">
               {cartItems.map((item) => (
-                <span key={item.device.id} className="bg-[var(--bg-body)] px-2 py-1 rounded-lg border border-[var(--border-subtle)]">
+                <span key={item.device.id} className="bg-[var(--bg-body)] px-2.5 py-1 rounded-lg border border-[var(--border-subtle)] text-xs">
                   {toPersianDigits(item.quantity)}× {item.device.name}
                   {item.extraControllersCount > 0 ? ` (+${toPersianDigits(item.extraControllersCount)} دسته)` : ""}
                 </span>
@@ -108,10 +120,38 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
 
           {/* Date Selection */}
           <div className="flex flex-col gap-2.5">
-            <h4 className="text-sm font-extrabold text-[var(--text-white)]">
-              ۱. انتخاب روز رزرو
-            </h4>
-            <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-none">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-extrabold text-[var(--text-white)]">
+                ۱. انتخاب روز رزرو
+              </h4>
+              <div className="flex items-center gap-1 bg-[var(--foreground)]/30 rounded-lg p-0.5 border border-[var(--border-subtle)]">
+                <button
+                  type="button"
+                  onClick={() => scrollDates("right")}
+                  className="w-6 h-6 rounded bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
+                  title="روز قبلی"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollDates("left")}
+                  className="w-6 h-6 rounded bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
+                  title="روز بعدی"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div
+              ref={dateListRef}
+              className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none scroll-smooth"
+            >
               {dateOptions.map((dateObj) => {
                 const isSelected = selectedDateId === dateObj.id;
                 return (
