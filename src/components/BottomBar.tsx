@@ -1,4 +1,7 @@
+"use client";
+
 import React from "react";
+import { useRouter } from "next/navigation";
 
 export type TabType = "home" | "history" | "profile";
 
@@ -6,6 +9,12 @@ interface BottomBarProps {
   activeTab?: TabType;
   onTabChange?: (tab: TabType) => void;
 }
+
+/** مسیر هر تب؛ تب‌هایی که صفحه ندارند اینجا نیستند */
+const TAB_ROUTES: Partial<Record<TabType, string>> = {
+  home: "/",
+  history: "/reservations",
+};
 
 const iconProps = {
   className: "w-6 h-6",
@@ -50,6 +59,14 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
 ];
 
 export const BottomBar: React.FC<BottomBarProps> = ({ activeTab = "home", onTabChange }) => {
+  const router = useRouter();
+
+  const handleClick = (tab: TabType) => {
+    onTabChange?.(tab);
+    const route = TAB_ROUTES[tab];
+    if (route && tab !== activeTab) router.push(route);
+  };
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
       <div className="w-full max-w-[780px] bg-[var(--bg-card)] border-t border-[var(--border-subtle)] px-6 pt-3 pb-4 flex items-center justify-around pointer-events-auto">
@@ -59,7 +76,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({ activeTab = "home", onTabC
             <button
               key={tab.id}
               type="button"
-              onClick={() => onTabChange?.(tab.id)}
+              onClick={() => handleClick(tab.id)}
               aria-current={isActive ? "page" : undefined}
               className={`flex flex-col items-center gap-1.5 min-w-20 transition-colors ${
                 isActive ? "text-[var(--primary)]" : "text-[var(--text-white)]"

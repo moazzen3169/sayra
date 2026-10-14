@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
+import { useRouter } from "next/navigation";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 
 export interface ReservationSummaryDetails {
+  /** شناسه رزرو ساخته‌شده توسط Backend؛ برای ریدایرکت به صفحه جزئیات */
+  reservationId?: string;
   gameCenterTitle?: string;
   dateStr?: string;
   dayName?: string;
@@ -11,6 +14,7 @@ export interface ReservationSummaryDetails {
   totalHours?: number;
   grandTotal?: number;
   devicesSummary?: string;
+  /** فقط در صورتی که Backend کد قابل نمایش بدهد */
   trackingCode?: string;
 }
 
@@ -25,13 +29,17 @@ export const PaymentSuccessModal: React.FC<PaymentSuccessModalProps> = ({
   onClose,
   details,
 }) => {
-  const [defaultTrackingCode] = useState<string>(() =>
-    Math.floor(100000 + Math.random() * 900000).toString()
-  );
+  const router = useRouter();
 
   if (!isOpen) return null;
 
-  const trackingCode = details?.trackingCode || defaultTrackingCode;
+  const handleViewDetails = () => {
+    const target = details?.reservationId
+      ? `/reservations/${encodeURIComponent(details.reservationId)}`
+      : "/reservations";
+    onClose();
+    router.push(target);
+  };
 
   return (
     <div
@@ -61,12 +69,14 @@ export const PaymentSuccessModal: React.FC<PaymentSuccessModalProps> = ({
 
         {/* Reservation Receipt Card */}
         <div className="w-full bg-[var(--foreground)]/30 rounded-card p-4 border border-[var(--border-subtle)] flex flex-col gap-3 text-right text-xs">
-          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5">
-            <span className="text-[var(--text-muted)]">کد پیگیری رزرو:</span>
-            <span className="font-mono font-black text-sm text-[var(--primary)]">
-              {toPersianDigits(trackingCode)}
-            </span>
-          </div>
+          {details?.trackingCode && (
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5">
+              <span className="text-[var(--text-muted)]">کد پیگیری رزرو:</span>
+              <span className="font-mono font-black text-sm text-[var(--primary)]">
+                {toPersianDigits(details.trackingCode)}
+              </span>
+            </div>
+          )}
 
           {details?.gameCenterTitle && (
             <div className="flex items-center justify-between">
@@ -113,13 +123,13 @@ export const PaymentSuccessModal: React.FC<PaymentSuccessModalProps> = ({
           )}
         </div>
 
-        {/* Close / Action Button */}
+        {/* Action Button */}
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleViewDetails}
           className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
         >
-          <span>متوجه شدم (بازگشت)</span>
+          <span>مشاهده جزئیات رزرو</span>
         </button>
       </div>
     </div>

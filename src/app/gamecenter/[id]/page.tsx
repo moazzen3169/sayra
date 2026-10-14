@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, useRef, use } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { GamecenterDetailHeader } from "@/components/GamecenterDetailHeader";
@@ -11,6 +11,8 @@ import { AuthModal } from "@/components/AuthModal";
 import { PaymentSuccessModal, ReservationSummaryDetails } from "@/components/PaymentSuccessModal";
 import { useAuth } from "@/context/AuthContext";
 import { formatPrice, toPersianDigits } from "@/lib/format";
+import { getErrorMessage } from "@/lib/reservationUi";
+import { reservationService } from "@/services/reservationService";
 
 const devicesData: DeviceOption[] = [
   {
@@ -72,6 +74,52 @@ const reviewsData = [
 
 const EXTRA_CONTROLLER_PRICE_PER_HOUR = 30000;
 
+/* ---------- Helpers ---------- */
+
+/** خروجی DateTimeModal که برای ساخت رزرو لازم است */
+interface ConfirmDetails {
+  selectedDate: { id: string; dayName: string; dateStr: string };
+  selectedSlots: { timeLabel: string; startHour: number }[];
+  totalHours: number;
+  grandTotal: number;
+}
+
+/** اطلاعات یک تلاش ثبت رزرو؛ بین مرحله ورود و ساخت رزرو نگه داشته می‌شود */
+interface PendingBooking {
+  idempotencyKey: string;
+  startTime: string;
+  totalHours: number;
+  grandTotal: number;
+  station: { id: string; name: string; stationType: string; hourlyPrice: number };
+  summary: ReservationSummaryDetails;
+}
+
+function createIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+/** نگاشت موقت نوع دستگاه Mock به enum بک‌اند */
+function toStationType(device: DeviceOption): string {
+  if (device.type === "PS5" || device.type === "PS4") return "PLAYSTATION";
+  if (device.type === "Xbox") return "XBOX";
+  return "PC";
+}
+
+/**
+ * ساخت زمان شروع از روز انتخابی ("day-N") و ساعت اولین اسلات.
+ * موقت است تا زمانی که اسلات‌ها مستقیم از Availability API بیایند.
+ */
+function buildStartTime(dateId: string, startHour: number): string {
+  const offset = Number(dateId.replace("day-", "")) || 0;
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  d.setHours(startHour, 0, 0, 0);
+  return d.toISOString();
+}
+
 export default function GameCenterDetailPage({
   params,
 }: {
@@ -79,13 +127,19 @@ export default function GameCenterDetailPage({
 }) {
   const router = useRouter();
   const { id: gameCenterId } = use(params);
-  const { isLoggedIn, login } = useAuth();
+  const { isLoggedIn, user, login } = useAuth();
 
   // Basket State: list of selected devices with quantity and extra controllers
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   // Pending Reservation details stored during checkout flow
   const [pendingReservation, setPendingReservation] = useState<ReservationSummaryDetails | null>(null);
+  const [pendingBooking, setPendingBooking] = useState<PendingBooking | null>(null);
+
+  // Booking submit state
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+  const submittingRef = useRef<boolean>(false);
 
   // Modals state
   const [pendingConsoleDevice, setPendingConsoleDevice] = useState<DeviceOption | null>(null);
@@ -189,14 +243,62 @@ export default function GameCenterDetailPage({
     setIsDateTimeModalOpen(true);
   };
 
+  /**
+   * ساخت رزرو در Backend و نمایش مودال موفقیت با reservationId.
+   * TODO: در جریان واقعی، بعد از ساخت رزرو باید Payment Init انجام شود و مودال موفقیت
+   * فقط بعد از تأیید پرداخت توسط Backend نمایش داده شود.
+   */
+  const finalizeReservation = async (
+    booking: PendingBooking,
+    customer: { fullName: string; phone: string }
+  ) => {
+    if (submittingRef.current) return; // جلوگیری از Submit تکراری
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    setBookingError(null);
+
+    try {
+      const created = await reservationService.create(
+        {
+          gamingCenterSlug: gameCenterId,
+          idempotencyKey: booking.idempotencyKey,
+          stationId: booking.station.id,
+          startTime: booking.startTime,
+          customer,
+        },
+        {
+          gamingCenterName: booking.summary.gameCenterTitle,
+          gamingCenterAddress: "تبریز، ولیعصر، بعد از میدان معلم، روبروی کتابخانه عمومی",
+          stationName: booking.summary.devicesSummary ?? booking.station.name,
+          stationType: booking.station.stationType,
+          hourlyPrice: booking.station.hourlyPrice,
+          totalHours: booking.totalHours,
+          totalPrice: booking.grandTotal,
+        }
+      );
+
+      setPendingReservation({
+        ...booking.summary,
+        reservationId: created.id,
+        trackingCode: created.reservationCode,
+      });
+      setPendingBooking(null);
+      setIsPaymentSuccessModalOpen(true);
+    } catch (e) {
+      setBookingError(getErrorMessage(e));
+    } finally {
+      submittingRef.current = false;
+      setIsSubmitting(false);
+    }
+  };
+
   // Called when user clicks "تکمیل و ثبت رزرو" in DateTimeModal
-  const handleFinalConfirmReservation = (details: {
-    selectedDate: { dayName: string; dateStr: string };
-    selectedSlots: { timeLabel: string }[];
-    totalHours: number;
-    grandTotal: number;
-  }) => {
+  const handleFinalConfirmReservation = (details: ConfirmDetails) => {
     setIsDateTimeModalOpen(false);
+
+    const firstItem = cartItems[0];
+    const firstSlot = details.selectedSlots[0];
+    if (!firstItem || !firstSlot) return;
 
     const devicesSummary = cartItems
       .map(
@@ -210,23 +312,37 @@ export default function GameCenterDetailPage({
 
     const hoursSummary = details.selectedSlots.map((s) => s.timeLabel);
 
-    const reservationDetails: ReservationSummaryDetails = {
-      gameCenterTitle: "گیمنت اختصاصی گرگدن",
-      dateStr: details.selectedDate.dateStr,
-      dayName: details.selectedDate.dayName,
-      timeSlots: hoursSummary,
+    const booking: PendingBooking = {
+      idempotencyKey: createIdempotencyKey(),
+      startTime: buildStartTime(details.selectedDate.id, firstSlot.startHour),
       totalHours: details.totalHours,
       grandTotal: details.grandTotal,
-      devicesSummary,
+      // توجه: API فعلی هر رزرو را فقط برای یک Station می‌پذیرد.
+      // سبد چنددستگاهی نیاز به تصمیم محصولی دارد؛ فعلاً اولین دستگاه ارسال می‌شود.
+      station: {
+        id: firstItem.device.id, // TODO: stationId واقعی از Backend
+        name: firstItem.device.name,
+        stationType: toStationType(firstItem.device),
+        hourlyPrice: firstItem.device.pricePerHour,
+      },
+      summary: {
+        gameCenterTitle: "گیمنت اختصاصی گرگدن",
+        dateStr: details.selectedDate.dateStr,
+        dayName: details.selectedDate.dayName,
+        timeSlots: hoursSummary,
+        totalHours: details.totalHours,
+        grandTotal: details.grandTotal,
+        devicesSummary,
+      },
     };
 
-    setPendingReservation(reservationDetails);
+    setPendingBooking(booking);
 
-    if (isLoggedIn) {
-      // User is already logged in -> direct payment success message
-      setIsPaymentSuccessModalOpen(true);
+    if (isLoggedIn && user) {
+      // کاربر وارد شده است -> مستقیم رزرو ساخته می‌شود
+      finalizeReservation(booking, { fullName: user.fullName, phone: user.phone });
     } else {
-      // User is NOT logged in -> open AuthModal first
+      // کاربر وارد نشده -> ابتدا ورود
       setIsAuthModalOpen(true);
     }
   };
@@ -235,8 +351,9 @@ export default function GameCenterDetailPage({
   const handleAuthSuccess = (fullName: string, phone: string) => {
     login(fullName, phone);
     setIsAuthModalOpen(false);
-    // Directly & automatically proceed to payment gateway message
-    setIsPaymentSuccessModalOpen(true);
+    if (pendingBooking) {
+      finalizeReservation(pendingBooking, { fullName, phone });
+    }
   };
 
   const totalSelectedDevicesCount = cartItems.reduce(
@@ -255,6 +372,33 @@ export default function GameCenterDetailPage({
         onNotificationClick={() => alert("اعلانات سایرا")}
         unreadNotificationsCount={2}
       />
+
+      {/* Booking error banner */}
+      {bookingError && (
+        <div className="fixed top-16 left-0 right-0 z-[45] flex justify-center px-4 pt-3 pointer-events-none">
+          <div className="w-full max-w-[780px] pointer-events-auto p-3 rounded-card bg-[var(--bg-card)] border border-[var(--accent-red)]/50 text-[var(--accent-red)] text-xs font-bold flex items-start justify-between gap-3 shadow-2xl">
+            <span className="leading-relaxed">{bookingError}</span>
+            <button
+              type="button"
+              onClick={() => setBookingError(null)}
+              className="shrink-0 text-[var(--text-muted)] text-base leading-none"
+              aria-label="بستن"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Submitting overlay */}
+      {isSubmitting && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="px-5 py-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-color)] text-sm font-bold text-[var(--text-white)] flex items-center gap-3">
+            <span className="w-4 h-4 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" />
+            <span>در حال ثبت رزرو...</span>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 flex flex-col gap-5 mt-16">
         {/* Cover Image */}

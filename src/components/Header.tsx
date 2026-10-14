@@ -66,8 +66,7 @@ export const Header: React.FC<HeaderProps> = ({
         className="w-full h-12 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] px-4 flex items-center gap-2 text-sm text-[var(--text-white)] text-right"
       >
         <span>جستجو در</span>
-        {/* TODO: جایگزینی با لوگوی SVG سایرا */}
-        <span className="font-black text-lg leading-none text-[var(--primary)]">سایرا</span>
+        <img src="/design/sayra.svg" alt="سایرا" className="h-5 w-auto" />
         <svg
           className="w-5 h-5 text-[var(--text-muted)] mr-auto"
           fill="none"
