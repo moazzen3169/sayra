@@ -114,11 +114,9 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
 
   useEffect(() => {
     if (!isLoggedIn) {
-      setLoading(false);
       return;
     }
 
-    setLoading(true);
     let active = true;
     const controller = new AbortController();
 

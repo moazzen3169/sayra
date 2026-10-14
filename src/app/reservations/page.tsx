@@ -14,7 +14,7 @@ import { reservationService } from "@/services/reservationService";
 import type { Reservation } from "@/types/reservation";
 
 export default function ReservationsHistoryPage() {
-  const { isLoggedIn, login } = useAuth();
+  const { isLoggedIn, isLoading: isAuthLoading, login } = useAuth();
   const [items, setItems] = useState<Reservation[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ratingTarget, setRatingTarget] = useState<Reservation | null>(null);
@@ -22,10 +22,8 @@ export default function ReservationsHistoryPage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   useEffect(() => {
-    // Only fetch history if the user is authenticated
+    // Only fetch history if the user is authenticated and auth initialization finished
     if (!isLoggedIn) {
-      setItems(null);
-      setError(null);
       return;
     }
 
@@ -70,8 +68,25 @@ export default function ReservationsHistoryPage() {
           <FirstReservationStrip />
         </div>
 
+        {/* Loading State (Auth initializing or items fetching) */}
+        {(isAuthLoading || (isLoggedIn && items === null)) && (
+          <div className="flex flex-col">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="px-4 py-5 flex flex-col gap-3.5 border-b border-[var(--border-color)] animate-pulse">
+                <div className="flex justify-between">
+                  <div className="h-5 w-32 rounded-child bg-[var(--bg-card)]" />
+                  <div className="h-5 w-16 rounded-child bg-[var(--bg-card)]" />
+                </div>
+                <div className="h-4 w-full rounded-child bg-[var(--bg-card)]" />
+                <div className="h-12 w-full rounded-card bg-[var(--bg-card)]" />
+                <div className="h-12 w-full rounded-card bg-[var(--bg-card)]" />
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Unauthenticated State */}
-        {!isLoggedIn && (
+        {!isAuthLoading && !isLoggedIn && (
           <div className="flex flex-col items-center justify-center gap-4 py-16 px-6 text-center">
             <div className="w-20 h-20 rounded-full bg-[var(--bg-card)] border border-[var(--border-color)] flex items-center justify-center text-[var(--primary)] shadow-lg">
               <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -96,23 +111,6 @@ export default function ReservationsHistoryPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
             </button>
-          </div>
-        )}
-
-        {/* Loading State (Logged In) */}
-        {isLoggedIn && items === null && (
-          <div className="flex flex-col">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="px-4 py-5 flex flex-col gap-3.5 border-b border-[var(--border-color)] animate-pulse">
-                <div className="flex justify-between">
-                  <div className="h-5 w-32 rounded-child bg-[var(--bg-card)]" />
-                  <div className="h-5 w-16 rounded-child bg-[var(--bg-card)]" />
-                </div>
-                <div className="h-4 w-full rounded-child bg-[var(--bg-card)]" />
-                <div className="h-12 w-full rounded-card bg-[var(--bg-card)]" />
-                <div className="h-12 w-full rounded-card bg-[var(--bg-card)]" />
-              </div>
-            ))}
           </div>
         )}
 
