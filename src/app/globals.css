@@ -129,21 +129,25 @@ body {
   overflow-x: hidden;
 }
 
-/* Scrollbar styling */
+/* Hide scrollbars globally across all browsers */
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
 ::-webkit-scrollbar {
-  width: 0px;
-  height: 0px;
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+  background: transparent !important;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-body);
+  display: none !important;
+  background: transparent !important;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--foreground);
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  display: none !important;
+  background: transparent !important;
 }

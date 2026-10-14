@@ -78,7 +78,6 @@ export default function GameCenterDetailPage({
   const { id: gameCenterId } = use(params);
 
   // Basket State: list of selected devices with quantity and extra controllers
-  // Initially empty as requested
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   // Modals state
@@ -109,6 +108,7 @@ export default function GameCenterDetailPage({
     const existing = cartItems.find((item) => item.device.id === dev.id);
 
     if (existing) {
+      // If already in cart, open cart modal for minimal checkout/view
       setIsCartModalOpen(true);
     } else {
       if (dev.isConsole) {
@@ -316,16 +316,16 @@ export default function GameCenterDetailPage({
         </div>
 
         {/* Section Divider */}
-        <div className=" " />
+        <div className="border-t border-[var(--border-subtle)] my-1" />
 
         {/* Device Selection & Quantity */}
         <div className="px-4 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-extrabold text-[var(--text-white)]">
-              انتخاب دستگاه‌ها
+              دستگاه‌های موجود جهت رزرو
             </h2>
             <span className="text-xs text-[var(--text-muted)]">
-              امکان انتخاب چندین نوع دستگاه
+              تعداد و نوع دستگاه را انتخاب کنید
             </span>
           </div>
 
@@ -338,26 +338,26 @@ export default function GameCenterDetailPage({
                 <div
                   key={dev.id}
                   onClick={() => handleSelectOrAddDevice(dev)}
-                  className={`relative w-full rounded-card p-3 bg-[var(--bg-card)] border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                  className={`relative w-full rounded-card p-3.5 bg-[var(--bg-card)] border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
                     isSelected
                       ? "border-[var(--primary)] shadow-[0_0_15px_rgba(255,255,61,0.12)]"
                       : "border-[var(--border-subtle)] hover:border-[var(--border-color)]"
                   }`}
                 >
-                  <div className="flex flex-col gap-1.5 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-black text-[var(--text-white)]">
+                  <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-extrabold text-[var(--text-white)]">
                         {dev.name}
                       </span>
                       {isSelected && (
-                        <span className="px-2 py-0.5 text-primary text-[10px] font-black">
-                          انتخاب شده
+                        <span className="px-2 py-0.5 rounded-full bg-[var(--primary)] text-[#101014] text-[10px] font-black">
+                          انتخاب شده ({toPersianDigits(cartItem.quantity)} عدد)
                         </span>
                       )}
                     </div>
 
                     <div className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
-                      <span>قیمت هر ساعت:</span>
+                      <span>ساعتی:</span>
                       <span className="font-extrabold text-[var(--primary)]">
                         {formatPrice(dev.pricePerHour)}
                       </span>
@@ -368,7 +368,7 @@ export default function GameCenterDetailPage({
                     {isSelected &&
                       dev.isConsole &&
                       cartItem.extraControllersCount > 0 && (
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mt-0.5">
                           <span className="px-2 py-0.5 rounded-lg bg-[var(--foreground)] text-[var(--primary)] text-[11px] font-bold border border-[var(--primary)]/30">
                             +{toPersianDigits(cartItem.extraControllersCount)} دسته اضافه
                           </span>
@@ -391,7 +391,9 @@ export default function GameCenterDetailPage({
                         onClick={(e) => e.stopPropagation()}
                         className="mt-2 flex items-center gap-3 pt-2 border-t border-[var(--border-subtle)]"
                       >
-
+                        <span className="text-xs font-bold text-[var(--text-white)]">
+                          تعداد:
+                        </span>
                         <div className="flex items-center gap-2 bg-[var(--foreground)]/60 rounded-card p-1 border border-[var(--border-color)]">
                           <button
                             type="button"
@@ -413,16 +415,25 @@ export default function GameCenterDetailPage({
                           </button>
                         </div>
 
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(dev.id)}
+                          className="mr-auto text-[11px] text-[var(--accent-red)] hover:underline font-bold"
+                        >
+                          حذف
+                        </button>
                       </div>
                     ) : (
                       <div className="mt-1">
-
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--primary)] hover:underline">
+                          + انتخاب جهت رزرو
+                        </span>
                       </div>
                     )}
                   </div>
 
                   {/* Device Image */}
-                  <div className="relative w-20 h-20 shrink-0 bg-[var(--foreground)]/40 rounded-child overflow-hidden flex items-center justify-center border border-[var(--border-subtle)]">
+                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-[var(--foreground)]/40 rounded-child overflow-hidden flex items-center justify-center border border-[var(--border-subtle)]">
                     <Image
                       src={dev.image}
                       alt={dev.name}
@@ -438,7 +449,7 @@ export default function GameCenterDetailPage({
         </div>
 
         {/* Section Divider */}
-        <div className=" " />
+        <div className="border-t border-[var(--border-subtle)] my-1" />
 
         {/* User Reviews Section */}
         <div className="px-4 flex flex-col gap-3">
@@ -483,7 +494,6 @@ export default function GameCenterDetailPage({
       </main>
 
       {/* Fixed Bottom Reservation Action Bar: ONLY displayed when at least one device is selected */}
-      {/* Without price or extra info, only one button to view reservation basket */}
       {totalSelectedDevicesCount > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pointer-events-none">
           <div className="w-full max-w-[780px] bg-[var(--bg-card)]/95 backdrop-blur-md border-t border-[var(--border-color)] px-4 py-3 flex items-center justify-center pointer-events-auto shadow-2xl">
@@ -492,8 +502,20 @@ export default function GameCenterDetailPage({
               onClick={() => setIsCartModalOpen(true)}
               className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
             >
-              <span>مشاهده سبد رزرو </span>
-
+              <span>مشاهده و تایید سبد رزرو ({toPersianDigits(totalSelectedDevicesCount)} دستگاه)</span>
+              <svg
+                className="w-4 h-4 transform rotate-180"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M14 5l7 7m0 0l-7 7m7-7H3"
+                />
+              </svg>
             </button>
           </div>
         </div>
