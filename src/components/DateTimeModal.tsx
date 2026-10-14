@@ -1,15 +1,18 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { generateTenDays, DateOption } from "@/lib/dates";
 import { generateHourlySlots, TimeSlotOption } from "@/lib/slots";
 import { formatPrice, toPersianDigits } from "@/lib/format";
+import { formatClock } from "@/lib/reservationUi";
+import { gamingCenterService } from "@/services/gamingCenterService";
 import { CartItem } from "./CartModal";
 
 interface DateTimeModalProps {
   isOpen: boolean;
   onClose: () => void;
   cartItems: CartItem[];
+  gamingCenterSlug?: string;
   onConfirmReservation: (details: {
     selectedDate: DateOption;
     selectedSlots: TimeSlotOption[];
@@ -23,16 +26,56 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
   isOpen,
   onClose,
   cartItems,
+  gamingCenterSlug,
   onConfirmReservation,
   extraControllerPricePerHour = 30000,
 }) => {
   const [dateOptions] = useState<DateOption[]>(() => generateTenDays());
   const [selectedDateId, setSelectedDateId] = useState<string>("day-0");
 
-  const [timeSlots] = useState<TimeSlotOption[]>(() => generateHourlySlots());
+  const [defaultTimeSlots] = useState<TimeSlotOption[]>(() => generateHourlySlots());
+  const [apiSlots, setApiSlots] = useState<TimeSlotOption[] | null>(null);
   const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>(["slot-14", "slot-15"]);
 
   const dateListRef = useRef<HTMLDivElement>(null);
+
+  const selectedDateObj = dateOptions.find((d) => d.id === selectedDateId) || dateOptions[0];
+  const stationId = cartItems[0]?.device.id;
+
+  useEffect(() => {
+    let isCancelled = false;
+    if (isOpen && gamingCenterSlug && selectedDateObj?.fullDate) {
+      gamingCenterService
+        .getAvailabilitySlots(gamingCenterSlug, selectedDateObj.fullDate, stationId)
+        .then((rawSlots) => {
+          if (isCancelled) return;
+          if (rawSlots && rawSlots.length > 0) {
+            const mapped: TimeSlotOption[] = rawSlots.map((s, idx) => {
+              const startH = s.startTime ? new Date(s.startTime).getHours() : idx;
+              const endH = s.endTime ? new Date(s.endTime).getHours() : startH + 1;
+              const label =
+                s.startTime && s.endTime
+                  ? `${formatClock(s.startTime, true)} تا ${formatClock(s.endTime, true)}`
+                  : `ساعت ${toPersianDigits(startH)} تا ${toPersianDigits(endH)}`;
+              const isAvail = s.isAvailable !== false && s.status !== "UNAVAILABLE";
+              return {
+                id: `slot-${startH}`,
+                timeLabel: label,
+                startHour: startH,
+                isAvailable: isAvail,
+              };
+            });
+            setApiSlots(mapped);
+          }
+        })
+        .catch(() => {});
+    }
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, gamingCenterSlug, selectedDateObj?.fullDate, stationId]);
+
+  const timeSlots = apiSlots || defaultTimeSlots;
 
   if (!isOpen) return null;
 
@@ -64,7 +107,6 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
 
   const grandTotal = totalPricePerHour * totalHours;
 
-  const selectedDateObj = dateOptions.find((d) => d.id === selectedDateId) || dateOptions[0];
   const selectedSlots = timeSlots.filter((s) => selectedSlotIds.includes(s.id));
 
   const handleFinalConfirm = () => {

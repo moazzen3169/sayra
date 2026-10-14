@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use, useCallback, useEffect, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GamecenterDetailHeader } from "@/components/GamecenterDetailHeader";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -101,17 +101,20 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [busyProposalId, setBusyProposalId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const load = useCallback(
-    async (signal?: AbortSignal) => {
-      try {
-        const r = await reservationService.get(id, signal);
-        // جزئیات برای رزروهای «تکمیل شده» نمایش داده نمی‌شود
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    reservationService
+      .get(id, controller.signal)
+      .then(async (r) => {
+        if (!active) return;
         if (r.status === "COMPLETED") {
           router.replace("/reservations");
           return;
@@ -119,25 +122,25 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
         setReservation(r);
         setError(null);
         try {
-          setProposals(await reservationService.listProposals(id, signal));
+          const props = await reservationService.listProposals(id, controller.signal);
+          if (active) setProposals(props);
         } catch {
-          setProposals([]);
+          if (active) setProposals([]);
         }
-      } catch (e) {
-        if (isAbortError(e)) return;
+      })
+      .catch((e) => {
+        if (!active || isAbortError(e)) return;
         setError(getErrorMessage(e));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [id, router]
-  );
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-  useEffect(() => {
-    const controller = new AbortController();
-    load(controller.signal);
-    return () => controller.abort();
-  }, [load]);
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [id, router, reloadToken]);
 
   const handleCancel = async () => {
     if (isCancelling) return;
@@ -146,7 +149,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
     try {
       await reservationService.cancel(id);
       setIsCancelConfirmOpen(false);
-      await load(); // وضعیت جدید از Backend
+      setReloadToken((v) => v + 1);
     } catch (e) {
       setActionError(getErrorMessage(e));
       setIsCancelConfirmOpen(false);
@@ -162,7 +165,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
     try {
       if (action === "accept") await reservationService.acceptProposal(id, proposalId);
       else await reservationService.rejectProposal(id, proposalId);
-      await load();
+      setReloadToken((v) => v + 1);
     } catch (e) {
       setActionError(getErrorMessage(e));
     } finally {

@@ -3,10 +3,13 @@
 import React, { useState, useEffect } from "react";
 import { toPersianDigits } from "@/lib/format";
 
+import { getErrorMessage } from "@/lib/reservationUi";
+import { authService } from "@/services/authService";
+
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (fullName: string, phone: string) => void;
+  onSuccess: (fullName: string, phone: string, token?: string) => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -20,6 +23,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [otpCode, setOtpCode] = useState(["", "", "", ""]);
   const [timer, setTimer] = useState(120);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   // Countdown timer for OTP
   useEffect(() => {
@@ -34,7 +38,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleInfoSubmit = (e: React.FormEvent) => {
+  const handleInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -49,10 +53,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    // Move to OTP step
-    setStep("otp");
-    setTimer(120);
-    setOtpCode(["", "", "", ""]);
+    setLoading(true);
+    try {
+      await authService.requestOtp(cleanPhone);
+      setStep("otp");
+      setTimer(120);
+      setOtpCode(["", "", "", ""]);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -86,7 +97,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -96,8 +107,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    // OTP validated successfully -> submit success
-    onSuccess(fullName.trim(), phone.trim());
+    const cleanPhone = phone.trim().replace(/[^\d]/g, "");
+    setLoading(true);
+    try {
+      const res = await authService.verifyOtp(cleanPhone, fullCode);
+      onSuccess(fullName.trim(), cleanPhone, res?.accessToken);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatTimer = (seconds: number) => {
@@ -106,10 +125,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     return `${toPersianDigits(mins)}:${secs < 10 ? "۰" : ""}${toPersianDigits(secs)}`;
   };
 
-  const handleResendCode = () => {
-    setTimer(120);
-    setOtpCode(["", "", "", ""]);
+  const handleResendCode = async () => {
     setError("");
+    const cleanPhone = phone.trim().replace(/[^\d]/g, "");
+    setLoading(true);
+    try {
+      await authService.requestOtp(cleanPhone);
+      setTimer(120);
+      setOtpCode(["", "", "", ""]);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -184,12 +212,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <button
               type="submit"
-              className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+              disabled={loading}
+              className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
             >
-              <span>ارسال کد تایید</span>
-              <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
+              <span>{loading ? "در حال ارسال..." : "ارسال کد تایید"}</span>
+              {!loading && (
+                <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              )}
             </button>
           </form>
         ) : (
@@ -252,12 +283,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <button
               type="submit"
-              className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+              disabled={loading}
+              className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
             >
-              <span>تایید و انتقال به درگاه پرداخت</span>
-              <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
+              <span>{loading ? "در حال بررسی..." : "تایید و ثبت رزرو"}</span>
+              {!loading && (
+                <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              )}
             </button>
           </form>
         )}
