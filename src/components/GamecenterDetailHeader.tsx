@@ -28,7 +28,7 @@ export const GamecenterDetailHeader: React.FC<GamecenterDetailHeaderProps> = ({
             type="button"
             onClick={onBackClick}
             aria-label="بازگشت"
-            className="w-10 h-10 flex items-center justify-center shrink-0 hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
+            className="w-10 h-10 flex items-center justify-center shrink-0 "
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"

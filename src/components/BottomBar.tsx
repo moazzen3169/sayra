@@ -69,7 +69,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({ activeTab = "home", onTabC
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
-      <div className="w-full max-w-[780px] bg-[var(--bg-card)] border-t border-[var(--border-subtle)] px-6 pt-3 pb-4 flex items-center justify-around pointer-events-auto">
+      <div className="w-full max-w-[780px] bg-[var(--bg-body)]  px-6 pt-3 pb-4 flex items-center justify-around pointer-events-auto">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
