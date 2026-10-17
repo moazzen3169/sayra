@@ -66,12 +66,11 @@ const featuredCenters = [
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<TabType>("home");
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>("ps5");
+  const [selectedCity, setSelectedCity] = useState("تبریز");
   const popularContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollPopular = (direction: "left" | "right") => {
     if (popularContainerRef.current) {
-      // Note: RTL layout means scrolling right/left movement might invert depending on browser,
-      // scrollBy with negative or positive handles horizontal shifts smoothly.
       const scrollAmount = direction === "right" ? -200 : 200;
       popularContainerRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
     }
@@ -80,14 +79,12 @@ export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28">
       <Header
-        locationName="تبریز"
+        locationName={selectedCity}
         unreadNotificationsCount={2}
-        onLocationClick={() => alert("انتخاب شهر")}
-        onNotificationClick={() => alert("اعلانات سایرا")}
-        onSearchClick={() => alert("جستجوی گیمنت و ایستگاه بازی")}
+        onCityChange={(city) => setSelectedCity(city)}
       />
 
-      <main className="flex-1 px-4 py-3 flex flex-col gap-6 mt-[124px]">
+      <main className="flex-1 px-4 py-3 flex flex-col gap-6 mt-[120px]">
         {/* ۱. بخش اطلاع‌رسانی تخفیف و بنر تبلیغاتی */}
         <section>
           <PromoBanner
@@ -95,7 +92,7 @@ export default function HomePage() {
             subtitle="تا ۳۰٪ تخفیف روی تمامی گیمنت‌های دارای PS5 و VIP"
             discountBadge="۳۰٪"
             buttonText="دریافت تخفیف و رزرو"
-            onClick={() => alert("پیشنهاد تخفیف ویژه انتخاب شد")}
+            onClick={() => {}}
           />
         </section>
 
@@ -110,7 +107,9 @@ export default function HomePage() {
         {/* ۳. بخش گیمنت‌های محبوب و پربازدید */}
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h2 className="font-extrabold text-base text-[var(--text-white)]">گیمنت‌های محبوب</h2>
+            <h2 className="font-extrabold text-base text-[var(--text-white)]">
+              گیمنت‌های محبوب {selectedCity !== "تبریز" ? `(${selectedCity})` : ""}
+            </h2>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 bg-[var(--bg-card)] rounded-lg p-0.5 border border-[var(--border-subtle)]">
                 <button
@@ -134,13 +133,6 @@ export default function HomePage() {
                   </svg>
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={() => alert("مشاهده همه گیمنت‌ها")}
-                className="text-xs font-bold text-[var(--primary)] hover:underline mr-1"
-              >
-                مشاهده همه
-              </button>
             </div>
           </div>
 
