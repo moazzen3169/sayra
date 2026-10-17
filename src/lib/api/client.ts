@@ -79,8 +79,11 @@ async function request<T>(
     );
   }
 
+  const isForm = typeof FormData !== "undefined" && options.body instanceof FormData;
+
   const headers: Record<string, string> = { Accept: "application/json", ...options.headers };
-  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  // برای FormData مرورگر خودش Content-Type (با boundary) را می‌گذارد
+  if (options.body !== undefined && !isForm) headers["Content-Type"] = "application/json";
 
   const token = getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -90,7 +93,12 @@ async function request<T>(
     res = await fetch(buildUrl(path, options.query), {
       method,
       headers,
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body:
+        options.body === undefined
+          ? undefined
+          : isForm
+          ? (options.body as FormData)
+          : JSON.stringify(options.body),
       signal: options.signal,
     });
   } catch (e) {
