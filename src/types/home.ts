@@ -6,3 +6,19 @@ export interface BannerItem {
   href: string;              // لینک داخلی (/gamecenter/gc-1) یا خارجی (https://...)
   openInNewTab?: boolean;
 }
+
+export interface DiscountedCenter {
+  id: string;                 // slug، برای /gamecenter/[id]
+  name: string;
+  imageUrl: string;
+  location: string;
+  rating: number;
+  reviewsCount?: number;
+  hourlyPrice: number;
+  discountedHourlyPrice?: number;   // فقط اگر بک‌اند بدهد
+  discount: {
+    valueType: "PERCENTAGE" | "FIXED_AMOUNT";   // مطابق schema Discount
+    value: number;
+    endAt?: string;                              // اختیاری، فقط نمایش
+  };
+}
