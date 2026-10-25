@@ -7,6 +7,7 @@ import { GamecenterCardBig } from "@/components/GamecenterCardBig";
 import { GamecenterCardMini } from "@/components/GamecenterCardMini";
 import { BannerSlider } from "@/components/BannerSlider";
 import { DeviceCategories } from "@/components/DeviceCategories";
+import { DiscountedCentersSection } from "@/components/DiscountedCentersSection";
 import { homeService } from "@/services/homeService";
 import { BannerItem } from "@/types/home";
 
@@ -127,7 +128,10 @@ export default function HomePage() {
           />
         </section>
 
-        {/* ۳. بخش گیمنت‌های محبوب و پربازدید */}
+        {/* ۳. بخش گیمنت‌های تخفیف‌دار */}
+        <DiscountedCentersSection city={selectedCity} />
+
+        {/* ۴. بخش گیمنت‌های محبوب و پربازدید */}
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h2 className="font-extrabold text-base text-[var(--text-white)]">
@@ -169,7 +173,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ۴. بخش پیشنهاد ویژه و گیمنت‌های برتر سایرا */}
+        {/* ۵. بخش پیشنهاد ویژه و گیمنت‌های برتر سایرا */}
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h2 className="font-extrabold text-base text-[var(--text-white)]">پیشنهاد ویژه سایرا</h2>
