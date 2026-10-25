@@ -20,10 +20,16 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
+const DEFAULT_MOCK_USER: UserProfile = {
+  id: "demo-user-1",
+  fullName: "کاربر سایرا",
+  phone: "۰۹۱۲۳۴۵۶۷۸۹",
+};
+
 const AuthContext = createContext<AuthContextType>({
-  isLoggedIn: false,
-  isLoading: true,
-  user: null,
+  isLoggedIn: true,
+  isLoading: false,
+  user: DEFAULT_MOCK_USER,
   login: () => {},
   logout: () => {},
   refreshUser: async () => {},
@@ -32,11 +38,9 @@ const AuthContext = createContext<AuthContextType>({
 const AUTH_STORAGE_KEY = "sayra_user_auth";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    if (typeof window === "undefined") return null;
+  const [user, setUser] = useState<UserProfile>(() => {
+    if (typeof window === "undefined") return DEFAULT_MOCK_USER;
     try {
-      const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-      if (!token) return null;
       const saved = localStorage.getItem(AUTH_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -47,20 +51,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // Ignore
     }
-    return null;
+    return DEFAULT_MOCK_USER;
   });
 
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-    return !!token;
-  });
-
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const logout = React.useCallback(() => {
-    setUser(null);
-    setIsLoggedIn(false);
+    setUser(DEFAULT_MOCK_USER);
+    setIsLoggedIn(true);
     try {
       localStorage.removeItem(AUTH_STORAGE_KEY);
       localStorage.removeItem(ACCESS_TOKEN_KEY);
@@ -70,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = React.useCallback((fullName: string, phone: string, token?: string) => {
-    const newUser: UserProfile = { fullName, phone, token };
+    const newUser: UserProfile = { fullName: fullName || "کاربر سایرا", phone, token };
     setUser(newUser);
     setIsLoggedIn(true);
     try {
@@ -87,7 +86,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (typeof window === "undefined") return;
     const token = localStorage.getItem(ACCESS_TOKEN_KEY);
     if (!token) {
-      // Use queueMicrotask to avoid synchronous state update in effect body warning
       queueMicrotask(() => setIsLoading(false));
       return;
     }
@@ -102,21 +100,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const updated: UserProfile = {
               id: me.id,
               fullName: me.fullName || prev?.fullName || "کاربر سایرا",
-              phone: me.phone || prev?.phone || "",
+              phone: me.phone || prev?.phone || "۰۹۱۲۳۴۵۶۷۸۹",
               token,
             };
             localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
             return updated;
           });
-          setIsLoggedIn(true);
         }
       })
-      .catch((e: unknown) => {
-        if (!active) return;
-        const status = (e as { status?: number })?.status;
-        if (status === 401 || status === 403) {
-          logout();
-        }
+      .catch(() => {
+        // In design / preview mode, maintain mock user and logged in state
       })
       .finally(() => {
         if (active) {
@@ -127,14 +120,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       active = false;
     };
-  }, [logout]);
+  }, []);
 
   const refreshUser = React.useCallback(async () => {
     if (typeof window === "undefined") return;
     const token = localStorage.getItem(ACCESS_TOKEN_KEY);
     if (!token) {
-      setUser(null);
-      setIsLoggedIn(false);
       setIsLoading(false);
       return;
     }
@@ -146,23 +137,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const updated: UserProfile = {
             id: me.id,
             fullName: me.fullName || prev?.fullName || "کاربر سایرا",
-            phone: me.phone || prev?.phone || "",
+            phone: me.phone || prev?.phone || "۰۹۱۲۳۴۵۶۷۸۹",
             token,
           };
           localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
           return updated;
         });
-        setIsLoggedIn(true);
       }
-    } catch (e: unknown) {
-      const status = (e as { status?: number })?.status;
-      if (status === 401 || status === 403) {
-        logout();
-      }
+    } catch {
+      // Ignore
     } finally {
       setIsLoading(false);
     }
-  }, [logout]);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ isLoggedIn, isLoading, user, login, logout, refreshUser }}>
