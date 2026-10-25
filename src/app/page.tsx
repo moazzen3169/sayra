@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { BottomBar, TabType } from "@/components/BottomBar";
 import { GamecenterCardBig } from "@/components/GamecenterCardBig";
 import { GamecenterCardMini } from "@/components/GamecenterCardMini";
-import { PromoBanner } from "@/components/PromoBanner";
+import { BannerSlider } from "@/components/BannerSlider";
 import { DeviceCategories } from "@/components/DeviceCategories";
+import { homeService } from "@/services/homeService";
+import { BannerItem } from "@/types/home";
 
 const popularCenters = [
   {
@@ -67,7 +69,34 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<TabType>("home");
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>("ps5");
   const [selectedCity, setSelectedCity] = useState("تبریز");
+  const [banners, setBanners] = useState<BannerItem[]>([]);
+  const [bannersLoading, setBannersLoading] = useState(true);
   const popularContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadBanners() {
+      try {
+        setBannersLoading(true);
+        const data = await homeService.getBanners(controller.signal);
+        setBanners(data);
+      } catch (err) {
+        if ((err as Error)?.name !== "AbortError") {
+          // Silently handle service error (banner is not a critical section)
+          setBanners([]);
+        }
+      } finally {
+        setBannersLoading(false);
+      }
+    }
+
+    loadBanners();
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
 
   const scrollPopular = (direction: "left" | "right") => {
     if (popularContainerRef.current) {
@@ -85,15 +114,9 @@ export default function HomePage() {
       />
 
       <main className="flex-1 px-4 py-3 flex flex-col gap-6 mt-[120px]">
-        {/* ۱. بخش اطلاع‌رسانی تخفیف و بنر تبلیغاتی */}
+        {/* ۱. بخش اسلایدر بنرهای تبلیغاتی */}
         <section>
-          <PromoBanner
-            title="تخفیف ویژه اولی‌ها در سایرا"
-            subtitle="تا ۳۰٪ تخفیف روی تمامی گیمنت‌های دارای PS5 و VIP"
-            discountBadge="۳۰٪"
-            buttonText="دریافت تخفیف و رزرو"
-            onClick={() => {}}
-          />
+          <BannerSlider banners={banners} isLoading={bannersLoading} />
         </section>
 
         {/* ۲. بخش انواع دستگاه‌ها و پلتفرم‌های بازی */}
