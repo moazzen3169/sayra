@@ -7,6 +7,7 @@ import { GamecenterCardBig } from "@/components/GamecenterCardBig";
 import { GamecenterCardMini } from "@/components/GamecenterCardMini";
 import { BannerSlider } from "@/components/BannerSlider";
 import { DeviceCategories } from "@/components/DeviceCategories";
+import { DiscountedCentersSection } from "@/components/DiscountedCentersSection";
 import { homeService } from "@/services/homeService";
 import { BannerItem } from "@/types/home";
 
@@ -126,6 +127,9 @@ export default function HomePage() {
             onSelectCategory={(id) => setSelectedCategory(id)}
           />
         </section>
+
+        {/* ۲.۵. بخش گیمنت‌های تخفیف‌دار */}
+        <DiscountedCentersSection city={selectedCity} />
 
         {/* ۳. بخش گیمنت‌های محبوب و پربازدید */}
         <section className="flex flex-col gap-3">

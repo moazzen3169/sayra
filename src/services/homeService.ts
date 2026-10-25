@@ -1,8 +1,8 @@
-import { BannerItem } from "@/types/home";
-import { mockBanners } from "@/lib/mocks/home.mock";
+import { BannerItem, DiscountedCenter } from "@/types/home";
+import { mockBanners, mockDiscountedCenters } from "@/lib/mocks/home.mock";
 
-// TODO: Endpoint بنرهای تبلیغاتی باید پس از اضافه شدن به OpenAPI مشخص شود
-// و بدنه‌ی این تابع با فراخوانی واقعی API به apiClient.get(...) جایگزین گردد.
+// TODO: Endpoint بنرهای تبلیغاتی و لیست گیمنت‌های تخفیف‌دار باید پس از اضافه شدن به OpenAPI مشخص شوند
+// و بدنه‌ی این توابع با فراخوانی واقعی API جایگزین گردند.
 
 export const homeService = {
   async getBanners(signal?: AbortSignal): Promise<BannerItem[]> {
@@ -11,5 +11,13 @@ export const homeService = {
     }
     // شبیه‌سازی لود سریع داده از Mock
     return Promise.resolve(mockBanners);
+  },
+
+  async getDiscountedCenters(params?: { city?: string; signal?: AbortSignal }): Promise<DiscountedCenter[]> {
+    if (params?.signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+    // شبیه‌سازی لود سریع داده از Mock
+    return Promise.resolve(mockDiscountedCenters);
   },
 };
