@@ -4,11 +4,26 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { AuthModal } from "@/components/AuthModal";
 import { useAuth } from "@/context/AuthContext";
 import { isAbortError } from "@/lib/api/client";
-import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService } from "@/services/ownerService";
 import type { OwnerMe, PublicCenter } from "@/types/owner";
 
 const OWNER_CENTER_KEY = "sayra_owner_center_id";
+
+const MOCK_OWNER_ME: OwnerMe = {
+  id: "owner-demo-1",
+  fullName: "صاحب گیمنت گرگدن",
+  phone: "۰۹۱۲۳۴۵۶۷۸۹",
+  gamingCenterId: "gc-1",
+  subscriptionDaysLeft: 30,
+};
+
+const MOCK_CENTER: PublicCenter = {
+  id: "gc-1",
+  name: "گیمنت گرگدن",
+  slug: "gergdan",
+  description: "تبریز، ولیعصر، بعد از میدان معلم",
+  isActive: true,
+};
 
 interface OwnerContextType {
   me: OwnerMe;
@@ -32,17 +47,13 @@ const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isLoggedIn, isLoading: authLoading, login, user } = useAuth();
 
-  const [me, setMe] = useState<OwnerMe | null>(null);
-  const [centerId, setCenterId] = useState<string | null>(null);
-  const [center, setCenter] = useState<PublicCenter | null>(null);
-  const [state, setState] = useState<"loading" | "ready" | "need-center" | "error">("loading");
-  const [error, setError] = useState("");
-  const [reload, setReload] = useState(0);
+  const [me, setMe] = useState<OwnerMe>(MOCK_OWNER_ME);
+  const [centerId, setCenterId] = useState<string>("gc-1");
+  const [center, setCenter] = useState<PublicCenter | null>(MOCK_CENTER);
   const [authOpen, setAuthOpen] = useState(false);
-  const [draftId, setDraftId] = useState("");
 
   useEffect(() => {
-    if (authLoading || !isLoggedIn) return;
+    if (authLoading) return;
     let active = true;
     const controller = new AbortController();
 
@@ -60,20 +71,21 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             id = null;
           }
         }
-        if (!id) {
-          setState("need-center");
-          return;
-        }
+        if (!id) id = "gc-1";
 
         setCenterId(id);
         const c = await ownerService.findCenter(id, controller.signal);
         if (!active) return;
-        setCenter(c);
-        setState("ready");
+        setCenter(c ?? MOCK_CENTER);
       } catch (e) {
         if (!active || isAbortError(e)) return;
-        setError(getErrorMessage(e));
-        setState("error");
+        // Fallback to mock data on error so owner pages are always fully viewable/designable
+        setMe((prev) => ({
+          ...MOCK_OWNER_ME,
+          fullName: user?.fullName || prev?.fullName || MOCK_OWNER_ME.fullName,
+        }));
+        setCenterId("gc-1");
+        setCenter(MOCK_CENTER);
       }
     })();
 
@@ -81,28 +93,9 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       active = false;
       controller.abort();
     };
-  }, [authLoading, isLoggedIn, reload]);
+  }, [authLoading, isLoggedIn, user?.fullName]);
 
-  const retry = () => {
-    setState("loading");
-    setReload((v) => v + 1);
-  };
-
-  const saveCenterId = (e: React.FormEvent) => {
-    e.preventDefault();
-    const id = draftId.trim();
-    if (!id) return;
-    try {
-      localStorage.setItem(OWNER_CENTER_KEY, id);
-    } catch {
-      // ignore
-    }
-    retry();
-  };
-
-  /* ---------- Gates ---------- */
-
-  if (authLoading || (isLoggedIn && state === "loading")) {
+  if (authLoading) {
     return (
       <Shell>
         <div className="p-4 flex flex-col gap-4 animate-pulse">
@@ -114,85 +107,27 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   }
 
-  if (!isLoggedIn) {
-    return (
-      <Shell>
-        <div className="flex flex-col items-center justify-center gap-4 py-24 px-6 text-center">
-          <h2 className="text-base font-black">ورود به پنل صاحب گیمنت</h2>
-          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            برای مدیریت گیمنت ابتدا وارد حساب خود شوید.
-          </p>
-          <button
-            type="button"
-            onClick={() => setAuthOpen(true)}
-            className="h-12 px-8 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm"
-          >
-            ورود / ثبت‌نام
-          </button>
-        </div>
-        <AuthModal
-          isOpen={authOpen}
-          onClose={() => setAuthOpen(false)}
-          onSuccess={(fullName, phone, token) => {
-            login(fullName, phone, token);
-            setAuthOpen(false);
-          }}
-        />
-      </Shell>
-    );
-  }
-
-  if (state === "error") {
-    return (
-      <Shell>
-        <div className="m-4 p-4 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 flex flex-col items-center gap-3 text-center">
-          <p className="text-sm font-bold text-[var(--accent-red)]">{error}</p>
-          <button
-            type="button"
-            onClick={retry}
-            className="h-10 px-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-color)] text-xs font-bold"
-          >
-            تلاش دوباره
-          </button>
-        </div>
-      </Shell>
-    );
-  }
-
-  if (state === "need-center") {
-    return (
-      <Shell>
-        <form onSubmit={saveCenterId} className="m-4 p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-3">
-          <h2 className="text-base font-black">شناسه گیمنت</h2>
-          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            پاسخ API شناسه گیمنت شما را برنگرداند. شناسه (gamingCenterId) را وارد کنید.
-          </p>
-          <input
-            value={draftId}
-            onChange={(e) => setDraftId(e.target.value)}
-            dir="ltr"
-            className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none"
-          />
-          <button type="submit" className="h-11 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm">
-            ذخیره و ادامه
-          </button>
-        </form>
-      </Shell>
-    );
-  }
-
-  if (!me || !centerId) return null;
+  const activeMe = me || MOCK_OWNER_ME;
+  const activeCenterId = centerId || "gc-1";
 
   return (
     <OwnerContext.Provider
       value={{
-        me,
-        centerId,
-        center,
-        ownerName: me.fullName || user?.fullName || "صاحب گیمنت",
+        me: activeMe,
+        centerId: activeCenterId,
+        center: center || MOCK_CENTER,
+        ownerName: activeMe.fullName || user?.fullName || "صاحب گیمنت",
       }}
     >
       {children}
+      <AuthModal
+        isOpen={authOpen}
+        onClose={() => setAuthOpen(false)}
+        onSuccess={(fullName, phone, token) => {
+          login(fullName, phone, token);
+          setAuthOpen(false);
+        }}
+      />
     </OwnerContext.Provider>
   );
 };
