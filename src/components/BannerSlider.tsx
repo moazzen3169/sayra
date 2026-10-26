@@ -2,8 +2,15 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 import { BannerItem } from "@/types/home";
 
 export interface BannerSliderProps {
@@ -24,6 +31,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
   className = "",
 }) => {
   const [failedBannerIds, setFailedBannerIds] = useState<string[]>([]);
+  const [api, setApi] = useState<CarouselApi>();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
 
@@ -67,39 +75,37 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
     return [autoplayPlugin];
   }, [slidesCount, autoplayPlugin]);
 
-  const [emblaRef, emblaApi] = useEmblaCarousel(emblaOptions, plugins);
-
   useEffect(() => {
-    if (!emblaApi) return;
+    if (!api) return;
 
     const handleSelect = () => {
-      setSelectedIndex(emblaApi.selectedScrollSnap());
+      setSelectedIndex(api.selectedScrollSnap());
     };
 
-    emblaApi.on("select", handleSelect);
-    emblaApi.on("reInit", handleSelect);
+    api.on("select", handleSelect);
+    api.on("reInit", handleSelect);
 
     return () => {
-      emblaApi.off("select", handleSelect);
-      emblaApi.off("reInit", handleSelect);
+      api.off("select", handleSelect);
+      api.off("reInit", handleSelect);
     };
-  }, [emblaApi]);
+  }, [api]);
 
   // Reduced motion support
   useEffect(() => {
     if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      const autoplay = emblaApi?.plugins()?.autoplay;
+      const autoplay = api?.plugins()?.autoplay;
       if (autoplay) {
         autoplay.stop();
         queueMicrotask(() => setIsPlaying(false));
       }
     }
-  }, [emblaApi]);
+  }, [api]);
 
   // Visibility change handling
   useEffect(() => {
     const handleVisibilityChange = () => {
-      const autoplay = emblaApi?.plugins()?.autoplay;
+      const autoplay = api?.plugins()?.autoplay;
       if (!autoplay) return;
       if (document.hidden) {
         autoplay.stop();
@@ -112,10 +118,10 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [emblaApi, isPlaying]);
+  }, [api, isPlaying]);
 
   const toggleAutoplay = useCallback(() => {
-    const autoplay = emblaApi?.plugins()?.autoplay;
+    const autoplay = api?.plugins()?.autoplay;
     if (!autoplay) return;
 
     if (autoplay.isPlaying()) {
@@ -125,46 +131,25 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
       autoplay.play();
       setIsPlaying(true);
     }
-  }, [emblaApi]);
+  }, [api]);
 
   const scrollTo = useCallback(
     (index: number) => {
-      if (emblaApi) emblaApi.scrollTo(index);
+      if (api) api.scrollTo(index);
     },
-    [emblaApi]
+    [api]
   );
-
-  const scrollPrev = useCallback(() => {
-    if (emblaApi) emblaApi.scrollPrev();
-  }, [emblaApi]);
-
-  const scrollNext = useCallback(() => {
-    if (emblaApi) emblaApi.scrollNext();
-  }, [emblaApi]);
 
   const handleContainerClick = useCallback(
     (e: React.MouseEvent) => {
-      if (!emblaApi) return;
-      const apiWithClickAllowed = emblaApi as unknown as { clickAllowed?: () => boolean };
+      if (!api) return;
+      const apiWithClickAllowed = api as unknown as { clickAllowed?: () => boolean };
       if (typeof apiWithClickAllowed.clickAllowed === "function" && !apiWithClickAllowed.clickAllowed()) {
         e.preventDefault();
         e.stopPropagation();
       }
     },
-    [emblaApi]
-  );
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        scrollNext();
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        scrollPrev();
-      }
-    },
-    [scrollNext, scrollPrev]
+    [api]
   );
 
   // Loading state
@@ -181,104 +166,85 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
 
   return (
     <div
-      role="region"
-      aria-roledescription="carousel"
       aria-label="بنرهای تبلیغاتی"
       aria-live={isPlaying ? "off" : "polite"}
-      onKeyDown={handleKeyDown}
-      className={`relative group/slider focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-card ${className}`}
-      tabIndex={0}
+      className={`relative group/slider rounded-card ${className}`}
     >
-      {/* Carousel Viewport */}
-      <div
-        ref={emblaRef}
-        onClickCapture={handleContainerClick}
-        className="overflow-hidden rounded-card cursor-grab active:cursor-grabbing select-none"
+      <Carousel
+        setApi={setApi}
+        opts={emblaOptions}
+        plugins={plugins}
+        className="w-full rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
       >
-        <div className="flex -mr-3 lg:-mr-4 [will-change:transform]">
-          {validBanners.map((item, index) => {
-            const isExternal = /^https?:\/\//.test(item.href);
+        <div onClickCapture={handleContainerClick} className="rounded-card overflow-hidden cursor-grab active:cursor-grabbing select-none">
+          <CarouselContent className="-mr-3 lg:-mr-4">
+            {validBanners.map((item, index) => {
+              const isExternal = /^https?:\/\//.test(item.href);
 
-            const slideContent = (
-              <picture className="block w-full h-full">
-                {item.desktopImageUrl && (
-                  <source media="(min-width: 1024px)" srcSet={item.desktopImageUrl} />
-                )}
-                <img
-                  src={item.imageUrl}
-                  alt={item.alt}
-                  draggable={false}
-                  onError={() => handleImageError(item.id)}
-                  loading={index === 0 ? "eager" : "lazy"}
-                  {...(index === 0 ? ({ fetchPriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>) : { decoding: "async" })}
-                  className="w-full h-full object-cover select-none pointer-events-none"
-                />
-              </picture>
-            );
-
-            return (
-              <div
-                key={item.id}
-                role="group"
-                aria-roledescription="slide"
-                aria-label={`${toPersianDigits(index + 1)} از ${toPersianDigits(slidesCount)}`}
-                className="flex-none w-[92%] sm:w-[80%] lg:w-full pr-3 lg:pr-4"
-              >
-                <div className="rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-card)] aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[3.2/1] w-full">
-                  {isExternal ? (
-                    <a
-                      href={item.href}
-                      target={item.openInNewTab !== false ? "_blank" : "_self"}
-                      rel="noopener noreferrer"
-                      aria-label={item.alt}
-                      className="block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                    >
-                      {slideContent}
-                    </a>
-                  ) : (
-                    <Link
-                      href={item.href}
-                      aria-label={item.alt}
-                      className="block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                    >
-                      {slideContent}
-                    </Link>
+              const slideContent = (
+                <picture className="block w-full h-full">
+                  {item.desktopImageUrl && (
+                    <source media="(min-width: 1024px)" srcSet={item.desktopImageUrl} />
                   )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                  <img
+                    src={item.imageUrl}
+                    alt={item.alt}
+                    draggable={false}
+                    onError={() => handleImageError(item.id)}
+                    loading={index === 0 ? "eager" : "lazy"}
+                    {...(index === 0 ? ({ fetchPriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>) : { decoding: "async" })}
+                    className="w-full h-full object-cover select-none pointer-events-none"
+                  />
+                </picture>
+              );
 
-      {/* Side Navigation Arrows (Desktop >= 1024px only) */}
-      {slidesCount > 1 && (
-        <div className="hidden lg:block pointer-events-none">
-          {/* Next slide arrow (Left side in RTL) */}
-          <button
-            type="button"
-            onClick={scrollNext}
-            aria-label="بنر بعدی"
-            className="pointer-events-auto absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[var(--bg-body)]/70 backdrop-blur border border-[var(--border-color)] text-[var(--text-white)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-all duration-300 opacity-0 group-hover/slider:opacity-100 group-focus-within/slider:opacity-100 flex items-center justify-center focus-visible:ring-2 focus-visible:ring-white focus-visible:opacity-100 z-10"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-
-          {/* Previous slide arrow (Right side in RTL) */}
-          <button
-            type="button"
-            onClick={scrollPrev}
-            aria-label="بنر قبلی"
-            className="pointer-events-auto absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[var(--bg-body)]/70 backdrop-blur border border-[var(--border-color)] text-[var(--text-white)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-all duration-300 opacity-0 group-hover/slider:opacity-100 group-focus-within/slider:opacity-100 flex items-center justify-center focus-visible:ring-2 focus-visible:ring-white focus-visible:opacity-100 z-10"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
+              return (
+                <CarouselItem
+                  key={item.id}
+                  aria-label={`${toPersianDigits(index + 1)} از ${toPersianDigits(slidesCount)}`}
+                  className="basis-[92%] sm:basis-[80%] lg:basis-full pr-3 lg:pr-4"
+                >
+                  <div className="rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-card)] aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[3.2/1] w-full">
+                    {isExternal ? (
+                      <a
+                        href={item.href}
+                        target={item.openInNewTab !== false ? "_blank" : "_self"}
+                        rel="noopener noreferrer"
+                        aria-label={item.alt}
+                        className="block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                      >
+                        {slideContent}
+                      </a>
+                    ) : (
+                      <Link
+                        href={item.href}
+                        aria-label={item.alt}
+                        className="block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                      >
+                        {slideContent}
+                      </Link>
+                    )}
+                  </div>
+                </CarouselItem>
+              );
+            })}
+          </CarouselContent>
         </div>
-      )}
+
+        {/* Desktop Side Navigation Arrows */}
+        {slidesCount > 1 && (
+          <div className="hidden lg:block pointer-events-none">
+            <CarouselNext
+              aria-label="بنر بعدی"
+              className="pointer-events-auto absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[var(--bg-body)]/70 backdrop-blur border border-[var(--border-color)] text-[var(--text-white)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-all duration-300 opacity-0 group-hover/slider:opacity-100 group-focus-within/slider:opacity-100 flex items-center justify-center focus-visible:ring-2 focus-visible:ring-white focus-visible:opacity-100 z-10"
+            />
+            <CarouselPrevious
+              aria-label="بنر قبلی"
+              className="pointer-events-auto absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[var(--bg-body)]/70 backdrop-blur border border-[var(--border-color)] text-[var(--text-white)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-all duration-300 opacity-0 group-hover/slider:opacity-100 group-focus-within/slider:opacity-100 flex items-center justify-center focus-visible:ring-2 focus-visible:ring-white focus-visible:opacity-100 z-10"
+            />
+          </div>
+        )}
+      </Carousel>
 
       {/* Pagination Dots & Play/Pause Controls */}
       {slidesCount > 1 && (

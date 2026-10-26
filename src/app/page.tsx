@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { BottomBar, TabType } from "@/components/BottomBar";
 import { GamecenterCardBig } from "@/components/GamecenterCardBig";
@@ -8,6 +8,13 @@ import { GamecenterCardMini } from "@/components/GamecenterCardMini";
 import { BannerSlider } from "@/components/BannerSlider";
 import { DeviceCategories } from "@/components/DeviceCategories";
 import { DiscountedCentersSection } from "@/components/DiscountedCentersSection";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+} from "@/components/ui/carousel";
 import { homeService } from "@/services/homeService";
 import { BannerItem } from "@/types/home";
 
@@ -72,7 +79,6 @@ export default function HomePage() {
   const [selectedCity, setSelectedCity] = useState("تبریز");
   const [banners, setBanners] = useState<BannerItem[]>([]);
   const [bannersLoading, setBannersLoading] = useState(true);
-  const popularContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -98,13 +104,6 @@ export default function HomePage() {
       controller.abort();
     };
   }, []);
-
-  const scrollPopular = (direction: "left" | "right") => {
-    if (popularContainerRef.current) {
-      const scrollAmount = direction === "right" ? -200 : 200;
-      popularContainerRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
-    }
-  };
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28">
@@ -133,44 +132,43 @@ export default function HomePage() {
 
         {/* ۴. بخش گیمنت‌های محبوب و پربازدید */}
         <section className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h2 className="font-extrabold text-base text-[var(--text-white)]">
-              گیمنت‌های محبوب {selectedCity !== "تبریز" ? `(${selectedCity})` : ""}
-            </h2>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 bg-[var(--bg-card)] rounded-lg p-0.5 border border-[var(--border-subtle)]">
-                <button
-                  type="button"
-                  onClick={() => scrollPopular("right")}
-                  className="w-7 h-7 rounded bg-[var(--foreground)]/60 text-[var(--text-white)] flex items-center justify-center hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
+          <Carousel
+            opts={{
+              direction: "rtl",
+              align: "start",
+              containScroll: "trimSnaps",
+            }}
+            className="w-full flex flex-col gap-3"
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="font-extrabold text-base text-[var(--text-white)]">
+                گیمنت‌های محبوب {selectedCity !== "تبریز" ? `(${selectedCity})` : ""}
+              </h2>
+              <div className="flex items-center gap-1 relative h-8 w-18 bg-[var(--bg-card)] rounded-lg p-0.5 border border-[var(--border-subtle)]">
+                <CarouselPrevious
+                  className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-[#101014] transition-colors disabled:opacity-30 disabled:pointer-events-none"
                   title="قبلی"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => scrollPopular("left")}
-                  className="w-7 h-7 rounded bg-[var(--foreground)]/60 text-[var(--text-white)] flex items-center justify-center hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
+                />
+                <CarouselNext
+                  className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-[#101014] transition-colors disabled:opacity-30 disabled:pointer-events-none"
                   title="بعدی"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
+                />
               </div>
             </div>
-          </div>
 
-          <div
-            ref={popularContainerRef}
-            className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none scroll-smooth"
-          >
-            {popularCenters.map((item) => (
-              <GamecenterCardMini key={item.id} {...item} />
-            ))}
-          </div>
+            <div className="-mx-4 px-4 pb-2 select-none">
+              <CarouselContent className="gap-3 -mr-3">
+                {popularCenters.map((item) => (
+                  <CarouselItem
+                    key={item.id}
+                    className="pr-3 basis-[210px] min-w-[210px] sm:basis-[230px]"
+                  >
+                    <GamecenterCardMini {...item} />
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+            </div>
+          </Carousel>
         </section>
 
         {/* ۵. بخش پیشنهاد ویژه و گیمنت‌های برتر سایرا */}
