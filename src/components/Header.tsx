@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { toPersianDigits } from "@/lib/format";
@@ -17,6 +17,9 @@ interface HeaderProps {
   onSearchClick?: () => void;
   onCityChange?: (city: string) => void;
 }
+
+// موجودی نمایشی؛ بعداً به API کیف پول متصل شود.
+const walletBalance = 1250000;
 
 export const Header: React.FC<HeaderProps> = ({
   locationName = "تبریز",
@@ -37,6 +40,44 @@ export const Header: React.FC<HeaderProps> = ({
   const [isNotificationModalOpen, setIsNotificationModalOpen] =
     useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  const accountButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isAccountMenuOpen) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        accountMenuRef.current &&
+        !accountMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsAccountMenuOpen(false);
+        accountButtonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isAccountMenuOpen]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setIsAccountMenuOpen(false);
+    }
+  }, [isLoggedIn]);
 
   const handleCitySelect = (city: string) => {
     setCurrentCity(city);
@@ -61,11 +102,97 @@ export const Header: React.FC<HeaderProps> = ({
   const notificationBadge =
     unreadCount > 9 ? "+۹" : toPersianDigits(unreadCount);
 
+  const closeAccountMenu = () => setIsAccountMenuOpen(false);
+
+  const accountLinks = [
+    {
+      href: "/profile/edit",
+      label: "ویرایش اطلاعات",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.7}
+          className="h-[18px] w-[18px]"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 20h9"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M16.5 3.5a2.12 2.12 0 013 3L9 17l-4 1 1-4Z"
+          />
+        </svg>
+      ),
+    },
+    {
+      href: "/support",
+      label: "پشتیبانی",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.7}
+          className="h-[18px] w-[18px]"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M4 13v-2a8 8 0 0116 0v2"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M4 13h3v6H6a2 2 0 01-2-2Zm16 0h-3v6h1a2 2 0 002-2Z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M17 19a5 5 0 01-5 2"
+          />
+        </svg>
+      ),
+    },
+    {
+      href: "/wallet",
+      label: "کیف پول من",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.7}
+          className="h-[18px] w-[18px]"
+          aria-hidden="true"
+        >
+          <rect x="3" y="5" width="18" height="15" rx="2" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M3 9h18M16 14h2"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M6 5V3h12v2"
+          />
+        </svg>
+      ),
+    },
+  ];
+
   return (
     <>
-      <header className="fixed top-0 inset-x-0 z-40 w-full">
+      <header className="fixed inset-x-0 top-0 z-40 w-full">
         {/* ================= MOBILE HEADER ================= */}
-        <div className="lg:hidden bg-body-bg border-b border-[var(--border-subtle)]">
+        <div className="lg:hidden border-b border-[var(--border-subtle)] bg-body-bg">
           <div className="flex flex-col gap-2 p-2">
             {/* Row 1 */}
             <div className="flex items-center justify-between gap-2">
@@ -77,7 +204,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <img
                   src="/design/sayra.svg"
                   alt="سایرا"
-                  className="h-5 sm:h-6 w-auto"
+                  className="h-5 w-auto sm:h-6"
                 />
               </Link>
 
@@ -159,10 +286,7 @@ export const Header: React.FC<HeaderProps> = ({
                   )}
                 </button>
               ) : (
-                <div
-                  className="h-9 w-9 shrink-0"
-                  aria-hidden="true"
-                />
+                <div className="h-9 w-9 shrink-0" aria-hidden="true" />
               )}
             </div>
 
@@ -183,10 +307,7 @@ export const Header: React.FC<HeaderProps> = ({
                   aria-hidden="true"
                 >
                   <circle cx="11" cy="11" r="7" />
-                  <path
-                    strokeLinecap="round"
-                    d="m20 20-3.5-3.5"
-                  />
+                  <path strokeLinecap="round" d="m20 20-3.5-3.5" />
                 </svg>
 
                 <span className="truncate text-[12px] text-[var(--text-subtle)]">
@@ -202,8 +323,8 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* ================= DESKTOP HEADER ================= */}
-        <div className="hidden  bg-body-bg lg:block">
-          <div className="mx-auto flex min-h-[68px] max-w-[1400px] border border-[var(--border-subtle)] items-center gap-4 p-6">
+        <div className="hidden bg-body-bg lg:block">
+          <div className="mx-auto flex min-h-[68px] max-w-[1400px] items-center gap-4 border border-[var(--border-subtle)] p-6">
             {/* Brand */}
             <Link
               href="/"
@@ -274,7 +395,7 @@ export const Header: React.FC<HeaderProps> = ({
               type="button"
               onClick={handleSearchBtnClick}
               aria-label="جست‌وجوی گیم‌نت، سیستم یا بازی"
-              className="group flex h-10 min-w-[100px]  flex-1 items-center justify-between gap-3 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 transition-colors hover:border-[var(--primary)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60 xl:px-4"
+              className="group flex h-10 min-w-[100px] flex-1 items-center justify-between gap-3 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 transition-colors hover:border-[var(--primary)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60 xl:px-4"
             >
               <span className="flex min-w-0 items-center gap-2.5">
                 <svg
@@ -286,10 +407,7 @@ export const Header: React.FC<HeaderProps> = ({
                   aria-hidden="true"
                 >
                   <circle cx="11" cy="11" r="7" />
-                  <path
-                    strokeLinecap="round"
-                    d="m20 20-3.5-3.5"
-                  />
+                  <path strokeLinecap="round" d="m20 20-3.5-3.5" />
                 </svg>
 
                 <span className="truncate text-xs text-[var(--text-subtle)] transition-colors group-hover:text-[var(--text-muted)]">
@@ -316,14 +434,7 @@ export const Header: React.FC<HeaderProps> = ({
                   strokeWidth={1.8}
                   aria-hidden="true"
                 >
-                  <rect
-                    x="3"
-                    y="4"
-                    width="18"
-                    height="18"
-                    rx="2"
-                    ry="2"
-                  />
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
                   <line x1="16" y1="2" x2="16" y2="6" />
                   <line x1="8" y1="2" x2="8" y2="6" />
                   <line x1="3" y1="10" x2="21" y2="10" />
@@ -333,37 +444,171 @@ export const Header: React.FC<HeaderProps> = ({
                 <span>رزروهای من</span>
               </Link>
 
+              {/* Account menu — desktop only */}
               {isLoggedIn && (
-                <button
-                  type="button"
-                  onClick={handleNotificationBtnClick}
-                  aria-label="اعلانات"
-                  className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/40 hover:bg-[var(--foreground)]"
+                <div
+                  ref={accountMenuRef}
+                  className="relative"
+                  onMouseEnter={() => setIsAccountMenuOpen(true)}
+                  onMouseLeave={() => setIsAccountMenuOpen(false)}
+                  onBlur={(event) => {
+                    if (
+                      !event.currentTarget.contains(
+                        event.relatedTarget as Node | null
+                      )
+                    ) {
+                      setIsAccountMenuOpen(false);
+                    }
+                  }}
                 >
-                  <svg
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={1.8}
-                    aria-hidden="true"
+                  <button
+                    ref={accountButtonRef}
+                    type="button"
+                    onClick={() =>
+                      setIsAccountMenuOpen((previous) => !previous)
+                    }
+                    onFocus={() => setIsAccountMenuOpen(true)}
+                    aria-label="حساب کاربری"
+                    aria-haspopup="menu"
+                    aria-expanded={isAccountMenuOpen}
+                    className="flex h-10 w-10 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M15 17h5l-1.4-1.4a2 2 0 01-.6-1.4V11a6 6 0 00-4-5.66V5a2 2 0 10-4 0v.34C7.67 6.17 6 8.39 6 11v3.2c0 .54-.21 1.05-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                    />
-                  </svg>
-
-                  {unreadCount > 0 && (
-                    <span
-                      className="absolute -top-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] px-1 text-[9px] font-black text-[#101014]"
-                      aria-label={`${toPersianDigits(unreadCount)} اعلان خوانده‌نشده`}
+                    <svg
+                      className="h-5 w-5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.7}
+                      aria-hidden="true"
                     >
-                      {notificationBadge}
-                    </span>
+                      <circle cx="12" cy="8" r="3.5" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M5 20a7 7 0 0114 0"
+                      />
+                    </svg>
+                  </button>
+
+                  {isAccountMenuOpen && (
+                    <div
+                      role="menu"
+                      aria-label="منوی حساب کاربری"
+                      className="absolute left-0 top-full z-50 mt-2 w-[250px] overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-2 text-right shadow-xl shadow-black/20 animate-in fade-in slide-in-from-top-1 duration-150"
+                    >
+                      {/* Wallet summary */}
+                      <Link
+                        href="/wallet"
+                        role="menuitem"
+                        onClick={closeAccountMenu}
+                        className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--foreground)]/30 px-3 py-3 transition-colors hover:border-[var(--primary)]/40 hover:bg-[var(--foreground)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+                      >
+                        <span className="flex min-w-0 items-center gap-2.5">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]/10 text-[var(--primary)]">
+                            <svg
+                              className="h-[18px] w-[18px]"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={1.7}
+                              aria-hidden="true"
+                            >
+                              <rect
+                                x="3"
+                                y="5"
+                                width="18"
+                                height="15"
+                                rx="2"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M3 9h18M16 14h2"
+                              />
+                              <path d="M6 5V3h12v2" />
+                            </svg>
+                          </span>
+
+                          <span className="flex min-w-0 flex-col gap-1">
+                            <span className="text-xs font-semibold text-[var(--text-muted)]">
+                              کیف پول من
+                            </span>
+                            <span className="text-sm font-extrabold text-[var(--text-white)]">
+                              {toPersianDigits(
+                                walletBalance.toLocaleString("en-US")
+                              )}{" "}
+                              <span className="text-[10px] font-medium text-[var(--text-muted)]">
+                                تومان
+                              </span>
+                            </span>
+                          </span>
+                        </span>
+
+                        <svg
+                          className="h-4 w-4 shrink-0 text-[var(--text-muted)]"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={1.8}
+                          aria-hidden="true"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="m9 18 6-6-6-6"
+                          />
+                        </svg>
+                      </Link>
+
+                      <div className="my-1 border-t border-[var(--border-subtle)]" />
+
+                      {accountLinks.slice(0, 2).map((item) => (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          role="menuitem"
+                          onClick={closeAccountMenu}
+                          className="flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+                        >
+                          <span className="shrink-0 text-[var(--text-muted)]">
+                            {item.icon}
+                          </span>
+                          <span>{item.label}</span>
+                        </Link>
+                      ))}
+
+                      <div className="my-1 border-t border-[var(--border-subtle)]" />
+
+                      <Link
+                        href="/logout"
+                        role="menuitem"
+                        onClick={closeAccountMenu}
+                        className="flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--accent-red)] transition-colors hover:bg-[var(--accent-red)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-red)]/50"
+                      >
+                        <svg
+                          className="h-[18px] w-[18px] shrink-0"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={1.7}
+                          aria-hidden="true"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M10 17l5-5-5-5M15 12H3"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M12 3h6a2 2 0 012 2v14a2 2 0 01-2 2h-6"
+                          />
+                        </svg>
+                        <span>خروج از حساب</span>
+                      </Link>
+                    </div>
                   )}
-                </button>
+                </div>
               )}
             </div>
           </div>
