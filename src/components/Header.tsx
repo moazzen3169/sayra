@@ -65,11 +65,11 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-40 w-full max-w-[var(--max-app-width)] mx-auto bg-[var(--bg-body)]/95 backdrop-blur-md border-b border-[var(--border-subtle)] px-4 py-2.5 lg:px-8 lg:py-3 transition-all">
+      <header className="fixed top-0 left-0 right-0  z-40 w-full  mx-auto   transition-all">
         {/* ========================================================= */}
         {/* MOBILE HEADER (2 Rows) - Visible on screens < lg (1024px) */}
         {/* ========================================================= */}
-        <div className="flex flex-col gap-2.5 lg:hidden">
+        <div className="flex flex-col  p-2 gap-2 bg-body-bg  lg:hidden">
           {/* Mobile Row 1: Brand (right) | City Selector (center) | Notification (left, conditional) */}
           <div className="flex items-center justify-between gap-2">
             {/* 1. SAYRA Logo on the Right */}
@@ -154,9 +154,9 @@ export const Header: React.FC<HeaderProps> = ({
         {/* ========================================================== */}
         {/* DESKTOP HEADER (2 Rows) - Visible on screens >= lg (1024px) */}
         {/* ========================================================== */}
-        <div className="hidden lg:flex lg:flex-col lg:gap-3">
+        <div className="hidden  bg-body-bg lg:flex lg:flex-col lg:gap-1 max-w-[1600px] mx-auto">
           {/* Desktop Row 1: SAYRA Logo (right) | Global Navigation (leftwards) */}
-          <div className="flex items-center justify-between border-b border-[var(--border-subtle)]/60 pb-2.5">
+          <div className="flex items-center justify-between bg-body  px-8 py-4">
             <div className="flex items-center gap-8">
               {/* SAYRA Logo */}
               <Link href="/" className="shrink-0 flex items-center" aria-label="صفحه اصلی سایرا">
@@ -168,19 +168,19 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             {/* Tagline badge */}
-            <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] font-medium">
-              <span className="w-2 h-2 rounded-full bg-[var(--primary)] shrink-0" />
+            <div className="flex items-center gap-2 text-xs text-[var(--primary)] font-medium">
               <span>پلتفرم جامع گیمینگ سنترهای ایران</span>
+              <span className="w-2 h-2 rounded-full bg-[var(--primary)] shrink-0" />
             </div>
           </div>
 
           {/* Desktop Row 2: City Selector (right) | Large Search Field (center) | My Bookings + Notification (left) */}
-          <div className="flex items-center justify-between gap-4 pt-0.5">
+          <div className="flex items-center  justify-between gap-4  px-8 py-2">
             {/* 1. City Selector on the Right */}
             <button
               type="button"
               onClick={handleLocationBtnClick}
-              className="flex items-center gap-2 py-2 px-3.5 rounded-card bg-[var(--bg-card)] hover:bg-[var(--foreground)]/60 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] transition-colors shrink-0"
+              className="flex items-center  h-11 gap-3 py-2 px-5 rounded-card bg-[var(--bg-card)] hover:bg-[var(--foreground)]/60 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] transition-colors shrink-0"
               aria-label="انتخاب شهر"
             >
               <svg className="w-4 h-4 text-[var(--primary)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -197,7 +197,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={handleSearchBtnClick}
-              className="flex-1 max-w-[580px] h-11 px-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary)]/50 focus:border-[var(--primary)]/80 flex items-center justify-between text-xs text-[var(--text-white)] transition-all group"
+              className="flex-1 max-w-[580px] h-11 px-4 pl-2 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary)]/50 focus:border-[var(--primary)]/80 flex items-center justify-between text-xs text-[var(--text-white)] transition-all group"
               aria-label="جست‌وجوی گیم‌نت، سیستم یا بازی"
             >
               <div className="flex items-center gap-2.5">
@@ -215,8 +215,8 @@ export const Header: React.FC<HeaderProps> = ({
                   جست‌وجوی گیم‌نت، سیستم یا بازی…
                 </span>
               </div>
-              <span className="text-[11px] font-bold text-[var(--text-muted)] bg-[var(--foreground)]/40 px-2 py-0.5 rounded border border-[var(--border-subtle)]">
-                کلید ↵
+              <span className="text-[11px] font-bold text-[var(--text-muted)] bg-[var(--foreground)]/40 px-2  pb-1 pt-2 rounded border border-[var(--border-subtle)]">
+                 Ctrl + F 
               </span>
             </button>
 

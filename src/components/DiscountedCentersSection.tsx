@@ -74,7 +74,7 @@ export const DiscountedCentersSection: React.FC<DiscountedCentersSectionProps> =
   return (
     <section
       aria-labelledby="discounted-centers-heading"
-      className={`flex flex-col gap-3 ${className}`}
+      className={`flex  rounded-card flex-col gap-3 p-4 bg-primary ${className}`}
     >
       <Carousel
         setApi={setApi}
@@ -95,7 +95,7 @@ export const DiscountedCentersSection: React.FC<DiscountedCentersSectionProps> =
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-2">
               <svg
-                className="w-5 h-5 text-[var(--primary)] shrink-0"
+                className="w-5 h-5 text-[var(--text-black)] shrink-0"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -110,17 +110,17 @@ export const DiscountedCentersSection: React.FC<DiscountedCentersSectionProps> =
               </svg>
               <h2
                 id="discounted-centers-heading"
-                className="font-extrabold text-base text-[var(--text-white)]"
+                className="font-black text-base text-[var(--text-black)]"
               >
                 گیمنت‌های تخفیف‌دار
               </h2>
             </div>
-            <p className="text-xs text-[var(--text-muted)] pr-7">رزرو با قیمت ویژه</p>
+            <p className="text-xs text-[var(--text-black)] pr-7">رزرو با قیمت ویژه</p>
           </div>
 
           {/* Navigation Arrows (Desktop/Tablet sm: and up, hidden on mobile or if single card) */}
           {!isSingleCard && !isLoading ? (
-            <div className="hidden sm:flex items-center gap-1 relative h-8 w-18 bg-[var(--bg-card)] rounded-lg p-0.5 border border-[var(--border-subtle)]">
+            <div className=" flex items-center gap-1 relative h-8  bg-[var(--bg-card)] rounded-lg p-0.5 border border-[var(--border-subtle)]">
               <CarouselPrevious
                 className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-[#101014] transition-colors disabled:opacity-30 disabled:pointer-events-none"
                 title="قبلی"

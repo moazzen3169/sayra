@@ -65,6 +65,7 @@
   --primary-hover: #8ebf35;
   --primary-muted: rgba(255, 255, 61, 0.15);
   --text-white: #FFFFFF;
+  --text-black: #212121;
   --text-muted: #9CA3AF;
   --text-subtle: #6B7280;
   --border-color: #2E2E35;
@@ -136,12 +137,7 @@ body {
   overflow-x: hidden;
 }
 
-@media (min-width: 1201px) {
-  .app-container {
-    border-left: 1px solid var(--border-subtle);
-    border-right: 1px solid var(--border-subtle);
-  }
-}
+
 
 /* Hide scrollbars globally across all browsers */
 * {

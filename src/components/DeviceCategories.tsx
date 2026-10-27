@@ -46,15 +46,15 @@ const imageMap: Record<DeviceCategory["iconType"], string> = {
 
 const cardStyles: Record<string, { background: string; position: string }> = {
   pc: {
-    background: "bg-[#ffff3d] ",
+    background: "bg-[var(--bg-card)] ",
     position: "col-start-1 row-span-2 lg:col-start-auto lg:row-start-auto lg:row-span-1 lg:col-span-1",
   },
   ps5: {
-    background: "bg-[#2f77b1] text-[#fff]",
+    background: "bg-[var(--bg-card)] ",
     position: "col-start-2 row-start-1 lg:col-start-auto lg:row-start-auto lg:row-span-1 lg:col-span-1",
   },
   xbox: {
-    background: "bg-[#0e7a0d] text-[#313131]",
+    background: "bg-[var(--bg-card)] ",
     position: "col-start-2 row-start-2 lg:col-start-auto lg:row-start-auto lg:row-span-1 lg:col-span-1",
   },
 };
@@ -108,7 +108,7 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
                       className="  h-[72%] w-[88%] object-contain"
                     />
 
-                    <span className="text-sm sm:text-base font-bold text-[#151515]">
+                    <span className="text-sm sm:text-base font-bold">
                       {cat.name}
                     </span>
                   </div>
