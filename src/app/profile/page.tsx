@@ -204,13 +204,13 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28">
+    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
       <Header locationName="تبریز" />
 
-      <main className="flex-1 mt-[124px] px-4 py-4 flex flex-col gap-5">
+      <main className="flex-1 mt-[124px] lg:mt-[92px] px-4 py-4 flex flex-col gap-5">
         {/* Loading State */}
         {isLoading && (
-          <div className="w-full max-w-md mx-auto p-6 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse flex flex-col gap-4">
+          <div className="w-full max-w-md lg:max-w-xl mx-auto p-6 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse flex flex-col gap-4">
             <div className="w-16 h-16 rounded-full bg-[var(--foreground)] mx-auto" />
             <div className="h-5 w-32 bg-[var(--foreground)] rounded mx-auto" />
             <div className="h-4 w-24 bg-[var(--foreground)] rounded mx-auto" />
@@ -219,7 +219,7 @@ export default function ProfilePage() {
 
         {/* Unauthenticated State: Login & Registration Form */}
         {!isLoading && !isLoggedIn && (
-          <div className="w-full max-w-md mx-auto bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-6 flex flex-col gap-5 shadow-xl">
+          <div className="w-full max-w-md lg:max-w-xl mx-auto bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-6 flex flex-col gap-5 shadow-xl">
             <div className="flex flex-col items-center text-center gap-2 border-b border-[var(--border-subtle)] pb-4">
               <div className="w-14 h-14 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center border border-[var(--primary)]/20 shadow-inner">
                 <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -354,7 +354,7 @@ export default function ProfilePage() {
 
         {/* Authenticated State */}
         {!isLoading && isLoggedIn && user && (
-          <div className="w-full max-w-md mx-auto flex flex-col gap-4 animate-fadeIn">
+          <div className="w-full max-w-md lg:max-w-xl mx-auto flex flex-col gap-4 animate-fadeIn">
             {/* User Info Card */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-5 flex items-center gap-4 shadow-lg relative overflow-hidden">
               <div className="w-16 h-16 rounded-full bg-[var(--foreground)] border-2 border-[var(--primary)] flex items-center justify-center text-[var(--primary)] text-2xl font-black shrink-0 shadow-md">
@@ -496,7 +496,7 @@ export default function ProfilePage() {
       {/* Support Modal */}
       {isSupportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm animate-fadeIn p-0 sm:p-4" onClick={() => setIsSupportModalOpen(false)}>
-          <div className="w-full max-w-[440px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card p-5 flex flex-col gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-[440px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-card bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
@@ -555,7 +555,7 @@ export default function ProfilePage() {
       {/* Edit Profile Modal */}
       {isEditModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm animate-fadeIn p-0 sm:p-4" onClick={() => setIsEditModalOpen(false)}>
-          <div className="w-full max-w-[440px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card p-5 flex flex-col gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-[440px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-card bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
@@ -619,7 +619,7 @@ export default function ProfilePage() {
       {/* Wallet Modal */}
       {isWalletModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm animate-fadeIn p-0 sm:p-4" onClick={() => setIsWalletModalOpen(false)}>
-          <div className="w-full max-w-[440px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card p-5 flex flex-col gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-[440px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-card bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">

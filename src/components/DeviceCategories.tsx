@@ -47,15 +47,15 @@ const imageMap: Record<DeviceCategory["iconType"], string> = {
 const cardStyles: Record<string, { background: string; position: string }> = {
   pc: {
     background: "bg-[#ffff3d] ",
-    position: "col-start-1 row-span-2",
+    position: "col-start-1 row-span-2 lg:col-start-auto lg:row-start-auto lg:row-span-1 lg:col-span-1",
   },
   ps5: {
     background: "bg-[#2f77b1] text-[#fff]",
-    position: "col-start-2 row-start-1",
+    position: "col-start-2 row-start-1 lg:col-start-auto lg:row-start-auto lg:row-span-1 lg:col-span-1",
   },
   xbox: {
     background: "bg-[#0e7a0d] text-[#313131]",
-    position: "col-start-2 row-start-2",
+    position: "col-start-2 row-start-2 lg:col-start-auto lg:row-start-auto lg:row-span-1 lg:col-span-1",
   },
 };
 
@@ -68,7 +68,7 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
     <section dir="rtl" className="w-full">
       <div
         dir="ltr"
-        className="grid grid-cols-2 grid-rows-2 gap-2 h-[184px] sm:h-[210px]"
+        className="grid grid-cols-2 grid-rows-2 lg:grid-cols-3 lg:grid-rows-1 gap-2 h-[184px] sm:h-[210px] lg:h-[200px]"
       >
         {categories
           .filter((cat) => ["pc", "ps5", "xbox"].includes(cat.id))
@@ -115,14 +115,14 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
                 ) : (
                   <div
                     dir="rtl"
-                    className="flex h-full items-center justify-between gap-1 px-2"
+                    className="flex h-full items-center justify-between gap-1 px-2 lg:flex-col lg:justify-between lg:py-2.5 lg:items-center"
                     >
                     <img
                       src={imageMap[cat.iconType]}
                       alt={cat.name}
-                      className="  h-[85%] w-[38%] shrink-0 object-contain"
+                      className="  h-[85%] w-[38%] shrink-0 object-contain lg:h-[72%] lg:w-[88%]"
                     />
-                    <span className="flex-1  text-center text-xs sm:text-sm font-black text-[#fff]">
+                    <span className="flex-1  text-center text-xs sm:text-sm font-black text-[#fff] lg:flex-none lg:text-sm">
                       {cat.name}
                     </span>
 

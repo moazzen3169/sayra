@@ -120,11 +120,11 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-6 bg-black/75 backdrop-blur-sm animate-fadeIn"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[780px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card p-4 sm:p-5 flex justify-between flex-col gap-4 max-h-[92vh] shadow-2xl relative overflow-hidden"
+        className="w-full max-w-[780px] lg:max-w-[720px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-4 sm:p-5 flex justify-between flex-col gap-4 max-h-[92vh] lg:max-h-[88vh] shadow-2xl relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -234,7 +234,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
               {timeSlots.map((slot) => {
                 const isSelected = selectedSlotIds.includes(slot.id);
                 return (

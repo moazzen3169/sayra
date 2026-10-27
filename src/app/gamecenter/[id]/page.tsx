@@ -376,7 +376,7 @@ export default function GameCenterDetailPage({
       {/* Booking error banner */}
       {bookingError && (
         <div className="fixed top-16 left-0 right-0 z-[45] flex justify-center px-4 pt-3 pointer-events-none">
-          <div className="w-full max-w-[780px] pointer-events-auto p-3 rounded-card bg-[var(--bg-card)] border border-[var(--accent-red)]/50 text-[var(--accent-red)] text-xs font-bold flex items-start justify-between gap-3 shadow-2xl">
+          <div className="w-full max-w-[var(--max-app-width)] pointer-events-auto p-3 rounded-card bg-[var(--bg-card)] border border-[var(--accent-red)]/50 text-[var(--accent-red)] text-xs font-bold flex items-start justify-between gap-3 shadow-2xl">
             <span className="leading-relaxed">{bookingError}</span>
             <button
               type="button"
@@ -402,11 +402,12 @@ export default function GameCenterDetailPage({
 
       <main className="flex-1 flex flex-col gap-5 mt-16">
         {/* Cover Image */}
-        <div className="relative w-full aspect-[16/9] bg-[var(--foreground)]">
+        <div className="relative w-full aspect-[16/9] lg:aspect-[21/9] lg:max-h-[460px] bg-[var(--foreground)]">
           <Image
             src="/img/gamnet-1.webp"
             alt="گیمنت گرگدن"
             fill
+            sizes="(min-width:1200px) 1200px, 100vw"
             className="object-cover"
             priority
           />
@@ -416,7 +417,7 @@ export default function GameCenterDetailPage({
         </div>
 
         {/* Game Center Information */}
-        <div className="px-4 flex flex-col gap-2.5">
+        <div className="px-4 desk:px-6 lg:px-8 flex flex-col gap-2.5">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-extrabold text-[var(--text-white)]">
               گیمنت اختصاصی گرگدن
@@ -493,7 +494,7 @@ export default function GameCenterDetailPage({
         <div className="border-t border-[var(--border-subtle)] my-1" />
 
         {/* Device Selection & Quantity */}
-        <div className="px-4 flex flex-col gap-3">
+        <div className="px-4 desk:px-6 lg:px-8 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-extrabold text-[var(--text-white)]">
               دستگاه‌های موجود جهت رزرو
@@ -503,7 +504,7 @@ export default function GameCenterDetailPage({
             </span>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4">
             {devicesData.map((dev) => {
               const cartItem = cartItems.find((item) => item.device.id === dev.id);
               const isSelected = !!cartItem;
@@ -626,14 +627,14 @@ export default function GameCenterDetailPage({
         <div className="border-t border-[var(--border-subtle)] my-1" />
 
         {/* User Reviews Section */}
-        <div className="px-4 flex flex-col gap-3">
+        <div className="px-4 desk:px-6 lg:px-8 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-extrabold text-[var(--text-white)]">
               نظرات و امتیازات کاربران
             </h2>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4">
             {reviewsData.map((rev) => (
               <div
                 key={rev.id}
@@ -670,11 +671,11 @@ export default function GameCenterDetailPage({
       {/* Fixed Bottom Reservation Action Bar: ONLY displayed when at least one device is selected */}
       {totalSelectedDevicesCount > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pointer-events-none">
-          <div className="w-full max-w-[780px] bg-[var(--bg-card)]/95 backdrop-blur-md border-t border-[var(--border-color)] px-4 py-3 flex items-center justify-center pointer-events-auto shadow-2xl">
+          <div className="w-full max-w-[var(--max-app-width)] bg-[var(--bg-card)]/95 backdrop-blur-md border-t border-[var(--border-color)] px-4 py-3 flex items-center justify-center pointer-events-auto shadow-2xl">
             <button
               type="button"
               onClick={() => setIsCartModalOpen(true)}
-              className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+              className="h-12 w-full lg:max-w-[420px] lg:mx-auto rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
             >
               <span>مشاهده و تایید سبد رزرو ({toPersianDigits(totalSelectedDevicesCount)} دستگاه)</span>
               <svg

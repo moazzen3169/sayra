@@ -106,14 +106,14 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28">
+    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
       <Header
         locationName={selectedCity}
         unreadNotificationsCount={2}
         onCityChange={(city) => setSelectedCity(city)}
       />
 
-      <main className="flex-1 px-4 py-3 flex flex-col gap-6 mt-[120px]">
+      <main className="flex-1 px-4 desk:px-6 lg:px-8 py-3 flex flex-col gap-6 lg:gap-8 mt-[120px] lg:mt-[92px]">
         {/* ۱. بخش اسلایدر بنرهای تبلیغاتی */}
         <section>
           <BannerSlider banners={banners} isLoading={bannersLoading} />
@@ -156,12 +156,12 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="-mx-4 px-4 pb-2 select-none">
+            <div className="-mx-4 desk:-mx-6 lg:-mx-8 px-4 desk:px-6 lg:px-8 pb-2 select-none">
               <CarouselContent className="gap-3 -mr-3">
                 {popularCenters.map((item) => (
                   <CarouselItem
                     key={item.id}
-                    className="pr-3 basis-[210px] min-w-[210px] sm:basis-[230px]"
+                    className="pr-3 basis-[210px] min-w-[210px] sm:basis-[230px] lg:basis-[240px]"
                   >
                     <GamecenterCardMini {...item} />
                   </CarouselItem>
@@ -178,7 +178,7 @@ export default function HomePage() {
             <span className="text-xs text-[var(--text-muted)]">برترین کیفیت و امکانات</span>
           </div>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-5">
             {featuredCenters.map((item) => (
               <GamecenterCardBig key={item.id} {...item} />
             ))}
