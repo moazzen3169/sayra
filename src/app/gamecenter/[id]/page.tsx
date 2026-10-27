@@ -428,12 +428,16 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
                   <div className="flex items-start justify-between gap-3">
                     <h1 className="text-xl font-extrabold leading-tight">{title}</h1>
                     {rating && (
-                      <div className="shrink-0 flex items-center gap-1 text-xs text-[var(--primary)] font-bold pt-1">
+                      <button
+                        type="button"
+                        onClick={() => scrollToId("reviews")}
+                        className="shrink-0 flex items-center gap-1 text-xs text-[var(--primary)] font-bold pt-1 hover:underline cursor-pointer focus:outline-none"
+                      >
                         <span>★ {toPersianDigits(rating.avg.toFixed(1))}</span>
                         <span className="text-[var(--text-muted)] font-normal">
                           ({toPersianDigits(rating.count)} دیدگاه)
                         </span>
-                      </div>
+                      </button>
                     )}
                   </div>
 
@@ -494,7 +498,7 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
                 )}
 
                 {/* Reviews */}
-                <section className="flex flex-col gap-3">
+                <section id="reviews" className="flex flex-col gap-3 scroll-mt-20">
                   <SectionTitle title="نظرات کاربران" />
                   {reviews.length === 0 ? (
                     <p className="rounded-card border border-dashed border-[var(--border-color)] p-6 text-center text-xs text-[var(--text-muted)]">

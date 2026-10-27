@@ -13,32 +13,30 @@ const normalize = (v: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const GameTile: React.FC<{ game: GameItem; className?: string }> = ({ game, className = "w-[116px] sm:w-[150px]" }) => {
+const GameTile: React.FC<{ game: GameItem; className?: string }> = ({ game, className = "w-28 sm:w-32 aspect-[3/4]" }) => {
   const [failed, setFailed] = useState(false);
   const hasLogo = !!game.logo && !failed;
 
   return (
-    <div className={`flex flex-col items-center gap-2 shrink-0 ${className}`}>
-      <div className="h-12 sm:h-14 w-full flex items-center justify-center px-2">
-        {hasLogo ? (
-          <img
-            src={game.logo}
-            alt=""
-            loading="lazy"
-            draggable={false}
-            onError={() => setFailed(true)}
-            className="max-h-full max-w-full object-contain opacity-90"
-          />
-        ) : (
-          <span className="text-[13px] font-black text-[var(--text-muted)] text-center leading-tight line-clamp-2">
+    <div
+      title={game.name}
+      className={`rounded-card overflow-hidden bg-[var(--bg-card)] border border-[var(--border-subtle)] shadow-md shrink-0 flex items-center justify-center relative group transition-transform hover:scale-[1.02] ${className}`}
+    >
+      {hasLogo ? (
+        <img
+          src={game.logo}
+          alt={game.name}
+          loading="lazy"
+          draggable={false}
+          onError={() => setFailed(true)}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+        />
+      ) : (
+        <div className="p-3 text-center flex items-center justify-center w-full h-full bg-[var(--foreground)]/40">
+          <span className="text-xs font-bold text-[var(--text-white)] leading-snug line-clamp-3">
             {game.name}
           </span>
-        )}
-      </div>
-      {hasLogo && (
-        <span className="text-[11px] font-bold text-[var(--text-muted)] text-center line-clamp-1 w-full">
-          {game.name}
-        </span>
+        </div>
       )}
     </div>
   );
@@ -69,7 +67,7 @@ const MarqueeRow: React.FC<{ games: GameItem[]; reverse?: boolean }> = ({ games,
         }}
       >
         {[0, 1].map((copy) => (
-          <div key={copy} aria-hidden={copy === 1} className="flex shrink-0 gap-2 pr-2">
+          <div key={copy} aria-hidden={copy === 1} className="flex shrink-0 gap-3 pr-3">
             {group.map((g, i) => (
               <GameTile key={`${copy}-${g.id}-${i}`} game={g} />
             ))}
@@ -136,9 +134,9 @@ export const GamesMarquee: React.FC<{ games: GameItem[] }> = ({ games }) => {
             <span className="text-[11px] text-[var(--text-muted)]">
               {toPersianDigits(results.length)} بازی پیدا شد
             </span>
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-x-2 gap-y-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
               {results.map((g) => (
-                <GameTile key={g.id} game={g} className="w-full" />
+                <GameTile key={g.id} game={g} className="w-full aspect-[3/4]" />
               ))}
             </div>
           </div>

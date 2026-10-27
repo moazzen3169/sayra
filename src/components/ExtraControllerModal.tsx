@@ -8,7 +8,9 @@ interface ExtraControllerModalProps {
   onClose: () => void;
   onConfirm: (extraControllersCount: number) => void;
   deviceName: string;
+  defaultControllers?: number;
   initialCount?: number;
+  maxExtra?: number;
   pricePerController?: number;
 }
 
@@ -17,15 +19,23 @@ export const ExtraControllerModal: React.FC<ExtraControllerModalProps> = ({
   onClose,
   onConfirm,
   deviceName,
+  defaultControllers = 2,
   initialCount = 0,
+  maxExtra = 4,
   pricePerController = 30000,
 }) => {
   const [count, setCount] = useState<number>(initialCount);
+  const [prevInitial, setPrevInitial] = useState<number>(initialCount);
+
+  if (initialCount !== prevInitial) {
+    setPrevInitial(initialCount);
+    setCount(initialCount);
+  }
 
   if (!isOpen) return null;
 
   const handleIncrement = () => {
-    if (count < 3) setCount((c) => c + 1);
+    if (count < maxExtra) setCount((c) => c + 1);
   };
 
   const handleDecrement = () => {
@@ -65,16 +75,23 @@ export const ExtraControllerModal: React.FC<ExtraControllerModalProps> = ({
         {/* Content */}
         <div className="flex flex-col gap-3 text-right">
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            آیا برای رزرو <span className="text-[var(--primary)] font-bold">{deviceName}</span> به دسته اضافه نیاز دارید؟
+              هر دستگاه <span className="text-[var(--text-white)] font-bold">{deviceName}</span> به‌صورت پیش‌فرض همراه با <strong className="text-[var(--primary)] font-extrabold">{toPersianDigits(defaultControllers)} دسته</strong> ارائه می‌شود.
           </p>
+            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+              آیا برای بازی گروهی به دسته اضافه نیاز دارید؟ (حداکثر {toPersianDigits(maxExtra)} دسته اضافه برای هر دستگاه)
+            </p>
 
           {/* Extra controller counter card */}
           <div className="bg-[var(--foreground)]/50 rounded-card p-3.5 border border-[var(--border-subtle)] flex items-center justify-between">
             <div className="flex flex-col gap-0.5">
               <span className="text-xs font-bold text-[var(--text-white)]">تعداد دسته اضافه</span>
-              <span className="text-[11px] text-[var(--text-muted)]">
-                +{formatPrice(pricePerController)} تومان / ساعتی
-              </span>
+                {pricePerController > 0 ? (
+                  <span className="text-[11px] text-[var(--primary)] font-bold">
+                    +{formatPrice(pricePerController)} تومان / دسته / ساعت
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-[var(--text-muted)]">رایگان</span>
+                )}
             </div>
 
             <div className="flex items-center gap-3 bg-[var(--bg-card)] rounded-card p-1 border border-[var(--border-color)]">
@@ -92,7 +109,7 @@ export const ExtraControllerModal: React.FC<ExtraControllerModalProps> = ({
               <button
                 type="button"
                 onClick={handleIncrement}
-                disabled={count >= 3}
+                  disabled={count >= maxExtra}
                 className="w-8 h-8 rounded-lg bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-sm disabled:opacity-30 hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
               >
                 +
@@ -101,9 +118,9 @@ export const ExtraControllerModal: React.FC<ExtraControllerModalProps> = ({
           </div>
 
           {/* Summary text */}
-          {count > 0 && (
-            <div className="flex items-center justify-between text-xs px-1 text-[var(--text-white)]">
-              <span>هزینه اضافی بستگی به ساعات رزرو:</span>
+            {count > 0 && pricePerController > 0 && (
+              <div className="flex items-center justify-between text-xs px-1 text-[var(--text-white)] bg-[var(--primary)]/10 p-2.5 rounded-card border border-[var(--primary)]/20">
+                <span>هزینه دسته‌های اضافه:</span>
               <span className="font-extrabold text-[var(--primary)]">
                 +{formatPrice(count * pricePerController)} تومان/ساعت
               </span>
