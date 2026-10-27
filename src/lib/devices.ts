@@ -7,12 +7,12 @@ export const DEFAULT_MAX_EXTRA_CONTROLLERS = 4;
 const CONSOLE_KEYS = new Set(["PLAYSTATION", "PS5", "PS4", "XBOX", "SWITCH"]);
 
 const META: Record<string, { label: string; image: string }> = {
-  PC: { label: "کامپیوتر گیمینگ", image: "/img/pc.webp" },
-  PS5: { label: "پلی‌استیشن ۵", image: "/img/PS5.webp" },
+  PC: { label: "کامپیوتر گیمینگ", image: "/img/pc.png" },
+  PS5: { label: "پلی‌استیشن ۵", image: "/img/PS5.png" },
   PS4: { label: "پلی‌استیشن ۴", image: "/img/PS4.webp" },
-  PLAYSTATION: { label: "پلی‌استیشن", image: "/img/PS5.webp" },
-  XBOX: { label: "ایکس‌باکس", image: "/img/xbox.webp" },
-  SWITCH: { label: "نینتندو سوییچ", image: "/img/pc.webp" },
+  PLAYSTATION: { label: "پلی‌استیشن", image: "/img/PS5.png" },
+  XBOX: { label: "ایکس‌باکس", image: "/img/xbox.png" },
+  SWITCH: { label: "نینتندو سوییچ", image: "/img/pc.png" },
   VR: { label: "واقعیت مجازی", image: "/img/vr.png" },
   BILLIARD: { label: "بیلیارد", image: "/img/bilyard.png" },
 };

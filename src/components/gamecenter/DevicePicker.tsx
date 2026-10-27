@@ -75,8 +75,8 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
                 : "bg-[var(--bg-card)] border-[var(--border-subtle)]"
             }`}
           >
-            <div className="flex items-center gap-3">
-              <div className="w-16 h-16 shrink-0 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] flex items-center justify-center p-2 overflow-hidden">
+            <div className="flex  items-center gap-3">
+              <div className="w-16 h-16 shrink-0 sticky top-[100px] rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] flex items-center justify-center p-2 overflow-hidden">
                 <img src={g.image} alt="" loading="lazy" className="w-full h-full object-contain" />
               </div>
 

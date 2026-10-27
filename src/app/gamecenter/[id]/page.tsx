@@ -108,7 +108,7 @@ const BookingCta: React.FC<BookingCtaProps> = ({ lines, deviceCount, hourly, onP
   }
 
   return (
-    <aside className="hidden lg:flex sticky top-24 flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5">
+    <aside className="hidden lg:flex sticky top-0 flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5">
       <h3 className="text-sm font-extrabold text-[var(--text-white)]">رزرو آنلاین</h3>
 
       {has && (
@@ -420,7 +420,7 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
               </div>
             )}
 
-            <div className="px-4 desk:px-6 lg:px-8 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-8 lg:items-start">
+            <div className="px-4 relative  desk:px-6 lg:px-8 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-8 lg:items-start">
               {/* ===== Main column ===== */}
               <div className="flex flex-col gap-8 min-w-0">
                 {/* Info */}
