@@ -115,7 +115,7 @@ export default function OwnerSupportPage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
       <OwnerPageHeader title="پشتیبانی" />
 
-      <main className="flex-1 mt-16 px-4 py-4 flex flex-col gap-3 lg:max-w-[640px] lg:mx-auto lg:w-full lg:px-0">
+      <main className="flex-1 mt-16 px-4 py-4 flex flex-col gap-3 lg:max-w-[880px] lg:mx-auto lg:w-full lg:px-0">
         {error && (
           <div className="p-3 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold">
             {error}
@@ -124,8 +124,8 @@ export default function OwnerSupportPage() {
 
         {/* Detail */}
         {selected ? (
-          <>
-            <button type="button" onClick={() => setSelected(null)} className="self-start text-xs font-bold text-[var(--primary)]">
+          <div className="lg:max-w-[640px] lg:mx-auto lg:w-full flex flex-col gap-3">
+            <button type="button" onClick={() => setSelected(null)} className="self-start text-xs font-bold text-[var(--primary)] hover:underline">
               ← بازگشت به تیکت‌ها
             </button>
             <h2 className="text-sm font-extrabold">{selected.subject}</h2>
@@ -173,9 +173,9 @@ export default function OwnerSupportPage() {
                 </div>
               </form>
             )}
-          </>
+          </div>
         ) : creating ? (
-          <form onSubmit={createTicket} className="flex flex-col gap-3">
+          <form onSubmit={createTicket} className="lg:max-w-[640px] lg:mx-auto lg:w-full flex flex-col gap-3">
             <h2 className="text-sm font-extrabold">تیکت جدید</h2>
             <input className={input} placeholder="موضوع" value={subject} onChange={(e) => setSubject(e.target.value)} />
             <select className={input} value={category} onChange={(e) => setCategory(e.target.value as typeof category)}>
@@ -203,7 +203,7 @@ export default function OwnerSupportPage() {
           </form>
         ) : (
           <>
-            <button type="button" onClick={() => setCreating(true)} className="h-12 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm">
+            <button type="button" onClick={() => setCreating(true)} className="h-12 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm hover:opacity-90 transition-opacity">
               + تیکت جدید
             </button>
 
@@ -212,17 +212,19 @@ export default function OwnerSupportPage() {
               <p className="py-12 text-center text-xs text-[var(--text-muted)]">تیکتی ثبت نشده است.</p>
             )}
 
-            {tickets?.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => openTicket(t.id)}
-                className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex items-center justify-between gap-3 text-right"
-              >
-                <span className="text-sm font-bold truncate">{t.subject}</span>
-                <span className="text-[11px] text-[var(--text-muted)] shrink-0">{STATUS_LABEL[t.status] ?? t.status}</span>
-              </button>
-            ))}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {tickets?.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => openTicket(t.id)}
+                  className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex items-center justify-between gap-3 text-right hover:border-[var(--border-color)] transition-colors"
+                >
+                  <span className="text-sm font-bold truncate">{t.subject}</span>
+                  <span className="text-[11px] text-[var(--text-muted)] shrink-0">{STATUS_LABEL[t.status] ?? t.status}</span>
+                </button>
+              ))}
+            </div>
           </>
         )}
       </main>

@@ -59,7 +59,7 @@ export default function OwnerReviewsPage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
       <OwnerPageHeader title="نظرات" />
 
-      <main className="flex-1 mt-16 px-4 desk:px-6 lg:px-8 py-4 flex flex-col gap-3">
+      <main className="flex-1 mt-16 px-4 py-4 lg:max-w-[880px] lg:mx-auto lg:w-full lg:px-0 flex flex-col gap-3">
         {!center?.slug && <p className="text-xs text-[var(--text-muted)]">اطلاعات گیمنت (slug) در دسترس نیست.</p>}
         {error && <p className="text-xs font-bold text-[var(--accent-red)]">{error}</p>}
         {items === null && center?.slug && <div className="h-24 rounded-card bg-[var(--bg-card)] animate-pulse" />}
@@ -78,33 +78,37 @@ export default function OwnerReviewsPage() {
           <p className="py-12 text-center text-xs text-[var(--text-muted)]">هنوز نظری ثبت نشده است.</p>
         )}
 
-        {items?.map((r) => (
-          <div key={r.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold">{r.customerName ?? "کاربر سایرا"}</span>
-              <span className="text-xs font-black text-[var(--accent-star)]">★ {toPersianDigits(r.rating)}</span>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {items?.map((r) => (
+            <div key={r.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex flex-col justify-between gap-2">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold">{r.customerName ?? "کاربر سایرا"}</span>
+                  <span className="text-xs font-black text-[var(--accent-star)]">★ {toPersianDigits(r.rating)}</span>
+                </div>
+                {r.comment && <p className="text-xs text-[var(--text-muted)] leading-relaxed">{r.comment}</p>}
+              </div>
+              <div className="flex gap-2 pt-2 border-t border-[var(--border-subtle)] mt-1">
+                <button
+                  type="button"
+                  disabled={busyId === r.id}
+                  onClick={() => moderate(r.id, "HIDDEN")}
+                  className="h-9 px-4 rounded-card bg-[var(--foreground)] text-xs font-bold disabled:opacity-50 hover:bg-[var(--foreground)]/80"
+                >
+                  مخفی کردن
+                </button>
+                <button
+                  type="button"
+                  disabled={busyId === r.id}
+                  onClick={() => moderate(r.id, "DELETED")}
+                  className="h-9 px-4 rounded-card border border-[var(--accent-red)]/50 text-[var(--accent-red)] text-xs font-bold disabled:opacity-50 hover:bg-[var(--accent-red)]/10"
+                >
+                  حذف
+                </button>
+              </div>
             </div>
-            {r.comment && <p className="text-xs text-[var(--text-muted)] leading-relaxed">{r.comment}</p>}
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                disabled={busyId === r.id}
-                onClick={() => moderate(r.id, "HIDDEN")}
-                className="h-9 px-4 rounded-card bg-[var(--foreground)] text-xs font-bold disabled:opacity-50"
-              >
-                مخفی کردن
-              </button>
-              <button
-                type="button"
-                disabled={busyId === r.id}
-                onClick={() => moderate(r.id, "DELETED")}
-                className="h-9 px-4 rounded-card border border-[var(--accent-red)]/50 text-[var(--accent-red)] text-xs font-bold disabled:opacity-50"
-              >
-                حذف
-              </button>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </main>
     </div>
   );
