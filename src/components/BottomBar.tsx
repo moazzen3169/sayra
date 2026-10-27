@@ -39,11 +39,14 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
   },
   {
     id: "history",
-    label: "تاریخچه",
+    label: "رزروهای من",
     icon: (
       <svg {...iconProps}>
-        <path d="M3 12a9 9 0 109-9 9 9 0 00-6.36 2.64L3 8" />
-        <path d="M3 3v5h5M12 7v5l3 2" />
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+        <path d="M9 16l2 2 4-4" />
       </svg>
     ),
   },
