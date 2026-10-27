@@ -6,20 +6,21 @@ import type { GameStationInfo } from "@/services/gamingCenterService";
  * لوگوی بازی‌ها را در public/img/games/ بگذارید؛ اگر فایل نبود نام بازی متنی نمایش داده می‌شود.
  */
 export const MOCK_GAMES: GameItem[] = [
-  { id: "fc26", name: "EA FC 26", logo: "/img/games/fc26.png" },
-  { id: "apex", name: "Apex Legends", logo: "/img/games/apex.png" },
-  { id: "pubg", name: "PUBG", logo: "/img/games/pubg.png" },
-  { id: "r6", name: "Rainbow Six Siege", logo: "/img/games/r6.png" },
-  { id: "cod", name: "Call of Duty", logo: "/img/games/cod.png" },
-  { id: "efootball", name: "eFootball", logo: "/img/games/efootball.png" },
-  { id: "dota2", name: "Dota 2", logo: "/img/games/dota2.png" },
-  { id: "cs2", name: "Counter-Strike 2", logo: "/img/games/cs2.png" },
-  { id: "spiderman", name: "Spider-Man", logo: "/img/games/spiderman.png" },
-  { id: "nfs", name: "Need for Speed", logo: "/img/games/nfs.png" },
-  { id: "mk", name: "Mortal Kombat", logo: "/img/games/mk.png" },
-  { id: "tekken8", name: "Tekken 8", logo: "/img/games/tekken8.png" },
-  { id: "gta5", name: "GTA V", logo: "/img/games/gta5.png" },
-  { id: "eldenring", name: "Elden Ring", logo: "/img/games/eldenring.png" },
+  { id: "fc24", name: "EA FC 24", logo: "/img/games/fc24.webp" },
+  { id: "cod", name: "Call of Duty", logo: "/img/games/call-of-duty.webp" },
+  { id: "gta5", name: "GTA V", logo: "/img/games/gtav.webp" },
+  { id: "mk", name: "Mortal Kombat", logo: "/img/games/mortal-kombat.webp" },
+  { id: "pubg", name: "PUBG", logo: "/img/games/pubg.webp" },
+  { id: "csgo", name: "CS:GO", logo: "/img/games/csgo.webp" },
+  { id: "dota2", name: "Dota 2", logo: "/img/games/dota2.webp" },
+  { id: "fortnite", name: "Fortnite", logo: "/img/games/fortnite.webp" },
+  { id: "gow", name: "God of War", logo: "/img/games/god-of-war.webp" },
+  { id: "rdr2", name: "Red Dead Redemption 2", logo: "/img/games/reddead.webp" },
+  { id: "spiderman2", name: "Spider-Man 2", logo: "/img/games/spider-man-2.webp" },
+  { id: "tekken8", name: "Tekken 8", logo: "/img/games/taken8.webp" },
+  { id: "pes2021", name: "PES 2021", logo: "/img/games/pes2021.webp" },
+  { id: "lol", name: "League of Legends", logo: "/img/games/LOL.webp" },
+  { id: "overwatch", name: "Overwatch", logo: "/img/games/Overwatch.webp" },
 ];
 
 const station = (

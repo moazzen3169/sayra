@@ -23,6 +23,8 @@ export interface BannerSliderProps {
   /** کلاس‌های aspect-ratio اسلاید؛ برای گالری صفحه جزئیات کوتاه‌تر می‌شود */
   aspectClassName?: string;
   ariaLabel?: string;
+  /** نمایش دکمه بزرگنمایی */
+  enableZoom?: boolean;
 }
 
 const toPersianDigits = (num: number | string): string => {
@@ -41,6 +43,9 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
   const [api, setApi] = useState<CarouselApi>();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
+  const [fullscreenApi, setFullscreenApi] = useState<CarouselApi>();
+  const [fullscreenIndex, setFullscreenIndex] = useState(0);
 
   // Filter out failed banners
   const validBanners = useMemo(() => {
@@ -97,6 +102,33 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
       api.off("reInit", handleSelect);
     };
   }, [api]);
+
+  useEffect(() => {
+    if (!fullscreenApi) return;
+
+    const handleSelect = () => {
+      setFullscreenIndex(fullscreenApi.selectedScrollSnap());
+    };
+
+    fullscreenApi.on("select", handleSelect);
+    fullscreenApi.on("reInit", handleSelect);
+
+    return () => {
+      fullscreenApi.off("select", handleSelect);
+      fullscreenApi.off("reInit", handleSelect);
+    };
+  }, [fullscreenApi]);
+
+  // Handle ESC key for closing fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isFullscreenOpen) {
+        setIsFullscreenOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFullscreenOpen]);
 
   // Reduced motion support
   useEffect(() => {
@@ -177,6 +209,25 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
       aria-live={isPlaying ? "off" : "polite"}
       className={`relative group/slider rounded-card ${className}`}
     >
+      {/* Zoom / Expand Button */}
+      {slidesCount > 0 && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setFullscreenIndex(selectedIndex);
+            setIsFullscreenOpen(true);
+          }}
+          aria-label="بزرگنمایی تصویر"
+          title="بزرگنمایی تصویر"
+          className="absolute top-3 left-3 z-20 w-9 h-9 rounded-full bg-[var(--bg-body)]/75 backdrop-blur-md border border-[var(--border-color)] text-[var(--text-white)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-all flex items-center justify-center active:scale-95 shadow-lg"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m-3-3h6" />
+          </svg>
+        </button>
+      )}
+
       <Carousel
         setApi={setApi}
         opts={emblaOptions}
@@ -304,6 +355,89 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Fullscreen Slider Modal */}
+      {isFullscreenOpen && (
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 animate-fadeIn">
+          {/* Top Bar */}
+          <div className="flex items-center justify-between z-10 px-2 py-1 max-w-[1200px] w-full mx-auto">
+            <span className="text-sm font-black text-[var(--text-white)] bg-[var(--bg-card)]/80 px-3 py-1.5 rounded-full border border-[var(--border-subtle)]">
+              {toPersianDigits(fullscreenIndex + 1)} از {toPersianDigits(slidesCount)}
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsFullscreenOpen(false)}
+              aria-label="بستن بزرگنمایی"
+              className="w-10 h-10 rounded-full bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-white)] hover:text-[var(--primary)] hover:border-[var(--primary)] flex items-center justify-center transition-all active:scale-95"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Center Image Carousel */}
+          <div className="flex-1 flex items-center justify-center relative w-full my-auto max-w-[1200px] mx-auto overflow-hidden">
+            <Carousel
+              setApi={setFullscreenApi}
+              opts={{
+                loop: slidesCount >= 2,
+                direction: "rtl",
+                startIndex: selectedIndex,
+              }}
+              className="w-full h-full flex items-center justify-center"
+            >
+              <CarouselContent className="h-full flex items-center">
+                {validBanners.map((item) => (
+                  <CarouselItem key={item.id} className="basis-full h-full flex items-center justify-center p-2">
+                    <img
+                      src={item.imageUrl}
+                      alt={item.alt}
+                      draggable={false}
+                      className="max-h-[82vh] max-w-full object-contain select-none rounded-card border border-[var(--border-subtle)] shadow-2xl"
+                    />
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+
+              {slidesCount > 1 && (
+                <>
+                  <CarouselNext
+                    aria-label="تصویر بعدی"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-[var(--bg-card)]/80 backdrop-blur border border-[var(--border-color)] text-[var(--text-white)] hover:text-[var(--primary)] hover:border-[var(--primary)] flex items-center justify-center z-20"
+                  />
+                  <CarouselPrevious
+                    aria-label="تصویر قبلی"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-[var(--bg-card)]/80 backdrop-blur border border-[var(--border-color)] text-[var(--text-white)] hover:text-[var(--primary)] hover:border-[var(--primary)] flex items-center justify-center z-20"
+                  />
+                </>
+              )}
+            </Carousel>
+          </div>
+
+          {/* Bottom Thumbnails / Dots indicator */}
+          {slidesCount > 1 && (
+            <div className="flex items-center justify-center gap-1.5 py-2 z-10">
+              {validBanners.map((_, index) => {
+                const isActive = index === fullscreenIndex;
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => fullscreenApi?.scrollTo(index)}
+                    aria-label={`رفتن به تصویر ${toPersianDigits(index + 1)}`}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      isActive
+                        ? "w-6 bg-[var(--primary)]"
+                        : "w-2 bg-[var(--foreground)] hover:bg-[var(--text-subtle)]"
+                    }`}
+                  />
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { formatPrice, toPersianDigits } from "@/lib/format";
+import { ExtraControllerModal } from "@/components/ExtraControllerModal";
 import type { CartEntry, DeviceGroup } from "@/lib/devices";
 
 interface DevicePickerProps {
@@ -48,6 +49,15 @@ const Stepper: React.FC<{
 );
 
 export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyChange, onExtraChange }) => {
+  const [activeConsoleModal, setActiveConsoleModal] = useState<DeviceGroup | null>(null);
+
+  const handleAddClick = (g: DeviceGroup) => {
+    onQtyChange(g.key, 1);
+    if (g.isConsole) {
+      setActiveConsoleModal(g);
+    }
+  };
+
   if (groups.length === 0) {
     return (
       <div className="rounded-card border border-dashed border-[var(--border-color)] bg-[var(--bg-card)] p-6 text-center text-xs text-[var(--text-muted)]">
@@ -97,7 +107,7 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
             {!selected ? (
               <button
                 type="button"
-                onClick={() => onQtyChange(g.key, 1)}
+                onClick={() => handleAddClick(g)}
                 className="h-11 w-full rounded-card bg-[var(--foreground)] hover:bg-[var(--primary)] hover:text-[#101014] text-[var(--text-white)] text-sm font-black transition-colors active:scale-[0.98]"
               >
                 + افزودن
@@ -130,20 +140,25 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
                 </p>
 
                 {canExtra ? (
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border-subtle)]">
                     <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-bold text-[var(--text-white)]">دسته اضافه (برای هر دستگاه)</span>
-                      <span className="text-[10px] text-[var(--text-muted)]">
-                        +{formatPrice(g.extraControllerPrice!)} تومان / دسته / ساعت
+                      <span className="text-xs font-bold text-[var(--text-white)]">
+                        دسته اضافه: {extra > 0 ? `${toPersianDigits(extra)} عدد` : "بدون دسته اضافه"}
                       </span>
+                      {g.extraControllerPrice ? (
+                        <span className="text-[10px] text-[var(--text-muted)]">
+                          +{formatPrice(g.extraControllerPrice)} تومان / دسته / ساعت
+                        </span>
+                      ) : null}
                     </div>
-                    <Stepper
-                      value={extra}
-                      min={0}
-                      max={g.maxExtra}
-                      onChange={(v) => onExtraChange(g.key, v)}
-                      label={`دسته اضافه ${g.label}`}
-                    />
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveConsoleModal(g)}
+                      className="px-3 py-1.5 rounded-lg bg-[var(--foreground)] hover:bg-[var(--primary)] hover:text-[#101014] text-xs font-bold text-[var(--text-white)] transition-colors shrink-0"
+                    >
+                      {extra > 0 ? "تغییر تعداد" : "+ انتخاب دسته اضافه"}
+                    </button>
                   </div>
                 ) : null}
 
@@ -160,6 +175,23 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
           </article>
         );
       })}
+
+      {/* Modal for Selecting Extra Controllers */}
+      {activeConsoleModal && (
+        <ExtraControllerModal
+          isOpen={!!activeConsoleModal}
+          onClose={() => setActiveConsoleModal(null)}
+          onConfirm={(extraCount) => {
+            onExtraChange(activeConsoleModal.key, extraCount);
+            setActiveConsoleModal(null);
+          }}
+          deviceName={activeConsoleModal.label}
+          defaultControllers={activeConsoleModal.defaultControllers}
+          initialCount={cart[activeConsoleModal.key]?.extra ?? 0}
+          maxExtra={activeConsoleModal.maxExtra}
+          pricePerController={activeConsoleModal.extraControllerPrice ?? 0}
+        />
+      )}
     </div>
   );
 };
