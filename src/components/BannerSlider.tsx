@@ -13,11 +13,16 @@ import {
 } from "@/components/ui/carousel";
 import { BannerItem } from "@/types/home";
 
+const DEFAULT_ASPECT = "aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[3.2/1]";
+
 export interface BannerSliderProps {
   banners?: BannerItem[];
   isLoading?: boolean;
   autoplayDelay?: number;
   className?: string;
+  /** کلاس‌های aspect-ratio اسلاید؛ برای گالری صفحه جزئیات کوتاه‌تر می‌شود */
+  aspectClassName?: string;
+  ariaLabel?: string;
 }
 
 const toPersianDigits = (num: number | string): string => {
@@ -29,6 +34,8 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
   isLoading = false,
   autoplayDelay = 5000,
   className = "",
+  aspectClassName = DEFAULT_ASPECT,
+  ariaLabel = "بنرهای تبلیغاتی",
 }) => {
   const [failedBannerIds, setFailedBannerIds] = useState<string[]>([]);
   const [api, setApi] = useState<CarouselApi>();
@@ -155,7 +162,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
   // Loading state
   if (isLoading) {
     return (
-      <div className={`w-full rounded-card overflow-hidden bg-[var(--bg-card)] animate-pulse aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[3.2/1] ${className}`} />
+      <div className={`w-full rounded-card overflow-hidden bg-[var(--bg-card)] animate-pulse ${aspectClassName} ${className}`} />
     );
   }
 
@@ -166,7 +173,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
 
   return (
     <div
-      aria-label="بنرهای تبلیغاتی"
+      aria-label={ariaLabel}
       aria-live={isPlaying ? "off" : "polite"}
       className={`relative group/slider rounded-card ${className}`}
     >
@@ -179,7 +186,8 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
         <div onClickCapture={handleContainerClick} className="rounded-card overflow-hidden cursor-grab active:cursor-grabbing select-none">
           <CarouselContent className="-mr-3 lg:-mr-4">
             {validBanners.map((item, index) => {
-              const isExternal = /^https?:\/\//.test(item.href);
+              const href = item.href;
+              const isExternal = href ? /^https?:\/\//.test(href) : false;
 
               const slideContent = (
                 <picture className="block w-full h-full">
@@ -198,32 +206,41 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
                 </picture>
               );
 
+              let framed: React.ReactNode;
+              if (!href) {
+                framed = <div className="block w-full h-full">{slideContent}</div>;
+              } else if (isExternal) {
+                framed = (
+                  <a
+                    href={href}
+                    target={item.openInNewTab !== false ? "_blank" : "_self"}
+                    rel="noopener noreferrer"
+                    aria-label={item.alt}
+                    className="block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  >
+                    {slideContent}
+                  </a>
+                );
+              } else {
+                framed = (
+                  <Link
+                    href={href}
+                    aria-label={item.alt}
+                    className="block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  >
+                    {slideContent}
+                  </Link>
+                );
+              }
+
               return (
                 <CarouselItem
                   key={item.id}
                   aria-label={`${toPersianDigits(index + 1)} از ${toPersianDigits(slidesCount)}`}
                   className="basis-[92%] sm:basis-[80%] lg:basis-full pr-3 lg:pr-4"
                 >
-                  <div className="rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-card)] aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[3.2/1] w-full">
-                    {isExternal ? (
-                      <a
-                        href={item.href}
-                        target={item.openInNewTab !== false ? "_blank" : "_self"}
-                        rel="noopener noreferrer"
-                        aria-label={item.alt}
-                        className="block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                      >
-                        {slideContent}
-                      </a>
-                    ) : (
-                      <Link
-                        href={item.href}
-                        aria-label={item.alt}
-                        className="block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                      >
-                        {slideContent}
-                      </Link>
-                    )}
+                  <div className={`rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-card)] w-full ${aspectClassName}`}>
+                    {framed}
                   </div>
                 </CarouselItem>
               );

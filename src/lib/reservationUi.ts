@@ -120,6 +120,17 @@ export function stationImageFor(stationType?: string): string {
   }
 }
 
+const STATION_TYPE_LABELS: Record<string, string> = {
+  PC: "کامپیوتر گیمینگ",
+  PLAYSTATION: "پلی‌استیشن",
+  XBOX: "ایکس‌باکس",
+  SWITCH: "نینتندو سوییچ",
+  VR: "واقعیت مجازی",
+};
+
+export const getStationTypeLabel = (type?: string) =>
+  (type && STATION_TYPE_LABELS[type]) || type || "دستگاه";
+
 export const mapsUrl = (address: string) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
@@ -127,13 +138,33 @@ const ERROR_MESSAGES: Record<string, string> = {
   NETWORK_ERROR: "ارتباط با سرور برقرار نشد. اینترنت خود را بررسی کنید.",
   UNAUTHORIZED: "برای مشاهده این بخش ابتدا وارد حساب کاربری شوید.",
   FORBIDDEN: "شما به این بخش دسترسی ندارید.",
-  NOT_FOUND: "رزرو موردنظر پیدا نشد.",
+  NOT_FOUND: "مورد درخواستی پیدا نشد.",
   INVALID_TRANSITION: "در وضعیت فعلی رزرو، این عملیات امکان‌پذیر نیست.",
   VALIDATION_ERROR: "اطلاعات ارسال‌شده معتبر نیست.",
   CONFLICT: "تداخلی در درخواست شما وجود دارد.",
+  SLOT_NOT_AVAILABLE: "این ساعت دیگر خالی نیست. لطفاً ساعت دیگری انتخاب کنید.",
+  RESERVATION_OVERLAP: "این ساعت دیگر خالی نیست. لطفاً ساعت دیگری انتخاب کنید.",
+  OVERLAP_CONFLICT: "این ساعت دیگر خالی نیست. لطفاً ساعت دیگری انتخاب کنید.",
+  RESERVATION_START_TIME_IN_PAST: "زمان انتخاب‌شده گذشته است. لطفاً ساعت دیگری انتخاب کنید.",
+  ONLINE_RESERVATION_DISABLED: "رزرو آنلاین برای این گیمنت فعال نیست.",
+  IDEMPOTENCY_REQUEST_IN_PROGRESS: "درخواست قبلی شما در حال پردازش است. چند لحظه صبر کنید.",
+  IDEMPOTENCY_KEY_REQUIRED: "ثبت رزرو انجام نشد. لطفاً دوباره تلاش کنید.",
+  IDEMPOTENCY_KEY_INVALID_LENGTH: "ثبت رزرو انجام نشد. لطفاً دوباره تلاش کنید.",
+  IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD: "ثبت رزرو انجام نشد. لطفاً دوباره تلاش کنید.",
 };
 
 export function getErrorMessage(e: unknown): string {
   if (e instanceof ApiError) return ERROR_MESSAGES[e.code] ?? e.message;
   return "مشکلی پیش آمد. لطفاً دوباره تلاش کنید.";
 }
+
+const SLOT_CONFLICT_CODES = new Set([
+  "SLOT_NOT_AVAILABLE",
+  "RESERVATION_OVERLAP",
+  "OVERLAP_CONFLICT",
+  "RESERVATION_START_TIME_IN_PAST",
+]);
+
+/** خطاهایی که یعنی Availability تغییر کرده و باید دوباره از Backend گرفته شود */
+export const isSlotConflictError = (e: unknown): boolean =>
+  e instanceof ApiError && SLOT_CONFLICT_CODES.has(e.code);

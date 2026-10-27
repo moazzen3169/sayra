@@ -1,337 +1,342 @@
 "use client";
 
-import React, { useState, useEffect, useRef, use } from "react";
-import Image from "next/image";
+import React, { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GamecenterDetailHeader } from "@/components/GamecenterDetailHeader";
-import { ExtraControllerModal } from "@/components/ExtraControllerModal";
-import { CartModal, CartItem, DeviceOption } from "@/components/CartModal";
-import { DateTimeModal } from "@/components/DateTimeModal";
+import { BannerSlider } from "@/components/BannerSlider";
 import { AuthModal } from "@/components/AuthModal";
 import { PaymentSuccessModal, ReservationSummaryDetails } from "@/components/PaymentSuccessModal";
+import { DevicePicker } from "@/components/gamecenter/DevicePicker";
+import { GamesMarquee } from "@/components/gamecenter/GamesMarquee";
+import { BookingSheet, type BookingSelection } from "@/components/gamecenter/BookingSheet";
 import { useAuth } from "@/context/AuthContext";
+import { isAbortError } from "@/lib/api/client";
+import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
+import {
+  groupStations,
+  type BookingItem,
+  type BookingLine,
+  type CartEntry,
+} from "@/lib/devices";
 import { formatPrice, toPersianDigits } from "@/lib/format";
-import { getErrorMessage } from "@/lib/reservationUi";
-import { reservationService } from "@/services/reservationService";
-
-const devicesData: DeviceOption[] = [
-  {
-    id: "pc",
-    name: "کامپیوتر گیمینگ",
-    type: "Computer",
-    isConsole: false,
-    pricePerHour: 180000,
-    image: "/img/pc.webp",
-    availableCount: 12,
-  },
-  {
-    id: "ps5",
-    name: "پلی استیشن ۵",
-    type: "PS5",
-    isConsole: true,
-    pricePerHour: 220000,
-    image: "/img/PS5.webp",
-    availableCount: 8,
-  },
-  {
-    id: "ps4",
-    name: "پلی استیشن ۴",
-    type: "PS4",
-    isConsole: true,
-    pricePerHour: 140000,
-    image: "/img/PS4.webp",
-    availableCount: 6,
-  },
-  {
-    id: "xbox",
-    name: "ایکس باکس سری ایکس",
-    type: "Xbox",
-    isConsole: true,
-    pricePerHour: 190000,
-    image: "/img/xbox.webp",
-    availableCount: 5,
-  },
-];
-
-const reviewsData = [
-  {
-    id: "r1",
-    author: "علی محمدی",
-    rating: 5,
-    date: "۲ روز پیش",
-    comment:
-      "سیستم‌های بسیار قوی و مانیتورهای ۲۴۰ هرتز عالی بودن. برخورد پرسنل هم بسیار محترمانه بود.",
-  },
-  {
-    id: "r2",
-    author: "رضا کریمی",
-    rating: 4.5,
-    date: "۱ هفته پیش",
-    comment:
-      "صندلی‌های گیمینگ فوق‌العاده راحت. فقط کمی جای پارک سخت پیدا شد ولی در کل پیشنهاد میشه.",
-  },
-];
-
-const EXTRA_CONTROLLER_PRICE_PER_HOUR = 30000;
+import { formatDayLabel, getErrorMessage, isSlotConflictError, mapsUrl } from "@/lib/reservationUi";
+import { gamingCenterService } from "@/services/gamecenterDetailService";import { itemKey, submitBooking } from "@/services/bookingService";
+import type { GamecenterDetail } from "@/types/gamecenter";
+import type { BannerItem } from "@/types/home";
+import type { Reservation } from "@/types/reservation";
 
 /* ---------- Helpers ---------- */
 
-/** خروجی DateTimeModal که برای ساخت رزرو لازم است */
-interface ConfirmDetails {
-  selectedDate: { id: string; dayName: string; dateStr: string };
-  selectedSlots: { timeLabel: string; startHour: number }[];
-  totalHours: number;
-  grandTotal: number;
-}
-
-/** اطلاعات یک تلاش ثبت رزرو؛ بین مرحله ورود و ساخت رزرو نگه داشته می‌شود */
+/** اطلاعات یک تلاش ثبت؛ بین مرحله‌ی ورود و ساخت رزرو نگه داشته می‌شود */
 interface PendingBooking {
-  idempotencyKey: string;
-  startTime: string;
-  totalHours: number;
-  grandTotal: number;
-  station: { id: string; name: string; stationType: string; hourlyPrice: number };
+  items: BookingItem[];
   summary: ReservationSummaryDetails;
 }
 
-function createIdempotencyKey(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
+const GALLERY_ASPECT = "aspect-[2/1] sm:aspect-[2.6/1] lg:aspect-[4/1]";
+
+const scrollToId = (id: string) =>
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+const SectionTitle: React.FC<{ step?: number; title: string; hint?: string }> = ({ step, title, hint }) => (
+  <div className="flex items-center justify-between gap-3">
+    <div className="flex items-center gap-2 min-w-0">
+      {step ? (
+        <span className="w-6 h-6 shrink-0 rounded-full bg-[var(--primary)] text-[#101014] text-xs font-black flex items-center justify-center pt-0.5">
+          {toPersianDigits(step)}
+        </span>
+      ) : (
+        <span className="h-5 w-1 rounded-full bg-[var(--primary)]" />
+      )}
+      <h2 className="text-base font-extrabold text-[var(--text-white)] truncate">{title}</h2>
+    </div>
+    {hint && <span className="text-[11px] text-[var(--text-muted)] shrink-0">{hint}</span>}
+  </div>
+);
+
+/* ---------- Booking CTA (mobile bar / desktop card) ---------- */
+
+interface BookingCtaProps {
+  lines: BookingLine[];
+  deviceCount: number;
+  hourly: number;
+  onPick: () => void;
+  onBook: () => void;
+  variant: "bar" | "card";
+}
+
+const BookingCta: React.FC<BookingCtaProps> = ({ lines, deviceCount, hourly, onPick, onBook, variant }) => {
+  const has = deviceCount > 0;
+
+  const info = has ? (
+    <div className="flex flex-col min-w-0">
+      <span className="text-[11px] text-[var(--text-muted)]">
+        {toPersianDigits(deviceCount)} دستگاه انتخاب شده
+      </span>
+      <span className="text-base font-black text-[var(--primary)]">
+        {formatPrice(hourly)} <span className="text-[11px] font-normal text-[var(--text-white)]">تومان / ساعت</span>
+      </span>
+    </div>
+  ) : (
+    <span className="text-xs font-bold text-[var(--text-muted)]">دستگاه‌های موردنظر را انتخاب کنید</span>
+  );
+
+  const button = (
+    <button
+      type="button"
+      onClick={has ? onBook : onPick}
+      className={`h-12 rounded-card font-black text-sm transition-all active:scale-[0.98] ${
+        has
+          ? "bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014]"
+          : "bg-[var(--foreground)] text-[var(--text-white)]"
+      } ${variant === "bar" ? "px-5 shrink-0" : "w-full"}`}
+    >
+      {has ? "انتخاب روز و ساعت" : "انتخاب دستگاه"}
+    </button>
+  );
+
+  if (variant === "bar") {
+    return (
+      <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pointer-events-none lg:hidden">
+        <div className="w-full max-w-[var(--max-app-width)] bg-[var(--bg-card)]/95 backdrop-blur-md border-t border-[var(--border-color)] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center justify-between gap-3 pointer-events-auto shadow-2xl">
+          {info}
+          {button}
+        </div>
+      </div>
+    );
   }
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-}
 
-/** نگاشت موقت نوع دستگاه Mock به enum بک‌اند */
-function toStationType(device: DeviceOption): string {
-  if (device.type === "PS5" || device.type === "PS4") return "PLAYSTATION";
-  if (device.type === "Xbox") return "XBOX";
-  return "PC";
-}
+  return (
+    <aside className="hidden lg:flex sticky top-24 flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5">
+      <h3 className="text-sm font-extrabold text-[var(--text-white)]">رزرو آنلاین</h3>
 
-/**
- * ساخت زمان شروع از روز انتخابی ("day-N") و ساعت اولین اسلات.
- * موقت است تا زمانی که اسلات‌ها مستقیم از Availability API بیایند.
- */
-function buildStartTime(dateId: string, startHour: number): string {
-  const offset = Number(dateId.replace("day-", "")) || 0;
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
-  d.setHours(startHour, 0, 0, 0);
-  return d.toISOString();
-}
+      {has && (
+        <ul className="flex flex-col gap-1.5 text-xs text-[var(--text-muted)]">
+          {lines.map((l) => (
+            <li key={l.group.key} className="flex items-center justify-between gap-2">
+              <span className="text-[var(--text-white)] font-bold truncate">{l.group.label}</span>
+              <span className="shrink-0">
+                {toPersianDigits(l.qty)} عدد
+                {l.extra > 0 ? ` • +${toPersianDigits(l.extra)} دسته` : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
 
-export default function GameCenterDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+      {info}
+      {button}
+
+      <ol className="flex flex-col gap-1.5 text-[11px] text-[var(--text-muted)] border-t border-[var(--border-subtle)] pt-3">
+        <li>۱. نوع و تعداد دستگاه را انتخاب کنید</li>
+        <li>۲. روز و ساعت‌ها را انتخاب کنید</li>
+        <li>۳. رزرو را ثبت کنید</li>
+      </ol>
+    </aside>
+  );
+};
+
+/* ---------- Page ---------- */
+
+export default function GameCenterDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const { id: gameCenterId } = use(params);
+  const { id: gamingCenterSlug } = use(params);
   const { isLoggedIn, user, login } = useAuth();
 
-  // Basket State: list of selected devices with quantity and extra controllers
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  // Data
+  const [detail, setDetail] = useState<GamecenterDetail | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
-  // Pending Reservation details stored during checkout flow
-  const [pendingReservation, setPendingReservation] = useState<ReservationSummaryDetails | null>(null);
+  // Cart: key = نوع دستگاه
+  const [cart, setCart] = useState<Record<string, CartEntry>>({});
+
+  // Booking
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
   const [pendingBooking, setPendingBooking] = useState<PendingBooking | null>(null);
+  const submittingRef = useRef(false);
+  // بین تلاش‌های مجدد ثابت می‌مانند تا رزرو تکراری ساخته نشود
+  const keysRef = useRef<Map<string, string>>(new Map());
+  const doneRef = useRef<Map<string, Reservation>>(new Map());
 
-  // Booking submit state
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [bookingError, setBookingError] = useState<string | null>(null);
-  const submittingRef = useRef<boolean>(false);
+  // Modals
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [successDetails, setSuccessDetails] = useState<ReservationSummaryDetails | null>(null);
 
-  // Modals state
-  const [pendingConsoleDevice, setPendingConsoleDevice] = useState<DeviceOption | null>(null);
-  const [isExtraModalOpen, setIsExtraModalOpen] = useState<boolean>(false);
-  const [editingExtraDeviceId, setEditingExtraDeviceId] = useState<string | null>(null);
-
-  const [isCartModalOpen, setIsCartModalOpen] = useState<boolean>(false);
-  const [isDateTimeModalOpen, setIsDateTimeModalOpen] = useState<boolean>(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [isPaymentSuccessModalOpen, setIsPaymentSuccessModalOpen] = useState<boolean>(false);
-
-  // Scroll detection for sticky header title
-  const [showStickyTitle, setShowStickyTitle] = useState<boolean>(false);
+  // UI
+  const [showStickyTitle, setShowStickyTitle] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 180) {
-        setShowStickyTitle(true);
-      } else {
-        setShowStickyTitle(false);
-      }
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    const onScroll = () => setShowStickyTitle(window.scrollY > 180);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Device card interaction
-  const handleSelectOrAddDevice = (dev: DeviceOption) => {
-    const existing = cartItems.find((item) => item.device.id === dev.id);
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
 
-    if (existing) {
-      // If already in cart, open cart modal for minimal checkout/view
-      setIsCartModalOpen(true);
-    } else {
-      if (dev.isConsole) {
-        setPendingConsoleDevice(dev);
-        setIsExtraModalOpen(true);
-      } else {
-        setCartItems((prev) => [
-          ...prev,
-          { device: dev, quantity: 1, extraControllersCount: 0 },
-        ]);
-      }
-    }
-  };
+    setLoadError(null);
+    setDetail(null);
 
-  const handleConfirmExtraControllers = (count: number) => {
-    if (editingExtraDeviceId) {
-      setCartItems((prev) =>
-        prev.map((item) =>
-          item.device.id === editingExtraDeviceId
-            ? { ...item, extraControllersCount: count }
-            : item
-        )
-      );
-      setEditingExtraDeviceId(null);
-    } else if (pendingConsoleDevice) {
-      setCartItems((prev) => [
-        ...prev,
-        {
-          device: pendingConsoleDevice,
-          quantity: 1,
-          extraControllersCount: count,
-        },
-      ]);
-      setPendingConsoleDevice(null);
-    }
-    setIsExtraModalOpen(false);
-  };
+    loadGamecenterDetail(gamingCenterSlug, controller.signal)
+      .then((d) => {
+        if (active) setDetail(d);
+      })
+      .catch((e) => {
+        if (!active || isAbortError(e)) return;
+        setLoadError(getErrorMessage(e));
+      });
 
-  const handleUpdateQuantity = (deviceId: string, delta: number) => {
-    setCartItems((prev) =>
-      prev
-        .map((item) => {
-          if (item.device.id === deviceId) {
-            const newQty = item.quantity + delta;
-            if (newQty <= 0) return null;
-            if (newQty > item.device.availableCount) return item;
-            return { ...item, quantity: newQty };
-          }
-          return item;
-        })
-        .filter((item): item is CartItem => item !== null)
-    );
-  };
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [gamingCenterSlug, reloadToken]);
 
-  const handleRemoveItem = (deviceId: string) => {
-    setCartItems((prev) => prev.filter((item) => item.device.id !== deviceId));
-  };
+  const groups = useMemo(() => groupStations(detail?.stations ?? []), [detail]);
 
-  const handleOpenEditExtraControllers = (deviceId: string) => {
-    const item = cartItems.find((i) => i.device.id === deviceId);
-    if (item) {
-      setEditingExtraDeviceId(deviceId);
-      setIsExtraModalOpen(true);
-    }
-  };
+  const lines: BookingLine[] = useMemo(
+    () =>
+      groups.flatMap((g) => {
+        const e = cart[g.key];
+        return e && e.qty > 0 ? [{ group: g, qty: e.qty, extra: g.isConsole ? e.extra : 0 }] : [];
+      }),
+    [groups, cart]
+  );
 
-  const handleProceedToDateTime = () => {
-    setIsCartModalOpen(false);
-    setIsDateTimeModalOpen(true);
-  };
+  const deviceCount = lines.reduce((a, l) => a + l.qty, 0);
+  // برآورد ساعتی (قیمت نهایی را Backend بعد از ثبت اعلام می‌کند)
+  const hourly = lines.reduce(
+    (a, l) => a + l.qty * (l.group.minPrice + l.extra * (l.group.extraControllerPrice ?? 0)),
+    0
+  );
+
+  const handleQtyChange = useCallback(
+    (key: string, qty: number) => {
+      const g = groups.find((x) => x.key === key);
+      if (!g) return;
+      const next = Math.max(0, Math.min(qty, g.capacity));
+      setCart((prev) => {
+        const copy = { ...prev };
+        if (next <= 0) delete copy[key];
+        else copy[key] = { qty: next, extra: prev[key]?.extra ?? 0 };
+        return copy;
+      });
+    },
+    [groups]
+  );
+
+  const handleExtraChange = useCallback(
+    (key: string, extra: number) => {
+      const g = groups.find((x) => x.key === key);
+      if (!g) return;
+      const next = Math.max(0, Math.min(extra, g.maxExtra));
+      setCart((prev) => (prev[key] ? { ...prev, [key]: { ...prev[key], extra: next } } : prev));
+    },
+    [groups]
+  );
+
+  const galleryItems: BannerItem[] = useMemo(
+    () => (detail?.images ?? []).map((img) => ({ id: img.id, imageUrl: img.url, alt: img.alt })),
+    [detail]
+  );
+
+  const rating = useMemo(() => {
+    const list = detail?.reviews ?? [];
+    if (list.length === 0) return null;
+    return { avg: list.reduce((a, r) => a + r.rating, 0) / list.length, count: list.length };
+  }, [detail]);
+
+  const openSheet = useCallback(() => {
+    setSubmitError(null);
+    setProgress(null);
+    setIsSheetOpen(true);
+  }, []);
 
   /**
-   * ساخت رزرو در Backend و نمایش مودال موفقیت با reservationId.
-   * TODO: در جریان واقعی، بعد از ساخت رزرو باید Payment Init انجام شود و مودال موفقیت
-   * فقط بعد از تأیید پرداخت توسط Backend نمایش داده شود.
+   * ثبت رزروها در Backend. قیمت و وضعیت نهایی فقط از پاسخ Backend می‌آید.
+   * TODO: بعد از مشخص شدن ساختار Response مربوط به Payment Init (OpenAPI)،
+   * همین‌جا Payment Init صدا زده شود. فعلاً در حالت واقعی به صفحه‌ی رزرو(ها) می‌رویم
+   * تا paymentState را از Backend ببینند.
    */
-  const finalizeReservation = async (
-    booking: PendingBooking,
-    customer: { fullName: string; phone: string }
-  ) => {
-    if (submittingRef.current) return; // جلوگیری از Submit تکراری
+  const finalizeBooking = async (booking: PendingBooking, customer: { fullName: string; phone: string }) => {
+    if (submittingRef.current) return;
     submittingRef.current = true;
     setIsSubmitting(true);
-    setBookingError(null);
+    setSubmitError(null);
+    setProgress({ done: 0, total: booking.items.length });
 
     try {
-      const created = await reservationService.create(
-        {
-          gamingCenterSlug: gameCenterId,
-          idempotencyKey: booking.idempotencyKey,
-          stationId: booking.station.id,
-          startTime: booking.startTime,
-          customer,
-        },
-        {
-          gamingCenterName: booking.summary.gameCenterTitle,
-          gamingCenterAddress: "تبریز، ولیعصر، بعد از میدان معلم، روبروی کتابخانه عمومی",
-          stationName: booking.summary.devicesSummary ?? booking.station.name,
-          stationType: booking.station.stationType,
-          hourlyPrice: booking.station.hourlyPrice,
-          totalHours: booking.totalHours,
-          totalPrice: booking.grandTotal,
-        }
-      );
-
-      setPendingReservation({
-        ...booking.summary,
-        reservationId: created.id,
-        trackingCode: created.reservationCode,
+      const created = await submitBooking({
+        gamingCenterSlug,
+        items: booking.items,
+        customer,
+        gamingCenterName: detail?.center.name,
+        gamingCenterAddress: detail?.address,
+        keys: keysRef.current,
+        done: doneRef.current,
+        onProgress: (done, total) => setProgress({ done, total }),
       });
+
+      keysRef.current = new Map();
+      doneRef.current = new Map();
       setPendingBooking(null);
-      setIsPaymentSuccessModalOpen(true);
+      setIsSheetOpen(false);
+
+      if (USE_MOCK_RESERVATIONS) {
+        const single = created.length === 1 ? created[0] : null;
+        setSuccessDetails({
+          ...booking.summary,
+          reservationId: single?.id,
+          trackingCode: single?.reservationCode,
+          grandTotal: created.reduce((a, r) => a + r.totalPrice, 0),
+        });
+        setIsSuccessOpen(true);
+      } else if (created.length === 1) {
+        router.push(`/reservations/${encodeURIComponent(created[0].id)}`);
+      } else {
+        router.push("/reservations");
+      }
     } catch (e) {
-      setBookingError(getErrorMessage(e));
+      const doneCount = booking.items.filter((it) => doneRef.current.has(itemKey(it))).length;
+      let msg = getErrorMessage(e);
+      if (doneCount > 0) {
+        msg += ` (${toPersianDigits(doneCount)} از ${toPersianDigits(booking.items.length)} رزرو قبلاً ثبت شده و تکرار نمی‌شود؛ می‌توانید دوباره ثبت را بزنید.)`;
+      }
+      setSubmitError(msg);
+      // Availability تغییر کرده: لیست ساعت‌ها دوباره از Backend گرفته می‌شود
+      if (isSlotConflictError(e)) setSlotsRefreshKey((k) => k + 1);
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
+      setProgress(null);
     }
   };
 
-  // Called when user clicks "تکمیل و ثبت رزرو" in DateTimeModal
-  const handleFinalConfirmReservation = (details: ConfirmDetails) => {
-    setIsDateTimeModalOpen(false);
-
-    const firstItem = cartItems[0];
-    const firstSlot = details.selectedSlots[0];
-    if (!firstItem || !firstSlot) return;
-
-    const devicesSummary = cartItems
+  const handleConfirm = ({ date, slots, items }: BookingSelection) => {
+    const devicesSummary = lines
       .map(
-        (item) =>
-          `${toPersianDigits(item.quantity)} عدد ${item.device.name}` +
-          (item.extraControllersCount > 0
-            ? ` (با ${toPersianDigits(item.extraControllersCount)} دسته اضافه)`
-            : "")
+        (l) =>
+          `${toPersianDigits(l.qty)} عدد ${l.group.label}` +
+          (l.extra > 0 ? ` (با ${toPersianDigits(l.extra)} دسته اضافه برای هر دستگاه)` : "")
       )
       .join("، ");
 
-    const hoursSummary = details.selectedSlots.map((s) => s.timeLabel);
-
     const booking: PendingBooking = {
-      idempotencyKey: createIdempotencyKey(),
-      startTime: buildStartTime(details.selectedDate.id, firstSlot.startHour),
-      totalHours: details.totalHours,
-      grandTotal: details.grandTotal,
-      // توجه: API فعلی هر رزرو را فقط برای یک Station می‌پذیرد.
-      // سبد چنددستگاهی نیاز به تصمیم محصولی دارد؛ فعلاً اولین دستگاه ارسال می‌شود.
-      station: {
-        id: firstItem.device.id, // TODO: stationId واقعی از Backend
-        name: firstItem.device.name,
-        stationType: toStationType(firstItem.device),
-        hourlyPrice: firstItem.device.pricePerHour,
-      },
+      items,
       summary: {
-        gameCenterTitle: "گیمنت اختصاصی گرگدن",
-        dateStr: details.selectedDate.dateStr,
-        dayName: details.selectedDate.dayName,
-        timeSlots: hoursSummary,
-        totalHours: details.totalHours,
-        grandTotal: details.grandTotal,
+        gameCenterTitle: detail?.center.name,
+        dateStr: date.dateStr,
+        dayName: date.dayName,
+        timeSlots: slots.map((s) => (s.endLabel ? `${s.startLabel} تا ${s.endLabel}` : s.startLabel)),
+        totalHours: slots.length,
         devicesSummary,
       },
     };
@@ -339,423 +344,260 @@ export default function GameCenterDetailPage({
     setPendingBooking(booking);
 
     if (isLoggedIn && user) {
-      // کاربر وارد شده است -> مستقیم رزرو ساخته می‌شود
-      finalizeReservation(booking, { fullName: user.fullName, phone: user.phone });
+      finalizeBooking(booking, { fullName: user.fullName, phone: user.phone });
     } else {
-      // کاربر وارد نشده -> ابتدا ورود
       setIsAuthModalOpen(true);
     }
   };
 
-  // Callback when OTP verification completes in AuthModal
   const handleAuthSuccess = (fullName: string, phone: string, token?: string) => {
     login(fullName, phone, token);
     setIsAuthModalOpen(false);
-    if (pendingBooking) {
-      finalizeReservation(pendingBooking, { fullName, phone });
-    }
+    if (pendingBooking) finalizeBooking(pendingBooking, { fullName, phone });
   };
 
-  const totalSelectedDevicesCount = cartItems.reduce(
-    (acc, item) => acc + item.quantity,
-    0
-  );
+  const title = detail?.center.name ?? "گیمنت";
+  const address = detail?.address ?? "";
+  const reviews = detail?.reviews ?? [];
+  const visibleReviews = showAllReviews ? reviews : reviews.slice(0, 4);
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28">
-      {/* Dedicated Sticky Header */}
+    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-32 lg:pb-12">
       <GamecenterDetailHeader
-        title="گیمنت اختصاصی گرگدن"
-        location="تبریز، ولیعصر، بعد از میدان معلم"
+        title={title}
+        location={address}
         showDetails={showStickyTitle}
         onBackClick={() => router.back()}
-        onNotificationClick={() => alert("اعلانات سایرا")}
-        unreadNotificationsCount={2}
+        onNotificationClick={() => {}}
       />
 
-      {/* Booking error banner */}
-      {bookingError && (
-        <div className="fixed top-16 left-0 right-0 z-[45] flex justify-center px-4 pt-3 pointer-events-none">
-          <div className="w-full max-w-[var(--max-app-width)] pointer-events-auto p-3 rounded-card bg-[var(--bg-card)] border border-[var(--accent-red)]/50 text-[var(--accent-red)] text-xs font-bold flex items-start justify-between gap-3 shadow-2xl">
-            <span className="leading-relaxed">{bookingError}</span>
-            <button
-              type="button"
-              onClick={() => setBookingError(null)}
-              className="shrink-0 text-[var(--text-muted)] text-base leading-none"
-              aria-label="بستن"
-            >
-              ✕
-            </button>
+      <main className="flex-1 mt-16 flex flex-col gap-6 pt-3">
+        {/* Loading */}
+        {!detail && !loadError && (
+          <div className="px-4 desk:px-6 lg:px-8 flex flex-col gap-4 animate-pulse" aria-busy="true">
+            <div className={`w-full rounded-card bg-[var(--bg-card)] ${GALLERY_ASPECT}`} />
+            <div className="h-6 w-1/2 rounded bg-[var(--bg-card)]" />
+            <div className="h-4 w-3/4 rounded bg-[var(--bg-card)]" />
+            <div className="h-28 rounded-card bg-[var(--bg-card)]" />
+            <div className="h-28 rounded-card bg-[var(--bg-card)]" />
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Submitting overlay */}
-      {isSubmitting && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="px-5 py-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-color)] text-sm font-bold text-[var(--text-white)] flex items-center gap-3">
-            <span className="w-4 h-4 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" />
-            <span>در حال ثبت رزرو...</span>
-          </div>
-        </div>
-      )}
-
-      <main className="flex-1 flex flex-col gap-5 mt-16">
-        {/* Cover Image */}
-        <div className="relative w-full aspect-[16/9] lg:aspect-[21/9] lg:max-h-[460px] bg-[var(--foreground)]">
-          <Image
-            src="/img/gamnet-1.webp"
-            alt="گیمنت گرگدن"
-            fill
-            sizes="(min-width:1200px) 1200px, 100vw"
-            className="object-cover"
-            priority
-          />
-          <span className="absolute top-3 left-3 px-3 pt-1 pb-0.5 rounded-full bg-[var(--primary)] text-[#101014] text-xs font-black shadow-lg">
-            ۲۵٪ تخفیف
-          </span>
-        </div>
-
-        {/* Game Center Information */}
-        <div className="px-4 desk:px-6 lg:px-8 flex flex-col gap-2.5">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-extrabold text-[var(--text-white)]">
-              گیمنت اختصاصی گرگدن
-            </h1>
-            <div className="flex items-center gap-1 text-xs text-[var(--primary)] font-bold">
-              <span>★ {toPersianDigits("4.8")}</span>
-              <span className="text-[var(--text-muted)] font-normal">
-                (۷۴۴ دیدگاه)
-              </span>
+        {/* Error */}
+        {loadError && (
+          <div className="mx-4 desk:mx-6 lg:mx-8 mt-6 p-6 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 flex flex-col items-center gap-3 text-center">
+            <p className="text-sm font-bold text-[var(--accent-red)]">{loadError}</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setReloadToken((v) => v + 1)}
+                className="h-10 px-5 rounded-card bg-[var(--primary)] text-[#101014] text-xs font-black"
+              >
+                تلاش دوباره
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/")}
+                className="h-10 px-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-color)] text-xs font-bold"
+              >
+                بازگشت به خانه
+              </button>
             </div>
           </div>
+        )}
 
-          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            تبریز، ولیعصر، بعد از میدان معلم، روبروی کتابخانه عمومی
-          </p>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-3 pt-1">
-            <button
-              type="button"
-              onClick={() => alert("مسیریابی روی نقشه")}
-              className="flex-1 h-10 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-white)] flex items-center justify-center gap-2 hover:bg-[var(--foreground)] transition-colors"
-            >
-              <svg
-                className="w-4 h-4 text-[var(--primary)]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.8}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+        {detail && (
+          <>
+            {/* Gallery slider (همان BannerSlider صفحه اصلی) */}
+            {galleryItems.length > 0 && (
+              <div className="px-4 desk:px-6 lg:px-8">
+                <BannerSlider
+                  banners={galleryItems}
+                  aspectClassName={GALLERY_ASPECT}
+                  ariaLabel="گالری تصاویر گیمنت"
                 />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
-              <span>مسیریابی و آدرس</span>
-            </button>
+              </div>
+            )}
 
-            <button
-              type="button"
-              onClick={() => alert("لیست بازی‌های موجود")}
-              className="flex-1 h-10 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-white)] flex items-center justify-center gap-2 hover:bg-[var(--foreground)] transition-colors"
-            >
-              <svg
-                className="w-4 h-4 text-[var(--primary)]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.8}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <span>لیست بازی‌ها</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Section Divider */}
-        <div className="border-t border-[var(--border-subtle)] my-1" />
-
-        {/* Device Selection & Quantity */}
-        <div className="px-4 desk:px-6 lg:px-8 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-extrabold text-[var(--text-white)]">
-              دستگاه‌های موجود جهت رزرو
-            </h2>
-            <span className="text-xs text-[var(--text-muted)]">
-              تعداد و نوع دستگاه را انتخاب کنید
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4">
-            {devicesData.map((dev) => {
-              const cartItem = cartItems.find((item) => item.device.id === dev.id);
-              const isSelected = !!cartItem;
-
-              return (
-                <div
-                  key={dev.id}
-                  onClick={() => handleSelectOrAddDevice(dev)}
-                  className={`relative w-full rounded-card p-3.5 bg-[var(--bg-card)] border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                    isSelected
-                      ? "border-[var(--primary)] shadow-[0_0_15px_rgba(255,255,61,0.12)]"
-                      : "border-[var(--border-subtle)] hover:border-[var(--border-color)]"
-                  }`}
-                >
-                  <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-extrabold text-[var(--text-white)]">
-                        {dev.name}
-                      </span>
-                      {isSelected && (
-                        <span className="px-2 py-0.5 rounded-full bg-[var(--primary)] text-[#101014] text-[10px] font-black">
-                          انتخاب شده ({toPersianDigits(cartItem.quantity)} عدد)
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
-                      <span>ساعتی:</span>
-                      <span className="font-extrabold text-[var(--primary)]">
-                        {formatPrice(dev.pricePerHour)}
-                      </span>
-                      <span>تومان</span>
-                    </div>
-
-                    {/* Console extra controller badge if selected */}
-                    {isSelected &&
-                      dev.isConsole &&
-                      cartItem.extraControllersCount > 0 && (
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="px-2 py-0.5 rounded-lg bg-[var(--foreground)] text-[var(--primary)] text-[11px] font-bold border border-[var(--primary)]/30">
-                            +{toPersianDigits(cartItem.extraControllersCount)} دسته اضافه
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenEditExtraControllers(dev.id);
-                            }}
-                            className="text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)] underline font-bold"
-                          >
-                            تغییر
-                          </button>
-                        </div>
-                      )}
-
-                    {/* Quantity controls inside selected card */}
-                    {isSelected ? (
-                      <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="mt-2 flex items-center gap-3 pt-2 border-t border-[var(--border-subtle)]"
-                      >
-                        <span className="text-xs font-bold text-[var(--text-white)]">
-                          تعداد:
-                        </span>
-                        <div className="flex items-center gap-2 bg-[var(--foreground)]/60 rounded-card p-1 border border-[var(--border-color)]">
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateQuantity(dev.id, -1)}
-                            className="w-7 h-7 rounded-lg bg-[var(--bg-card)] text-[var(--text-white)] flex items-center justify-center font-black text-sm hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
-                          >
-                            -
-                          </button>
-                          <span className="w-6 text-center text-xs font-black text-[var(--primary)]">
-                            {toPersianDigits(cartItem.quantity)}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateQuantity(dev.id, 1)}
-                            disabled={cartItem.quantity >= dev.availableCount}
-                            className="w-7 h-7 rounded-lg bg-[var(--bg-card)] text-[var(--text-white)] flex items-center justify-center font-black text-sm disabled:opacity-40 hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
-                          >
-                            +
-                          </button>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(dev.id)}
-                          className="mr-auto text-[11px] text-[var(--accent-red)] hover:underline font-bold"
-                        >
-                          حذف
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="mt-1">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--primary)] hover:underline">
-                          + انتخاب جهت رزرو
+            <div className="px-4 desk:px-6 lg:px-8 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-8 lg:items-start">
+              {/* ===== Main column ===== */}
+              <div className="flex flex-col gap-8 min-w-0">
+                {/* Info */}
+                <section className="flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <h1 className="text-xl font-extrabold leading-tight">{title}</h1>
+                    {rating && (
+                      <div className="shrink-0 flex items-center gap-1 text-xs text-[var(--primary)] font-bold pt-1">
+                        <span>★ {toPersianDigits(rating.avg.toFixed(1))}</span>
+                        <span className="text-[var(--text-muted)] font-normal">
+                          ({toPersianDigits(rating.count)} دیدگاه)
                         </span>
                       </div>
                     )}
                   </div>
 
-                  {/* Device Image */}
-                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-[var(--foreground)]/40 rounded-child overflow-hidden flex items-center justify-center border border-[var(--border-subtle)]">
-                    <Image
-                      src={dev.image}
-                      alt={dev.name}
-                      width={80}
-                      height={80}
-                      className="object-cover h-full"
-                    />
+                  {address && <p className="text-xs text-[var(--text-muted)] leading-relaxed">{address}</p>}
+
+                  <div className="flex items-center gap-2.5">
+                    {address && (
+                      <a
+                        href={mapsUrl(address)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 h-10 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-xs font-bold flex items-center justify-center gap-2 hover:bg-[var(--foreground)] transition-colors"
+                      >
+                        <svg className="w-4 h-4 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>مسیریابی</span>
+                      </a>
+                    )}
+                    {detail.games.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => scrollToId("games")}
+                        className="flex-1 h-10 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-xs font-bold flex items-center justify-center gap-2 hover:bg-[var(--foreground)] transition-colors"
+                      >
+                        <svg className="w-4 h-4 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 12h4m-2-2v4m7-3h.01M18 13h.01M7 6h10a4 4 0 014 4v5a3 3 0 01-5.2 2l-1.3-1.5h-4l-1.3 1.5A3 3 0 013 15v-5a4 4 0 014-4z" />
+                        </svg>
+                        <span>بازی‌های گیمنت</span>
+                      </button>
+                    )}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+                </section>
 
-        {/* Section Divider */}
-        <div className="border-t border-[var(--border-subtle)] my-1" />
+                {/* Step 1: devices */}
+                <section id="stations" className="flex flex-col gap-3 scroll-mt-20">
+                  <SectionTitle step={1} title="دستگاه‌ها را انتخاب کنید" hint="از هر نوع هر تعداد" />
+                  <DevicePicker
+                    groups={groups}
+                    cart={cart}
+                    onQtyChange={handleQtyChange}
+                    onExtraChange={handleExtraChange}
+                  />
+                  {groups.length > 0 && (
+                    <p className="text-[11px] text-[var(--text-subtle)]">
+                      بعد از انتخاب دستگاه‌ها، روز و ساعت‌ها را در مرحله بعد انتخاب می‌کنید.
+                    </p>
+                  )}
+                </section>
 
-        {/* User Reviews Section */}
-        <div className="px-4 desk:px-6 lg:px-8 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-extrabold text-[var(--text-white)]">
-              نظرات و امتیازات کاربران
-            </h2>
-          </div>
+                {/* Games */}
+                {detail.games.length > 0 && (
+                  <section id="games" className="flex flex-col gap-3 scroll-mt-20">
+                    <SectionTitle title="بازی‌های نصب‌شده" hint={`${toPersianDigits(detail.games.length)} بازی`} />
+                    <GamesMarquee games={detail.games} />
+                  </section>
+                )}
 
-          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4">
-            {reviewsData.map((rev) => (
-              <div
-                key={rev.id}
-                className="w-full bg-[var(--bg-card)] rounded-card p-3.5 border border-[var(--border-subtle)] flex flex-col gap-2"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-child bg-[var(--foreground)] text-[var(--primary)] font-black text-xs flex items-center justify-center">
-                      {rev.author[0]}
-                    </div>
-                    <span className="text-xs font-bold text-[var(--text-white)]">
-                      {rev.author}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs">
-                    <span className="text-[var(--primary)] font-bold">
-                      ★ {toPersianDigits(rev.rating)}
-                    </span>
-                  </div>
-                </div>
-
-                <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                  {rev.comment}
-                </p>
-                <span className="text-[var(--text-subtle)] text-[10px]">
-                  • {rev.date}
-                </span>
+                {/* Reviews */}
+                <section className="flex flex-col gap-3">
+                  <SectionTitle title="نظرات کاربران" />
+                  {reviews.length === 0 ? (
+                    <p className="rounded-card border border-dashed border-[var(--border-color)] p-6 text-center text-xs text-[var(--text-muted)]">
+                      هنوز نظری برای این گیمنت ثبت نشده است.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2">
+                        {visibleReviews.map((r) => (
+                          <article
+                            key={r.id}
+                            className="bg-[var(--bg-card)] rounded-card p-3.5 border border-[var(--border-subtle)] flex flex-col gap-2"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="w-6 h-6 shrink-0 rounded-child bg-[var(--foreground)] text-[var(--primary)] font-black text-xs flex items-center justify-center pt-0.5">
+                                  {r.author[0]}
+                                </span>
+                                <span className="text-xs font-bold truncate">{r.author}</span>
+                              </div>
+                              <span className="text-xs font-bold text-[var(--accent-star)]">
+                                ★ {toPersianDigits(r.rating)}
+                              </span>
+                            </div>
+                            {r.comment && (
+                              <p className="text-xs text-[var(--text-muted)] leading-relaxed">{r.comment}</p>
+                            )}
+                            {r.createdAt && (
+                              <span className="text-[10px] text-[var(--text-subtle)]">
+                                {formatDayLabel(r.createdAt)}
+                              </span>
+                            )}
+                          </article>
+                        ))}
+                      </div>
+                      {reviews.length > 4 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAllReviews((v) => !v)}
+                          className="self-center h-9 px-5 rounded-full border border-[var(--border-color)] text-xs font-bold text-[var(--text-white)] hover:border-[var(--primary)]"
+                        >
+                          {showAllReviews ? "نمایش کمتر" : `نمایش همه ${toPersianDigits(reviews.length)} نظر`}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </section>
               </div>
-            ))}
-          </div>
-        </div>
+
+              {/* ===== Desktop booking card ===== */}
+              <BookingCta
+                variant="card"
+                lines={lines}
+                deviceCount={deviceCount}
+                hourly={hourly}
+                onPick={() => scrollToId("stations")}
+                onBook={openSheet}
+              />
+            </div>
+          </>
+        )}
       </main>
 
-      {/* Fixed Bottom Reservation Action Bar: ONLY displayed when at least one device is selected */}
-      {totalSelectedDevicesCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pointer-events-none">
-          <div className="w-full max-w-[var(--max-app-width)] bg-[var(--bg-card)]/95 backdrop-blur-md border-t border-[var(--border-color)] px-4 py-3 flex items-center justify-center pointer-events-auto shadow-2xl">
-            <button
-              type="button"
-              onClick={() => setIsCartModalOpen(true)}
-              className="h-12 w-full lg:max-w-[420px] lg:mx-auto rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
-            >
-              <span>مشاهده و تایید سبد رزرو ({toPersianDigits(totalSelectedDevicesCount)} دستگاه)</span>
-              <svg
-                className="w-4 h-4 transform rotate-180"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M14 5l7 7m0 0l-7 7m7-7H3"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
+      {/* Mobile bottom bar */}
+      {detail && (
+        <BookingCta
+          variant="bar"
+          lines={lines}
+          deviceCount={deviceCount}
+          hourly={hourly}
+          onPick={() => scrollToId("stations")}
+          onBook={openSheet}
+        />
       )}
 
-      {/* Cart Modal */}
-      <CartModal
-        isOpen={isCartModalOpen}
-        onClose={() => setIsCartModalOpen(false)}
-        cartItems={cartItems}
-        onUpdateQuantity={handleUpdateQuantity}
-        onRemoveItem={handleRemoveItem}
-        onUpdateExtraControllers={handleOpenEditExtraControllers}
-        onProceedToDateTime={handleProceedToDateTime}
-        extraControllerPricePerHour={EXTRA_CONTROLLER_PRICE_PER_HOUR}
-      />
+      {/* Booking sheet: روز + ساعت‌ها + ثبت در یک مرحله */}
+      {isSheetOpen && lines.length > 0 && (
+        <BookingSheet
+          gamingCenterSlug={gamingCenterSlug}
+          lines={lines}
+          isSubmitting={isSubmitting}
+          submitError={submitError}
+          progress={progress}
+          refreshKey={slotsRefreshKey}
+          onClose={() => setIsSheetOpen(false)}
+          onConfirm={handleConfirm}
+        />
+      )}
 
-      {/* Date & Time Selection Modal */}
-      <DateTimeModal
-        isOpen={isDateTimeModalOpen}
-        onClose={() => setIsDateTimeModalOpen(false)}
-        cartItems={cartItems}
-        gamingCenterSlug={gameCenterId}
-        onConfirmReservation={handleFinalConfirmReservation}
-        extraControllerPricePerHour={EXTRA_CONTROLLER_PRICE_PER_HOUR}
-      />
-
-      {/* Extra Controller Modal */}
-      <ExtraControllerModal
-        isOpen={isExtraModalOpen}
-        onClose={() => {
-          setIsExtraModalOpen(false);
-          setPendingConsoleDevice(null);
-          setEditingExtraDeviceId(null);
-        }}
-        onConfirm={handleConfirmExtraControllers}
-        deviceName={
-          editingExtraDeviceId
-            ? cartItems.find((i) => i.device.id === editingExtraDeviceId)?.device.name || ""
-            : pendingConsoleDevice?.name || ""
-        }
-        initialCount={
-          editingExtraDeviceId
-            ? cartItems.find((i) => i.device.id === editingExtraDeviceId)?.extraControllersCount || 0
-            : 0
-        }
-        pricePerController={EXTRA_CONTROLLER_PRICE_PER_HOUR}
-      />
-
-      {/* Auth / Login Modal (Shown if user is not logged in) */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
       />
 
-      {/* Payment Success Modal */}
+      {/* فقط در حالت Mock؛ در حالت واقعی وضعیت پرداخت از Backend خوانده می‌شود */}
       <PaymentSuccessModal
-        isOpen={isPaymentSuccessModalOpen}
+        isOpen={isSuccessOpen}
         onClose={() => {
-          setIsPaymentSuccessModalOpen(false);
-          setCartItems([]); // Clear cart upon successful reservation & payment
-          setPendingReservation(null);
+          setIsSuccessOpen(false);
+          setSuccessDetails(null);
+          setCart({});
         }}
-        details={pendingReservation}
+        details={successDetails}
       />
     </div>
   );

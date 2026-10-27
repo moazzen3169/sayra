@@ -1,109 +1,52 @@
-import { toPersianDigits } from "./format";
+import { APP_TIME_ZONE } from "./api/config";
 
 export interface DateOption {
   id: string;
   dayName: string;
   dateStr: string;
+  /** کلید تاریخ YYYY-MM-DD بر اساس Timezone اپ؛ مستقیم به پارامتر date در Availability API می‌رود */
   fullDate: string;
 }
 
-const PERSIAN_DAYS = [
-  "یکشنبه",
-  "دوشنبه",
-  "سه‌شنبه",
-  "چهارشنبه",
-  "پنجشنبه",
-  "جمعه",
-  "شنبه",
-];
+/** «امروز» را بر اساس Timezone تعریف‌شده اپ (نه ساعت دستگاه) می‌گیرد */
+const todayKeyFmt = new Intl.DateTimeFormat("en-CA", {
+  timeZone: APP_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
-const PERSIAN_MONTHS = [
-  "فروردین",
-  "اردیبهشت",
-  "خرداد",
-  "تیر",
-  "مرداد",
-  "شهریور",
-  "مهر",
-  "آبان",
-  "آذر",
-  "دی",
-  "بهمن",
-  "اسفند",
-];
+// روزهای بعد با ظهر UTC ساخته می‌شوند تا جابه‌جایی روز رخ ندهد
+const weekdayFmt = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+  timeZone: "UTC",
+  weekday: "long",
+});
+const dayMonthFmt = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+  timeZone: "UTC",
+  day: "numeric",
+  month: "long",
+});
 
-export function generateTenDays(): DateOption[] {
+/** فقط برای UX انتخاب تاریخ است؛ Availability را محاسبه نمی‌کند */
+export function generateDays(count = 10): DateOption[] {
+  const [y, m, d] = todayKeyFmt.format(new Date()).split("-").map(Number);
   const options: DateOption[] = [];
-  const baseDate = new Date();
 
-  for (let i = 0; i < 10; i++) {
-    const current = new Date(baseDate);
-    current.setDate(baseDate.getDate() + i);
-
-    let dayName = "";
-    if (i === 0) {
-      dayName = "امروز";
-    } else if (i === 1) {
-      dayName = "فردا";
-    } else if (i === 2) {
-      dayName = "پس‌فردا";
-    } else {
-      const dayIndex = current.getDay();
-      dayName = PERSIAN_DAYS[dayIndex];
-    }
-
-    // Convert gregorian date to Jalali approximate or format
-    // Simple Jalali converter for immediate display
-    const { month, day } = toJalali(
-      current.getFullYear(),
-      current.getMonth() + 1,
-      current.getDate()
-    );
-
-    const monthName = PERSIAN_MONTHS[month - 1];
-    const dateStr = `${toPersianDigits(day)} ${monthName}`;
-    const isoDate = current.toISOString().split("T")[0];
+  for (let i = 0; i < count; i++) {
+    const noonUtc = new Date(Date.UTC(y, m - 1, d + i, 12));
+    const dayName =
+      i === 0 ? "امروز" : i === 1 ? "فردا" : i === 2 ? "پس‌فردا" : weekdayFmt.format(noonUtc);
 
     options.push({
       id: `day-${i}`,
       dayName,
-      dateStr,
-      fullDate: isoDate,
+      dateStr: dayMonthFmt.format(noonUtc),
+      fullDate: noonUtc.toISOString().slice(0, 10),
     });
   }
 
   return options;
 }
 
-// Simple Gregorian to Jalali converter function
-function toJalali(gy: number, gm: number, gd: number) {
-  const g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-  let jy =
-    gy <= 1600
-      ? 0
-      : 979;
-  gy -= gy <= 1600 ? 621 : 1600;
-  const gy2 = gm > 2 ? gy + 1 : gy;
-  let days =
-    365 * gy +
-    Math.floor((gy2 + 3) / 4) -
-    Math.floor((gy2 + 99) / 100) +
-    Math.floor((gy2 + 399) / 400) -
-    80 +
-    gd +
-    g_d_m[gm - 1];
-  jy += 33 * Math.floor(days / 12053);
-  days %= 12053;
-  jy += 4 * Math.floor(days / 1461);
-  days %= 1461;
-  if (days > 365) {
-    jy += Math.floor((days - 1) / 365);
-    days = (days - 1) % 365;
-  }
-  const jm =
-    days < 186
-      ? 1 + Math.floor(days / 31)
-      : 7 + Math.floor((days - 186) / 30);
-  const jd = 1 + (days < 186 ? days % 31 : (days - 186) % 30);
-  return { year: jy, month: jm, day: jd };
-}
+/** برای سازگاری با کدهای قبلی */
+export const generateTenDays = (): DateOption[] => generateDays(10);

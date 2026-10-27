@@ -25,73 +25,57 @@ export interface MockReservationPreview {
   totalPrice: number;
 }
 
+function buildMockReservation(
+  input: CreateReservationInput,
+  mockPreview?: MockReservationPreview
+): Reservation {
+  const hours = mockPreview?.totalHours ?? 1;
+  const start = new Date(input.startTime);
+  const end = new Date(start.getTime() + hours * 3_600_000);
+  return {
+    id: `mock-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    gamingCenterId: input.gamingCenterSlug,
+    stationId: input.stationId,
+    startTime: start.toISOString(),
+    endTime: end.toISOString(),
+    status: "PENDING",
+    paymentState: "PAID",
+    totalHours: hours,
+    totalPrice: mockPreview?.totalPrice ?? 0,
+    stationSnapshot: {
+      name: mockPreview?.stationName ?? "ایستگاه",
+      hourlyPrice: mockPreview?.hourlyPrice ?? 0,
+      stationType: mockPreview?.stationType ?? "PC",
+    },
+    gamingCenterName: mockPreview?.gamingCenterName ?? "گیمنت گرگدن",
+    gamingCenterAddress: mockPreview?.gamingCenterAddress ?? "تبریز، ولیعصر، بعد از میدان معلم",
+    reservationCode: String(Math.floor(100000 + Math.random() * 900000)),
+  };
+}
+
 export const reservationService = {
+  /**
+   * در حالت واقعی خطاها عمداً throw می‌شوند (مثلاً SLOT_NOT_AVAILABLE)
+   * تا UI بتواند Availability را رفرش کند. Mock فقط در حالت USE_MOCK_RESERVATIONS است.
+   */
   async create(input: CreateReservationInput, mockPreview?: MockReservationPreview): Promise<Reservation> {
     if (USE_MOCK_RESERVATIONS) {
-      const hours = mockPreview?.totalHours ?? 1;
-      const start = new Date(input.startTime);
-      const end = new Date(start.getTime() + hours * 3_600_000);
-      const mock: Reservation = {
-        id: `mock-${Date.now()}`,
-        gamingCenterId: input.gamingCenterSlug,
-        stationId: input.stationId,
-        startTime: start.toISOString(),
-        endTime: end.toISOString(),
-        status: "PENDING",
-        paymentState: "PAID",
-        totalHours: hours,
-        totalPrice: mockPreview?.totalPrice ?? 0,
-        stationSnapshot: {
-          name: mockPreview?.stationName ?? "ایستگاه",
-          hourlyPrice: mockPreview?.hourlyPrice ?? 0,
-          stationType: mockPreview?.stationType ?? "PC",
-        },
-        gamingCenterName: mockPreview?.gamingCenterName ?? "گیمنت گرگدن",
-        gamingCenterAddress: mockPreview?.gamingCenterAddress ?? "تبریز، ولیعصر، بعد از میدان معلم",
-        reservationCode: String(Math.floor(100000 + Math.random() * 900000)),
-      };
+      const mock = buildMockReservation(input, mockPreview);
       addMockReservation(mock);
       return mock;
     }
 
-    try {
-      const { data } = await apiClient.post<Reservation>(
-        ENDPOINTS.reservation.create(input.gamingCenterSlug),
-        {
-          stationId: input.stationId,
-          startTime: input.startTime,
-          customer: input.customer,
-          ...(input.note ? { note: input.note } : {}),
-        },
-        { headers: { "idempotency-key": input.idempotencyKey } }
-      );
-      return data;
-    } catch {
-      const hours = mockPreview?.totalHours ?? 1;
-      const start = new Date(input.startTime);
-      const end = new Date(start.getTime() + hours * 3_600_000);
-      const mock: Reservation = {
-        id: `mock-${Date.now()}`,
-        gamingCenterId: input.gamingCenterSlug,
+    const { data } = await apiClient.post<Reservation>(
+      ENDPOINTS.reservation.create(input.gamingCenterSlug),
+      {
         stationId: input.stationId,
-        startTime: start.toISOString(),
-        endTime: end.toISOString(),
-        status: "PENDING",
-        paymentState: "PAID",
-        totalHours: hours,
-        totalPrice: mockPreview?.totalPrice ?? 0,
-        stationSnapshot: {
-          name: mockPreview?.stationName ?? "ایستگاه",
-          hourlyPrice: mockPreview?.hourlyPrice ?? 0,
-          stationType: mockPreview?.stationType ?? "PC",
-        },
-        gamingCenterName: mockPreview?.gamingCenterName ?? "گیمنت گرگدن",
-        gamingCenterAddress: mockPreview?.gamingCenterAddress ?? "تبریز، ولیعصر، بعد از میدان معلم",
-        reservationCode: String(Math.floor(100000 + Math.random() * 900000)),
-      };
-      addMockReservation(mock);
-      return mock;
-    }
+        startTime: input.startTime,
+        customer: input.customer,
+        ...(input.note ? { note: input.note } : {}),
+      },
+      { headers: { "idempotency-key": input.idempotencyKey } }
+    );
+    return data;
   },
 
   async list(signal?: AbortSignal): Promise<Reservation[]> {
