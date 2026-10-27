@@ -5,8 +5,25 @@ import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatDiscountBadge } from "@/lib/discount";
 import { formatDayLabel } from "@/lib/reservationUi";
 
+export interface GamecenterCardData {
+  id: string;
+  name: string;
+  imageUrl: string;
+  location: string;
+  rating: number;
+  reviewsCount?: number;
+  hourlyPrice: number;
+  discountedHourlyPrice?: number;
+  discountPercent?: number;
+  discount?: {
+    valueType: "PERCENTAGE" | "FIXED_AMOUNT";
+    value: number;
+    endAt?: string;
+  };
+}
+
 export interface DiscountedGamecenterCardProps {
-  center: DiscountedCenter;
+  center: GamecenterCardData;
   onClick?: (id: string) => void;
 }
 
@@ -23,16 +40,30 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
     reviewsCount = 0,
     hourlyPrice,
     discountedHourlyPrice,
+    discountPercent,
     discount,
   } = center;
 
-  const endLabel = discount.endAt ? formatDayLabel(discount.endAt) : "";
+  const effectiveDiscountedPrice =
+    discountedHourlyPrice !== undefined
+      ? discountedHourlyPrice
+      : discountPercent && discountPercent > 0
+      ? Math.round(hourlyPrice * (1 - discountPercent / 100))
+      : undefined;
+
+  const discountBadgeText = discount
+    ? formatDiscountBadge(discount.valueType, discount.value)
+    : discountPercent
+    ? `${toPersianDigits(discountPercent)}٪`
+    : null;
+
+  const endLabel = discount?.endAt ? formatDayLabel(discount.endAt) : "";
 
   return (
     <Link
       href={`/gamecenter/${id}`}
       onClick={() => onClick?.(id)}
-      className="w-full h-full flex flex-col pb-3 bg-[var(--bg-card)] rounded-card overflow-hidden border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white select-none"
+      className="w-full h-full flex flex-col pb-3 bg-[var(--bg-card)] rounded-card overflow-hidden border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white select-none shadow-sm hover:shadow-md"
     >
       {/* Image Container */}
       <div className="relative w-full aspect-[16/11] bg-[var(--foreground)] overflow-hidden shrink-0">
@@ -46,9 +77,11 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
         />
 
         {/* Discount Badge (Top-Left) */}
-        <span className="absolute top-2.5 left-2.5 px-2.5 pt-1 pb-0.5 rounded-full bg-[var(--primary)] text-[#101014] font-black text-xs flex items-center shadow-md z-10">
-          {formatDiscountBadge(discount.valueType, discount.value)}
-        </span>
+        {discountBadgeText ? (
+          <span className="absolute top-2.5 left-2.5 px-2.5 pt-1 pb-0.5 rounded-full bg-[var(--primary)] text-[#101014] font-black text-xs flex items-center shadow-md z-10">
+            {discountBadgeText}
+          </span>
+        ) : null}
 
         {/* Optional End Date Chip (Bottom-Right) */}
         {endLabel ? (
@@ -76,10 +109,10 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
 
       {/* Price Pill */}
       <div className="mx-3 mt-auto h-9 rounded-full bg-[var(--foreground)]/50 px-3 flex items-center justify-between text-[11px]">
-        {discountedHourlyPrice !== undefined ? (
+        {effectiveDiscountedPrice !== undefined ? (
           <div className="flex items-center gap-1.5">
             <span className="font-extrabold text-[var(--primary)]">
-              {formatPrice(discountedHourlyPrice)} تومان
+              {formatPrice(effectiveDiscountedPrice)} تومان
             </span>
             <span className="text-[10px] line-through text-[var(--text-subtle)] font-medium">
               {formatPrice(hourlyPrice)}
