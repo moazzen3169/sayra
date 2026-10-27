@@ -135,22 +135,22 @@ export const DiscountedCentersSection: React.FC<DiscountedCentersSectionProps> =
 
         {/* Carousel Container */}
         {isLoading ? (
-          <div className="flex gap-3 lg:gap-4 overflow-hidden -mx-4 px-4 pb-2">
+          <div className="flex gap-2 overflow-hidden -mx-4 px-4 pb-2">
             {Array.from({ length: 4 }).map((_, idx) => (
               <div
                 key={idx}
-                className="animate-pulse bg-[var(--bg-card)] rounded-card border border-[var(--border-subtle)] h-[280px] w-[232px] min-w-[232px] shrink-0 sm:w-[248px] sm:min-w-[248px] lg:w-[calc((100%-48px)/4)] lg:min-w-[calc((100%-48px)/4)]"
+                className="animate-pulse bg-[var(--bg-card)] rounded-card border border-[var(--border-subtle)] h-[280px] w-[220px] min-w-[220px] shrink-0 sm:w-[240px] sm:min-w-[240px] lg:w-[calc((100%-24px)/4)] lg:min-w-[calc((100%-24px)/4)]"
               />
             ))}
           </div>
         ) : (
           <div onClickCapture={handleContainerClickCapture} className="-mx-4 px-4 pb-2 select-none">
-            <CarouselContent className="gap-3 lg:gap-4 -mr-3 lg:-mr-4">
+            <CarouselContent className="gap-2 -mr-2">
               {items.map((item, index) => (
                 <CarouselItem
                   key={item.id}
                   aria-label={`${index + 1} از ${items.length}`}
-                  className="pr-3 lg:pr-4 basis-[232px] sm:basis-[248px] lg:basis-[calc((100%-48px)/4)] flex flex-col min-w-[232px] sm:min-w-[248px]"
+                  className="pr-2 basis-[220px] sm:basis-[240px] lg:basis-[calc((100%-24px)/4)] flex flex-col min-w-[220px] sm:min-w-[240px]"
                 >
                   <DiscountedGamecenterCard center={item} />
                 </CarouselItem>

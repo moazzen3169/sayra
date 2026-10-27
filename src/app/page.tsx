@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { BottomBar, TabType } from "@/components/BottomBar";
-import { GamecenterCardBig } from "@/components/GamecenterCardBig";
-import { GamecenterCardMini } from "@/components/GamecenterCardMini";
+import { DiscountedGamecenterCard } from "@/components/DiscountedGamecenterCard";
 import { BannerSlider } from "@/components/BannerSlider";
 import { DeviceCategories } from "@/components/DeviceCategories";
 import { DiscountedCentersSection } from "@/components/DiscountedCentersSection";
@@ -157,13 +156,13 @@ export default function HomePage() {
             </div>
 
             <div className="-mx-4 desk:-mx-6 lg:-mx-8 px-4 desk:px-6 lg:px-8 pb-2 select-none">
-              <CarouselContent className="gap-3 -mr-3">
+              <CarouselContent className="gap-2 -mr-2">
                 {popularCenters.map((item) => (
                   <CarouselItem
                     key={item.id}
-                    className="pr-3 basis-[210px] min-w-[210px] sm:basis-[230px] lg:basis-[240px]"
+                    className="pr-2 basis-[220px] min-w-[220px] sm:basis-[240px] lg:basis-[260px] flex flex-col"
                   >
-                    <GamecenterCardMini {...item} />
+                    <DiscountedGamecenterCard center={item} />
                   </CarouselItem>
                 ))}
               </CarouselContent>
@@ -178,9 +177,9 @@ export default function HomePage() {
             <span className="text-xs text-[var(--text-muted)]">برترین کیفیت و امکانات</span>
           </div>
 
-          <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {featuredCenters.map((item) => (
-              <GamecenterCardBig key={item.id} {...item} />
+              <DiscountedGamecenterCard key={item.id} center={item} />
             ))}
           </div>
         </section>

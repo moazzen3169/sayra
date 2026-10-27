@@ -4,7 +4,7 @@ export interface DeviceCategory {
   id: string;
   name: string;
   subtitle?: string;
-  iconType: "ps5" | "ps4" | "pc" | "steering" | "vr" | "xbox";
+  iconType: "ps5" | "ps4" | "pc" | "steering" | "vr" | "xbox" | "billiards";
   count?: number;
 }
 
@@ -16,16 +16,22 @@ interface DeviceCategoriesProps {
 
 const defaultCategories: DeviceCategory[] = [
   {
-    id: "pc",
-    name: "کامپیوتر",
-    subtitle: "PC Gaming",
-    iconType: "pc",
-  },
-  {
     id: "ps5",
     name: "پلی استیشن ۵",
     subtitle: "PS5",
     iconType: "ps5",
+  },
+  {
+    id: "ps4",
+    name: "پلی استیشن ۴",
+    subtitle: "PS4",
+    iconType: "ps4",
+  },
+  {
+    id: "pc",
+    name: "کامپیوتر",
+    subtitle: "PC Gaming",
+    iconType: "pc",
   },
   {
     id: "xbox",
@@ -33,30 +39,107 @@ const defaultCategories: DeviceCategory[] = [
     subtitle: "Xbox Series",
     iconType: "xbox",
   },
+  {
+    id: "vr",
+    name: "واقعیت مجازی",
+    subtitle: "VR",
+    iconType: "vr",
+  },
+  {
+    id: "billiards",
+    name: "بیلیارد",
+    subtitle: "Billiards",
+    iconType: "billiards",
+  },
+  {
+    id: "steering",
+    name: "فرمان بازی",
+    subtitle: "Racing Wheel",
+    iconType: "steering",
+  },
 ];
 
-const imageMap: Record<DeviceCategory["iconType"], string> = {
-  ps5: "./img/cat-3.webp",
-  ps4: "./img/cat-3.webp",
-  pc: "./img/cat-1.webp",
-  xbox: "./img/cat-2.webp",
-  steering: "./img/PS5.webp",
-  vr: "./img/PS5.webp",
+const imageMap: Record<string, string> = {
+  ps5: "/img/PS5.webp",
+  ps4: "/img/PS4.webp",
+  pc: "/img/pc.webp",
+  xbox: "/img/xbox.webp",
 };
 
-const cardStyles: Record<string, { background: string; position: string }> = {
-  pc: {
-    background: "bg-[var(--bg-card)] ",
-    position: "col-start-1 row-span-2 lg:col-start-auto lg:row-start-auto lg:row-span-1 lg:col-span-1",
-  },
-  ps5: {
-    background: "bg-[var(--bg-card)] ",
-    position: "col-start-2 row-start-1 lg:col-start-auto lg:row-start-auto lg:row-span-1 lg:col-span-1",
-  },
-  xbox: {
-    background: "bg-[var(--bg-card)] ",
-    position: "col-start-2 row-start-2 lg:col-start-auto lg:row-start-auto lg:row-span-1 lg:col-span-1",
-  },
+const CategoryIcon: React.FC<{ iconType: DeviceCategory["iconType"] }> = ({ iconType }) => {
+  if (imageMap[iconType]) {
+    return (
+      <img
+        src={imageMap[iconType]}
+        alt=""
+        className="w-9 h-9 sm:w-11 sm:h-11 object-contain shrink-0"
+      />
+    );
+  }
+
+  switch (iconType) {
+    case "vr":
+      return (
+        <svg
+          className="w-8 h-8 sm:w-10 sm:h-10 text-[var(--primary)] shrink-0"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.75}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M3 9a2 2 0 012-2h14a2 2 0 012 2v6a2 2 0 01-2 2h-3a1 1 0 01-.8-.4l-1.4-1.86a1 1 0 00-.8-.34h-2a1 1 0 00-.8.34L8.8 16.6a1 1 0 01-.8.4H5a2 2 0 01-2-2V9z"
+          />
+          <circle cx="8" cy="12" r="1.5" />
+          <circle cx="16" cy="12" r="1.5" />
+        </svg>
+      );
+    case "billiards":
+      return (
+        <svg
+          className="w-8 h-8 sm:w-10 sm:h-10 text-[var(--primary)] shrink-0"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.75}
+        >
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="3.5" fill="currentColor" opacity="0.25" />
+          <text
+            x="12"
+            y="14"
+            textAnchor="middle"
+            fontSize="7"
+            fontWeight="900"
+            fill="currentColor"
+            stroke="none"
+          >
+            8
+          </text>
+        </svg>
+      );
+    case "steering":
+      return (
+        <svg
+          className="w-8 h-8 sm:w-10 sm:h-10 text-[var(--primary)] shrink-0"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.75}
+        >
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="3" />
+          <path
+            strokeLinecap="round"
+            d="M12 3v6M3 12h6M15 12h6M6.34 17.66l4.24-4.24M17.66 17.66l-4.24-4.24"
+          />
+        </svg>
+      );
+    default:
+      return null;
+  }
 };
 
 export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
@@ -66,71 +149,33 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
 }) => {
   return (
     <section dir="rtl" className="w-full">
-      <div
-        dir="ltr"
-        className="grid grid-cols-2 grid-rows-2 lg:grid-cols-3 lg:grid-rows-1 gap-2 h-[184px] sm:h-[210px] lg:h-[200px]"
-      >
-        {categories
-          .filter((cat) => ["pc", "ps5", "xbox"].includes(cat.id))
-          .map((cat) => {
-            const isSelected = selectedCategoryId === cat.id;
-            const style = cardStyles[cat.id];
-            const isPC = cat.id === "pc";
+      <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+        {categories.map((cat, index) => {
+          const isSelected = selectedCategoryId === cat.id;
 
-            if (!style) return null;
-
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => onSelectCategory?.(cat.id)}
-                aria-pressed={isSelected}
-                className={[
-                  "relative min-w-0 min-h-0 overflow-hidden",
-                  "rounded-card border-2 transition-all duration-200",
-                  "focus-visible:outline-none focus-visible:ring-2",
-                  "focus-visible:ring-white",
-                  style.position,
-                  style.background,
-                  isSelected
-                    ? "border-transparent shadow-lg scale-[0.98]"
-                    : "border-transparent hover:brightness-95",
-                ].join(" ")}
-              >
-                {isPC ? (
-                  <div
-                    dir="rtl"
-                    className="flex h-full flex-col items-center justify-between py-2"
-                  >
-                    <img
-                      src={imageMap[cat.iconType]}
-                      alt={cat.name}
-                      className="  h-[72%] w-[88%] object-contain"
-                    />
-
-                    <span className="text-sm sm:text-base font-bold">
-                      {cat.name}
-                    </span>
-                  </div>
-                ) : (
-                  <div
-                    dir="rtl"
-                    className="flex h-full items-center justify-between gap-1 px-2 lg:flex-col lg:justify-between lg:py-2.5 lg:items-center"
-                    >
-                    <img
-                      src={imageMap[cat.iconType]}
-                      alt={cat.name}
-                      className="  h-[85%] w-[38%] shrink-0 object-contain lg:h-[72%] lg:w-[88%]"
-                    />
-                    <span className="flex-1  text-center text-xs sm:text-sm font-black text-[#fff] lg:flex-none lg:text-sm">
-                      {cat.name}
-                    </span>
-
-                  </div>
-                )}
-              </button>
-            );
-          })}
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => onSelectCategory?.(cat.id)}
+              aria-pressed={isSelected}
+              className={[
+                "flex flex-col items-center justify-center p-2.5 rounded-card transition-all duration-200 min-h-[84px] sm:min-h-[96px]",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white border",
+                isSelected
+                  ? "bg-[var(--primary)]/15 border-[var(--primary)] shadow-md text-[var(--primary)]"
+                  : "bg-[var(--bg-card)] border-[var(--border-subtle)] hover:border-[var(--primary)] text-[var(--text-white)]",
+              ].join(" ")}
+            >
+              <div className="flex items-center justify-center h-10 w-10 sm:h-12 sm:w-12 mb-1 shrink-0">
+                <CategoryIcon iconType={cat.iconType} />
+              </div>
+              <span className="text-xs sm:text-sm font-extrabold text-center line-clamp-1">
+                {cat.name}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </section>
   );
