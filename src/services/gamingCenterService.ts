@@ -21,6 +21,11 @@ export interface GameStationInfo {
   defaultDurationHours?: number;
   incrementMinutes?: number;
   isActive?: boolean;
+
+  deviceModel?: string;
+  extraControllerPrice?: number;
+  defaultControllers?: number;
+  maxExtraControllers?: number;
 }
 
 export interface AvailabilitySlot {

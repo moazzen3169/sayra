@@ -1,5 +1,8 @@
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
+import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
+import { getMockGamecenterDetail } from "@/lib/mocks/gamecenter.mock";
+import type { GamecenterDetail, GamecenterReview } from "@/types/gamecenter";
 
 export interface GamingCenterInfo {
   id: string;
@@ -77,3 +80,43 @@ export const gamingCenterService = {
     return data;
   },
 };
+
+export async function loadGamecenterDetail(
+  slug: string,
+  signal?: AbortSignal
+): Promise<GamecenterDetail> {
+  if (USE_MOCK_RESERVATIONS) {
+    return getMockGamecenterDetail(slug);
+  }
+
+  try {
+    const center = await gamingCenterService.getPublicGamingCenter(slug, signal);
+    const stations = await gamingCenterService.getStations(center.id, signal);
+
+    let reviews: GamecenterReview[] = [];
+    try {
+      const rawRatings = await gamingCenterService.getPublicRatings(slug, signal);
+      if (Array.isArray(rawRatings)) {
+        reviews = rawRatings;
+      }
+    } catch {
+      reviews = [];
+    }
+
+    const mockDetail = getMockGamecenterDetail(slug);
+
+    return {
+      center,
+      address: center.description || mockDetail.address,
+      images: mockDetail.images,
+      stations: stations.length > 0 ? stations : mockDetail.stations,
+      reviews,
+      games: mockDetail.games,
+    };
+  } catch (error) {
+    if (USE_MOCK_RESERVATIONS) {
+      return getMockGamecenterDetail(slug);
+    }
+    throw error;
+  }
+}

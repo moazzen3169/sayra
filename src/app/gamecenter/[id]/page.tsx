@@ -20,7 +20,8 @@ import {
 } from "@/lib/devices";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatDayLabel, getErrorMessage, isSlotConflictError, mapsUrl } from "@/lib/reservationUi";
-import { gamingCenterService } from "@/services/gamecenterDetailService";import { itemKey, submitBooking } from "@/services/bookingService";
+import { gamingCenterService, loadGamecenterDetail } from "@/services/gamecenterDetailService";
+import { itemKey, submitBooking } from "@/services/bookingService";
 import type { GamecenterDetail } from "@/types/gamecenter";
 import type { BannerItem } from "@/types/home";
 import type { Reservation } from "@/types/reservation";
