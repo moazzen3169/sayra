@@ -27,7 +27,7 @@ export const DesktopNav: React.FC<DesktopNavProps> = ({ onSearchClick }) => {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="ناوبری اصلی دسکتاپ" className="flex items-center gap-6 shrink-0">
+    <nav aria-label="ناوبری اصلی دسکتاپ" className="flex items-center gap-6 shrink-0 pl-[200px]">
       {GLOBAL_NAV_ITEMS.map((item) => {
         const isActive =
           item.href === "/" && item.id === "home"

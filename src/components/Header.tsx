@@ -27,212 +27,309 @@ export const Header: React.FC<HeaderProps> = ({
   onCityChange,
 }) => {
   const { isLoggedIn } = useAuth();
-  const [currentCity, setCurrentCity] = useState(locationName);
-  const [unreadCount, setUnreadCount] = useState(unreadNotificationsCount);
 
-  // Modal Visibility States
+  const [currentCity, setCurrentCity] = useState(locationName);
+  const [unreadCount, setUnreadCount] = useState(
+    unreadNotificationsCount
+  );
+
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
-  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] =
+    useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   const handleCitySelect = (city: string) => {
     setCurrentCity(city);
-    if (onCityChange) {
-      onCityChange(city);
-    }
+    onCityChange?.(city);
   };
 
   const handleLocationBtnClick = () => {
-    if (onLocationClick) {
-      onLocationClick();
-    }
+    onLocationClick?.();
     setIsCityModalOpen(true);
   };
 
   const handleNotificationBtnClick = () => {
-    if (onNotificationClick) {
-      onNotificationClick();
-    }
+    onNotificationClick?.();
     setIsNotificationModalOpen(true);
   };
 
   const handleSearchBtnClick = () => {
-    if (onSearchClick) {
-      onSearchClick();
-    }
+    onSearchClick?.();
     setIsSearchModalOpen(true);
   };
 
+  const notificationBadge =
+    unreadCount > 9 ? "+۹" : toPersianDigits(unreadCount);
+
   return (
     <>
-      <header className="fixed top-0 left-0 right-0  z-40 w-full  mx-auto   transition-all">
-        {/* ========================================================= */}
-        {/* MOBILE HEADER (2 Rows) - Visible on screens < lg (1024px) */}
-        {/* ========================================================= */}
-        <div className="flex flex-col  p-2 gap-2 bg-body-bg  lg:hidden">
-          {/* Mobile Row 1: Brand (right) | City Selector (center) | Notification (left, conditional) */}
-          <div className="flex items-center justify-between gap-2">
-            {/* 1. SAYRA Logo on the Right */}
-            <Link href="/" className="shrink-0 flex items-center" aria-label="صفحه اصلی سایرا">
-              <img src="/design/sayra.svg" alt="سایرا" className="h-5 sm:h-6 w-auto" />
-            </Link>
-
-            {/* 2. City Selector in the Center */}
-            <button
-              type="button"
-              onClick={handleLocationBtnClick}
-              className="flex items-center gap-1.5 py-1.5 px-3 rounded-card bg-[var(--bg-card)] hover:bg-[var(--foreground)]/60 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] transition-colors shrink-0"
-              aria-label="انتخاب شهر"
-            >
-              <svg className="w-3.5 h-3.5 text-[var(--primary)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="font-extrabold text-[13px]">{currentCity}</span>
-              <svg className="w-3 h-3 text-[var(--text-muted)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {/* 3. Notification Button on Left (ONLY for logged-in users) */}
-            {isLoggedIn ? (
-              <button
-                type="button"
-                onClick={handleNotificationBtnClick}
-                aria-label="اعلانات"
-                className="relative w-9 h-9 rounded-full bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:bg-[var(--foreground)] flex items-center justify-center text-[var(--text-white)] transition-colors shrink-0"
+      <header className="fixed top-0 inset-x-0 z-40 w-full">
+        {/* ================= MOBILE HEADER ================= */}
+        <div className="lg:hidden bg-body-bg border-b border-[var(--border-subtle)]">
+          <div className="flex flex-col gap-2 p-2">
+            {/* Row 1 */}
+            <div className="flex items-center justify-between gap-2">
+              <Link
+                href="/"
+                className="flex shrink-0 items-center"
+                aria-label="صفحه اصلی سایرا"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 17h5l-1.4-1.4a2 2 0 01-.6-1.4V11a6 6 0 00-4-5.66V5a2 2 0 10-4 0v.34C7.67 6.17 6 8.39 6 11v3.2c0 .54-.21 1.05-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                  />
-                </svg>
-                {unreadCount > 0 && (
-                  <span
-                    className="absolute -top-1 -left-1 min-w-4 h-4 px-1 rounded-full bg-[var(--primary)] text-[#101014] text-[9px] font-black flex items-center justify-center border border-[var(--bg-body)]"
-                    aria-label={`${toPersianDigits(unreadCount)} اعلان خوانده‌نشده`}
-                  >
-                    {unreadCount > 9 ? "+۹" : toPersianDigits(unreadCount)}
-                  </span>
-                )}
-              </button>
-            ) : (
-              <div className="w-9 h-9 opacity-0 pointer-events-none" aria-hidden="true" />
-            )}
-          </div>
-
-          {/* Mobile Row 2: Full-width Primary Search Field */}
-          <button
-            type="button"
-            onClick={handleSearchBtnClick}
-            className="w-full h-11 px-3.5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary)]/40 focus:border-[var(--primary)]/60 flex items-center justify-between text-xs text-[var(--text-white)] transition-all group"
-            aria-label="جست‌وجو در سایرا"
-          >
-            <div className="flex items-center gap-2 overflow-hidden">
-              <svg
-                className="w-4 h-4 text-[var(--primary)] shrink-0 transition-transform group-hover:scale-110"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <circle cx="11" cy="11" r="7" />
-                <path strokeLinecap="round" d="M20 20l-3.5-3.5" />
-              </svg>
-              <span className="text-[var(--text-subtle)] text-[12px] truncate">
-                جست‌وجوی گیم‌نت، سیستم یا بازی…
-              </span>
-            </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[var(--foreground)]/50 text-[var(--text-muted)] shrink-0">
-              جستجو
-            </span>
-          </button>
-        </div>
-
-        {/* ========================================================== */}
-        {/* DESKTOP HEADER (2 Rows) - Visible on screens >= lg (1024px) */}
-        {/* ========================================================== */}
-        <div className="hidden  bg-body-bg lg:flex lg:flex-col lg:gap-1 max-w-[1600px] mx-auto">
-          {/* Desktop Row 1: SAYRA Logo (right) | Global Navigation (leftwards) */}
-          <div className="flex items-center justify-between bg-body  px-8 py-4">
-            <div className="flex items-center gap-8">
-              {/* SAYRA Logo */}
-              <Link href="/" className="shrink-0 flex items-center" aria-label="صفحه اصلی سایرا">
-                <img src="/design/sayra.svg" alt="سایرا" className="h-6 w-auto" />
+                <img
+                  src="/design/sayra.svg"
+                  alt="سایرا"
+                  className="h-5 sm:h-6 w-auto"
+                />
               </Link>
 
-              {/* Global Navigation Links */}
-              <DesktopNav onSearchClick={handleSearchBtnClick} />
-            </div>
-
-            {/* Tagline badge */}
-            <div className="flex items-center gap-2 text-xs text-[var(--primary)] font-medium">
-              <span>پلتفرم جامع گیمینگ سنترهای ایران</span>
-              <span className="w-2 h-2 rounded-full bg-[var(--primary)] shrink-0" />
-            </div>
-          </div>
-
-          {/* Desktop Row 2: City Selector (right) | Large Search Field (center) | My Bookings + Notification (left) */}
-          <div className="flex items-center  justify-between gap-4  px-8 py-2">
-            {/* 1. City Selector on the Right */}
-            <button
-              type="button"
-              onClick={handleLocationBtnClick}
-              className="flex items-center  h-11 gap-3 py-2 px-5 rounded-card bg-[var(--bg-card)] hover:bg-[var(--foreground)]/60 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] transition-colors shrink-0"
-              aria-label="انتخاب شهر"
-            >
-              <svg className="w-4 h-4 text-[var(--primary)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="font-extrabold text-xs">{currentCity}</span>
-              <svg className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {/* 2. Large Primary Search Field in the Center */}
-            <button
-              type="button"
-              onClick={handleSearchBtnClick}
-              className="flex-1 max-w-[580px] h-11 px-4 pl-2 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary)]/50 focus:border-[var(--primary)]/80 flex items-center justify-between text-xs text-[var(--text-white)] transition-all group"
-              aria-label="جست‌وجوی گیم‌نت، سیستم یا بازی"
-            >
-              <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={handleLocationBtnClick}
+                className="flex shrink-0 items-center gap-1.5 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60"
+                aria-label="انتخاب شهر"
+              >
                 <svg
-                  className="w-4 h-4 text-[var(--primary)] shrink-0 transition-transform group-hover:scale-110"
+                  className="h-3.5 w-3.5 shrink-0 text-[var(--primary)]"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
                   strokeWidth={2}
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+
+                <span className="text-[13px] font-extrabold">
+                  {currentCity}
+                </span>
+
+                <svg
+                  className="h-3 w-3 shrink-0 text-[var(--text-muted)]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="m19 9-7 7-7-7"
+                  />
+                </svg>
+              </button>
+
+              {isLoggedIn ? (
+                <button
+                  type="button"
+                  onClick={handleNotificationBtnClick}
+                  aria-label="اعلانات"
+                  className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.8}
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 17h5l-1.4-1.4a2 2 0 01-.6-1.4V11a6 6 0 00-4-5.66V5a2 2 0 10-4 0v.34C7.67 6.17 6 8.39 6 11v3.2c0 .54-.21 1.05-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                    />
+                  </svg>
+
+                  {unreadCount > 0 && (
+                    <span
+                      className="absolute -top-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] px-1 text-[9px] font-black text-[#101014]"
+                      aria-label={`${toPersianDigits(unreadCount)} اعلان خوانده‌نشده`}
+                    >
+                      {notificationBadge}
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <div
+                  className="h-9 w-9 shrink-0"
+                  aria-hidden="true"
+                />
+              )}
+            </div>
+
+            {/* Row 2: Search */}
+            <button
+              type="button"
+              onClick={handleSearchBtnClick}
+              aria-label="جست‌وجو در سایرا"
+              className="group flex h-10 w-full items-center justify-between rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3.5 text-xs text-[var(--text-white)] transition-all hover:border-[var(--primary)]/50"
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <svg
+                  className="h-4 w-4 shrink-0 text-[var(--primary)] transition-transform group-hover:scale-110"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  aria-hidden="true"
                 >
                   <circle cx="11" cy="11" r="7" />
-                  <path strokeLinecap="round" d="M20 20l-3.5-3.5" />
+                  <path
+                    strokeLinecap="round"
+                    d="m20 20-3.5-3.5"
+                  />
                 </svg>
-                <span className="text-[var(--text-subtle)] group-hover:text-[var(--text-muted)] transition-colors">
+
+                <span className="truncate text-[12px] text-[var(--text-subtle)]">
                   جست‌وجوی گیم‌نت، سیستم یا بازی…
                 </span>
-              </div>
-              <span className="text-[11px] font-bold text-[var(--text-muted)] bg-[var(--foreground)]/40 px-2  pb-1 pt-2 rounded border border-[var(--border-subtle)]">
-                 Ctrl + F 
+              </span>
+
+              <span className="shrink-0 rounded bg-[var(--foreground)]/50 px-2 py-0.5 text-[10px] font-bold text-[var(--text-muted)]">
+                جستجو
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* ================= DESKTOP HEADER ================= */}
+        <div className="hidden  bg-body-bg lg:block">
+          <div className="mx-auto flex min-h-[68px] max-w-[1400px] border border-[var(--border-subtle)] items-center gap-4 p-6">
+            {/* Brand */}
+            <Link
+              href="/"
+              className="flex shrink-0 items-center"
+              aria-label="صفحه اصلی سایرا"
+            >
+              <img
+                src="/design/sayra.svg"
+                alt="سایرا"
+                className="h-6 w-auto"
+              />
+            </Link>
+
+            {/* Navigation */}
+            <div className="flex shrink-0 items-center">
+              <DesktopNav onSearchClick={handleSearchBtnClick} />
+            </div>
+
+            {/* City selector */}
+            <button
+              type="button"
+              onClick={handleLocationBtnClick}
+              aria-label="انتخاب شهر"
+              className="flex h-10 shrink-0 items-center gap-2 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 transition-colors hover:border-[var(--primary)]/40 hover:bg-[var(--foreground)]/60 xl:px-3.5"
+            >
+              <svg
+                className="h-4 w-4 shrink-0 text-[var(--primary)]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+
+              <span className="whitespace-nowrap text-xs font-bold text-[var(--text-white)]">
+                {currentCity}
+              </span>
+
+              <svg
+                className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m19 9-7 7-7-7"
+                />
+              </svg>
+            </button>
+
+            {/* Search */}
+            <button
+              type="button"
+              onClick={handleSearchBtnClick}
+              aria-label="جست‌وجوی گیم‌نت، سیستم یا بازی"
+              className="group flex h-10 min-w-[100px]  flex-1 items-center justify-between gap-3 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 transition-colors hover:border-[var(--primary)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60 xl:px-4"
+            >
+              <span className="flex min-w-0 items-center gap-2.5">
+                <svg
+                  className="h-4 w-4 shrink-0 text-[var(--primary)] transition-transform group-hover:scale-110"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  aria-hidden="true"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path
+                    strokeLinecap="round"
+                    d="m20 20-3.5-3.5"
+                  />
+                </svg>
+
+                <span className="truncate text-xs text-[var(--text-subtle)] transition-colors group-hover:text-[var(--text-muted)]">
+                  جست‌وجوی گیم‌نت، سیستم یا بازی…
+                </span>
+              </span>
+
+              <span className="hidden shrink-0 rounded border border-[var(--border-subtle)] bg-[var(--foreground)]/40 px-2 py-1 text-[10px] font-semibold text-[var(--text-muted)] xl:inline-flex">
+                Ctrl + F
               </span>
             </button>
 
-            {/* 3. Actions on the Left: "رزروهای من" & Conditional Notifications */}
-            <div className="flex items-center gap-3 shrink-0">
+            {/* Actions */}
+            <div className="flex shrink-0 items-center gap-2">
               <Link
                 href="/reservations"
-                className="h-11 px-4 rounded-card bg-[var(--bg-card)] hover:bg-[var(--foreground)] border border-[var(--border-subtle)] hover:border-[var(--primary)]/40 flex items-center gap-2 text-xs font-bold text-[var(--text-white)] transition-all"
+                className="flex h-10 items-center gap-2 whitespace-nowrap rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/40 hover:bg-[var(--foreground)] xl:px-3.5"
               >
-                <svg className="w-4 h-4 text-[var(--primary)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <svg
+                  className="h-4 w-4 shrink-0 text-[var(--primary)]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.8}
+                  aria-hidden="true"
+                >
+                  <rect
+                    x="3"
+                    y="4"
+                    width="18"
+                    height="18"
+                    rx="2"
+                    ry="2"
+                  />
                   <line x1="16" y1="2" x2="16" y2="6" />
                   <line x1="8" y1="2" x2="8" y2="6" />
                   <line x1="3" y1="10" x2="21" y2="10" />
-                  <path d="M9 16l2 2 4-4" />
+                  <path d="m9 16 2 2 4-4" />
                 </svg>
+
                 <span>رزروهای من</span>
               </Link>
 
@@ -241,21 +338,29 @@ export const Header: React.FC<HeaderProps> = ({
                   type="button"
                   onClick={handleNotificationBtnClick}
                   aria-label="اعلانات"
-                  className="relative w-11 h-11 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:bg-[var(--foreground)] flex items-center justify-center text-[var(--text-white)] transition-colors shrink-0"
+                  className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/40 hover:bg-[var(--foreground)]"
                 >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.8}
+                    aria-hidden="true"
+                  >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       d="M15 17h5l-1.4-1.4a2 2 0 01-.6-1.4V11a6 6 0 00-4-5.66V5a2 2 0 10-4 0v.34C7.67 6.17 6 8.39 6 11v3.2c0 .54-.21 1.05-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
                     />
                   </svg>
+
                   {unreadCount > 0 && (
                     <span
-                      className="absolute -top-1 -left-1 min-w-4 h-4 px-1 rounded-full bg-[var(--primary)] text-[#101014] text-[9px] font-black flex items-center justify-center border border-[var(--bg-body)]"
+                      className="absolute -top-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] px-1 text-[9px] font-black text-[#101014]"
                       aria-label={`${toPersianDigits(unreadCount)} اعلان خوانده‌نشده`}
                     >
-                      {unreadCount > 9 ? "+۹" : toPersianDigits(unreadCount)}
+                      {notificationBadge}
                     </span>
                   )}
                 </button>
@@ -265,7 +370,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </header>
 
-      {/* City Selection Modal */}
+      {/* City Modal */}
       <CityModal
         isOpen={isCityModalOpen}
         onClose={() => setIsCityModalOpen(false)}

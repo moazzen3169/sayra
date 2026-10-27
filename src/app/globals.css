@@ -137,7 +137,12 @@ body {
   overflow-x: hidden;
 }
 
-
+@media (min-width: 1201px) {
+  .app-container {
+    border-left: 1px solid var(--border-subtle);
+    border-right: 1px solid var(--border-subtle);
+  }
+}
 
 /* Hide scrollbars globally across all browsers */
 * {

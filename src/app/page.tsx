@@ -112,7 +112,7 @@ export default function HomePage() {
         onCityChange={(city) => setSelectedCity(city)}
       />
 
-      <main className="flex-1 px-4   py-3 flex flex-col gap-6 lg:gap-8 mt-[120px] lg:mt-[128px]">
+      <main className="flex-1 p-4 flex flex-col gap-6 lg:gap-8 mt-[120px] lg:mt-[90px]">
         {/* ۱. بخش اسلایدر بنرهای تبلیغاتی */}
         <section>
           <BannerSlider banners={banners} isLoading={bannersLoading} />
