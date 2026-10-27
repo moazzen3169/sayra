@@ -42,7 +42,7 @@ export default function OwnerWithdrawPage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
       <OwnerPageHeader title="برداشت موجودی" />
 
-      <main className="flex-1 mt-16 px-4 py-4 flex flex-col gap-4 lg:max-w-[640px] lg:mx-auto lg:w-full lg:px-0">
+      <main className="flex-1 mt-16 px-4 py-4 flex flex-col gap-4 lg:max-w-[880px] lg:mx-auto lg:w-full lg:px-0">
         <div className="rounded-card bg-[var(--primary)] text-[#101014] p-5 flex flex-col gap-1">
           <span className="text-xs opacity-80">درآمد قابل برداشت</span>
           <span className="text-3xl font-black">{amount === null ? "—" : `${formatPrice(amount)} تومان`}</span>
@@ -63,12 +63,14 @@ export default function OwnerWithdrawPage() {
         {earnings && earnings.length === 0 && (
           <p className="py-6 text-center text-xs text-[var(--text-muted)]">موردی ثبت نشده است.</p>
         )}
-        {earnings?.map((e) => (
-          <div key={e.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3.5 flex items-center justify-between text-xs">
-            <span className="text-[var(--text-muted)]">{STATUS_LABEL[e.status] ?? e.status}</span>
-            <span className="font-black">{formatPrice(e.commissionAmount)} {e.currency ?? "تومان"}</span>
-          </div>
-        ))}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {earnings?.map((e) => (
+            <div key={e.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3.5 flex items-center justify-between text-xs">
+              <span className="text-[var(--text-muted)]">{STATUS_LABEL[e.status] ?? e.status}</span>
+              <span className="font-black">{formatPrice(e.commissionAmount)} {e.currency ?? "تومان"}</span>
+            </div>
+          ))}
+        </div>
       </main>
     </div>
   );

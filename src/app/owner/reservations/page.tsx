@@ -129,7 +129,7 @@ function Content() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
       <OwnerPageHeader title="رزروها" />
 
-      <main className="flex-1 mt-16 px-4 desk:px-6 lg:px-8 py-4 flex flex-col gap-4">
+      <main className="flex-1 mt-16 px-4 py-4 lg:max-w-[880px] lg:mx-auto lg:w-full lg:px-0 flex flex-col gap-4">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -143,7 +143,7 @@ function Content() {
               key={f.id}
               type="button"
               onClick={() => setFilter(f.id)}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold border ${
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors ${
                 filter === f.id
                   ? "bg-[var(--primary)] text-[#101014] border-[var(--primary)]"
                   : "bg-[var(--bg-card)] border-[var(--border-subtle)]"
@@ -172,61 +172,67 @@ function Content() {
           <p className="py-12 text-center text-xs text-[var(--text-muted)]">رزروی پیدا نشد.</p>
         )}
 
-        {visible.map((r) => {
-          const customerName = r.customer?.fullName ?? r.customerName;
-          const customerPhone = r.customer?.phone ?? r.customerPhone;
-          const busy = busyId === r.id;
-          return (
-            <article key={r.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-extrabold truncate">{r.stationSnapshot?.name ?? "ایستگاه"}</h3>
-                <StatusBadge status={r.status} />
-              </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {visible.map((r) => {
+            const customerName = r.customer?.fullName ?? r.customerName;
+            const customerPhone = r.customer?.phone ?? r.customerPhone;
+            const busy = busyId === r.id;
+            return (
+              <article key={r.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex flex-col justify-between gap-3">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-extrabold truncate">{r.stationSnapshot?.name ?? "ایستگاه"}</h3>
+                    <StatusBadge status={r.status} />
+                  </div>
 
-              <p className="text-xs font-bold">{formatReservationWhen(r.startTime, r.endTime)}</p>
+                  <p className="text-xs font-bold">{formatReservationWhen(r.startTime, r.endTime)}</p>
 
-              {(customerName || customerPhone) && (
-                <p className="text-xs text-[var(--text-muted)]">
-                  مشتری: {customerName ?? ""} {customerPhone ? `(${toPersianDigits(customerPhone)})` : ""}
-                </p>
-              )}
+                  {(customerName || customerPhone) && (
+                    <p className="text-xs text-[var(--text-muted)]">
+                      مشتری: {customerName ?? ""} {customerPhone ? `(${toPersianDigits(customerPhone)})` : ""}
+                    </p>
+                  )}
+                </div>
 
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-[var(--text-muted)]">
-                  {r.reservationCode ? `کد: ${toPersianDigits(r.reservationCode)} • ` : ""}
-                  {getPaymentLabel(r.paymentState)}
-                </span>
-                <span className="font-black text-[var(--primary)]">{formatPrice(r.totalPrice)} تومان</span>
-              </div>
+                <div className="flex flex-col gap-3 pt-1 border-t border-[var(--border-subtle)]">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[var(--text-muted)]">
+                      {r.reservationCode ? `کد: ${toPersianDigits(r.reservationCode)} • ` : ""}
+                      {getPaymentLabel(r.paymentState)}
+                    </span>
+                    <span className="font-black text-[var(--primary)]">{formatPrice(r.totalPrice)} تومان</span>
+                  </div>
 
-              <div className="flex flex-wrap gap-2 pt-1">
-                {r.status === "CONFIRMED" && (
-                  <button type="button" disabled={busy} onClick={() => runSession(r, "start")} className={`${btn} bg-[var(--primary)] text-[#101014]`}>
-                    شروع سانس
-                  </button>
-                )}
-                {r.status === "IN_PROGRESS" && (
-                  <>
-                    <button type="button" disabled={busy} onClick={() => runSession(r, "pause")} className={`${btn} bg-[var(--foreground)]`}>
-                      توقف موقت
-                    </button>
-                    <button type="button" disabled={busy} onClick={() => runSession(r, "resume")} className={`${btn} bg-[var(--foreground)]`}>
-                      ادامه
-                    </button>
-                    <button type="button" disabled={busy} onClick={() => runSession(r, "stop")} className={`${btn} bg-[var(--accent-red)] text-[var(--text-white)]`}>
-                      پایان سانس
-                    </button>
-                  </>
-                )}
-                {(r.status === "PENDING" || r.status === "CONFIRMED") && (
-                  <button type="button" onClick={() => setProposeFor(r)} className={`${btn} border border-[var(--border-color)]`}>
-                    پیشنهاد زمان جدید
-                  </button>
-                )}
-              </div>
-            </article>
-          );
-        })}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {r.status === "CONFIRMED" && (
+                      <button type="button" disabled={busy} onClick={() => runSession(r, "start")} className={`${btn} bg-[var(--primary)] text-[#101014]`}>
+                        شروع سانس
+                      </button>
+                    )}
+                    {r.status === "IN_PROGRESS" && (
+                      <>
+                        <button type="button" disabled={busy} onClick={() => runSession(r, "pause")} className={`${btn} bg-[var(--foreground)]`}>
+                          توقف موقت
+                        </button>
+                        <button type="button" disabled={busy} onClick={() => runSession(r, "resume")} className={`${btn} bg-[var(--foreground)]`}>
+                          ادامه
+                        </button>
+                        <button type="button" disabled={busy} onClick={() => runSession(r, "stop")} className={`${btn} bg-[var(--accent-red)] text-[var(--text-white)]`}>
+                          پایان سانس
+                        </button>
+                      </>
+                    )}
+                    {(r.status === "PENDING" || r.status === "CONFIRMED") && (
+                      <button type="button" onClick={() => setProposeFor(r)} className={`${btn} border border-[var(--border-color)]`}>
+                        پیشنهاد زمان جدید
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </main>
 
       {proposeFor && (

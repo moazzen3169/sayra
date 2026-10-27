@@ -18,6 +18,8 @@ const Icon = ({ d }: { d: string }) => (
 const ICONS = {
   edit: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 12h6M9 16h4",
   clock: "M12 7v5l3 2M21 12a9 9 0 11-3-6.7M21 4v5h-5",
+  megaphone: "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M11 5.882a3 3 0 00-3-3H5a2 2 0 00-2 2v6a2 2 0 002 2h3a3 3 0 003-3",
+  tag: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z",
   support: "M4 14v-2a8 8 0 0116 0v2M4 14h3v5H5a1 1 0 01-1-1v-4zm16 0h-3v5h2a1 1 0 001-1v-4zM17 19c0 1.5-2 2-5 2",
 };
 
@@ -31,12 +33,14 @@ const TILES: { href: string; label: string; emoji: string; badge?: "pending" }[]
 const MENU = [
   { href: "/owner/edit", label: "ویرایش گیمنت", icon: ICONS.edit },
   { href: "/owner/hours", label: "ساعات کاری و تعطیلات", icon: ICONS.clock },
+  { href: "/owner/ads", label: "ایجاد تبلیغات", icon: ICONS.megaphone, isRed: true },
+  { href: "/owner/discounts", label: "ایجاد تخفیف", icon: ICONS.tag },
   { href: "/owner/support", label: "پشتیبانی", icon: ICONS.support },
 ];
 
 export default function OwnerDashboardPage() {
   const router = useRouter();
-  const { me, centerId, center, ownerName } = useOwner();
+  const { centerId, center, ownerName } = useOwner();
 
   const [query, setQuery] = useState("");
   const [withdrawable, setWithdrawable] = useState<number | null>(null);
@@ -44,7 +48,6 @@ export default function OwnerDashboardPage() {
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [galleryError, setGalleryError] = useState<string | null>(null);
-  const [isRenewOpen, setIsRenewOpen] = useState(false);
   const [mediaToken, setMediaToken] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -118,24 +121,9 @@ export default function OwnerDashboardPage() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-baseline gap-2 min-w-0">
             <h1 className="text-base font-extrabold truncate">{ownerName}</h1>
-            <Link href="/owner/edit" className="text-[11px] text-[var(--primary)]">
+            <Link href="/owner/edit" className="text-[11px] text-[var(--primary)] hover:underline">
               ویرایش
             </Link>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            <button
-              type="button"
-              onClick={() => setIsRenewOpen(true)}
-              className="h-11 px-5 rounded-card bg-[var(--primary)] text-[#101014] font-black text-xs"
-            >
-              تمدید اشتراک
-            </button>
-            {typeof me.subscriptionDaysLeft === "number" && (
-              <span className="w-11 h-11 rounded-full border border-[var(--border-color)] flex items-center justify-center text-sm font-bold">
-                {toPersianDigits(me.subscriptionDaysLeft)}
-              </span>
-            )}
           </div>
         </div>
 
@@ -211,10 +199,10 @@ export default function OwnerDashboardPage() {
         <div className="rounded-card bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)]">
           {MENU.map((m) => (
             <Link key={m.href} href={m.href} className="flex items-center gap-3 px-5 h-16 hover:bg-[var(--foreground)]/20 transition-colors">
-              <span className="text-[var(--text-white)]">
+              <span className={m.isRed ? "text-[var(--accent-red)]" : "text-[var(--text-white)]"}>
                 <Icon d={m.icon} />
               </span>
-              <span className="text-sm font-bold">{m.label}</span>
+              <span className={`text-sm font-bold ${m.isRed ? "text-[var(--accent-red)]" : "text-[var(--text-white)]"}`}>{m.label}</span>
             </Link>
           ))}
         </div>
@@ -260,31 +248,6 @@ export default function OwnerDashboardPage() {
         </section>
       </main>
 
-      {/* Renew modal */}
-      {isRenewOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm sm:p-4"
-          onClick={() => setIsRenewOpen(false)}
-        >
-          <div
-            className="w-full max-w-[460px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-base font-black">تمدید اشتراک</h3>
-            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-              در API فعلی (v1.0-LOCKED) endpoint مربوط به اشتراک و پرداخت آن تعریف نشده است. پس از ارائه‌ی endpoint توسط
-              Backend این بخش متصل می‌شود.
-            </p>
-            <button
-              type="button"
-              onClick={() => setIsRenewOpen(false)}
-              className="h-11 rounded-card bg-[var(--foreground)] text-xs font-bold"
-            >
-              بستن
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

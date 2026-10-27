@@ -96,11 +96,11 @@ export default function OwnerStationsPage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
       <OwnerPageHeader title="دستگاه ها" />
 
-      <main className="flex-1 mt-16 px-4 desk:px-6 lg:px-8 py-4 flex flex-col gap-3">
+      <main className="flex-1 mt-16 px-4 py-4 lg:max-w-[880px] lg:mx-auto lg:w-full lg:px-0 flex flex-col gap-3">
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="h-12 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm"
+          className="h-12 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm hover:opacity-90 transition-opacity"
         >
           + افزودن دستگاه
         </button>
@@ -111,29 +111,31 @@ export default function OwnerStationsPage() {
           <p className="py-12 text-center text-xs text-[var(--text-muted)]">هنوز دستگاهی ثبت نشده است.</p>
         )}
 
-        {stations?.map((s) => (
-          <div key={s.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3.5 flex items-center gap-3">
-            <div className="w-14 h-14 shrink-0 rounded-card bg-[var(--text-white)] flex items-center justify-center">
-              <img src={stationImageFor(s.stationType)} alt={s.name} className="w-12 h-12 object-contain" />
-            </div>
-            <div className="flex-1 min-w-0 flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-extrabold truncate">{s.name}</span>
-                {s.isVip && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[var(--primary)] text-[#101014]">VIP</span>}
-                {s.isActive === false && <span className="text-[10px] font-bold text-[var(--accent-red)]">غیرفعال</span>}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {stations?.map((s) => (
+            <div key={s.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3.5 flex items-center gap-3">
+              <div className="w-14 h-14 shrink-0 rounded-card bg-[var(--text-white)] flex items-center justify-center">
+                <img src={stationImageFor(s.stationType)} alt={s.name} className="w-12 h-12 object-contain" />
               </div>
-              <span className="text-[11px] text-[var(--text-muted)]">
-                {s.stationType}
-                {s.minRentHours ? ` • حداقل ${toPersianDigits(s.minRentHours)} ساعت` : ""}
-                {s.maxRentHours ? ` • حداکثر ${toPersianDigits(s.maxRentHours)} ساعت` : ""}
-              </span>
+              <div className="flex-1 min-w-0 flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-extrabold truncate">{s.name}</span>
+                  {s.isVip && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[var(--primary)] text-[#101014]">VIP</span>}
+                  {s.isActive === false && <span className="text-[10px] font-bold text-[var(--accent-red)]">غیرفعال</span>}
+                </div>
+                <span className="text-[11px] text-[var(--text-muted)]">
+                  {s.stationType}
+                  {s.minRentHours ? ` • حداقل ${toPersianDigits(s.minRentHours)} ساعت` : ""}
+                  {s.maxRentHours ? ` • حداکثر ${toPersianDigits(s.maxRentHours)} ساعت` : ""}
+                </span>
+              </div>
+              <div className="text-left shrink-0">
+                <div className="text-sm font-black text-[var(--primary)]">{formatPrice(s.hourlyPrice)}</div>
+                <div className="text-[10px] text-[var(--text-muted)]">تومان / ساعت</div>
+              </div>
             </div>
-            <div className="text-left shrink-0">
-              <div className="text-sm font-black text-[var(--primary)]">{formatPrice(s.hourlyPrice)}</div>
-              <div className="text-[10px] text-[var(--text-muted)]">تومان / ساعت</div>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </main>
 
       {open && (

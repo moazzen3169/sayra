@@ -6,12 +6,12 @@ import { useRouter } from "next/navigation";
 export const OwnerPageHeader: React.FC<{ title: string }> = ({ title }) => {
   const router = useRouter();
   return (
-    <header className="fixed top-0 z-40 w-full max-w-[var(--max-app-width)] h-16 px-4 lg:px-8 bg-[var(--bg-card)] flex items-center gap-3">
+    <header className="fixed top-0 left-0 right-0 z-40 w-full max-w-[var(--max-app-width)] mx-auto h-16 px-4 lg:px-8 bg-[var(--bg-card)] border-b border-[var(--border-subtle)] flex items-center gap-3">
       <button
         type="button"
         onClick={() => router.push("/owner")}
         aria-label="بازگشت"
-        className="w-10 h-10 flex items-center justify-center shrink-0"
+        className="w-10 h-10 flex items-center justify-center shrink-0 hover:bg-[var(--foreground)]/30 rounded-full transition-colors"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M5 12h14" />
