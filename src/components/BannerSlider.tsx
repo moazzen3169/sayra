@@ -248,7 +248,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
 
       {/* Pagination Dots & Play/Pause Controls */}
       {slidesCount > 1 && (
-        <div className="mt-3 flex items-center justify-center gap-2">
+        <div className="mt-3 absolute bottom-2 left-0 right-0 flex items-center justify-center gap-2">
           {/* Play/Pause Toggle Button */}
           <button
             type="button"

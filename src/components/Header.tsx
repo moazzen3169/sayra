@@ -63,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="fixed top-0 z-40 w-full max-w-[var(--max-app-width)] bg-[var(--bg-body)]/95 backdrop-blur-md px-4 pt-4 pb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4 lg:px-8 lg:py-3 border-b border-[var(--border-subtle)]">
+      <header className="fixed top-0 z-40 w-full max-w-[var(--max-app-width)] bg-[var(--bg-body)]/95 backdrop-blur-md px-4 p-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-4 lg:px-8 lg:py-3 border-b border-[var(--border-subtle)]">
         {/* Desktop Logo */}
         <Link href="/" className="hidden lg:block shrink-0 lg:order-1">
           <img src="/design/sayra.svg" alt="سایرا" className="h-6 w-auto" />
@@ -74,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={handleLocationBtnClick}
-            className="flex items-center gap-2 py-1.5 px-3 rounded-full bg-[var(--bg-card)] hover:bg-[var(--foreground)] border border-[var(--border-subtle)] transition-colors text-xs text-[var(--text-white)] lg:order-2 shrink-0"
+            className="flex items-center gap-2 py-1.5 px-3 rounded-card min-h-[36px]   bg-[var(--bg-card)] hover:bg-[var(--foreground)] border border-[var(--border-subtle)] transition-colors text-xs text-[var(--text-white)] lg:order-2 shrink-0"
           >
             <svg className="w-4 h-4 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
