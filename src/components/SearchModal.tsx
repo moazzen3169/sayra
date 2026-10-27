@@ -10,7 +10,6 @@ export interface SearchModalProps {
   selectedCity?: string;
 }
 
-// Mock database for search items across gaming centers, devices, and games
 const MOCK_GAMING_CENTERS = [
   {
     id: "gc-1",
@@ -19,7 +18,6 @@ const MOCK_GAMING_CENTERS = [
     city: "تبریز",
     rating: 4.8,
     hourlyPrice: 230000,
-    type: "center",
     tags: ["PS5", "PC", "VIP", "بوفه", "فرکانس ۲۴۰"],
   },
   {
@@ -29,7 +27,6 @@ const MOCK_GAMING_CENTERS = [
     city: "تبریز",
     rating: 4.6,
     hourlyPrice: 190000,
-    type: "center",
     tags: ["PS5", "Xbox", "بازی گروهی"],
   },
   {
@@ -39,17 +36,15 @@ const MOCK_GAMING_CENTERS = [
     city: "تبریز",
     rating: 4.9,
     hourlyPrice: 280000,
-    type: "center",
     tags: ["VR", "واقعیت مجازی", "PS5"],
   },
   {
     id: "gc-4",
-    name: "گیمنت اختصاصی وی‌آی‌پِی گرگدن",
+    name: "گیمنت اختصاصی وی‌آی‌پی گرگدن",
     location: "تبریز، ولیعصر، بعد از میدان معلم",
     city: "تبریز",
     rating: 4.9,
     hourlyPrice: 250000,
-    type: "center",
     tags: ["VIP", "اتاق فرمان", "RTX 4090"],
   },
   {
@@ -59,38 +54,66 @@ const MOCK_GAMING_CENTERS = [
     city: "تبریز",
     rating: 4.7,
     hourlyPrice: 210000,
-    type: "center",
     tags: ["PC", "فرکانس ۳۶۰", "شبکه‌ای"],
   },
 ];
 
-const SUGGESTED_DEVICES = [
-  { id: "dev-ps5-vip", name: "کنسول PS5 Pro / VIP", category: "پلی‌استیشن", count: "۱۲ ایستگاه فعّال", icon: "🎮" },
-  { id: "dev-pc-gaming", name: "کامپیوتر گیمینگ High-End (RTX 4080)", category: "پی‌سی گیمینگ", count: "۲۸ ایستگاه فعّال", icon: "🖥️" },
-  { id: "dev-vr", name: "هدست واقعیت مجازی Meta Quest 3", category: "واقعیت مجازی", count: "۶ ایستگاه فعّال", icon: "🥽" },
-  { id: "dev-xbox", name: "کنسول Xbox Series X", category: "ایکس‌باکس", count: "۱۵ ایستگاه فعّال", icon: "🟢" },
-  { id: "dev-steering", name: "فرمان بازی و صندلی ریسینگ Logitech", category: "شبیه‌ساز رانندگی", count: "۴ ایستگاه فعّال", icon: "🏎️" },
+const DEVICES = [
+  {
+    id: "dev-ps5-vip",
+    name: "کنسول پلی‌استیشن ۵ پرو",
+    keywords: "ps5 پلی استیشن پلی‌استیشن کنسول",
+    icon: "🎮",
+  },
+  {
+    id: "dev-pc-gaming",
+    name: "کامپیوتر گیمینگ",
+    keywords: "pc کامپیوتر سیستم گیمینگ کارت گرافیک",
+    icon: "🖥️",
+  },
+  {
+    id: "dev-vr",
+    name: "واقعیت مجازی",
+    keywords: "vr هدست واقعیت مجازی متا کوئست",
+    icon: "🥽",
+  },
+  {
+    id: "dev-xbox",
+    name: "ایکس‌باکس",
+    keywords: "xbox ایکس باکس کنسول",
+    icon: "🎮",
+  },
+  {
+    id: "dev-steering",
+    name: "فرمان بازی",
+    keywords: "فرمان ریسینگ رانندگی شبیه ساز steering wheel",
+    icon: "🏎️",
+  },
 ];
 
-const POPULAR_GAMES = [
-  "EA Sports FC 25 (FiFA)",
+const GAMES = [
+  "EA Sports FC 25",
   "Call of Duty: Modern Warfare III",
-  "GTA V / Online",
-  "Dota 2 / League of Legends",
+  "GTA V",
+  "Dota 2",
   "Mortal Kombat 1",
   "Tekken 8",
   "Counter-Strike 2",
 ];
 
-const QUICK_SEARCH_TAGS = [
-  "PS5 VIP",
-  "کامپیوتر گیمینگ",
-  "واقعیت مجازی VR",
-  "اتاق خصوصی",
-  "فرکانس ۲۴۰ هرتز",
-  "بازی گروهی",
-  "فرمان بازی",
-];
+const QUICK_SEARCHES = ["گیمنت نزدیک من", "پلی‌استیشن ۵", "کامپیوتر گیمینگ"];
+
+const INITIAL_RECENTS = ["گیمنت گرگدن", "پلی‌استیشن ۵", "کامپیوتر گیمینگ"];
+
+function normalizeText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[يى]/g, "ی")
+    .replace(/ك/g, "ک")
+    .replace(/\u200c/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export const SearchModal: React.FC<SearchModalProps> = ({
   isOpen,
@@ -98,281 +121,438 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   selectedCity = "تبریز",
 }) => {
   const [query, setQuery] = useState("");
-  const [recentSearches, setRecentSearches] = useState<string[]>([
-    "گیمنت گرگدن",
-    "PS5 Pro",
-    "کامپیوتر 360Hz",
-  ]);
+  const [recentSearches, setRecentSearches] =
+    useState<string[]>(INITIAL_RECENTS);
+
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const normalizedQuery = normalizeText(query);
+  const hasQuery = normalizedQuery.length > 0;
+
   useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
-    }
-  }, [isOpen]);
+    if (!isOpen) return;
 
-  // Filter centers based on query and selected city
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const timer = window.setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen, onClose]);
+
   const filteredCenters = useMemo(() => {
-    if (!query.trim()) return [];
-    const q = query.trim().toLowerCase();
-    return MOCK_GAMING_CENTERS.filter(
-      (item) =>
-        item.name.toLowerCase().includes(q) ||
-        item.location.toLowerCase().includes(q) ||
-        item.tags.some((tag) => tag.toLowerCase().includes(q))
-    );
-  }, [query]);
+    if (!hasQuery) return [];
 
-  // Filter devices based on query
+    return MOCK_GAMING_CENTERS.filter((center) => {
+      const matchesCity =
+        normalizeText(center.city) === normalizeText(selectedCity);
+
+      const searchableText = normalizeText(
+        `${center.name} ${center.location} ${center.tags.join(" ")}`,
+      );
+
+      return matchesCity && searchableText.includes(normalizedQuery);
+    });
+  }, [normalizedQuery, hasQuery, selectedCity]);
+
   const filteredDevices = useMemo(() => {
-    if (!query.trim()) return SUGGESTED_DEVICES;
-    const q = query.trim().toLowerCase();
-    return SUGGESTED_DEVICES.filter(
-      (item) =>
-        item.name.toLowerCase().includes(q) ||
-        item.category.toLowerCase().includes(q)
-    );
-  }, [query]);
+    if (!hasQuery) return [];
 
-  // Filter games based on query
+    return DEVICES.filter((device) =>
+      normalizeText(`${device.name} ${device.keywords}`).includes(
+        normalizedQuery,
+      ),
+    );
+  }, [normalizedQuery, hasQuery]);
+
   const filteredGames = useMemo(() => {
-    if (!query.trim()) return POPULAR_GAMES;
-    const q = query.trim().toLowerCase();
-    return POPULAR_GAMES.filter((game) => game.toLowerCase().includes(q));
-  }, [query]);
+    if (!hasQuery) return [];
+
+    return GAMES.filter((game) =>
+      normalizeText(game).includes(normalizedQuery),
+    );
+  }, [normalizedQuery, hasQuery]);
+
+  const hasResults =
+    filteredCenters.length > 0 ||
+    filteredDevices.length > 0 ||
+    filteredGames.length > 0;
+
+  const saveRecentSearch = (text: string) => {
+    const value = text.trim();
+    if (!value) return;
+
+    setRecentSearches((previous) =>
+      [
+        value,
+        ...previous.filter(
+          (item) => normalizeText(item) !== normalizeText(value),
+        ),
+      ].slice(0, 5),
+    );
+  };
+
+  const selectSuggestion = (text: string) => {
+    setQuery(text);
+    saveRecentSearch(text);
+    inputRef.current?.focus();
+  };
+
+  const clearSearch = () => {
+    setQuery("");
+    inputRef.current?.focus();
+  };
 
   if (!isOpen) return null;
 
-  const handleClearRecent = () => {
-    setRecentSearches([]);
-  };
-
-  const handleSelectQuery = (text: string) => {
-    setQuery(text);
-    if (!recentSearches.includes(text)) {
-      setRecentSearches((prev) => [text, ...prev.slice(0, 4)]);
-    }
-  };
-
   return (
-    <div className="fixed inset-0 z-50 bg-[var(--bg-body)] flex flex-col animate-fadeIn">
-      {/* Search Header Bar */}
-      <div className="sticky top-0 z-10 w-full max-w-[780px] lg:max-w-[880px] mx-auto bg-[var(--bg-card)] border-b border-[var(--border-color)] px-4 py-3 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onClose}
-          className="w-9 h-9 rounded-full bg-[var(--foreground)]/50 text-[var(--text-white)] flex items-center justify-center hover:bg-[var(--primary)] hover:text-[#101014] transition-colors shrink-0"
-          aria-label="بستن"
-        >
-          <svg className="w-5 h-5 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-          </svg>
-        </button>
-
-        <div className="relative flex-1">
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="جستجوی نام گیمنت، دستگاه، بازی..."
-            className="w-full h-11 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] pr-10 pl-9 text-sm text-[var(--text-white)] placeholder-[var(--text-subtle)] focus:outline-none focus:border-[var(--primary)] transition-colors"
-          />
-          <svg
-            className="w-5 h-5 text-[var(--text-muted)] absolute right-3 top-3 pointer-events-none"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1.8}
+    <div
+      dir="rtl"
+      className="fixed inset-0 z-50 flex flex-col bg-[var(--bg-body)]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="جست‌وجو در سایرا"
+    >
+      {/* Search bar */}
+      <header className="shrink-0 border-b border-[var(--border-subtle)] bg-[var(--bg-body)]">
+        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="بستن جست‌وجو"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-card)] hover:text-[var(--text-white)]"
           >
-            <circle cx="11" cy="11" r="7" />
-            <path strokeLinecap="round" d="M20 20l-3.5-3.5" />
-          </svg>
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              className="absolute left-3 top-3 text-[var(--text-muted)] hover:text-[var(--text-white)] text-xs font-bold"
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              className="size-6"
             >
-              ✕
-            </button>
-          )}
-        </div>
-      </div>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="m8.25 4.5 7.5 7.5-7.5 7.5"
+              />
+            </svg>
+          </button>
 
-      {/* Main Search Results & Suggestions Body */}
-      <div className="flex-1 w-full max-w-[780px] lg:max-w-[880px] mx-auto overflow-y-auto px-4 py-4 flex flex-col gap-6">
-        {/* Quick Search Chips */}
-        {!query && (
-          <div className="flex flex-col gap-2.5">
-            <span className="text-xs font-bold text-[var(--text-muted)]">دسته‌بندی‌ها و فیلترهای سریع</span>
-            <div className="flex flex-wrap gap-2">
-              {QUICK_SEARCH_TAGS.map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => handleSelectQuery(tag)}
-                  className="px-3.5 py-1.5 rounded-full bg-[var(--bg-card)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-white)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all flex items-center gap-1.5"
-                >
-                  <span className="text-[var(--primary)]">#</span>
-                  <span>{tag}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+          <div className="relative min-w-0 flex-1">
+            <svg
+              className="pointer-events-none absolute right-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--primary)]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path strokeLinecap="round" d="m20 20-3.5-3.5" />
+            </svg>
 
-        {/* Recent Searches */}
-        {!query && recentSearches.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-[var(--text-muted)]">جستجوهای اخیر شما</span>
+            <input
+              ref={inputRef}
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="دنبال چی می‌گردی؟"
+              autoComplete="off"
+              className="h-12 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] pr-11 pl-10 text-sm text-[var(--text-white)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]"
+            />
+
+            {query && (
               <button
                 type="button"
-                onClick={handleClearRecent}
-                className="text-[11px] font-bold text-[var(--text-subtle)] hover:text-[var(--primary)]"
+                onClick={clearSearch}
+                aria-label="پاک کردن جست‌وجو"
+                className="absolute left-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--foreground)] hover:text-[var(--text-white)]"
               >
-                پاک کردن تاریخچه
+                <span aria-hidden="true">×</span>
               </button>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {recentSearches.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => handleSelectQuery(item)}
-                  className="flex items-center justify-between p-2.5 rounded-card bg-[var(--bg-card)]/60 border border-[var(--border-subtle)] hover:border-[var(--border-color)] text-right transition-colors"
-                >
-                  <div className="flex items-center gap-2 text-xs text-[var(--text-white)]">
-                    <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                      <circle cx="12" cy="12" r="9" />
-                      <path strokeLinecap="round" d="M12 7v5l3 3" />
-                    </svg>
-                    <span>{item}</span>
-                  </div>
-                  <svg className="w-4 h-4 text-[var(--text-subtle)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Gaming Center Results */}
-        {query && (
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-[var(--text-white)]">
-                گیمنت‌های پیشنهادی ({filteredCenters.length})
-              </span>
-            </div>
-
-            {filteredCenters.length === 0 ? (
-              <div className="p-6 text-center text-xs text-[var(--text-muted)] bg-[var(--bg-card)]/40 rounded-card border border-[var(--border-subtle)]">
-                گیمنتی با عبارت «{query}» یافت نشد.
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2.5">
-                {filteredCenters.map((gc) => (
-                  <Link
-                    key={gc.id}
-                    href={`/gamecenter/${gc.id}`}
-                    onClick={onClose}
-                    className="p-3.5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all flex items-center justify-between gap-3 group"
-                  >
-                    <div className="flex flex-col gap-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-black text-[var(--text-white)] group-hover:text-[var(--primary)] transition-colors truncate">
-                          {gc.name}
-                        </span>
-                        <span className="text-[11px] font-bold text-[var(--primary)] bg-[var(--primary)]/10 px-2 py-0.5 rounded-md shrink-0">
-                          ★ {toPersianDigits(gc.rating)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-[var(--text-muted)] truncate">{gc.location}</p>
-                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                        {gc.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="text-[10px] font-semibold text-[var(--text-subtle)] bg-[var(--foreground)]/40 px-2 py-0.5 rounded"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-end shrink-0 gap-1">
-                      <span className="text-xs font-black text-[var(--primary)]">
-                        {formatPrice(gc.hourlyPrice)} <span className="text-[10px] text-[var(--text-muted)] font-normal">تومان</span>
-                      </span>
-                      <span className="text-[11px] text-[var(--text-subtle)]">ساعتی</span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
             )}
           </div>
-        )}
+        </div>
+      </header>
 
-        {/* Device & Platform Suggestions */}
-        <div className="flex flex-col gap-3">
-          <span className="text-xs font-extrabold text-[var(--text-white)]">
-            ایستگاه‌ها و دستگاه‌های محبوب
-          </span>
+      {/* Search content */}
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-4 py-5 sm:px-6 sm:py-7">
+          {/* Initial state: recent and only three suggestions */}
+          {!hasQuery && (
+            <>
+              {recentSearches.length > 0 && (
+                <section>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="text-xs font-bold text-[var(--text-muted)]">
+                      جست‌وجوهای اخیر
+                    </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {filteredDevices.map((dev) => (
-              <button
-                key={dev.id}
-                type="button"
-                onClick={() => handleSelectQuery(dev.name)}
-                className="p-3 rounded-card bg-[var(--bg-card)]/80 border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all flex items-center justify-between text-right group"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="text-xl p-2 rounded-lg bg-[var(--foreground)]/40 shrink-0">{dev.icon}</span>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-black text-[var(--text-white)] group-hover:text-[var(--primary)] transition-colors truncate">
-                      {dev.name}
-                    </span>
-                    <span className="text-[11px] text-[var(--text-muted)]">{dev.category}</span>
+                    <button
+                      type="button"
+                      onClick={() => setRecentSearches([])}
+                      className="text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--primary)]"
+                    >
+                      پاک کردن
+                    </button>
                   </div>
+
+                  <div className="flex flex-col">
+                    {recentSearches.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => selectSuggestion(item)}
+                        className="flex min-h-12 items-center gap-3 border-b border-[var(--border-subtle)]/70 py-2 text-right last:border-b-0"
+                      >
+                        <svg
+                          className="h-4 w-4 shrink-0 text-[var(--text-muted)]"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={1.7}
+                          aria-hidden="true"
+                        >
+                          <circle cx="12" cy="12" r="9" />
+                          <path strokeLinecap="round" d="M12 7v5l3 2" />
+                        </svg>
+
+                        <span className="flex-1 text-sm text-[var(--text-white)]">
+                          {item}
+                        </span>
+
+                        <span className="text-xs text-[var(--text-muted)]">
+                          جست‌وجو
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              <section>
+                <h2 className="mb-3 text-xs font-bold text-[var(--text-muted)]">
+                  پیشنهاد برای شروع
+                </h2>
+
+                <div className="flex flex-wrap gap-2">
+                  {QUICK_SEARCHES.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => selectSuggestion(item)}
+                      className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3.5 py-2 text-xs font-medium text-[var(--text-white)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                    >
+                      {item}
+                    </button>
+                  ))}
                 </div>
-                <span className="text-[10px] font-bold text-[var(--primary)] bg-[var(--primary)]/10 px-2 py-1 rounded-md shrink-0 mr-2">
-                  {dev.count}
+              </section>
+            </>
+          )}
+
+          {/* Results state */}
+          {hasQuery && (
+            <>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-[var(--text-muted)]">
+                  نتایج جست‌وجو برای
+                  <span className="mr-1 font-bold text-[var(--text-white)]">
+                    «{query.trim()}»
+                  </span>
+                </p>
+
+                <span className="text-[11px] text-[var(--text-muted)]">
+                  {toPersianDigits(
+                    filteredCenters.length +
+                      filteredDevices.length +
+                      filteredGames.length,
+                  )}{" "}
+                  نتیجه
                 </span>
-              </button>
-            ))}
-          </div>
-        </div>
+              </div>
 
-        {/* Popular Games Suggestions */}
-        <div className="flex flex-col gap-3 pb-8">
-          <span className="text-xs font-extrabold text-[var(--text-white)]">
-            بازی‌های پرطرفدار در گیمنت‌ها
-          </span>
+              {!hasResults && (
+                <div className="flex flex-col items-center py-14 text-center">
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--bg-card)] text-[var(--text-muted)]">
+                    <svg
+                      className="h-7 w-7"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                      aria-hidden="true"
+                    >
+                      <circle cx="11" cy="11" r="7" />
+                      <path strokeLinecap="round" d="m20 20-3.5-3.5" />
+                    </svg>
+                  </div>
 
-          <div className="flex flex-wrap gap-2">
-            {filteredGames.map((game) => (
-              <button
-                key={game}
-                type="button"
-                onClick={() => handleSelectQuery(game)}
-                className="px-3 py-2 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-white)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all flex items-center gap-2"
-              >
-                <svg className="w-3.5 h-3.5 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>{game}</span>
-              </button>
-            ))}
-          </div>
+                  <h2 className="text-sm font-bold text-[var(--text-white)]">
+                    نتیجه‌ای پیدا نشد
+                  </h2>
+
+                  <p className="mt-2 max-w-xs text-xs leading-6 text-[var(--text-muted)]">
+                    عبارت جست‌وجو را کوتاه‌تر کن یا با کلمه دیگری امتحان کن.
+                  </p>
+                </div>
+              )}
+
+              {/* Gaming centers */}
+              {filteredCenters.length > 0 && (
+                <section>
+                  <h2 className="mb-3 text-xs font-bold text-[var(--text-muted)]">
+                    گیمنت‌ها
+                  </h2>
+
+                  <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
+                    {filteredCenters.map((center) => (
+                      <Link
+                        key={center.id}
+                        href={`/gamecenter/${center.id}`}
+                        onClick={() => {
+                          saveRecentSearch(query);
+                          onClose();
+                        }}
+                        className="group flex items-center gap-3 py-3.5"
+                      >
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-card)] text-[var(--primary)]">
+                          <svg
+                            className="h-5 w-5"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={1.6}
+                            aria-hidden="true"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4M9 9v.01M9 12v.01M9 15v.01M9 18v.01M16 14v.01M16 17v.01"
+                            />
+                          </svg>
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <h3 className="truncate text-sm font-bold text-[var(--text-white)] transition-colors group-hover:text-[var(--primary)]">
+                            {center.name}
+                          </h3>
+
+                          <p className="mt-1 truncate text-xs text-[var(--text-muted)]">
+                            {center.location}
+                          </p>
+                        </div>
+
+                        <div className="shrink-0 text-left">
+                          <div className="text-xs font-bold text-[var(--text-white)]">
+                            <span className="text-amber-400">★</span>{" "}
+                            {toPersianDigits(center.rating)}
+                          </div>
+
+                          <div className="mt-1 text-[11px] text-[var(--text-muted)]">
+                            {formatPrice(center.hourlyPrice)} تومان
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Devices */}
+              {filteredDevices.length > 0 && (
+                <section>
+                  <h2 className="mb-2 text-xs font-bold text-[var(--text-muted)]">
+                    دستگاه‌ها
+                  </h2>
+
+                  <div className="flex flex-col">
+                    {filteredDevices.map((device) => (
+                      <button
+                        key={device.id}
+                        type="button"
+                        onClick={() => selectSuggestion(device.name)}
+                        className="flex min-h-12 items-center gap-3 border-b border-[var(--border-subtle)]/70 py-2.5 text-right last:border-b-0"
+                      >
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-card)] text-xl">
+                          {device.icon}
+                        </span>
+
+                        <span className="flex-1 text-sm font-medium text-[var(--text-white)]">
+                          {device.name}
+                        </span>
+
+                        <span className="text-xs text-[var(--text-muted)]">
+                          جست‌وجو
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Games */}
+              {filteredGames.length > 0 && (
+                <section>
+                  <h2 className="mb-2 text-xs font-bold text-[var(--text-muted)]">
+                    بازی‌ها
+                  </h2>
+
+                  <div className="flex flex-col">
+                    {filteredGames.map((game) => (
+                      <button
+                        key={game}
+                        type="button"
+                        onClick={() => selectSuggestion(game)}
+                        className="flex min-h-12 items-center gap-3 border-b border-[var(--border-subtle)]/70 py-2.5 text-right last:border-b-0"
+                      >
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-card)] text-[var(--primary)]">
+                          <svg
+                            className="h-5 w-5"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={1.7}
+                            aria-hidden="true"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M6 12h4m-2-2v4m7-3h.01M18 13h.01M7 6h10a4 4 0 014 4v5a3 3 0 01-5.2 2l-1.3-1.5h-4l-1.3 1.5A3 3 0 013 15v-5a4 4 0 014-4z"
+                            />
+                          </svg>
+                        </span>
+
+                        <span className="flex-1 text-sm text-[var(--text-white)]">
+                          {game}
+                        </span>
+
+                        <span className="text-xs text-[var(--text-muted)]">
+                          جست‌وجو
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
+          )}
         </div>
-      </div>
+      </main>
     </div>
   );
 };

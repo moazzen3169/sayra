@@ -1,10 +1,18 @@
+
 import React from "react";
 
 export interface DeviceCategory {
   id: string;
   name: string;
   subtitle?: string;
-  iconType: "ps5" | "ps4" | "pc" | "steering" | "vr" | "xbox" | "billiards";
+  iconType:
+    | "ps5"
+    | "ps4"
+    | "pc"
+    | "steering"
+    | "vr"
+    | "xbox"
+    | "billiards";
   count?: number;
 }
 
@@ -15,132 +23,37 @@ interface DeviceCategoriesProps {
 }
 
 const defaultCategories: DeviceCategory[] = [
-  {
-    id: "ps5",
-    name: "پلی استیشن ۵",
-    subtitle: "PS5",
-    iconType: "ps5",
-  },
-  {
-    id: "ps4",
-    name: "پلی استیشن ۴",
-    subtitle: "PS4",
-    iconType: "ps4",
-  },
-  {
-    id: "pc",
-    name: "کامپیوتر",
-    subtitle: "PC Gaming",
-    iconType: "pc",
-  },
-  {
-    id: "xbox",
-    name: "ایکس باکس",
-    subtitle: "Xbox Series",
-    iconType: "xbox",
-  },
-  {
-    id: "vr",
-    name: "واقعیت مجازی",
-    subtitle: "VR",
-    iconType: "vr",
-  },
-  {
-    id: "billiards",
-    name: "بیلیارد",
-    subtitle: "Billiards",
-    iconType: "billiards",
-  },
-  {
-    id: "steering",
-    name: "فرمان بازی",
-    subtitle: "Racing Wheel",
-    iconType: "steering",
-  },
+  { id: "ps5", name: "پلی استیشن ۵", iconType: "ps5" },
+  { id: "ps4", name: "پلی استیشن ۴", iconType: "ps4" },
+  { id: "pc", name: "کامپیوتر", iconType: "pc" },
+  { id: "xbox", name: "ایکس باکس", iconType: "xbox" },
+  { id: "vr", name: "واقعیت مجازی", iconType: "vr" },
+  { id: "billiards", name: "بیلیارد", iconType: "billiards" },
+  { id: "steering", name: "فرمان بازی", iconType: "steering" },
 ];
 
-const imageMap: Record<string, string> = {
-  ps5: "/img/PS5.webp",
-  ps4: "/img/PS4.webp",
-  pc: "/img/pc.webp",
-  xbox: "/img/xbox.webp",
+const imageMap: Record<DeviceCategory["iconType"], string> = {
+  ps5: "/img/PS5.png",
+  ps4: "/img/PS4.png",
+  pc: "/img/pc.png",
+  xbox: "/img/xbox.png",
+  vr: "/img/vr.png",
+  billiards: "/img/bilyard.png",
+  steering: "/img/Racing-Wheel.png",
 };
 
-const CategoryIcon: React.FC<{ iconType: DeviceCategory["iconType"] }> = ({ iconType }) => {
-  if (imageMap[iconType]) {
-    return (
-      <img
-        src={imageMap[iconType]}
-        alt=""
-        className="w-9 h-9 sm:w-11 sm:h-11 object-contain shrink-0"
-      />
-    );
-  }
-
-  switch (iconType) {
-    case "vr":
-      return (
-        <svg
-          className="w-8 h-8 sm:w-10 sm:h-10 text-[var(--primary)] shrink-0"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.75}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M3 9a2 2 0 012-2h14a2 2 0 012 2v6a2 2 0 01-2 2h-3a1 1 0 01-.8-.4l-1.4-1.86a1 1 0 00-.8-.34h-2a1 1 0 00-.8.34L8.8 16.6a1 1 0 01-.8.4H5a2 2 0 01-2-2V9z"
-          />
-          <circle cx="8" cy="12" r="1.5" />
-          <circle cx="16" cy="12" r="1.5" />
-        </svg>
-      );
-    case "billiards":
-      return (
-        <svg
-          className="w-8 h-8 sm:w-10 sm:h-10 text-[var(--primary)] shrink-0"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.75}
-        >
-          <circle cx="12" cy="12" r="9" />
-          <circle cx="12" cy="12" r="3.5" fill="currentColor" opacity="0.25" />
-          <text
-            x="12"
-            y="14"
-            textAnchor="middle"
-            fontSize="7"
-            fontWeight="900"
-            fill="currentColor"
-            stroke="none"
-          >
-            8
-          </text>
-        </svg>
-      );
-    case "steering":
-      return (
-        <svg
-          className="w-8 h-8 sm:w-10 sm:h-10 text-[var(--primary)] shrink-0"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.75}
-        >
-          <circle cx="12" cy="12" r="9" />
-          <circle cx="12" cy="12" r="3" />
-          <path
-            strokeLinecap="round"
-            d="M12 3v6M3 12h6M15 12h6M6.34 17.66l4.24-4.24M17.66 17.66l-4.24-4.24"
-          />
-        </svg>
-      );
-    default:
-      return null;
-  }
-};
+const CategoryIcon: React.FC<{
+  iconType: DeviceCategory["iconType"];
+}> = ({ iconType }) => (
+  <img
+    src={imageMap[iconType]}
+    alt=""
+    aria-hidden="true"
+    loading="lazy"
+    decoding="async"
+    className="h-full w-full object-contain drop-shadow-xl"
+  />
+);
 
 export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
   categories = defaultCategories,
@@ -148,9 +61,20 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
   onSelectCategory,
 }) => {
   return (
-    <section dir="rtl" className="w-full">
-      <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-        {categories.map((cat, index) => {
+    <section
+      dir="rtl"
+      aria-label="دسته‌بندی دستگاه‌ها"
+      className="w-full min-w-0"
+    >
+      <div className="mb-5 flex items-center gap-2">
+        <span className="h-5 w-1 rounded-full bg-[var(--primary)]" />
+        <h2 className="text-base font-black text-[var(--text-white)]">
+          دسته‌بندی دستگاه‌ها
+        </h2>
+      </div>
+
+      <div className="grid grid-cols-3 gap-x-2 gap-y-2 sm:grid-cols-4 sm:gap-x-3 sm:gap-y-10 md:grid-cols-5 lg:grid-cols-7">
+        {categories.map((cat) => {
           const isSelected = selectedCategoryId === cat.id;
 
           return (
@@ -160,17 +84,47 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
               onClick={() => onSelectCategory?.(cat.id)}
               aria-pressed={isSelected}
               className={[
-                "flex flex-col items-center justify-center p-2.5 rounded-card transition-all duration-200 min-h-[84px] sm:min-h-[96px]",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white border",
+                "group relative mt-7 flex min-w-0 flex-col items-center",
+                "justify-end overflow-visible rounded-2xl border",
+                "min-h-[100px] px-1 pb-3 pt-10",
+                "transition-colors duration-300",
+                "focus-visible:outline-none focus-visible:ring-2",
+                "focus-visible:ring-[var(--primary)]",
+                "focus-visible:ring-offset-2",
+                "focus-visible:ring-offset-[var(--bg-body)]",
                 isSelected
-                  ? "bg-[var(--primary)]/15 border-[var(--primary)] shadow-md text-[var(--primary)]"
-                  : "bg-[var(--bg-card)] border-[var(--border-subtle)] hover:border-[var(--primary)] text-[var(--text-white)]",
+                  ? "border-[var(--primary)] bg-[var(--primary)]/10 shadow-[0_0_0_1px_var(--primary)]"
+                  : "border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--primary)]/60 hover:bg-[var(--primary)]/[0.04]",
               ].join(" ")}
             >
-              <div className="flex items-center justify-center h-10 w-10 sm:h-12 sm:w-12 mb-1 shrink-0">
+              {/* تصویر بزرگ با بیرون‌زدگی کنترل‌شده */}
+              <div
+                className={[
+                  "pointer-events-none absolute -top-9 left-1/2 z-10",
+                  "h-[88px] w-[88px] -translate-x-1/2",
+                  "transition-transform duration-300",
+                  "sm:-top-11 sm:h-[104px] sm:w-[104px]",
+                  "lg:-top-12 lg:h-[112px] lg:w-[112px]",
+                  isSelected
+                    ? "-translate-x-1/2 -translate-y-1 scale-105"
+                    : "group-hover:-translate-x-1/2 group-hover:-translate-y-1 group-hover:scale-105",
+                ].join(" ")}
+              >
                 <CategoryIcon iconType={cat.iconType} />
               </div>
-              <span className="text-xs sm:text-sm font-extrabold text-center line-clamp-1">
+
+              {/* فقط یک عنوان فارسی */}
+              <span
+                className={[
+                  "relative z-20 mt-2 w-full text-center",
+                  "text-[11px] font-extrabold leading-5",
+                  "sm:text-xs lg:text-[13px]",
+                  "whitespace-nowrap",
+                  isSelected
+                    ? "text-[var(--primary)]"
+                    : "text-[var(--text-white)]",
+                ].join(" ")}
+              >
                 {cat.name}
               </span>
             </button>

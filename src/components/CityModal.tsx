@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 export interface CityModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ const CITIES = [
   { id: "karaj", name: "کرج", popular: true, province: "البرز" },
   { id: "ahvaz", name: "اهواز", popular: true, province: "خوزستان" },
   { id: "rasht", name: "رشت", popular: true, province: "گیلان" },
+  { id: "kish", name: "کیش", popular: true, province: "هرمزگان" },
   { id: "qom", name: "قم", popular: false, province: "قم" },
   { id: "kerman", name: "کرمان", popular: false, province: "کرمان" },
   { id: "urmia", name: "ارومیه", popular: false, province: "آذربایجان غربی" },
@@ -30,9 +32,16 @@ const CITIES = [
   { id: "arak", name: "اراک", popular: false, province: "مرکزی" },
   { id: "ardabil", name: "اردبیل", popular: false, province: "اردبیل" },
   { id: "qazvin", name: "قزوین", popular: false, province: "قزوین" },
-  { id: "kish", name: "کیش", popular: true, province: "هرمزگان" },
   { id: "bandarabbas", name: "بندرعباس", popular: false, province: "هرمزگان" },
 ];
+
+const normalizeText = (value: string) =>
+  value
+    .replace(/[يى]/g, "ی")
+    .replace(/ك/g, "ک")
+    .replace(/‌/g, " ")
+    .trim()
+    .toLowerCase();
 
 export const CityModal: React.FC<CityModalProps> = ({
   isOpen,
@@ -41,148 +50,262 @@ export const CityModal: React.FC<CityModalProps> = ({
   onSelectCity,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    const focusTimer = window.setTimeout(() => {
+      searchRef.current?.focus();
+    }, 100);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+      window.clearTimeout(focusTimer);
+    };
+  }, [isOpen, onClose]);
 
   const filteredCities = useMemo(() => {
-    if (!searchQuery.trim()) return CITIES;
-    const q = searchQuery.trim().toLowerCase();
-    return CITIES.filter(
-      (c) => c.name.includes(q) || c.province.includes(q)
+    const query = normalizeText(searchQuery);
+
+    if (!query) return CITIES;
+
+    return CITIES.filter((city) =>
+      normalizeText(`${city.name} ${city.province}`).includes(query)
     );
   }, [searchQuery]);
 
-  const popularCities = useMemo(() => {
-    return CITIES.filter((c) => c.popular);
-  }, []);
+  const popularCities = useMemo(
+    () => CITIES.filter((city) => city.popular),
+    []
+  );
+
+  const handleSelectCity = (city: string) => {
+    onSelectCity(city);
+    setSearchQuery("");
+    onClose();
+  };
 
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fadeIn"
-      onClick={onClose}
+      dir="rtl"
+      className="fixed inset-0 z-[100] flex h-[100dvh] w-full flex-col overflow-hidden bg-[var(--bg-card)] text-[var(--text-white)] animate-fadeIn"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="city-modal-title"
     >
-      <div
-        className="w-full max-w-md bg-[var(--bg-card)] border border-[var(--border-color)] rounded-card p-5 flex flex-col gap-4 max-h-[85vh] shadow-2xl relative overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-card bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-            <h3 className="text-base font-black text-[var(--text-white)]">انتخاب شهر</h3>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-white)] flex items-center justify-center text-lg transition-colors"
-          >
-            ✕
-          </button>
-        </div>
+      {/* Header */}
+      <header className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--border-subtle)] px-4 sm:px-8">
+        <h2
+          id="city-modal-title"
+          className="text-base font-bold"
+        >
+          انتخاب شهر
+        </h2>
 
-        {/* Search Input */}
-        <div className="relative">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="جستجوی نام شهر یا استان..."
-            className="w-full h-11 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] px-10 text-sm text-[var(--text-white)] placeholder-[var(--text-subtle)] focus:outline-none focus:border-[var(--primary)] transition-colors"
-          />
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="بستن انتخاب شهر"
+          className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--foreground)]/10 hover:text-[var(--text-white)]"
+        >
           <svg
-            className="w-5 h-5 text-[var(--text-muted)] absolute right-3 top-3 pointer-events-none"
-            fill="none"
+            className="h-5 w-5"
             viewBox="0 0 24 24"
+            fill="none"
             stroke="currentColor"
-            strokeWidth={1.8}
+            strokeWidth={2}
           >
-            <circle cx="11" cy="11" r="7" />
-            <path strokeLinecap="round" d="M20 20l-3.5-3.5" />
+            <path
+              d="m18 6-12 12M6 6l12 12"
+              strokeLinecap="round"
+            />
           </svg>
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              className="absolute left-3 top-3 text-[var(--text-muted)] hover:text-[var(--text-white)] text-xs"
+        </button>
+      </header>
+
+      {/* Search */}
+      <div className="shrink-0 border-b border-[var(--border-subtle)] px-4 py-4 sm:px-8">
+        <div className="mx-auto w-full max-w-3xl">
+          <div className="relative">
+            <svg
+              className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--text-muted)]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
             >
-              پاک کردن
-            </button>
-          )}
-        </div>
+              <circle cx="11" cy="11" r="7" />
+              <path
+                d="m20 20-4-4"
+                strokeLinecap="round"
+              />
+            </svg>
 
-        {/* Popular Cities Quick Select */}
-        {!searchQuery && (
-          <div className="flex flex-col gap-2">
-            <span className="text-xs font-bold text-[var(--text-muted)]">شهرهای پرتردد</span>
-            <div className="flex flex-wrap gap-2">
-              {popularCities.map((city) => {
-                const isSelected = selectedCity === city.name;
-                return (
-                  <button
-                    key={city.id}
-                    type="button"
-                    onClick={() => {
-                      onSelectCity(city.name);
-                      onClose();
-                    }}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                      isSelected
-                        ? "bg-[var(--primary)] text-[#101014] border-[var(--primary)] shadow-sm"
-                        : "bg-[var(--foreground)]/30 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--primary)]/50"
-                    }`}
-                  >
-                    {city.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+            <input
+              ref={searchRef}
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="نام شهر یا استان را بنویس..."
+              aria-label="جستجوی شهر یا استان"
+              autoComplete="off"
+              className="h-12 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--foreground)]/20 pr-12 pl-12 text-sm outline-none transition-colors placeholder:text-[var(--text-subtle)] focus:border-[var(--primary)]"
+            />
 
-        {/* Cities List */}
-        <div className="flex flex-col gap-1 overflow-y-auto max-h-[40vh] pr-1">
-          <span className="text-xs font-bold text-[var(--text-muted)] mb-1">همه شهرها</span>
-          {filteredCities.length === 0 ? (
-            <div className="py-8 text-center text-xs text-[var(--text-muted)]">
-              شهری با این مشخصات یافت نشد.
-            </div>
-          ) : (
-            filteredCities.map((city) => {
-              const isSelected = selectedCity === city.name;
-              return (
-                <button
-                  key={city.id}
-                  type="button"
-                  onClick={() => {
-                    onSelectCity(city.name);
-                    onClose();
-                  }}
-                  className={`w-full flex items-center justify-between p-3 rounded-card text-right transition-colors border ${
-                    isSelected
-                      ? "bg-[var(--primary)]/10 text-[var(--primary)] border-[var(--primary)]/30 font-bold"
-                      : "bg-[var(--foreground)]/10 text-[var(--text-white)] border-transparent hover:bg-[var(--foreground)]/30"
-                  }`}
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  searchRef.current?.focus();
+                }}
+                aria-label="پاک کردن جستجو"
+                className="absolute left-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--foreground)]/10 hover:text-[var(--text-white)]"
+              >
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">{city.name}</span>
-                    <span className="text-[11px] text-[var(--text-subtle)]">({city.province})</span>
-                  </div>
-                  {isSelected && (
-                    <svg className="w-5 h-5 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </button>
-              );
-            })
-          )}
+                  <path
+                    d="m18 6-12 12M6 6l12 12"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Scrollable content */}
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-8">
+        <div className="mx-auto w-full max-w-3xl">
+          {!searchQuery.trim() && (
+            <section className="mb-7">
+              <h3 className="mb-3 text-sm font-bold">
+                شهرهای پرطرفدار
+              </h3>
+
+              <div className="flex flex-wrap gap-2">
+                {popularCities.map((city) => {
+                  const isSelected = selectedCity === city.name;
+
+                  return (
+                    <button
+                      key={city.id}
+                      type="button"
+                      onClick={() => handleSelectCity(city.name)}
+                      aria-pressed={isSelected}
+                      className={`rounded-lg border px-4 py-2.5 text-sm transition-colors ${
+                        isSelected
+                          ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
+                          : "border-[var(--border-subtle)] bg-[var(--foreground)]/10 hover:border-[var(--primary)]/50"
+                      }`}
+                    >
+                      {city.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-bold">
+                {searchQuery.trim() ? "نتایج جستجو" : "همه شهرها"}
+              </h3>
+
+              <span className="text-xs text-[var(--text-muted)]">
+                {filteredCities.length} شهر
+              </span>
+            </div>
+
+            {filteredCities.length > 0 ? (
+              <div className="divide-y divide-[var(--border-subtle)]">
+                {filteredCities.map((city) => {
+                  const isSelected = selectedCity === city.name;
+
+                  return (
+                    <button
+                      key={city.id}
+                      type="button"
+                      onClick={() => handleSelectCity(city.name)}
+                      aria-pressed={isSelected}
+                      className="flex w-full items-center justify-between gap-4 py-4 text-right transition-colors hover:bg-[var(--foreground)]/5"
+                    >
+                      <div className="min-w-0">
+                        <div
+                          className={`text-sm ${
+                            isSelected
+                              ? "font-bold text-[var(--primary)]"
+                              : "font-medium"
+                          }`}
+                        >
+                          {city.name}
+                        </div>
+
+                        <div className="mt-1 text-xs text-[var(--text-muted)]">
+                          {city.province}
+                        </div>
+                      </div>
+
+                      {isSelected && (
+                        <svg
+                          className="h-5 w-5 shrink-0 text-[var(--primary)]"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={2.5}
+                          aria-label="شهر انتخاب‌شده"
+                        >
+                          <path
+                            d="m5 12 4 4L19 6"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <p className="text-sm font-medium">
+                  شهری پیدا نشد
+                </p>
+                <p className="mt-2 text-xs text-[var(--text-muted)]">
+                  نام شهر یا استان را بررسی کن.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="mt-4 text-sm font-bold text-[var(--primary)]"
+                >
+                  نمایش همه شهرها
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      </main>
     </div>
   );
 };
