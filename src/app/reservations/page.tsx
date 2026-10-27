@@ -63,7 +63,7 @@ export default function ReservationsHistoryPage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
       <Header locationName="تبریز" />
 
-      <main className="flex-1 mt-[124px] lg:mt-[92px] flex flex-col">
+      <main className="flex-1 mt-[120px] lg:mt-[128px] flex flex-col">
         <div className="px-4 desk:px-6 lg:px-8 py-3">
           <FirstReservationStrip />
         </div>
