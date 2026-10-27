@@ -75,7 +75,14 @@
   --max-app-width: 780px;
 }
 
+@media (min-width: 781px) {
+  :root {
+    --max-app-width: 1200px;
+  }
+}
+
 @theme {
+  --breakpoint-desk: 781px;
   --font-sans: 'Peyda', 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-peyda: 'Peyda', sans-serif;
   --font-vazir: 'Vazirmatn', sans-serif;
@@ -127,6 +134,13 @@ body {
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
+}
+
+@media (min-width: 1201px) {
+  .app-container {
+    border-left: 1px solid var(--border-subtle);
+    border-right: 1px solid var(--border-subtle);
+  }
 }
 
 /* Hide scrollbars globally across all browsers */

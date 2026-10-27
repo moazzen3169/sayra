@@ -35,9 +35,9 @@ export const GamecenterCardMini: React.FC<GamecenterCardMiniProps> = ({
           onClick(id);
         }
       }}
-      className="w-[187px] min-w-[187px] shrink-0 bg-[var(--bg-card)] rounded-card overflow-hidden cursor-pointer flex flex-col pb-3 border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all group"
+      className="w-[187px] min-w-[187px] lg:w-[220px] lg:min-w-[220px] shrink-0 bg-[var(--bg-card)] rounded-card overflow-hidden cursor-pointer flex flex-col pb-3 border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all group"
     >
-      <div className="relative w-full h-[120px] bg-[var(--foreground)] overflow-hidden">
+      <div className="relative w-full h-[120px] lg:h-[140px] bg-[var(--foreground)] overflow-hidden">
         <img src={imageUrl} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
         {discountPercent ? (
           <span className="absolute top-2.5 left-2.5 px-2.5 pt-1 pb-0.5 rounded-full bg-[var(--primary)] text-[#101014] text-xs font-bold flex items-center shadow-md">

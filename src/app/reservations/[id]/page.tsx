@@ -212,7 +212,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
         onNotificationClick={() => {}}
       />
 
-      <main className="flex-1 flex flex-col gap-4 mt-16 px-4 py-4">
+      <main className="flex-1 flex flex-col gap-4 mt-16 px-4 py-4 lg:max-w-[880px] lg:mx-auto lg:w-full lg:px-0">
         {/* Unauthenticated State */}
         {!isLoggedIn && (
           <div className="flex flex-col items-center justify-center gap-4 py-16 px-4 text-center">
@@ -472,7 +472,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
           onClick={() => !isCancelling && setIsCancelConfirmOpen(false)}
         >
           <div
-            className="w-full max-w-[460px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card p-5 flex flex-col gap-4 shadow-2xl"
+            className="w-full max-w-[460px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-base font-black text-[var(--text-white)]">لغو رزرو</h3>

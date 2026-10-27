@@ -96,7 +96,7 @@ export default function OwnerStationsPage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
       <OwnerPageHeader title="دستگاه ها" />
 
-      <main className="flex-1 mt-16 px-4 py-4 flex flex-col gap-3">
+      <main className="flex-1 mt-16 px-4 desk:px-6 lg:px-8 py-4 flex flex-col gap-3">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -143,7 +143,7 @@ export default function OwnerStationsPage() {
         >
           <form
             onSubmit={submit}
-            className="w-full max-w-[460px] max-h-[92vh] overflow-y-auto bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card p-5 flex flex-col gap-3"
+            className="w-full max-w-[460px] max-h-[92vh] overflow-y-auto bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-3"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-base font-black">افزودن دستگاه</h3>

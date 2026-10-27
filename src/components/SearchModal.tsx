@@ -159,7 +159,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 bg-[var(--bg-body)] flex flex-col animate-fadeIn">
       {/* Search Header Bar */}
-      <div className="sticky top-0 z-10 w-full max-w-[780px] mx-auto bg-[var(--bg-card)] border-b border-[var(--border-color)] px-4 py-3 flex items-center gap-3">
+      <div className="sticky top-0 z-10 w-full max-w-[780px] lg:max-w-[880px] mx-auto bg-[var(--bg-card)] border-b border-[var(--border-color)] px-4 py-3 flex items-center gap-3">
         <button
           type="button"
           onClick={onClose}
@@ -203,7 +203,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
       </div>
 
       {/* Main Search Results & Suggestions Body */}
-      <div className="flex-1 w-full max-w-[780px] mx-auto overflow-y-auto px-4 py-4 flex flex-col gap-6">
+      <div className="flex-1 w-full max-w-[780px] lg:max-w-[880px] mx-auto overflow-y-auto px-4 py-4 flex flex-col gap-6">
         {/* Quick Search Chips */}
         {!query && (
           <div className="flex flex-col gap-2.5">

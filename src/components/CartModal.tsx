@@ -53,11 +53,11 @@ export const CartModal: React.FC<CartModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-6 bg-black/70 backdrop-blur-sm animate-fadeIn"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[780px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card p-4 sm:p-5 flex flex-col gap-4 max-h-[85vh] shadow-2xl relative overflow-hidden"
+        className="w-full max-w-[780px] lg:max-w-[640px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-4 sm:p-5 flex flex-col gap-4 max-h-[85vh] lg:max-h-[88vh] shadow-2xl relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

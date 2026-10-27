@@ -32,7 +32,7 @@ export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({ 
       role={hasDetail ? "link" : undefined}
       tabIndex={hasDetail ? 0 : undefined}
       onKeyDown={(e) => e.key === "Enter" && openDetail()}
-      className={`px-4 py-5 flex flex-col gap-3.5 border-b border-[var(--border-color)] ${
+      className={`px-4 py-5 flex flex-col gap-3.5 border-b border-[var(--border-color)] lg:rounded-[10px] lg:border lg:bg-[var(--bg-card)] lg:border-[var(--border-subtle)] lg:p-5 ${
         hasDetail ? "cursor-pointer active:bg-[var(--bg-card)]/50 transition-colors" : ""
       }`}
     >

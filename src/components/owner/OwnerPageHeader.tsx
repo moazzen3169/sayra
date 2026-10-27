@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 export const OwnerPageHeader: React.FC<{ title: string }> = ({ title }) => {
   const router = useRouter();
   return (
-    <header className="fixed top-0 z-40 w-full max-w-[780px] h-16 px-4 bg-[var(--bg-card)] flex items-center gap-3">
+    <header className="fixed top-0 z-40 w-full max-w-[var(--max-app-width)] h-16 px-4 lg:px-8 bg-[var(--bg-card)] flex items-center gap-3">
       <button
         type="button"
         onClick={() => router.push("/owner")}

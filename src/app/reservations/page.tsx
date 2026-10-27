@@ -60,17 +60,17 @@ export default function ReservationsHistoryPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28">
+    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
       <Header locationName="تبریز" />
 
-      <main className="flex-1 mt-[124px] flex flex-col">
-        <div className="px-4 py-3">
+      <main className="flex-1 mt-[124px] lg:mt-[92px] flex flex-col">
+        <div className="px-4 desk:px-6 lg:px-8 py-3">
           <FirstReservationStrip />
         </div>
 
         {/* Loading State (Auth initializing or items fetching) */}
         {(isAuthLoading || (isLoggedIn && items === null)) && (
-          <div className="flex flex-col">
+          <div className="flex flex-col lg:grid lg:grid-cols-2 lg:gap-4 lg:px-8">
             {[0, 1, 2].map((i) => (
               <div key={i} className="px-4 py-5 flex flex-col gap-3.5 border-b border-[var(--border-color)] animate-pulse">
                 <div className="flex justify-between">
@@ -144,7 +144,7 @@ export default function ReservationsHistoryPage() {
 
         {/* Reservation List */}
         {isLoggedIn && items !== null && !error && items.length > 0 && (
-          <div className="flex flex-col">
+          <div className="flex flex-col lg:grid lg:grid-cols-2 lg:gap-4 lg:px-8">
             {items.map((r) => (
               <ReservationHistoryCard key={r.id} reservation={r} onRate={setRatingTarget} />
             ))}

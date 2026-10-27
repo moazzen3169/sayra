@@ -59,7 +59,7 @@ export default function OwnerReviewsPage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
       <OwnerPageHeader title="نظرات" />
 
-      <main className="flex-1 mt-16 px-4 py-4 flex flex-col gap-3">
+      <main className="flex-1 mt-16 px-4 desk:px-6 lg:px-8 py-4 flex flex-col gap-3">
         {!center?.slug && <p className="text-xs text-[var(--text-muted)]">اطلاعات گیمنت (slug) در دسترس نیست.</p>}
         {error && <p className="text-xs font-bold text-[var(--accent-red)]">{error}</p>}
         {items === null && center?.slug && <div className="h-24 rounded-card bg-[var(--bg-card)] animate-pulse" />}

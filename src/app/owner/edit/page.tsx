@@ -90,7 +90,7 @@ export default function OwnerEditPage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
       <OwnerPageHeader title="ویرایش گیمنت" />
 
-      <main className="flex-1 mt-16 px-4 py-4">
+      <main className="flex-1 mt-16 px-4 py-4 lg:max-w-[640px] lg:mx-auto lg:w-full lg:px-0">
         {!loaded ? (
           <div className="h-40 rounded-card bg-[var(--bg-card)] animate-pulse" />
         ) : (

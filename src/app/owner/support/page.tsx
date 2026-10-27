@@ -115,7 +115,7 @@ export default function OwnerSupportPage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
       <OwnerPageHeader title="پشتیبانی" />
 
-      <main className="flex-1 mt-16 px-4 py-4 flex flex-col gap-3">
+      <main className="flex-1 mt-16 px-4 py-4 flex flex-col gap-3 lg:max-w-[640px] lg:mx-auto lg:w-full lg:px-0">
         {error && (
           <div className="p-3 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold">
             {error}

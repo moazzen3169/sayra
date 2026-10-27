@@ -89,7 +89,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 bg-[var(--bg-body)] flex flex-col animate-fadeIn">
       {/* Top Header */}
-      <div className="sticky top-0 z-10 w-full max-w-[780px] mx-auto bg-[var(--bg-card)] border-b border-[var(--border-color)] px-4 py-3.5 flex items-center justify-between">
+      <div className="sticky top-0 z-10 w-full max-w-[780px] lg:max-w-[880px] mx-auto bg-[var(--bg-card)] border-b border-[var(--border-color)] px-4 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -123,7 +123,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
       </div>
 
       {/* Content Body */}
-      <div className="flex-1 w-full max-w-[780px] mx-auto overflow-y-auto px-4 py-4 flex flex-col gap-4">
+      <div className="flex-1 w-full max-w-[780px] lg:max-w-[880px] mx-auto overflow-y-auto px-4 py-4 flex flex-col gap-4">
         {/* Filters */}
         <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
           <button

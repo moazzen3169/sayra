@@ -113,7 +113,7 @@ export default function OwnerDashboardPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
-      <main className="flex-1 px-4 pt-5 flex flex-col gap-5">
+      <main className="flex-1 px-4 pt-5 flex flex-col gap-5 lg:max-w-[880px] lg:mx-auto lg:w-full lg:px-0">
         {/* Top bar */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-baseline gap-2 min-w-0">
@@ -229,7 +229,7 @@ export default function OwnerDashboardPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 lg:grid-cols-6 gap-3">
             {media.map((m, i) => (
               <div key={m.id ?? `${m.url}-${i}`} className="relative aspect-square rounded-card overflow-hidden bg-[var(--foreground)]">
                 <img src={m.url} alt={m.altText ?? "تصویر گیمنت"} className="w-full h-full object-cover" />
@@ -267,7 +267,7 @@ export default function OwnerDashboardPage() {
           onClick={() => setIsRenewOpen(false)}
         >
           <div
-            className="w-full max-w-[460px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card p-5 flex flex-col gap-4"
+            className="w-full max-w-[460px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-base font-black">تمدید اشتراک</h3>
