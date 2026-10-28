@@ -64,9 +64,7 @@ export default function ReservationsHistoryPage() {
       <Header locationName="تبریز" />
 
       <main className="flex-1 mt-[120px] lg:mt-[128px] flex flex-col">
-        <div className="px-4 desk:px-6 lg:px-8 py-3">
-          <FirstReservationStrip />
-        </div>
+
 
         {/* Loading State (Auth initializing or items fetching) */}
         {(isAuthLoading || (isLoggedIn && items === null)) && (
