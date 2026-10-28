@@ -76,14 +76,14 @@ function StatusStepper({ status }: { status: ReservationStatus }) {
       </div>
 
       {/* Step Labels */}
-      <div className="grid grid-cols-4 text-center text-[11px] gap-1" dir="rtl">
+      <div className="grid grid-cols-4 text-center text-xs gap-1" dir="rtl">
         {STEPS.map((step, i) => {
           const isCurrent = i === currentIndex;
           const isDone = i < currentIndex;
           return (
             <div key={step.status} className="flex flex-col items-center">
               <span
-                className={`font-extrabold ${
+                className={`font-bold ${
                   isCurrent
                     ? "text-[var(--primary)]"
                     : isDone
@@ -93,7 +93,7 @@ function StatusStepper({ status }: { status: ReservationStatus }) {
               >
                 {step.label}
               </span>
-              <span className="text-[10px] text-[var(--text-muted)] scale-90 origin-top">
+              <span className="text-xs text-[var(--text-muted)]">
                 {step.subLabel}
               </span>
             </div>
@@ -126,7 +126,7 @@ function TerminalStatusCard({ status }: { status: "CANCELED" | "NO_SHOW" }) {
         </svg>
       </div>
       <div className="flex flex-col gap-0.5">
-        <h4 className="text-sm font-extrabold text-[var(--text-white)]">
+        <h4 className="text-sm font-bold text-[var(--text-white)]">
           {isCanceled ? "رزرو لغو شده است" : "عدم حضور ثبت شده است"}
         </h4>
         <p className="text-xs opacity-90 leading-relaxed">
@@ -303,7 +303,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
               </svg>
             </div>
             <div className="flex flex-col gap-2 max-w-sm">
-              <h2 className="text-base font-black text-[var(--text-white)]">
+              <h2 className="text-base font-bold text-[var(--text-white)]">
                 مشاهده جزییات رزرو نیازمند ورود است
               </h2>
               <p className="text-xs text-[var(--text-muted)] leading-relaxed">
@@ -314,7 +314,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
               <button
                 type="button"
                 onClick={() => setIsAuthModalOpen(true)}
-                className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+                className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
               >
                 <span>ورود / ثبت‌نام در حساب کاربری</span>
                 <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -368,7 +368,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
             <section className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 desk:p-5 flex flex-col gap-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3 min-w-0">
                 <div className="flex flex-col gap-1 min-w-0 flex-1">
-                  <h1 className="text-lg font-extrabold text-[var(--text-white)] break-words leading-tight">
+                  <h1 className="text-lg font-bold text-[var(--text-white)] break-words leading-tight">
                     {reservation.gamingCenterName ?? "گیمنت"}
                   </h1>
                   {reservation.gamingCenterAddress && (
@@ -418,7 +418,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                 key={p.id}
                 className="rounded-card bg-[var(--primary-muted)] border border-[var(--primary)]/40 p-4 flex flex-col gap-3.5"
               >
-                <div className="flex items-center gap-2 text-sm font-extrabold text-[var(--primary)]">
+                <div className="flex items-center gap-2 text-sm font-bold text-[var(--primary)]">
                   <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -434,7 +434,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[var(--text-muted)] shrink-0">زمان پیشنهادی:</span>
-                    <span className="font-black text-[var(--primary)] text-left min-w-0 break-words">
+                    <span className="font-bold text-[var(--primary)] text-left min-w-0 break-words">
                       {formatDayLabel(p.proposedStartTime)}، {formatClock(p.proposedStartTime, true)} تا {formatClock(p.proposedEndTime, true)}
                     </span>
                   </div>
@@ -446,7 +446,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                     type="button"
                     disabled={busyProposalId !== null}
                     onClick={() => handleProposal(p.id, "accept")}
-                    className="flex-1 h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-60 text-on-primary font-black text-sm transition-all active:scale-[0.98]"
+                    className="flex-1 h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-60 text-on-primary font-bold text-sm transition-all active:scale-[0.98]"
                   >
                     {busyProposalId === p.id ? "در حال ثبت..." : "قبول پیشنهاد"}
                   </button>
@@ -464,7 +464,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
 
             {/* Reservation Details Card */}
             <section className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 desk:p-5 flex flex-col gap-4 shadow-sm">
-              <h2 className="text-sm font-extrabold text-[var(--text-white)] pb-2 border-b border-[var(--border-subtle)]">
+              <h2 className="text-sm font-bold text-[var(--text-white)] pb-2 border-b border-[var(--border-subtle)]">
                 اطلاعات دستگاه و زمان رزرو
               </h2>
 
@@ -478,7 +478,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                   />
                 </div>
                 <div className="flex flex-col gap-1 min-w-0">
-                  <span className="text-base font-black text-[var(--text-white)] break-words">
+                  <span className="text-base font-bold text-[var(--text-white)] break-words">
                     {reservation.stationSnapshot?.name ?? "—"}
                   </span>
                   {reservation.stationSnapshot?.stationType && (
@@ -517,7 +517,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
               <div className="flex items-center justify-between pt-3 mt-1 border-t border-[var(--border-subtle)] bg-[var(--bg-body)]/40 p-3 rounded-child">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-xs text-[var(--text-muted)]">مبلغ کل پرداختی</span>
-                  <span className="text-[10px] text-[var(--text-subtle)]">ثبت‌شده در سیستم</span>
+                  <span className="text-xs text-[var(--text-subtle)]">ثبت‌شده در سیستم</span>
                 </div>
                 <div className="flex items-baseline gap-1 text-[var(--primary)]">
                   <span className="text-xl font-black">{formatPrice(reservation.totalPrice)}</span>
@@ -533,7 +533,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                   href={mapsUrl(reservation.gamingCenterAddress)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="h-12 w-full rounded-card bg-[var(--text-white)] text-[var(--bg-body)] text-sm font-extrabold flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-md"
+                  className="h-12 w-full rounded-card bg-[var(--text-white)] text-[var(--bg-body)] text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-md"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 14L4 9l5-5" />
@@ -547,7 +547,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                 <button
                   type="button"
                   onClick={() => setIsRatingModalOpen(true)}
-                  className="h-12 w-full rounded-card bg-[var(--accent-star)] text-on-primary text-sm font-black active:scale-[0.98] transition-all shadow-md"
+                  className="h-12 w-full rounded-card bg-[var(--accent-star)] text-on-primary text-sm font-bold active:scale-[0.98] transition-all shadow-md"
                 >
                   ثبت و افزودن نظر برای این رزرو
                 </button>
@@ -595,7 +595,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
             className="w-full max-w-[460px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card p-5 flex flex-col gap-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-black text-[var(--text-white)]">لغو رزرو</h3>
+            <h3 className="text-base font-bold text-[var(--text-white)]">لغو رزرو</h3>
             <p className="text-xs text-[var(--text-muted)] leading-relaxed">
               آیا از لغو این رزرو مطمئن هستید؟ امکان لغو و شرایط آن توسط سیستم بررسی می‌شود.
             </p>
@@ -604,7 +604,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                 type="button"
                 onClick={handleCancel}
                 disabled={isCancelling}
-                className="flex-1 h-12 rounded-card bg-[var(--accent-red)] disabled:opacity-60 text-[var(--text-white)] font-black text-sm active:scale-[0.98] transition-transform"
+                className="flex-1 h-12 rounded-card bg-[var(--accent-red)] disabled:opacity-60 text-[var(--text-white)] font-bold text-sm active:scale-[0.98] transition-transform"
               >
                 {isCancelling ? "در حال لغو..." : "بله، لغو شود"}
               </button>
