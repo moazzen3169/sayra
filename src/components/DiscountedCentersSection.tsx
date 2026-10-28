@@ -122,11 +122,11 @@ export const DiscountedCentersSection: React.FC<DiscountedCentersSectionProps> =
           {!isSingleCard && !isLoading ? (
             <div className=" flex items-center gap-1 relative h-8  bg-[var(--bg-card)] rounded-lg p-0.5 border border-[var(--border-subtle)]">
               <CarouselPrevious
-                className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-[#101014] transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
                 title="قبلی"
               />
               <CarouselNext
-                className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-[#101014] transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
                 title="بعدی"
               />
             </div>

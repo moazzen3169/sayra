@@ -83,10 +83,10 @@ export default function OwnerHoursPage() {
             <input className={input} dir="ltr" placeholder="Asia/Tehran" value={tz} onChange={(e) => setTz(e.target.value)} />
 
             <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-              ثبت روزهای تعطیل در API فعلی وجود ندارد و پس از ارائه‌ی endpoint اضافه می‌شود.
+              ثبت روزهای تعطیل به‌زودی در این بخش فعال خواهد شد.
             </p>
 
-            <button type="submit" disabled={saving} className="h-12 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm disabled:opacity-60">
+            <button type="submit" disabled={saving} className="h-12 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm disabled:opacity-60">
               {saving ? "در حال ذخیره..." : "ذخیره"}
             </button>
           </form>

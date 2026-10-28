@@ -136,7 +136,7 @@ export default function OwnerSupportPage() {
                   key={m.id}
                   className={`max-w-[85%] rounded-card p-3 text-xs leading-relaxed flex flex-col gap-1 ${
                     m.senderType === "USER"
-                      ? "self-start bg-[var(--primary)] text-[#101014]"
+                      ? "self-start bg-[var(--primary)] text-on-primary"
                       : "self-end bg-[var(--bg-card)] border border-[var(--border-subtle)]"
                   }`}
                 >
@@ -167,7 +167,7 @@ export default function OwnerSupportPage() {
                     {file ? file.name.slice(0, 18) : "پیوست فایل"}
                   </button>
                   <input ref={fileRef} type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-                  <button type="submit" disabled={busy} className="flex-1 h-10 rounded-card bg-[var(--primary)] text-[#101014] font-black text-xs disabled:opacity-60">
+                  <button type="submit" disabled={busy} className="flex-1 h-10 rounded-card bg-[var(--primary)] text-on-primary font-black text-xs disabled:opacity-60">
                     {busy ? "در حال ارسال..." : "ارسال"}
                   </button>
                 </div>
@@ -193,7 +193,7 @@ export default function OwnerSupportPage() {
               className="rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] p-3 text-sm outline-none resize-none"
             />
             <div className="flex gap-2">
-              <button type="submit" disabled={busy} className="flex-1 h-11 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm disabled:opacity-60">
+              <button type="submit" disabled={busy} className="flex-1 h-11 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm disabled:opacity-60">
                 {busy ? "در حال ارسال..." : "ثبت تیکت"}
               </button>
               <button type="button" onClick={() => setCreating(false)} className="h-11 px-5 rounded-card bg-[var(--foreground)] text-xs font-bold">
@@ -203,7 +203,7 @@ export default function OwnerSupportPage() {
           </form>
         ) : (
           <>
-            <button type="button" onClick={() => setCreating(true)} className="h-12 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm hover:opacity-90 transition-opacity">
+            <button type="button" onClick={() => setCreating(true)} className="h-12 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm hover:opacity-90 transition-opacity">
               + تیکت جدید
             </button>
 

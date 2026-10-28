@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { formatPrice, toPersianDigits } from "@/lib/format";
+import { Icon, IconName } from "@/components/ui/Icon";
 
 export interface SearchModalProps {
   isOpen: boolean;
@@ -58,36 +59,36 @@ const MOCK_GAMING_CENTERS = [
   },
 ];
 
-const DEVICES = [
+const DEVICES: { id: string; name: string; keywords: string; icon: IconName }[] = [
   {
     id: "dev-ps5-vip",
     name: "کنسول پلی‌استیشن ۵ پرو",
     keywords: "ps5 پلی استیشن پلی‌استیشن کنسول",
-    icon: "🎮",
+    icon: "gamepad",
   },
   {
     id: "dev-pc-gaming",
     name: "کامپیوتر گیمینگ",
     keywords: "pc کامپیوتر سیستم گیمینگ کارت گرافیک",
-    icon: "🖥️",
+    icon: "monitor",
   },
   {
     id: "dev-vr",
     name: "واقعیت مجازی",
     keywords: "vr هدست واقعیت مجازی متا کوئست",
-    icon: "🥽",
+    icon: "vr",
   },
   {
     id: "dev-xbox",
     name: "ایکس‌باکس",
     keywords: "xbox ایکس باکس کنسول",
-    icon: "🎮",
+    icon: "gamepad",
   },
   {
     id: "dev-steering",
     name: "فرمان بازی",
     keywords: "فرمان ریسینگ رانندگی شبیه ساز steering wheel",
-    icon: "🏎️",
+    icon: "gamepad",
   },
 ];
 
@@ -458,9 +459,9 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                         </div>
 
                         <div className="shrink-0 text-left">
-                          <div className="text-xs font-bold text-[var(--text-white)]">
-                            <span className="text-amber-400">★</span>{" "}
-                            {toPersianDigits(center.rating)}
+                          <div className="text-xs font-bold text-[var(--text-white)] flex items-center gap-1 justify-end">
+                            <Icon name="star" size={14} className="text-[var(--accent-star)] fill-[var(--accent-star)]" />
+                            <span>{toPersianDigits(center.rating)}</span>
                           </div>
 
                           <div className="mt-1 text-[11px] text-[var(--text-muted)]">
@@ -488,8 +489,8 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                         onClick={() => selectSuggestion(device.name)}
                         className="flex min-h-12 items-center gap-3 border-b border-[var(--border-subtle)]/70 py-2.5 text-right last:border-b-0"
                       >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-card)] text-xl">
-                          {device.icon}
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-card)] text-[var(--primary)]">
+                          <Icon name={device.icon} size={20} />
                         </span>
 
                         <span className="flex-1 text-sm font-medium text-[var(--text-white)]">

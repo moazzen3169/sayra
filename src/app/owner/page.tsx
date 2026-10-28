@@ -24,17 +24,17 @@ const ICONS = {
   support: "M4 14v-2a8 8 0 0116 0v2M4 14h3v5H5a1 1 0 01-1-1v-4zm16 0h-3v5h2a1 1 0 001-1v-4zM17 19c0 1.5-2 2-5 2",
 };
 
-const TILES: { href: string; label: string; emoji: string; badge?: "pending" }[] = [
-  { href: "/owner/reservations", label: "رزروها", emoji: "🎟️", badge: "pending" },
-  { href: "/owner/withdraw", label: "برداشت موجودی", emoji: "💰" },
-  { href: "/owner/stations", label: "دستگاه ها", emoji: "🎮" },
-  { href: "/owner/reviews", label: "نظرات", emoji: "💬" },
+const TILES: { href: string; label: string; icon: string; badge?: "pending" }[] = [
+  { href: "/owner/reservations", label: "رزروها", icon: "M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z", badge: "pending" },
+  { href: "/owner/withdraw", label: "برداشت موجودی", icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" },
+  { href: "/owner/stations", label: "دستگاه‌ها", icon: "M15 5M9 9h6M12 6v6M6 15h.01M18 15h.01M15 18h.01M9 18h.01" },
+  { href: "/owner/reviews", label: "نظرات", icon: "M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" },
 ];
 
 const MENU = [
   { href: "/owner/edit", label: "ویرایش گیمنت", icon: ICONS.edit },
   { href: "/owner/hours", label: "ساعات کاری و تعطیلات", icon: ICONS.clock },
-  { href: "/owner/ads", label: "ایجاد تبلیغات", icon: ICONS.megaphone, isRed: true },
+  { href: "/owner/ads", label: "ایجاد تبلیغات", icon: ICONS.megaphone },
   { href: "/owner/discounts", label: "ایجاد تخفیف", icon: ICONS.tag },
   { href: "/owner/support", label: "پشتیبانی", icon: ICONS.support },
 ];
@@ -258,7 +258,7 @@ export default function OwnerDashboardPage() {
 
                   <button
                     type="submit"
-                    className="mt-2 h-12 rounded-card bg-[var(--primary)] text-[#101014] text-sm font-black hover:opacity-90 transition-opacity"
+                    className="mt-2 h-12 rounded-card bg-[var(--primary)] text-on-primary text-sm font-black hover:opacity-90 transition-opacity"
                   >
                     ارسال جهت بررسی و احراز هویت
                   </button>
@@ -268,23 +268,15 @@ export default function OwnerDashboardPage() {
 
             {verificationStatus === "PENDING" && (
               <div className="flex flex-col items-center text-center py-4 gap-3">
-                <div className="w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-2xl">
-                  ⏳
+                <div className="w-14 h-14 rounded-full bg-[var(--accent-warning)]/10 border border-[var(--accent-warning)]/30 flex items-center justify-center text-[var(--accent-warning)] text-2xl">
+                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h45m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
                 </div>
                 <h2 className="text-base font-black text-[var(--text-white)]">اطلاعات شما در صف انتظار بررسی است</h2>
                 <p className="text-xs text-[var(--text-muted)] max-w-md leading-relaxed">
-                  مدارک و اطلاعات احراز هویت شما ارسال شده و توسط پشتیبانی در حال بررسی است. پس از تایید، دسترسی شما به تمام بخش‌های پنل فعال خواهد شد.
+                  مدارک و اطلاعات احراز هویت شما ارسال شده و توسط پشتیبانی در حال بررسی است. پس از تأیید، دسترسی شما به تمام بخش‌های پنل فعال خواهد شد.
                 </p>
-                {/* Demo switcher button for testing */}
-                <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setVerificationStatus("APPROVED")}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/40"
-                  >
-                    (دمو: تغییر وضعیت به تایید شده)
-                  </button>
-                </div>
               </div>
             )}
 
@@ -300,7 +292,7 @@ export default function OwnerDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setVerificationStatus("NOT_SUBMITTED")}
-                  className="mt-2 h-10 px-5 rounded-card bg-[var(--primary)] text-[#101014] text-xs font-black"
+                  className="mt-2 h-10 px-5 rounded-card bg-[var(--primary)] text-on-primary text-xs font-black"
                 >
                   ویرایش و تلاش مجدد
                 </button>
@@ -331,7 +323,7 @@ export default function OwnerDashboardPage() {
         {/* Earnings card */}
         <Link
           href="/owner/withdraw"
-          className="relative overflow-hidden rounded-card bg-[var(--primary)] text-[#101014] p-4 min-h-[178px] flex flex-col justify-between"
+          className="relative overflow-hidden rounded-card bg-[var(--primary)] text-on-primary p-4 min-h-[178px] flex flex-col justify-between"
         >
           <div
             aria-hidden
@@ -367,10 +359,10 @@ export default function OwnerDashboardPage() {
         <div className="grid grid-cols-4 gap-3">
           {TILES.map((t) => (
             <Link key={t.href} href={t.href} className="flex flex-col items-center gap-2">
-              <span className="relative w-full aspect-square rounded-card bg-[var(--foreground)]/70 flex items-center justify-center text-4xl">
-                {t.emoji}
+              <span className="relative w-full aspect-square rounded-card bg-[var(--foreground)]/70 flex items-center justify-center text-[var(--primary)]">
+                <Icon d={t.icon} />
                 {t.badge === "pending" && pendingCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-6 h-6 px-1 rounded-full bg-[var(--primary)] text-[#101014] text-xs font-black flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 min-w-6 h-6 px-1 rounded-full bg-[var(--primary)] text-on-primary text-xs font-black flex items-center justify-center">
                     {toPersianDigits(pendingCount)}
                   </span>
                 )}
@@ -384,10 +376,10 @@ export default function OwnerDashboardPage() {
         <div className="rounded-card bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)]">
           {MENU.map((m) => (
             <Link key={m.href} href={m.href} className="flex items-center gap-3 px-5 h-16 hover:bg-[var(--foreground)]/20 transition-colors">
-              <span className={m.isRed ? "text-[var(--accent-red)]" : "text-[var(--text-white)]"}>
+              <span className="text-[var(--text-white)]">
                 <Icon d={m.icon} />
               </span>
-              <span className={`text-sm font-bold ${m.isRed ? "text-[var(--accent-red)]" : "text-[var(--text-white)]"}`}>{m.label}</span>
+              <span className="text-sm font-bold text-[var(--text-white)]">{m.label}</span>
             </Link>
           ))}
         </div>

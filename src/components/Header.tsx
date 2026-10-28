@@ -75,9 +75,21 @@ export const Header: React.FC<HeaderProps> = ({
 
   useEffect(() => {
     if (!isLoggedIn) {
-      setIsAccountMenuOpen(false);
+      const timer = setTimeout(() => setIsAccountMenuOpen(false), 0);
+      return () => clearTimeout(timer);
     }
   }, [isLoggedIn]);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement)?.tagName)) {
+        e.preventDefault();
+        setIsSearchModalOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
 
   const handleCitySelect = (city: string) => {
     setCurrentCity(city);
@@ -106,8 +118,8 @@ export const Header: React.FC<HeaderProps> = ({
 
   const accountLinks = [
     {
-      href: "/profile/edit",
-      label: "ویرایش اطلاعات",
+      href: "/profile",
+      label: "حساب کاربری",
       icon: (
         <svg
           viewBox="0 0 24 24"
@@ -117,22 +129,14 @@ export const Header: React.FC<HeaderProps> = ({
           className="h-[18px] w-[18px]"
           aria-hidden="true"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 20h9"
-          />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M16.5 3.5a2.12 2.12 0 013 3L9 17l-4 1 1-4Z"
-          />
+          <circle cx="12" cy="8" r="3.5" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 20a7 7 0 0114 0" />
         </svg>
       ),
     },
     {
-      href: "/support",
-      label: "پشتیبانی",
+      href: "/reservations",
+      label: "رزروهای من",
       icon: (
         <svg
           viewBox="0 0 24 24"
@@ -142,47 +146,10 @@ export const Header: React.FC<HeaderProps> = ({
           className="h-[18px] w-[18px]"
           aria-hidden="true"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M4 13v-2a8 8 0 0116 0v2"
-          />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M4 13h3v6H6a2 2 0 01-2-2Zm16 0h-3v6h1a2 2 0 002-2Z"
-          />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M17 19a5 5 0 01-5 2"
-          />
-        </svg>
-      ),
-    },
-    {
-      href: "/wallet",
-      label: "کیف پول من",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.7}
-          className="h-[18px] w-[18px]"
-          aria-hidden="true"
-        >
-          <rect x="3" y="5" width="18" height="15" rx="2" />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M3 9h18M16 14h2"
-          />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M6 5V3h12v2"
-          />
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
         </svg>
       ),
     },
@@ -278,7 +245,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                   {unreadCount > 0 && (
                     <span
-                      className="absolute -top-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] px-1 text-[9px] font-black text-[#101014]"
+                      className="absolute -top-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] px-1 text-[9px] font-black text-on-primary"
                       aria-label={`${toPersianDigits(unreadCount)} اعلان خوانده‌نشده`}
                     >
                       {notificationBadge}
@@ -416,7 +383,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
 
               <span className="hidden shrink-0 rounded border border-[var(--border-subtle)] bg-[var(--foreground)]/40 px-2 py-1 text-[10px] font-semibold text-[var(--text-muted)] xl:inline-flex">
-                Ctrl + F
+                /
               </span>
             </button>
 
@@ -496,73 +463,7 @@ export const Header: React.FC<HeaderProps> = ({
                       aria-label="منوی حساب کاربری"
                       className="absolute left-0 top-full z-50 mt-2 w-[250px] overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-2 text-right shadow-xl shadow-black/20 animate-in fade-in slide-in-from-top-1 duration-150"
                     >
-                      {/* Wallet summary */}
-                      <Link
-                        href="/wallet"
-                        role="menuitem"
-                        onClick={closeAccountMenu}
-                        className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--foreground)]/30 px-3 py-3 transition-colors hover:border-[var(--primary)]/40 hover:bg-[var(--foreground)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
-                      >
-                        <span className="flex min-w-0 items-center gap-2.5">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]/10 text-[var(--primary)]">
-                            <svg
-                              className="h-[18px] w-[18px]"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={1.7}
-                              aria-hidden="true"
-                            >
-                              <rect
-                                x="3"
-                                y="5"
-                                width="18"
-                                height="15"
-                                rx="2"
-                              />
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M3 9h18M16 14h2"
-                              />
-                              <path d="M6 5V3h12v2" />
-                            </svg>
-                          </span>
-
-                          <span className="flex min-w-0 flex-col gap-1">
-                            <span className="text-xs font-semibold text-[var(--text-muted)]">
-                              کیف پول من
-                            </span>
-                            <span className="text-sm font-extrabold text-[var(--text-white)]">
-                              {toPersianDigits(
-                                walletBalance.toLocaleString("en-US")
-                              )}{" "}
-                              <span className="text-[10px] font-medium text-[var(--text-muted)]">
-                                تومان
-                              </span>
-                            </span>
-                          </span>
-                        </span>
-
-                        <svg
-                          className="h-4 w-4 shrink-0 text-[var(--text-muted)]"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={1.8}
-                          aria-hidden="true"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="m9 18 6-6-6-6"
-                          />
-                        </svg>
-                      </Link>
-
-                      <div className="my-1 border-t border-[var(--border-subtle)]" />
-
-                      {accountLinks.slice(0, 2).map((item) => (
+                      {accountLinks.map((item) => (
                         <Link
                           key={item.href}
                           href={item.href}
@@ -579,11 +480,13 @@ export const Header: React.FC<HeaderProps> = ({
 
                       <div className="my-1 border-t border-[var(--border-subtle)]" />
 
-                      <Link
-                        href="/logout"
-                        role="menuitem"
-                        onClick={closeAccountMenu}
-                        className="flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--accent-red)] transition-colors hover:bg-[var(--accent-red)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-red)]/50"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          closeAccountMenu();
+                          // trigger logout action
+                        }}
+                        className="w-full flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--accent-red)] transition-colors hover:bg-[var(--accent-red)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-red)]/50 text-right"
                       >
                         <svg
                           className="h-[18px] w-[18px] shrink-0"
@@ -605,7 +508,7 @@ export const Header: React.FC<HeaderProps> = ({
                           />
                         </svg>
                         <span>خروج از حساب</span>
-                      </Link>
+                      </button>
                     </div>
                   )}
                 </div>

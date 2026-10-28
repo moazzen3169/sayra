@@ -2,6 +2,7 @@
 
 import React from "react";
 import { formatPrice, toPersianDigits } from "@/lib/format";
+import { Icon } from "@/components/ui/Icon";
 
 export interface DeviceOption {
   id: string;
@@ -69,16 +70,17 @@ export const CartModal: React.FC<CartModalProps> = ({
               </svg>
             </div>
             <h3 className="text-base font-black text-[var(--text-white)]">خلاصه سبد رزرو</h3>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[var(--primary)] text-[#101014] font-black">
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[var(--primary)] text-on-primary font-black">
               {toPersianDigits(totalDeviceCount)} دستگاه
             </span>
           </div>
           <button
             type="button"
             onClick={onClose}
+            aria-label="بستن"
             className="w-8 h-8 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-white)] flex items-center justify-center text-lg transition-colors"
           >
-            ✕
+            <Icon name="close" size={20} />
           </button>
         </div>
 
@@ -137,7 +139,7 @@ export const CartModal: React.FC<CartModalProps> = ({
                       <button
                         type="button"
                         onClick={() => onUpdateQuantity(item.device.id, -1)}
-                        className="w-6 h-6 rounded-md bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-xs hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
+                        className="w-6 h-6 rounded-md bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-xs hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
                       >
                         -
                       </button>
@@ -148,7 +150,7 @@ export const CartModal: React.FC<CartModalProps> = ({
                         type="button"
                         onClick={() => onUpdateQuantity(item.device.id, 1)}
                         disabled={item.quantity >= item.device.availableCount}
-                        className="w-6 h-6 rounded-md bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-xs disabled:opacity-30 hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
+                        className="w-6 h-6 rounded-md bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-xs disabled:opacity-30 hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
                       >
                         +
                       </button>
@@ -185,7 +187,7 @@ export const CartModal: React.FC<CartModalProps> = ({
             <button
               type="button"
               onClick={onProceedToDateTime}
-              className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+              className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
             >
               <span>تایید و انتخاب زمان رزرو</span>
               <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

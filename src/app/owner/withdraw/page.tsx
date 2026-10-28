@@ -43,7 +43,7 @@ export default function OwnerWithdrawPage() {
       <OwnerPageHeader title="برداشت موجودی" />
 
       <main className="flex-1 mt-16 px-4 py-4 flex flex-col gap-4 lg:max-w-[880px] lg:mx-auto lg:w-full lg:px-0">
-        <div className="rounded-card bg-[var(--primary)] text-[#101014] p-5 flex flex-col gap-1">
+        <div className="rounded-card bg-[var(--primary)] text-on-primary p-5 flex flex-col gap-1">
           <span className="text-xs opacity-80">درآمد قابل برداشت</span>
           <span className="text-3xl font-black">{amount === null ? "—" : `${formatPrice(amount)} تومان`}</span>
         </div>
@@ -55,7 +55,7 @@ export default function OwnerWithdrawPage() {
           disabled
           className="h-12 rounded-card bg-[var(--foreground)] text-[var(--text-muted)] font-bold text-sm opacity-70"
         >
-          ثبت درخواست برداشت (در API موجود نیست)
+          ثبت درخواست برداشت (به‌زودی)
         </button>
 
         <h2 className="text-sm font-extrabold mt-2">کمیسیون‌های رزرو</h2>

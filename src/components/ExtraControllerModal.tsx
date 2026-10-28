@@ -3,6 +3,7 @@
 
 import React, { useEffect, useState } from "react";
 import { formatPrice, toPersianDigits } from "@/lib/format";
+import { Icon } from "@/components/ui/Icon";
 
 interface ExtraControllerModalProps {
   isOpen: boolean;
@@ -27,16 +28,18 @@ export const ExtraControllerModal: React.FC<ExtraControllerModalProps> = ({
 }) => {
   const [count, setCount] = useState(initialCount);
 
-useEffect(() => {
-  if (isOpen) {
-    setCount(
-      Math.max(
-        defaultControllers,
-        Math.min(initialCount, defaultControllers + maxExtra)
-      )
-    );
-  }
-}, [isOpen, initialCount, defaultControllers, maxExtra]);
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(() => {
+      setCount(
+        Math.max(
+          defaultControllers,
+          Math.min(initialCount, defaultControllers + maxExtra)
+        )
+      );
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [isOpen, initialCount, defaultControllers, maxExtra]);
 
   if (!isOpen) return null;
 
@@ -101,7 +104,7 @@ useEffect(() => {
             aria-label="بستن"
             className="w-8 h-8 rounded-lg text-[var(--text-muted)] flex items-center justify-center text-lg hover:bg-[var(--foreground)] transition-colors"
           >
-            ✕
+            <Icon name="close" size={20} />
           </button>
         </div>
 
@@ -123,7 +126,7 @@ useEffect(() => {
                 onClick={() => setCount((c) => Math.max(0, c - 1))}
                 disabled={count <= 0}
                 aria-label="کاهش تعداد دسته‌ها"
-                className="w-9 h-9 rounded-lg bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-lg disabled:opacity-30 hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
+                className="w-9 h-9 rounded-lg bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-lg disabled:opacity-30 hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
               >
                 −
               </button>
@@ -140,7 +143,7 @@ useEffect(() => {
                 onClick={() => setCount((c) => Math.min(maxControllers, c + 1))}
                 disabled={count >= maxControllers}
                 aria-label="افزایش تعداد دسته‌ها"
-                className="w-9 h-9 rounded-lg bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-lg disabled:opacity-30 hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
+                className="w-9 h-9 rounded-lg bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-lg disabled:opacity-30 hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
               >
                 +
               </button>
@@ -185,7 +188,7 @@ useEffect(() => {
         <button
           type="button"
           onClick={handleConfirm}
-          className="w-full h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm transition-colors"
+          className="w-full h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-sm transition-colors"
         >
           تایید و ثبت
         </button>

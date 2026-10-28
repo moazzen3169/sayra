@@ -55,9 +55,9 @@ function StatusStepper({ status }: { status: ReservationStatus }) {
                 <div
                   className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-all ${
                     isCurrent
-                      ? "bg-[var(--primary)] text-[#101014] ring-4 ring-[var(--primary)]/25 scale-110 shadow-md"
+                      ? "bg-[var(--primary)] text-on-primary ring-4 ring-[var(--primary)]/25 scale-110 shadow-md"
                       : isDone
-                      ? "bg-[var(--primary)] text-[#101014]"
+                      ? "bg-[var(--primary)] text-on-primary"
                       : "bg-[var(--bg-card)] border-2 border-[var(--border-color)] text-[var(--text-subtle)]"
                   }`}
                 >
@@ -314,7 +314,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
               <button
                 type="button"
                 onClick={() => setIsAuthModalOpen(true)}
-                className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+                className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
               >
                 <span>ورود / ثبت‌نام در حساب کاربری</span>
                 <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -446,7 +446,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                     type="button"
                     disabled={busyProposalId !== null}
                     onClick={() => handleProposal(p.id, "accept")}
-                    className="flex-1 h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-60 text-[#101014] font-black text-sm transition-all active:scale-[0.98]"
+                    className="flex-1 h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-60 text-on-primary font-black text-sm transition-all active:scale-[0.98]"
                   >
                     {busyProposalId === p.id ? "در حال ثبت..." : "قبول پیشنهاد"}
                   </button>
@@ -547,7 +547,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                 <button
                   type="button"
                   onClick={() => setIsRatingModalOpen(true)}
-                  className="h-12 w-full rounded-card bg-[var(--accent-star)] text-[#101014] text-sm font-black active:scale-[0.98] transition-all shadow-md"
+                  className="h-12 w-full rounded-card bg-[var(--accent-star)] text-on-primary text-sm font-black active:scale-[0.98] transition-all shadow-md"
                 >
                   ثبت و افزودن نظر برای این رزرو
                 </button>

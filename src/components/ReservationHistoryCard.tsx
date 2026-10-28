@@ -145,7 +145,7 @@ export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({ 
             <button
               type="button"
               onClick={() => onRate?.(reservation)}
-              className="h-8 px-3 rounded-child bg-[var(--accent-star)] hover:bg-[var(--accent-star)]/90 text-[#101014] text-xs font-black transition-transform active:scale-95"
+              className="h-8 px-3 rounded-child bg-[var(--accent-star)] hover:bg-[var(--accent-star)]/90 text-on-primary text-xs font-black transition-transform active:scale-95"
             >
               ثبت نظر
             </button>

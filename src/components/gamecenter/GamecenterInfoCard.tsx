@@ -242,7 +242,7 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
                   href={mapsUrl(address)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] text-sm font-black flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+                  className="h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary text-sm font-black flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
                 >
                   مسیریابی تا گیمنت
                 </a>

@@ -104,7 +104,7 @@ export default function OwnerStationsPage() {
           type="button"
           disabled={!isApproved}
           onClick={() => setOpen(true)}
-          className="h-12 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+          className="h-12 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
         >
           + افزودن دستگاه
         </button>
@@ -124,7 +124,7 @@ export default function OwnerStationsPage() {
               <div className="flex-1 min-w-0 flex flex-col gap-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-extrabold truncate">{s.name}</span>
-                  {s.isVip && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[var(--primary)] text-[#101014]">VIP</span>}
+                  {s.isVip && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[var(--primary)] text-on-primary">VIP</span>}
                   {s.isActive === false && <span className="text-[10px] font-bold text-[var(--accent-red)]">غیرفعال</span>}
                 </div>
                 <span className="text-[11px] text-[var(--text-muted)]">
@@ -193,7 +193,7 @@ export default function OwnerStationsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 h-11 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm disabled:opacity-60"
+                className="flex-1 h-11 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm disabled:opacity-60"
               >
                 {saving ? "در حال ثبت..." : "ثبت دستگاه"}
               </button>

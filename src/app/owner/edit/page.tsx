@@ -87,20 +87,24 @@ export default function OwnerEditPage() {
   const [autoConfirm, setAutoConfirm] = useState(false);
 
   useEffect(() => {
-    let active = true;
+    const active = true;
 
     // Load saved settings if stored locally
     try {
       const savedRaw = localStorage.getItem(`sayra_owner_edit_${centerId}`);
       if (savedRaw) {
         const saved = JSON.parse(savedRaw);
-        if (saved.name) setName(saved.name);
-        if (saved.address) setAddress(saved.address);
-        if (typeof saved.lat === "number") setLat(saved.lat);
-        if (typeof saved.lng === "number") setLng(saved.lng);
-        if (Array.isArray(saved.games)) setGames(saved.games);
-        if (typeof saved.allowOnline === "boolean") setAllowOnline(saved.allowOnline);
-        if (typeof saved.autoConfirm === "boolean") setAutoConfirm(saved.autoConfirm);
+        const timer = setTimeout(() => {
+          if (!active) return;
+          if (saved.name) setName(saved.name);
+          if (saved.address) setAddress(saved.address);
+          if (typeof saved.lat === "number") setLat(saved.lat);
+          if (typeof saved.lng === "number") setLng(saved.lng);
+          if (Array.isArray(saved.games)) setGames(saved.games);
+          if (typeof saved.allowOnline === "boolean") setAllowOnline(saved.allowOnline);
+          if (typeof saved.autoConfirm === "boolean") setAutoConfirm(saved.autoConfirm);
+        }, 0);
+        return () => clearTimeout(timer);
       }
     } catch {
       // ignore
@@ -122,8 +126,11 @@ export default function OwnerEditPage() {
 
     // Populate initial center info if not already loaded from saved state
     if (center) {
-      setName((prev) => prev || center.name || "");
-      setAddress((prev) => prev || center.description || "");
+      const timer = setTimeout(() => {
+        setName((prev) => prev || center.name || "");
+        setAddress((prev) => prev || center.description || "");
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [centerId, center]);
 
@@ -397,11 +404,11 @@ export default function OwnerEditPage() {
                         onClick={() => togglePopularGame(gameName)}
                         className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors cursor-pointer border ${
                           selected
-                            ? "bg-[var(--primary)] text-[#101014] border-[var(--primary)] font-bold"
+                            ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-bold"
                             : "bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-white)]"
                         }`}
                       >
-                        {selected ? `✓ ${gameName}` : `+ ${gameName}`}
+                        {selected ? gameName : `+ ${gameName}`}
                       </button>
                     );
                   })}
@@ -419,7 +426,7 @@ export default function OwnerEditPage() {
             <button
               type="submit"
               disabled={saving}
-              className="h-12 mt-2 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-60 cursor-pointer"
+              className="h-12 mt-2 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-60 cursor-pointer"
             >
               {saving ? "در حال ذخیره..." : "ذخیره تغییرات"}
             </button>

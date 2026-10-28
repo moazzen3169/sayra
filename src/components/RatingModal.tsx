@@ -92,7 +92,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({ isOpen, reservationId,
           type="button"
           onClick={handleSubmit}
           disabled={submitting}
-          className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-60 text-[#101014] font-black text-sm transition-all active:scale-[0.98]"
+          className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-60 text-on-primary font-black text-sm transition-all active:scale-[0.98]"
         >
           {submitting ? "در حال ثبت..." : "ثبت نظر"}
         </button>

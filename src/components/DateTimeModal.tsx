@@ -6,6 +6,7 @@ import { generateHourlySlots, TimeSlotOption } from "@/lib/slots";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatClock } from "@/lib/reservationUi";
 import { gamingCenterService } from "@/services/gamingCenterService";
+import { Icon } from "@/components/ui/Icon";
 import { CartItem } from "./CartModal";
 
 interface DateTimeModalProps {
@@ -140,9 +141,10 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
           <button
             type="button"
             onClick={onClose}
+            aria-label="بستن"
             className="w-8 h-8 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-white)] flex items-center justify-center text-lg transition-colors"
           >
-            ✕
+            <Icon name="close" size={20} />
           </button>
         </div>
 
@@ -170,7 +172,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
                 <button
                   type="button"
                   onClick={() => scrollDates("right")}
-                  className="w-6 h-6 rounded bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
+                  className="w-6 h-6 rounded bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
                   title="روز قبلی"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -180,7 +182,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
                 <button
                   type="button"
                   onClick={() => scrollDates("left")}
-                  className="w-6 h-6 rounded bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
+                  className="w-6 h-6 rounded bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
                   title="روز بعدی"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -203,7 +205,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
                     onClick={() => setSelectedDateId(dateObj.id)}
                     className={`w-24 min-w-[96px] h-16 shrink-0 rounded-card flex flex-col items-center justify-center gap-0.5 border transition-all cursor-pointer ${
                       isSelected
-                        ? "bg-[var(--primary)] text-[#101014] border-[var(--primary)] font-black shadow-lg scale-[1.02]"
+                        ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-black shadow-lg scale-[1.02]"
                         : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
                     }`}
                   >
@@ -212,7 +214,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
                     </span>
                     <span
                       className={`text-[11px] ${
-                        isSelected ? "text-[#101014]/80 font-bold" : "text-[var(--text-muted)]"
+                        isSelected ? "text-on-primary/80 font-bold" : "text-[var(--text-muted)]"
                       }`}
                     >
                       {dateObj.dateStr}
@@ -244,14 +246,14 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
                     onClick={() => handleToggleSlot(slot.id)}
                     className={`h-11 rounded-card flex items-center justify-between px-3 text-xs font-bold border transition-all cursor-pointer ${
                       isSelected
-                        ? "bg-[var(--primary)] text-[#101014] border-[var(--primary)] font-black shadow-md"
+                        ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-black shadow-md"
                         : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
                     }`}
                   >
                     <span>{slot.timeLabel}</span>
                     {isSelected && (
                       <span className="w-4 h-4 rounded-full bg-[#101014] text-[var(--primary)] text-[10px] flex items-center justify-center font-black">
-                        ✓
+                        <Icon name="check" size={12} />
                       </span>
                     )}
                   </button>
@@ -280,7 +282,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
             <button
               type="button"
               onClick={handleFinalConfirm}
-              className="h-12 px-6 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+              className="h-12 px-6 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
             >
               <span>تکمیل و ثبت رزرو</span>
               <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

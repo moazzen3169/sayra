@@ -12,11 +12,8 @@ export interface NavItem {
 }
 
 const GLOBAL_NAV_ITEMS: NavItem[] = [
-  { id: "home", label: "خانه", href: "/" },
-  { id: "gamecenters", label: "گیم‌نت‌ها", href: "/", featured: true },
-  { id: "discounts", label: "تخفیف‌ها", href: "#discounts" },
-  { id: "blog", label: "وبلاگ", href: "#blog" },
-  { id: "about", label: "درباره سایرا", href: "#about" },
+  { id: "home", label: "صفحه اصلی", href: "/" },
+  { id: "reservations", label: "رزروهای من", href: "/reservations" },
 ];
 
 interface DesktopNavProps {
@@ -34,19 +31,6 @@ export const DesktopNav: React.FC<DesktopNavProps> = ({ onSearchClick }) => {
             ? pathname === "/"
             : item.href !== "/" && item.href !== "#" && pathname.startsWith(item.href);
 
-        if (item.id === "gamecenters" && onSearchClick) {
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={onSearchClick}
-              className={`text-xs font-black transition-all py-1 px-2.5 rounded-full relative flex items-center gap-1.5 bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/25 hover:bg-[var(--primary)] hover:text-[#101014]`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-pulse group-hover:bg-[#101014]" />
-              <span>{item.label}</span>
-            </button>
-          );
-        }
 
         return (
           <Link

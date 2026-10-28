@@ -63,7 +63,8 @@
   --foreground: #35353B;
   --primary: #B8F34A;
   --primary-hover: #8ebf35;
-  --primary-muted: rgba(255, 255, 61, 0.15);
+  --primary-muted: rgba(184, 243, 74, 0.15);
+  --text-on-primary: #101014;
   --text-white: #FFFFFF;
   --text-black: #212121;
   --text-muted: #9CA3AF;
@@ -73,6 +74,8 @@
   --accent-green: #22C55E;
   --accent-red: #EF4444;
   --accent-star: #FBBF24;
+  --accent-warning: #FBBF24;
+  --header-h: 104px;
   --max-app-width: 780px;
 }
 
@@ -94,6 +97,7 @@
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-primary-muted: var(--primary-muted);
+  --color-on-primary: var(--text-on-primary);
   --color-text-white: var(--text-white);
   --color-text-muted: var(--text-muted);
   --color-text-subtle: var(--text-subtle);
@@ -102,6 +106,7 @@
   --color-accent-green: var(--accent-green);
   --color-accent-red: var(--accent-red);
   --color-accent-star: var(--accent-star);
+  --color-warning: var(--accent-warning);
 }
 
 .rounded-card{
@@ -155,12 +160,6 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* حلقه‌ی بی‌نهایت: track شامل دو کپی یکسان است و نیمی از آن جابه‌جا می‌شود */
-@keyframes marquee-scroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-
 .animate-fadeIn {
   animation: fadeIn 0.2s ease-out;
 }
@@ -169,25 +168,7 @@ body {
   animation: sheetUp 0.25s ease-out;
 }
 
-.marquee-track {
-  animation-name: marquee-scroll;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  will-change: transform;
-}
-
-.marquee:hover .marquee-track,
-.marquee:active .marquee-track {
-  animation-play-state: paused;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .marquee-track {
-    animation: none;
-  }
-  .marquee {
-    overflow-x: auto;
-  }
   .animate-sheetUp,
   .animate-fadeIn {
     animation: none;

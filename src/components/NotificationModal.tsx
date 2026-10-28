@@ -23,7 +23,7 @@ export interface NotificationModalProps {
 const DEFAULT_NOTIFICATIONS: NotificationItem[] = [
   {
     id: "notif-1",
-    title: "تخفیف ویژه آخر هفته! 🔥",
+    title: "تخفیف ویژه آخر هفته",
     message: "تا ۳۰٪ تخفیف برای رزرو صندلی‌های VIP گیمنت گرگدن فعال شد. کد تخفیف: WEEKEND30",
     timestamp: "۱۰ دقیقه پیش",
     isUnread: true,
@@ -31,24 +31,24 @@ const DEFAULT_NOTIFICATIONS: NotificationItem[] = [
   },
   {
     id: "notif-2",
-    title: "تایید رزرو سانس رزرو شده",
-    message: "رزرو شما در گیم‌کلاب سایبرسکی برای امروز ساعت ۱۸:۰۰ با موفقیت ثبت شد.",
+    title: "تأیید رزرو نوبت رزرو شده",
+    message: "رزرو شما در گیمنت سایبرسکی برای امروز ساعت ۱۸:۰۰ با موفقیت ثبت شد.",
     timestamp: "۲ ساعت پیش",
     isUnread: true,
     type: "reservation",
   },
   {
     id: "notif-3",
-    title: "دستگاه‌های جدید اضافه شد! 🎮",
-    message: "کنسول‌های جدید PS5 Slim با جدیدترین بازی‌های روز در سیستم سایرا آماده رزرو هستند.",
+    title: "دستگاه‌های جدید اضافه شد",
+    message: "کنسول‌های جدید PS5 Slim با جدیدترین بازی‌های روز در سایرا آماده رزرو هستند.",
     timestamp: "دیروز",
     isUnread: false,
     type: "system",
   },
   {
     id: "notif-4",
-    title: "یادآوری رزرو قریب‌الوقوع",
-    message: "سانس گیمینگ شما نیم ساعت دیگر در مجموعه وی‌آر پلاس آغاز می‌شود.",
+    title: "یادآوری زمان رزرو",
+    message: "زمان بازی شما نیم ساعت دیگر در مجموعه وی‌آر پلاس آغاز می‌شود.",
     timestamp: "۲ روز پیش",
     isUnread: false,
     type: "reservation",
@@ -94,7 +94,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-[var(--foreground)]/50 text-[var(--text-white)] flex items-center justify-center hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
+            className="w-9 h-9 rounded-full bg-[var(--foreground)]/50 text-[var(--text-white)] flex items-center justify-center hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
             aria-label="بستن"
           >
             <svg className="w-5 h-5 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -104,7 +104,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
           <div className="flex items-center gap-2">
             <h2 className="text-base font-black text-[var(--text-white)]">اعلانات سایرا</h2>
             {unreadCount > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-[var(--primary)] text-[#101014] text-xs font-black">
+              <span className="px-2 py-0.5 rounded-full bg-[var(--primary)] text-on-primary text-xs font-black">
                 {unreadCount} جدید
               </span>
             )}
@@ -131,7 +131,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
             onClick={() => setActiveFilter("all")}
             className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
               activeFilter === "all"
-                ? "bg-[var(--primary)] text-[#101014]"
+                ? "bg-[var(--primary)] text-on-primary"
                 : "bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-white)] border border-[var(--border-subtle)]"
             }`}
           >
@@ -142,7 +142,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
             onClick={() => setActiveFilter("unread")}
             className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
               activeFilter === "unread"
-                ? "bg-[var(--primary)] text-[#101014]"
+                ? "bg-[var(--primary)] text-on-primary"
                 : "bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-white)] border border-[var(--border-subtle)]"
             }`}
           >

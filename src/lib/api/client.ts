@@ -75,7 +75,7 @@ async function request<T>(
     throw new ApiError(
       0,
       "API_BASE_URL_MISSING",
-      "آدرس API تنظیم نشده است. مقدار NEXT_PUBLIC_API_BASE_URL را در .env.local بگذارید و سرور را ری‌استارت کنید."
+      "ارتباط با سرور برقرار نشد."
     );
   }
 
@@ -118,7 +118,7 @@ async function request<T>(
     throw new ApiError(
       404,
       "ENDPOINT_NOT_FOUND",
-      "آدرس API پیدا نشد (404). مقدار NEXT_PUBLIC_API_BASE_URL (از جمله /api/v1) را بررسی کنید."
+      "مورد درخواستی پیدا نشد."
     );
   }
 

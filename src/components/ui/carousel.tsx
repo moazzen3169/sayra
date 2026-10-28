@@ -222,7 +222,7 @@ const CarouselPrevious = React.forwardRef<
       ref={ref}
       type="button"
       className={cn(
-        "absolute h-8 w-8 rounded-full border border-[var(--border-color)] bg-[var(--bg-card)]/80 text-[var(--text-white)] backdrop-blur flex items-center justify-center hover:bg-[var(--primary)] hover:text-[#101014] transition-colors disabled:opacity-30 disabled:pointer-events-none z-10",
+        "absolute h-8 w-8 rounded-full border border-[var(--border-color)] bg-[var(--bg-card)]/80 text-[var(--text-white)] backdrop-blur flex items-center justify-center hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none z-10",
         orientation === "horizontal"
           ? isRtl
             ? "right-2 top-1/2 -translate-y-1/2"
@@ -265,7 +265,7 @@ const CarouselNext = React.forwardRef<
       ref={ref}
       type="button"
       className={cn(
-        "absolute h-8 w-8 rounded-full border border-[var(--border-color)] bg-[var(--bg-card)]/80 text-[var(--text-white)] backdrop-blur flex items-center justify-center hover:bg-[var(--primary)] hover:text-[#101014] transition-colors disabled:opacity-30 disabled:pointer-events-none z-10",
+        "absolute h-8 w-8 rounded-full border border-[var(--border-color)] bg-[var(--bg-card)]/80 text-[var(--text-white)] backdrop-blur flex items-center justify-center hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none z-10",
         orientation === "horizontal"
           ? isRtl
             ? "left-2 top-1/2 -translate-y-1/2"
