@@ -154,7 +154,10 @@ const BookingCta: React.FC<BookingCtaProps> = ({
   }
 
   return (
-    <aside className="hidden lg:flex sticky top-0 flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5">
+    <aside className="hidden lg:flex sticky top-20 self-start max-h-[calc(100dvh-6rem)] overflow-y-auto flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5">
+      
+      
+      
       <h3 className="text-sm font-extrabold text-[var(--text-white)]">
         رزرو آنلاین
       </h3>
@@ -518,7 +521,7 @@ export default function GameCenterDetailPage({
               </div>
             )}
 
-            <div className="px-4 relative  desk:px-6  lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-8 lg:items-start">
+            <div className="px-4 relative  desk:px-6  lg:grid lg:grid-cols-[minmax(0,1fr)_480px] lg:gap-8 lg:items-start">
               {/* ===== Main column ===== */}
               <div className="flex flex-col gap-8 min-w-0">
                 {/* Info */}
@@ -536,11 +539,7 @@ export default function GameCenterDetailPage({
                   id="stations"
                   className="flex flex-col gap-3 scroll-mt-20"
                 >
-                  <SectionTitle
-                    step={1}
-                    title="دستگاه‌ها را انتخاب کنید"
-                    hint="از هر نوع هر تعداد"
-                  />
+
                   <DevicePicker
                     groups={groups}
                     cart={cart}
@@ -553,7 +552,7 @@ export default function GameCenterDetailPage({
                 {detail.games.length > 0 && (
                   <section
                     id="games"
-                    className="flex flex-col gap-3 scroll-mt-20 w-[1350px]"
+                    className="flex flex-col gap-3 scroll-mt-20 "
                   >
                     <SectionTitle
                       title="بازی‌های نصب‌شده"

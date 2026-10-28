@@ -1,8 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { ExtraControllerModal } from "@/components/ExtraControllerModal";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 import type { CartEntry, DeviceGroup } from "@/lib/devices";
 
 interface DevicePickerProps {
@@ -22,18 +30,18 @@ const Stepper: React.FC<{
   <div
     role="group"
     aria-label={label}
-    className="flex items-center gap-1 rounded-card bg-[var(--foreground)]/50 border border-[var(--border-color)] p-1"
+    className="flex items-center justify-between rounded-card bg-[var(--foreground)]/50 border border-[var(--border-color)] p-1"
   >
     <button
       type="button"
       onClick={() => onChange(value - 1)}
       disabled={value <= min}
       aria-label="کم کردن"
-      className="w-9 h-9 rounded-lg bg-[var(--bg-card)] text-[var(--text-white)] text-lg font-black flex items-center justify-center disabled:opacity-30 active:scale-95 transition"
+      className="w-10 h-10 rounded-lg bg-[var(--bg-card)] text-[var(--text-white)] text-lg font-black flex items-center justify-center disabled:opacity-30 active:scale-95 transition"
     >
       −
     </button>
-    <span className="w-8 text-center text-sm font-black text-[var(--primary)]" aria-live="polite">
+    <span className="text-sm font-black text-[var(--primary)]" aria-live="polite">
       {toPersianDigits(value)}
     </span>
     <button
@@ -41,7 +49,7 @@ const Stepper: React.FC<{
       onClick={() => onChange(value + 1)}
       disabled={value >= max}
       aria-label="اضافه کردن"
-      className="w-9 h-9 rounded-lg bg-[var(--bg-card)] text-[var(--text-white)] text-lg font-black flex items-center justify-center disabled:opacity-30 active:scale-95 transition"
+      className="w-10 h-10 rounded-lg bg-[var(--bg-card)] text-[var(--text-white)] text-lg font-black flex items-center justify-center disabled:opacity-30 active:scale-95 transition"
     >
       +
     </button>
@@ -50,13 +58,24 @@ const Stepper: React.FC<{
 
 export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyChange, onExtraChange }) => {
   const [activeConsoleModal, setActiveConsoleModal] = useState<DeviceGroup | null>(null);
+  const [api, setApi] = useState<CarouselApi>();
 
   const handleAddClick = (g: DeviceGroup) => {
     onQtyChange(g.key, 1);
-    if (g.isConsole) {
-      setActiveConsoleModal(g);
-    }
+    if (g.isConsole) setActiveConsoleModal(g);
   };
+
+  // جلوگیری از کلیک ناخواسته بعد از درگ (همان الگوی DiscountedCentersSection)
+  const handleClickCapture = useCallback(
+    (e: React.MouseEvent) => {
+      const embla = api as unknown as { clickAllowed?: () => boolean } | undefined;
+      if (embla?.clickAllowed && !embla.clickAllowed()) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    },
+    [api]
+  );
 
   if (groups.length === 0) {
     return (
@@ -66,117 +85,140 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
     );
   }
 
+  const showArrows = groups.length > 1;
+  const arrowCls =
+    "hidden lg:flex w-9 h-9 bg-[var(--bg-body)]/80 backdrop-blur disabled:opacity-0";
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {groups.map((g) => {
-        const entry = cart[g.key];
-        const qty = entry?.qty ?? 0;
-        const extra = entry?.extra ?? 0;
-        const selected = qty > 0;
-        const samePrice = g.minPrice === g.maxPrice;
-        const canExtra = g.isConsole && typeof g.extraControllerPrice === "number";
+    <>
+      <Carousel
+        setApi={setApi}
+        opts={{
+          direction: "rtl",
+          align: "start",
+          containScroll: "trimSnaps",
+          slidesToScroll: "auto",
+          dragFree: false,
+          duration: 28,
+        }}
+        className="w-full group/devices"
+      >
+        <div onClickCapture={handleClickCapture} className="select-none py-1">
+          <CarouselContent className="-mr-3">
+            {groups.map((g) => {
+              const entry = cart[g.key];
+              const qty = entry?.qty ?? 0;
+              const extra = entry?.extra ?? 0;
+              const selected = qty > 0;
+              const samePrice = g.minPrice === g.maxPrice;
+              const canExtra = g.isConsole && typeof g.extraControllerPrice === "number";
 
-        return (
-          <article
-            key={g.key}
-            className={`rounded-card p-3.5 flex flex-col gap-3 border-2 transition-colors ${
-              selected
-                ? "bg-[var(--primary)]/[0.06] border-[var(--primary)]"
-                : "bg-[var(--bg-card)] border-[var(--border-subtle)]"
-            }`}
-          >
-            <div className="flex  items-center gap-3">
-              <div className="w-16 h-16 shrink-0 sticky top-[100px] rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] flex items-center justify-center p-2 overflow-hidden">
-                <img src={g.image} alt="" loading="lazy" className="w-full h-full object-contain" />
-              </div>
-
-              <div className="flex flex-col gap-1 min-w-0 flex-1">
-                <h3 className="text-sm font-extrabold text-[var(--text-white)] truncate">{g.label}</h3>
-                <div className="flex items-baseline gap-1">
-                  {!samePrice && <span className="text-[10px] text-[var(--text-muted)]">از</span>}
-                  <span className="text-sm font-black text-[var(--primary)]">{formatPrice(g.minPrice)}</span>
-                  <span className="text-[10px] text-[var(--text-muted)]">تومان / ساعت</span>
-                </div>
-                <span className="text-[11px] text-[var(--text-subtle)]">
-                  {toPersianDigits(g.capacity)} دستگاه موجود
-                </span>
-              </div>
-            </div>
-
-            {/* تعداد */}
-            {!selected ? (
-              <button
-                type="button"
-                onClick={() => handleAddClick(g)}
-                className="h-11 w-full rounded-card bg-[var(--foreground)] hover:bg-[var(--primary)] hover:text-[#101014] text-[var(--text-white)] text-sm font-black transition-colors active:scale-[0.98]"
-              >
-                + افزودن
-              </button>
-            ) : (
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-[var(--text-white)]">چند دستگاه؟</span>
-                  <span className="text-[10px] text-[var(--text-subtle)]">
-                    {qty >= g.capacity ? "به سقف ظرفیت رسیدید" : `حداکثر ${toPersianDigits(g.capacity)} دستگاه`}
-                  </span>
-                </div>
-                <Stepper
-                  value={qty}
-                  min={0}
-                  max={g.capacity}
-                  onChange={(v) => onQtyChange(g.key, v)}
-                  label={`تعداد ${g.label}`}
-                />
-              </div>
-            )}
-
-            {/* دسته (فقط کنسول‌ها) */}
-            {selected && g.isConsole && (
-              <div className="flex flex-col gap-2.5 rounded-card bg-[var(--bg-body)]/50 border border-[var(--border-subtle)] p-3">
-                <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                  هر دستگاه با{" "}
-                  <strong className="text-[var(--text-white)]">{toPersianDigits(g.defaultControllers)} دسته</strong>{" "}
-                  تحویل داده می‌شود.
-                </p>
-
-                {canExtra ? (
-                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border-subtle)]">
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-bold text-[var(--text-white)]">
-                        دسته اضافه: {extra > 0 ? `${toPersianDigits(extra)} عدد` : "بدون دسته اضافه"}
-                      </span>
-                      {g.extraControllerPrice ? (
-                        <span className="text-[10px] text-[var(--text-muted)]">
-                          +{formatPrice(g.extraControllerPrice)} تومان / دسته / ساعت
+              return (
+                <CarouselItem
+                  key={g.key}
+                  className="pr-3 basis-[196px] sm:basis-[212px] min-w-0 flex"
+                >
+                  <article
+                    className={`w-full rounded-card p-3 flex flex-col gap-3 border-2 transition-colors ${
+                      selected
+                        ? "bg-[var(--primary)]/[0.06] border-[var(--primary)]"
+                        : "bg-[var(--bg-card)] border-[var(--border-subtle)]"
+                    }`}
+                  >
+                    {/* تصویر */}
+                    <div className="relative h-30 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] flex items-center justify-center p-3 overflow-hidden">
+                      <img
+                        src={g.image}
+                        alt=""
+                        loading="lazy"
+                        draggable={false}
+                        className="w-full h-full object-cover drop-shadow-xl"
+                      />
+                      {selected && (
+                        <span className="absolute top-2 left-2 min-w-6 h-6 px-1.5 rounded-full bg-[var(--primary)] text-[#101014] text-xs font-black flex items-center justify-center pt-0.5">
+                          {toPersianDigits(qty)}
                         </span>
-                      ) : null}
+                      )}
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setActiveConsoleModal(g)}
-                      className="px-3 py-1.5 rounded-lg bg-[var(--foreground)] hover:bg-[var(--primary)] hover:text-[#101014] text-xs font-bold text-[var(--text-white)] transition-colors shrink-0"
-                    >
-                      {extra > 0 ? "تغییر تعداد" : "+ انتخاب دسته اضافه"}
-                    </button>
-                  </div>
-                ) : null}
+                    {/* اطلاعات */}
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <h3 className="text-sm font-extrabold text-[var(--text-white)] truncate">{g.label}</h3>
+                      <div className="flex items-baseline gap-1 flex-wrap">
+                        {!samePrice && <span className="text-[10px] text-[var(--text-muted)]">از</span>}
+                        <span className="text-sm font-black text-[var(--primary)]">{formatPrice(g.minPrice)}</span>
+                        <span className="text-[10px] text-[var(--text-muted)]">تومان / ساعت</span>
+                      </div>
+                      <span className="text-[11px] text-[var(--text-subtle)]">
+                        {toPersianDigits(g.capacity)} دستگاه موجود
+                      </span>
+                    </div>
 
-                {canExtra && extra > 0 && (
-                  <div className="flex items-center justify-between text-[11px] border-t border-[var(--border-subtle)] pt-2">
-                    <span className="text-[var(--text-muted)]">هزینه دسته‌ها در هر ساعت</span>
-                    <span className="font-black text-[var(--primary)]">
-                      +{formatPrice(qty * extra * g.extraControllerPrice!)} تومان
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </article>
-        );
-      })}
+                    {/* دستهٔ اضافه (فقط کنسول‌ها) */}
+                    {selected && g.isConsole && (
+                      <div className="rounded-card bg-[var(--bg-body)]/50 border border-[var(--border-subtle)] p-2.5 flex flex-col gap-1.5">
+                        <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
+                          هر دستگاه با{" "}
+                          <strong className="text-[var(--text-white)]">
+                            {toPersianDigits(g.defaultControllers)} دسته
+                          </strong>
+                        </p>
+                        {canExtra && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveConsoleModal(g)}
+                            className="h-8 rounded-lg bg-[var(--foreground)] hover:bg-[var(--primary)] hover:text-[#101014] text-[11px] font-bold text-[var(--text-white)] transition-colors"
+                          >
+                            {extra > 0 ? `${toPersianDigits(extra)} دسته اضافه • تغییر` : "+ دسته اضافه"}
+                          </button>
+                        )}
+                        {canExtra && extra > 0 && g.extraControllerPrice ? (
+                          <span className="text-[10px] text-center font-black text-[var(--primary)]">
+                            +{formatPrice(qty * extra * g.extraControllerPrice)} تومان / ساعت
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
 
-      {/* Modal for Selecting Extra Controllers */}
+                    {/* اکشن؛ همیشه پایین کارت */}
+                    <div className="mt-auto">
+                      {!selected ? (
+                        <button
+                          type="button"
+                          onClick={() => handleAddClick(g)}
+                          className="h-11 w-full rounded-card bg-[var(--foreground)] hover:bg-[var(--primary)] hover:text-[#101014] text-[var(--text-white)] text-sm font-black transition-colors active:scale-[0.98]"
+                        >
+                          + افزودن
+                        </button>
+                      ) : (
+                        <div className="flex flex-col gap-1.5">
+                          <Stepper
+                            value={qty}
+                            min={0}
+                            max={g.capacity}
+                            onChange={(v) => onQtyChange(g.key, v)}
+                            label={`تعداد ${g.label}`}
+                          />
+
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                </CarouselItem>
+              );
+            })}
+          </CarouselContent>
+        </div>
+
+        {/* فلش‌ها فقط در دسکتاپ و روی کناره‌ها */}
+        {showArrows && (
+          <>
+            <CarouselPrevious className={arrowCls} />
+            <CarouselNext className={arrowCls} />
+          </>
+        )}
+      </Carousel>
+
       {activeConsoleModal && (
         <ExtraControllerModal
           isOpen={!!activeConsoleModal}
@@ -192,6 +234,6 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
           pricePerController={activeConsoleModal.extraControllerPrice ?? 0}
         />
       )}
-    </div>
+    </>
   );
 };

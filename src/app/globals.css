@@ -134,7 +134,7 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 @media (min-width: 1201px) {

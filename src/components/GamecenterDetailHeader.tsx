@@ -20,8 +20,8 @@ export const GamecenterDetailHeader: React.FC<GamecenterDetailHeaderProps> = ({
   unreadNotificationsCount = 0,
 }) => {
   return (
-    <header className="fixed top-0 z-40 w-full max-w-[var(--max-app-width)] bg-[var(--bg-card)]   transition-all">
-      <div className="max-w-[var(--max-app-width)] mx-auto px-4 lg:px-8 h-16 flex items-center justify-between gap-3">
+    <header className="fixed top-0 z-40 w-full max-w-[var(--max-app-width)] bg-[var(--bg-body)]   transition-all">
+      <div className="max-w-[var(--max-app-width)] bg-[var(--bg-body)] border border-[var(--border-subtle)] mx-auto px-4 lg:px-8 h-16 flex items-center justify-between gap-3">
         {/* Left Side: Back button + Title & Location when scrolled */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <button

@@ -63,7 +63,8 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
     if (!sheetOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSheetOpen(false);
+    const onKey = (e: KeyboardEvent) =>
+      e.key === "Escape" && setSheetOpen(false);
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
@@ -80,10 +81,12 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
   return (
     <>
       {/* ===== کارت فشرده: روی گالری کمی همپوشانی دارد ===== */}
-      <section className="relative z-10  flex-col gap-2.5">
-        <div className="flex items-start justify-between gap-3">
+      <section className="relative z-10  flex-col gap-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-extrabold leading-tight truncate">{title}</h1>
+            <h1 className="text-lg font-extrabold leading-tight truncate">
+              {title}
+            </h1>
 
             {address && (
               <button
@@ -92,12 +95,18 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
                 className="mt-1 w-full flex items-center gap-1 text-right text-[11px] text-[var(--text-muted)] hover:text-[var(--text-white)] transition-colors"
                 aria-label="مشاهده اطلاعات کامل گیمنت"
               >
-                <svg {...iconProps} className="w-3.5 h-3.5 shrink-0 text-[var(--text-subtle)]">
+                <svg
+                  {...iconProps}
+                  className="w-3.5 h-3.5 shrink-0 text-[var(--text-subtle)]"
+                >
                   <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 <span className="truncate">{address}</span>
-                <svg {...iconProps} className="w-3 h-3 shrink-0 text-[var(--text-subtle)] rotate-90">
+                <svg
+                  {...iconProps}
+                  className="w-3 h-3 shrink-0 text-[var(--text-subtle)] rotate-90"
+                >
                   <path d="M9 5l7 7-7 7" />
                 </svg>
               </button>
@@ -108,11 +117,21 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
             <button
               type="button"
               onClick={() => onScrollTo("reviews")}
-              className="shrink-0 flex flex-col items-center justify-center rounded-card bg-[var(--primary-muted)] border border-[var(--primary)]/30 px-2.5 py-1.5 hover:bg-[var(--primary)]/25 transition-colors"
+              className="shrink-0 flex flex-col items-end justify-center  px-2.5 py-1.5 hover:bg-[var(--primary)]/25 transition-colors"
               aria-label={`امتیاز ${rating.avg.toFixed(1)} از ${rating.count} دیدگاه`}
-            >
-              <span className="text-sm font-black text-[var(--primary)] leading-none pt-0.5">
-                ★ {toPersianDigits(rating.avg.toFixed(1))}
+            ><span className="text-[24px] flex items-end justify-start font-black text-[var(--primary)] leading-none pt-0.5">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="27"
+                  height="27"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="pb-1"
+                >
+                  <path d="M8.243 7.34l-6.38 .925l-.113 .023a1 1 0 0 0 -.44 1.684l4.622 4.499l-1.09 6.355l-.013 .11a1 1 0 0 0 1.464 .944l5.706 -3l5.693 3l.1 .046a1 1 0 0 0 1.352 -1.1l-1.091 -6.355l4.624 -4.5l.078 -.085a1 1 0 0 0 -.633 -1.62l-6.38 -.926l-2.852 -5.78a1 1 0 0 0 -1.794 0l-2.853 5.78z" />
+                </svg>
+
+                {toPersianDigits(rating.avg.toFixed(1))}
               </span>
               <span className="text-[10px] text-[var(--text-muted)] mt-1">
                 {toPersianDigits(rating.count)} دیدگاه
@@ -201,7 +220,9 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
                 onClick={() => goTo("reviews")}
                 className="flex items-center justify-between rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] p-3"
               >
-                <span className="text-xs text-[var(--text-muted)]">امتیاز کاربران</span>
+                <span className="text-xs text-[var(--text-muted)]">
+                  امتیاز کاربران
+                </span>
                 <span className="text-sm font-black text-[var(--accent-star)]">
                   ★ {toPersianDigits(rating.avg.toFixed(1))}
                   <span className="text-[11px] font-normal text-[var(--text-muted)] mr-1">
@@ -213,7 +234,9 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
 
             {address && (
               <div className="flex flex-col gap-2 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] p-3">
-                <span className="text-xs font-bold text-[var(--text-muted)]">آدرس</span>
+                <span className="text-xs font-bold text-[var(--text-muted)]">
+                  آدرس
+                </span>
                 <p className="text-sm leading-relaxed">{address}</p>
                 <a
                   href={mapsUrl(address)}

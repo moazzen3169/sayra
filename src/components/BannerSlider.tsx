@@ -207,7 +207,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
     <div
       aria-label={ariaLabel}
       aria-live={isPlaying ? "off" : "polite"}
-      className={`relative group/slider rounded-card ${className}`}
+      className={`relative group/slider rounded-card  px-4 desk:w-[450px]    desk:px-6 desk:pt-6 ${className}`}
     >
       {/* Zoom / Expand Button */}
       {slidesCount > 0 && (
@@ -220,7 +220,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
           }}
           aria-label="بزرگنمایی تصویر"
           title="بزرگنمایی تصویر"
-          className="absolute bottom-3 right-3 z-20 w-9 h-9 rounded-full bg-[var(--bg-body)]/75 backdrop-blur-md border border-[var(--border-color)] text-[var(--text-white)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-all flex items-center justify-center active:scale-95 shadow-lg"
+          className="absolute bottom-3 right-9 z-20 w-9 h-9 rounded-full bg-[var(--bg-body)]/75 backdrop-blur-md border border-[var(--border-color)] text-[var(--text-white)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-all flex items-center justify-center active:scale-95 shadow-lg"
         >
 
 <svg
