@@ -1,14 +1,27 @@
 "use client";
 
-import React, { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  use,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { GamecenterDetailHeader } from "@/components/GamecenterDetailHeader";
 import { BannerSlider } from "@/components/BannerSlider";
 import { AuthModal } from "@/components/AuthModal";
-import { PaymentSuccessModal, ReservationSummaryDetails } from "@/components/PaymentSuccessModal";
+import {
+  PaymentSuccessModal,
+  ReservationSummaryDetails,
+} from "@/components/PaymentSuccessModal";
 import { DevicePicker } from "@/components/gamecenter/DevicePicker";
 import { GamesMarquee } from "@/components/gamecenter/GamesMarquee";
-import { BookingSheet, type BookingSelection } from "@/components/gamecenter/BookingSheet";
+import {
+  BookingSheet,
+  type BookingSelection,
+} from "@/components/gamecenter/BookingSheet";
 import { useAuth } from "@/context/AuthContext";
 import { isAbortError } from "@/lib/api/client";
 import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
@@ -19,12 +32,21 @@ import {
   type CartEntry,
 } from "@/lib/devices";
 import { formatPrice, toPersianDigits } from "@/lib/format";
-import { formatDayLabel, getErrorMessage, isSlotConflictError, mapsUrl } from "@/lib/reservationUi";
-import { gamingCenterService, loadGamecenterDetail } from "@/services/gamecenterDetailService";
+import {
+  formatDayLabel,
+  getErrorMessage,
+  isSlotConflictError,
+  mapsUrl,
+} from "@/lib/reservationUi";
+import {
+  gamingCenterService,
+  loadGamecenterDetail,
+} from "@/services/gamecenterDetailService";
 import { itemKey, submitBooking } from "@/services/bookingService";
 import type { GamecenterDetail } from "@/types/gamecenter";
 import type { BannerItem } from "@/types/home";
 import type { Reservation } from "@/types/reservation";
+import { GamecenterInfoCard } from "@/components/gamecenter/GamecenterInfoCard";
 
 /* ---------- Helpers ---------- */
 
@@ -37,9 +59,15 @@ interface PendingBooking {
 const GALLERY_ASPECT = "aspect-[2/1] sm:aspect-[2.6/1] lg:aspect-[4/1]";
 
 const scrollToId = (id: string) =>
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  document
+    .getElementById(id)
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-const SectionTitle: React.FC<{ step?: number; title: string; hint?: string }> = ({ step, title, hint }) => (
+const SectionTitle: React.FC<{
+  step?: number;
+  title: string;
+  hint?: string;
+}> = ({ step, title, hint }) => (
   <div className="flex items-center justify-between gap-3">
     <div className="flex items-center gap-2 min-w-0">
       {step ? (
@@ -49,9 +77,15 @@ const SectionTitle: React.FC<{ step?: number; title: string; hint?: string }> = 
       ) : (
         <span className="h-5 w-1 rounded-full bg-[var(--primary)]" />
       )}
-      <h2 className="text-base font-extrabold text-[var(--text-white)] truncate">{title}</h2>
+      <h2 className="text-base font-extrabold text-[var(--text-white)] truncate">
+        {title}
+      </h2>
     </div>
-    {hint && <span className="text-[11px] text-[var(--text-muted)] shrink-0">{hint}</span>}
+    {hint && (
+      <span className="text-[11px] text-[var(--text-muted)] shrink-0">
+        {hint}
+      </span>
+    )}
   </div>
 );
 
@@ -66,7 +100,14 @@ interface BookingCtaProps {
   variant: "bar" | "card";
 }
 
-const BookingCta: React.FC<BookingCtaProps> = ({ lines, deviceCount, hourly, onPick, onBook, variant }) => {
+const BookingCta: React.FC<BookingCtaProps> = ({
+  lines,
+  deviceCount,
+  hourly,
+  onPick,
+  onBook,
+  variant,
+}) => {
   const has = deviceCount > 0;
 
   const info = has ? (
@@ -75,11 +116,16 @@ const BookingCta: React.FC<BookingCtaProps> = ({ lines, deviceCount, hourly, onP
         {toPersianDigits(deviceCount)} دستگاه انتخاب شده
       </span>
       <span className="text-base font-black text-[var(--primary)]">
-        {formatPrice(hourly)} <span className="text-[11px] font-normal text-[var(--text-white)]">تومان / ساعت</span>
+        {formatPrice(hourly)}{" "}
+        <span className="text-[11px] font-normal text-[var(--text-white)]">
+          تومان / ساعت
+        </span>
       </span>
     </div>
   ) : (
-    <span className="text-xs font-bold text-[var(--text-muted)]">دستگاه‌های موردنظر را انتخاب کنید</span>
+    <span className="text-xs font-bold text-[var(--text-muted)]">
+      دستگاه‌های موردنظر را انتخاب کنید
+    </span>
   );
 
   const button = (
@@ -109,13 +155,20 @@ const BookingCta: React.FC<BookingCtaProps> = ({ lines, deviceCount, hourly, onP
 
   return (
     <aside className="hidden lg:flex sticky top-0 flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5">
-      <h3 className="text-sm font-extrabold text-[var(--text-white)]">رزرو آنلاین</h3>
+      <h3 className="text-sm font-extrabold text-[var(--text-white)]">
+        رزرو آنلاین
+      </h3>
 
       {has && (
         <ul className="flex flex-col gap-1.5 text-xs text-[var(--text-muted)]">
           {lines.map((l) => (
-            <li key={l.group.key} className="flex items-center justify-between gap-2">
-              <span className="text-[var(--text-white)] font-bold truncate">{l.group.label}</span>
+            <li
+              key={l.group.key}
+              className="flex items-center justify-between gap-2"
+            >
+              <span className="text-[var(--text-white)] font-bold truncate">
+                {l.group.label}
+              </span>
               <span className="shrink-0">
                 {toPersianDigits(l.qty)} عدد
                 {l.extra > 0 ? ` • +${toPersianDigits(l.extra)} دسته` : ""}
@@ -139,7 +192,11 @@ const BookingCta: React.FC<BookingCtaProps> = ({ lines, deviceCount, hourly, onP
 
 /* ---------- Page ---------- */
 
-export default function GameCenterDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function GameCenterDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const router = useRouter();
   const { id: gamingCenterSlug } = use(params);
   const { isLoggedIn, user, login } = useAuth();
@@ -156,9 +213,14 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [progress, setProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
   const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
-  const [pendingBooking, setPendingBooking] = useState<PendingBooking | null>(null);
+  const [pendingBooking, setPendingBooking] = useState<PendingBooking | null>(
+    null,
+  );
   const submittingRef = useRef(false);
   // بین تلاش‌های مجدد ثابت می‌مانند تا رزرو تکراری ساخته نشود
   const keysRef = useRef<Map<string, string>>(new Map());
@@ -167,7 +229,8 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
   // Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
-  const [successDetails, setSuccessDetails] = useState<ReservationSummaryDetails | null>(null);
+  const [successDetails, setSuccessDetails] =
+    useState<ReservationSummaryDetails | null>(null);
 
   // UI
   const [showStickyTitle, setShowStickyTitle] = useState(false);
@@ -207,16 +270,21 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
     () =>
       groups.flatMap((g) => {
         const e = cart[g.key];
-        return e && e.qty > 0 ? [{ group: g, qty: e.qty, extra: g.isConsole ? e.extra : 0 }] : [];
+        return e && e.qty > 0
+          ? [{ group: g, qty: e.qty, extra: g.isConsole ? e.extra : 0 }]
+          : [];
       }),
-    [groups, cart]
+    [groups, cart],
   );
 
   const deviceCount = lines.reduce((a, l) => a + l.qty, 0);
   // برآورد ساعتی (قیمت نهایی را Backend بعد از ثبت اعلام می‌کند)
   const hourly = lines.reduce(
-    (a, l) => a + l.qty * (l.group.minPrice + l.extra * (l.group.extraControllerPrice ?? 0)),
-    0
+    (a, l) =>
+      a +
+      l.qty *
+        (l.group.minPrice + l.extra * (l.group.extraControllerPrice ?? 0)),
+    0,
   );
 
   const handleQtyChange = useCallback(
@@ -231,7 +299,7 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
         return copy;
       });
     },
-    [groups]
+    [groups],
   );
 
   const handleExtraChange = useCallback(
@@ -239,20 +307,30 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
       const g = groups.find((x) => x.key === key);
       if (!g) return;
       const next = Math.max(0, Math.min(extra, g.maxExtra));
-      setCart((prev) => (prev[key] ? { ...prev, [key]: { ...prev[key], extra: next } } : prev));
+      setCart((prev) =>
+        prev[key] ? { ...prev, [key]: { ...prev[key], extra: next } } : prev,
+      );
     },
-    [groups]
+    [groups],
   );
 
   const galleryItems: BannerItem[] = useMemo(
-    () => (detail?.images ?? []).map((img) => ({ id: img.id, imageUrl: img.url, alt: img.alt })),
-    [detail]
+    () =>
+      (detail?.images ?? []).map((img) => ({
+        id: img.id,
+        imageUrl: img.url,
+        alt: img.alt,
+      })),
+    [detail],
   );
 
   const rating = useMemo(() => {
     const list = detail?.reviews ?? [];
     if (list.length === 0) return null;
-    return { avg: list.reduce((a, r) => a + r.rating, 0) / list.length, count: list.length };
+    return {
+      avg: list.reduce((a, r) => a + r.rating, 0) / list.length,
+      count: list.length,
+    };
   }, [detail]);
 
   const openSheet = useCallback(() => {
@@ -267,7 +345,10 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
    * همین‌جا Payment Init صدا زده شود. فعلاً در حالت واقعی به صفحه‌ی رزرو(ها) می‌رویم
    * تا paymentState را از Backend ببینند.
    */
-  const finalizeBooking = async (booking: PendingBooking, customer: { fullName: string; phone: string }) => {
+  const finalizeBooking = async (
+    booking: PendingBooking,
+    customer: { fullName: string; phone: string },
+  ) => {
     if (submittingRef.current) return;
     submittingRef.current = true;
     setIsSubmitting(true);
@@ -306,7 +387,9 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
         router.push("/reservations");
       }
     } catch (e) {
-      const doneCount = booking.items.filter((it) => doneRef.current.has(itemKey(it))).length;
+      const doneCount = booking.items.filter((it) =>
+        doneRef.current.has(itemKey(it)),
+      ).length;
       let msg = getErrorMessage(e);
       if (doneCount > 0) {
         msg += ` (${toPersianDigits(doneCount)} از ${toPersianDigits(booking.items.length)} رزرو قبلاً ثبت شده و تکرار نمی‌شود؛ می‌توانید دوباره ثبت را بزنید.)`;
@@ -326,7 +409,9 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
       .map(
         (l) =>
           `${toPersianDigits(l.qty)} عدد ${l.group.label}` +
-          (l.extra > 0 ? ` (با ${toPersianDigits(l.extra)} دسته اضافه برای هر دستگاه)` : "")
+          (l.extra > 0
+            ? ` (با ${toPersianDigits(l.extra)} دسته اضافه برای هر دستگاه)`
+            : ""),
       )
       .join("، ");
 
@@ -336,7 +421,9 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
         gameCenterTitle: detail?.center.name,
         dateStr: date.dateStr,
         dayName: date.dayName,
-        timeSlots: slots.map((s) => (s.endLabel ? `${s.startLabel} تا ${s.endLabel}` : s.startLabel)),
+        timeSlots: slots.map((s) =>
+          s.endLabel ? `${s.startLabel} تا ${s.endLabel}` : s.startLabel,
+        ),
         totalHours: slots.length,
         devicesSummary,
       },
@@ -351,7 +438,11 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
     }
   };
 
-  const handleAuthSuccess = (fullName: string, phone: string, token?: string) => {
+  const handleAuthSuccess = (
+    fullName: string,
+    phone: string,
+    token?: string,
+  ) => {
     login(fullName, phone, token);
     setIsAuthModalOpen(false);
     if (pendingBooking) finalizeBooking(pendingBooking, { fullName, phone });
@@ -375,8 +466,13 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
       <main className="flex-1 mt-13 flex flex-col gap-6 pt-3">
         {/* Loading */}
         {!detail && !loadError && (
-          <div className="px-4 desk:px-6 lg:px-8 flex flex-col gap-4 animate-pulse" aria-busy="true">
-            <div className={`w-full rounded-card bg-[var(--bg-card)] ${GALLERY_ASPECT}`} />
+          <div
+            className="px-4 desk:px-6 lg:px-8 flex flex-col gap-4 animate-pulse"
+            aria-busy="true"
+          >
+            <div
+              className={`w-full rounded-card bg-[var(--bg-card)] ${GALLERY_ASPECT}`}
+            />
             <div className="h-6 w-1/2 rounded bg-[var(--bg-card)]" />
             <div className="h-4 w-3/4 rounded bg-[var(--bg-card)]" />
             <div className="h-28 rounded-card bg-[var(--bg-card)]" />
@@ -387,7 +483,9 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
         {/* Error */}
         {loadError && (
           <div className="mx-4 desk:mx-6 lg:mx-8 mt-6 p-6 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 flex flex-col items-center gap-3 text-center">
-            <p className="text-sm font-bold text-[var(--accent-red)]">{loadError}</p>
+            <p className="text-sm font-bold text-[var(--accent-red)]">
+              {loadError}
+            </p>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -424,77 +522,52 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
               {/* ===== Main column ===== */}
               <div className="flex flex-col gap-8 min-w-0">
                 {/* Info */}
-                <section className="flex flex-col gap-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <h1 className="text-xl font-extrabold leading-tight">{title}</h1>
-                    {rating && (
-                      <button
-                        type="button"
-                        onClick={() => scrollToId("reviews")}
-                        className="shrink-0 flex items-center gap-1 text-xs text-[var(--primary)] font-bold pt-1 hover:underline cursor-pointer focus:outline-none"
-                      >
-                        <span>★ {toPersianDigits(rating.avg.toFixed(1))}</span>
-                        <span className="text-[var(--text-muted)] font-normal">
-                          ({toPersianDigits(rating.count)} دیدگاه)
-                        </span>
-                      </button>
-                    )}
-                  </div>
-
-                  {address && <p className="text-xs text-[var(--text-muted)] leading-relaxed">{address}</p>}
-
-                  <div className="flex items-center gap-2.5">
-                    {address && (
-                      <a
-                        href={mapsUrl(address)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className=" px-3  h-10 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-xs font-bold flex items-center justify-center gap-2 hover:bg-[var(--foreground)] transition-colors"
-                      >
-                        <svg className="w-4 h-4 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <span>مسیریابی</span>
-                      </a>
-                    )}
-                    {detail.games.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => scrollToId("games")}
-                        className=" px-3  h-10 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-xs font-bold flex items-center justify-center gap-2 hover:bg-[var(--foreground)] transition-colors"
-                      >
-                        <svg className="w-4 h-4 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 12h4m-2-2v4m7-3h.01M18 13h.01M7 6h10a4 4 0 014 4v5a3 3 0 01-5.2 2l-1.3-1.5h-4l-1.3 1.5A3 3 0 013 15v-5a4 4 0 014-4z" />
-                        </svg>
-                        <span>بازی‌های گیمنت</span>
-                      </button>
-                    )}
-                  </div>
-                </section>
+                <GamecenterInfoCard
+                  title={title}
+                  address={address}
+                  rating={rating}
+                  gamesCount={detail.games.length}
+                  reviewsCount={reviews.length}
+                  onScrollTo={scrollToId}
+                />
 
                 {/* Step 1: devices */}
-                <section id="stations" className="flex flex-col gap-3 scroll-mt-20">
-                  <SectionTitle step={1} title="دستگاه‌ها را انتخاب کنید" hint="از هر نوع هر تعداد" />
+                <section
+                  id="stations"
+                  className="flex flex-col gap-3 scroll-mt-20"
+                >
+                  <SectionTitle
+                    step={1}
+                    title="دستگاه‌ها را انتخاب کنید"
+                    hint="از هر نوع هر تعداد"
+                  />
                   <DevicePicker
                     groups={groups}
                     cart={cart}
                     onQtyChange={handleQtyChange}
                     onExtraChange={handleExtraChange}
                   />
-
                 </section>
 
                 {/* Games */}
                 {detail.games.length > 0 && (
-                  <section id="games" className="flex flex-col gap-3 scroll-mt-20 w-[1350px]">
-                    <SectionTitle title="بازی‌های نصب‌شده" hint={`${toPersianDigits(detail.games.length)} بازی`} />
+                  <section
+                    id="games"
+                    className="flex flex-col gap-3 scroll-mt-20 w-[1350px]"
+                  >
+                    <SectionTitle
+                      title="بازی‌های نصب‌شده"
+                      hint={`${toPersianDigits(detail.games.length)} بازی`}
+                    />
                     <GamesMarquee games={detail.games} />
                   </section>
                 )}
 
                 {/* Reviews */}
-                <section id="reviews" className="flex flex-col gap-3 scroll-mt-20">
+                <section
+                  id="reviews"
+                  className="flex flex-col gap-3 scroll-mt-20"
+                >
                   <SectionTitle title="نظرات کاربران" />
                   {reviews.length === 0 ? (
                     <p className="rounded-card border border-dashed border-[var(--border-color)] p-6 text-center text-xs text-[var(--text-muted)]">
@@ -513,14 +586,18 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
                                 <span className="w-6 h-6 shrink-0 rounded-child bg-[var(--foreground)] text-[var(--primary)] font-black text-xs flex items-center justify-center pt-0.5">
                                   {r.author[0]}
                                 </span>
-                                <span className="text-xs font-bold truncate">{r.author}</span>
+                                <span className="text-xs font-bold truncate">
+                                  {r.author}
+                                </span>
                               </div>
                               <span className="text-xs font-bold text-[var(--accent-star)]">
                                 ★ {toPersianDigits(r.rating)}
                               </span>
                             </div>
                             {r.comment && (
-                              <p className="text-xs text-[var(--text-muted)] leading-relaxed">{r.comment}</p>
+                              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                                {r.comment}
+                              </p>
                             )}
                             {r.createdAt && (
                               <span className="text-[10px] text-[var(--text-subtle)]">
@@ -536,7 +613,9 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
                           onClick={() => setShowAllReviews((v) => !v)}
                           className="self-center h-9 px-5 rounded-full border border-[var(--border-color)] text-xs font-bold text-[var(--text-white)] hover:border-[var(--primary)]"
                         >
-                          {showAllReviews ? "نمایش کمتر" : `نمایش همه ${toPersianDigits(reviews.length)} نظر`}
+                          {showAllReviews
+                            ? "نمایش کمتر"
+                            : `نمایش همه ${toPersianDigits(reviews.length)} نظر`}
                         </button>
                       )}
                     </>
