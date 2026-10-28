@@ -1,10 +1,23 @@
 import type { Reservation } from "@/types/reservation";
 
+export type VerificationStatus = "APPROVED" | "PENDING" | "REJECTED" | "NOT_SUBMITTED";
+
+export interface OwnerVerificationData {
+  ownerName: string;
+  nationalId: string;
+  centerName: string;
+  centerAddress: string;
+  licenseImageUrl?: string;
+  licenseFileName?: string;
+}
+
 export interface OwnerMe {
   id: string;
   phone?: string;
   fullName?: string;
   role?: string;
+  verificationStatus?: VerificationStatus;
+  verificationData?: OwnerVerificationData;
   /** ⚠️ در OpenAPI نیست؛ فقط در صورت وجود در پاسخ /auth/me استفاده می‌شود */
   gamingCenterId?: string;
   gamingCenters?: { id: string }[];
@@ -62,6 +75,7 @@ export interface StationInput {
   name: string;
   stationType: "PC" | "PLAYSTATION" | "XBOX" | "SWITCH" | "VR";
   hourlyPrice: number;
+  description?: string;
   minRentHours?: number;
   maxRentHours?: number;
   defaultDurationHours?: number;

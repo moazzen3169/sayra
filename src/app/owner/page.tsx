@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOwner } from "@/context/OwnerContext";
+import { OwnerVerificationBadge } from "@/components/owner/OwnerVerificationBadge";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService, pickNumber } from "@/services/ownerService";
@@ -40,9 +41,29 @@ const MENU = [
 
 export default function OwnerDashboardPage() {
   const router = useRouter();
-  const { centerId, center, ownerName } = useOwner();
+  const {
+    centerId,
+    center,
+    ownerName,
+    verificationStatus,
+    verificationData,
+    submitVerification,
+    setVerificationStatus,
+  } = useOwner();
 
   const [query, setQuery] = useState("");
+
+  // Verification Form State
+  const [vOwnerName, setVOwnerName] = useState(verificationData?.ownerName || "");
+  const [vNationalId, setVNationalId] = useState(verificationData?.nationalId || "");
+  const [vCenterName, setVCenterName] = useState(verificationData?.centerName || "");
+  const [vCenterAddress, setVCenterAddress] = useState(verificationData?.centerAddress || "");
+  const [licenseFile, setLicenseFile] = useState<File | null>(null);
+  const [vError, setVError] = useState<string | null>(null);
+
+  const licenseInputRef = useRef<HTMLInputElement>(null);
+
+  const isApproved = verificationStatus === "APPROVED";
   const [withdrawable, setWithdrawable] = useState<number | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [media, setMedia] = useState<MediaItem[]>([]);
@@ -88,8 +109,29 @@ export default function OwnerDashboardPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isApproved) return;
     const q = query.trim();
     router.push(q ? `/owner/reservations?q=${encodeURIComponent(q)}` : "/owner/reservations");
+  };
+
+  const handleVerificationSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!vOwnerName.trim() || !vNationalId.trim() || !vCenterName.trim() || !vCenterAddress.trim()) {
+      setVError("لطفاً تمامی اطلاعات خواسته شده را وارد کنید.");
+      return;
+    }
+    if (!licenseFile && !verificationData?.licenseFileName) {
+      setVError("لطفاً تصویر پروانه کسب را آپلود کنید.");
+      return;
+    }
+    setVError(null);
+    submitVerification({
+      ownerName: vOwnerName.trim(),
+      nationalId: vNationalId.trim(),
+      centerName: vCenterName.trim(),
+      centerAddress: vCenterAddress.trim(),
+      licenseFileName: licenseFile?.name || verificationData?.licenseFileName,
+    });
   };
 
   const handleUpload = useCallback(
@@ -121,11 +163,154 @@ export default function OwnerDashboardPage() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-baseline gap-2 min-w-0">
             <h1 className="text-base font-extrabold truncate">{ownerName}</h1>
-            <Link href="/owner/edit" className="text-[11px] text-[var(--primary)] hover:underline">
-              ویرایش
-            </Link>
+            {isApproved && (
+              <Link href="/owner/edit" className="text-[11px] text-[var(--primary)] hover:underline">
+                ویرایش
+              </Link>
+            )}
+          </div>
+          <div className="shrink-0 flex items-center gap-2">
+            <OwnerVerificationBadge size="md" />
           </div>
         </div>
+
+        {/* Verification Form / Notice section if not approved */}
+        {!isApproved && (
+          <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 flex flex-col gap-4">
+            {verificationStatus === "NOT_SUBMITTED" && (
+              <>
+                <div className="flex flex-col gap-1">
+                  <h2 className="text-base font-black text-[var(--text-white)]">احراز هویت صاحب گیمنت</h2>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    برای دسترسی به سایر بخش‌ها و فعال‌سازی پنل مدیریت، اطلاعات و مدرک شغلی خود را ثبت کنید.
+                  </p>
+                </div>
+
+                {vError && (
+                  <div className="p-3 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold">
+                    {vError}
+                  </div>
+                )}
+
+                <form onSubmit={handleVerificationSubmit} className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-extrabold text-[var(--text-muted)]">نام و نام خانوادگی صاحب گیمنت</label>
+                    <input
+                      value={vOwnerName}
+                      onChange={(e) => setVOwnerName(e.target.value)}
+                      placeholder="مثلا: علی محمدی"
+                      className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-extrabold text-[var(--text-muted)]">کد ملی</label>
+                    <input
+                      value={vNationalId}
+                      onChange={(e) => setVNationalId(e.target.value)}
+                      placeholder="کد ۱۰ رقمی ملی"
+                      className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-extrabold text-[var(--text-muted)]">نام گیمنت</label>
+                    <input
+                      value={vCenterName}
+                      onChange={(e) => setVCenterName(e.target.value)}
+                      placeholder="مثلا: گیمنت گرگدن"
+                      className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-extrabold text-[var(--text-muted)]">آدرس گیمنت</label>
+                    <textarea
+                      value={vCenterAddress}
+                      onChange={(e) => setVCenterAddress(e.target.value)}
+                      placeholder="آدرس دقیق مجموعه"
+                      rows={2}
+                      className="p-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none resize-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-extrabold text-[var(--text-muted)]">عکس پروانه کسب</label>
+                    <div
+                      onClick={() => licenseInputRef.current?.click()}
+                      className="h-20 rounded-card border-2 border-dashed border-[var(--border-subtle)] bg-[var(--foreground)]/20 hover:bg-[var(--foreground)]/30 transition-colors flex flex-col items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <svg className="w-6 h-6 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                      </svg>
+                      <span className="text-xs font-extrabold text-[var(--primary)]">
+                        {licenseFile ? licenseFile.name : "انتخاب یا آپلود عکس پروانه کسب"}
+                      </span>
+                    </div>
+                    <input
+                      ref={licenseInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setLicenseFile(e.target.files?.[0] || null)}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="mt-2 h-12 rounded-card bg-[var(--primary)] text-[#101014] text-sm font-black hover:opacity-90 transition-opacity"
+                  >
+                    ارسال جهت بررسی و احراز هویت
+                  </button>
+                </form>
+              </>
+            )}
+
+            {verificationStatus === "PENDING" && (
+              <div className="flex flex-col items-center text-center py-4 gap-3">
+                <div className="w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-2xl">
+                  ⏳
+                </div>
+                <h2 className="text-base font-black text-[var(--text-white)]">اطلاعات شما در صف انتظار بررسی است</h2>
+                <p className="text-xs text-[var(--text-muted)] max-w-md leading-relaxed">
+                  مدارک و اطلاعات احراز هویت شما ارسال شده و توسط پشتیبانی در حال بررسی است. پس از تایید، دسترسی شما به تمام بخش‌های پنل فعال خواهد شد.
+                </p>
+                {/* Demo switcher button for testing */}
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVerificationStatus("APPROVED")}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/40"
+                  >
+                    (دمو: تغییر وضعیت به تایید شده)
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {verificationStatus === "REJECTED" && (
+              <div className="flex flex-col items-center text-center py-4 gap-3">
+                <div className="w-14 h-14 rounded-full bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 flex items-center justify-center text-[var(--accent-red)] text-2xl">
+                  ⚠️
+                </div>
+                <h2 className="text-base font-black text-[var(--text-white)]">احراز هویت شما تایید نشد</h2>
+                <p className="text-xs text-[var(--text-muted)] max-w-md leading-relaxed">
+                  اطلاعات یا پروانه کسب ارسال شده مورد تایید قرار نگرفت. لطفاً مجدداً اطلاعات صحیح را وارد کرده و تصویر خوانا ارسال کنید.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setVerificationStatus("NOT_SUBMITTED")}
+                  className="mt-2 h-10 px-5 rounded-card bg-[var(--primary)] text-[#101014] text-xs font-black"
+                >
+                  ویرایش و تلاش مجدد
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Locked Content Overlay / Container when not approved */}
+        <div className={!isApproved ? "pointer-events-none opacity-40 select-none" : ""}>
 
         {/* Search */}
         <form onSubmit={handleSearch} className="relative">
@@ -228,7 +413,7 @@ export default function OwnerDashboardPage() {
               <button
                 key={`add-${i}`}
                 type="button"
-                disabled={uploading}
+                disabled={uploading || !isApproved}
                 onClick={() => fileRef.current?.click()}
                 aria-label="افزودن تصویر"
                 className="aspect-square rounded-card bg-[var(--bg-card)] flex items-center justify-center disabled:opacity-50"
@@ -246,6 +431,7 @@ export default function OwnerDashboardPage() {
 
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
         </section>
+        </div>
       </main>
 
     </div>
