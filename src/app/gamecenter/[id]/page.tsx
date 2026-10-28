@@ -56,7 +56,7 @@ interface PendingBooking {
   summary: ReservationSummaryDetails;
 }
 
-const GALLERY_ASPECT = "aspect-[2/1] sm:aspect-[2.6/1] lg:aspect-[4/1]";
+const GALLERY_ASPECT = "aspect-[2/1] sm:aspect-[2.2/1] lg:aspect-[16/10]";
 
 const scrollToId = (id: string) =>
   document
@@ -509,120 +509,31 @@ export default function GameCenterDetailPage({
         )}
 
         {detail && (
-          <>
-            {/* Gallery slider (همان BannerSlider صفحه اصلی) */}
-            {galleryItems.length > 0 && (
-              <div className="">
-                <BannerSlider
-                  banners={galleryItems}
-                  aspectClassName={GALLERY_ASPECT}
-                  ariaLabel="گالری تصاویر گیمنت"
-                />
-              </div>
-            )}
-
-            <div className="px-4 relative  desk:px-6  lg:grid lg:grid-cols-[minmax(0,1fr)_480px] lg:gap-8 lg:items-start">
-              {/* ===== Main column ===== */}
-              <div className="flex flex-col gap-8 min-w-0">
-                {/* Info */}
-                <GamecenterInfoCard
-                  title={title}
-                  address={address}
-                  rating={rating}
-                  gamesCount={detail.games.length}
-                  reviewsCount={reviews.length}
-                  onScrollTo={scrollToId}
-                />
-
-                {/* Step 1: devices */}
-                <section
-                  id="stations"
-                  className="flex flex-col gap-3 scroll-mt-20"
-                >
-
-                  <DevicePicker
-                    groups={groups}
-                    cart={cart}
-                    onQtyChange={handleQtyChange}
-                    onExtraChange={handleExtraChange}
+          <div className="px-4 desk:px-6 relative flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8 lg:items-start">
+            {/* ===== Sidebar column ( گالری در بالا + جزییات گیمنت در زیر آن ) ===== */}
+            <aside className="flex flex-col gap-5 min-w-0 lg:order-2">
+              {/* Gallery */}
+              {galleryItems.length > 0 && (
+                <div className="w-full">
+                  <BannerSlider
+                    banners={galleryItems}
+                    aspectClassName={GALLERY_ASPECT}
+                    ariaLabel="گالری تصاویر گیمنت"
                   />
-                </section>
+                </div>
+              )}
 
-                {/* Games */}
-                {detail.games.length > 0 && (
-                  <section
-                    id="games"
-                    className="flex flex-col gap-3 scroll-mt-20 "
-                  >
-                    <SectionTitle
-                      title="بازی‌های نصب‌شده"
-                      hint={`${toPersianDigits(detail.games.length)} بازی`}
-                    />
-                    <GamesMarquee games={detail.games} />
-                  </section>
-                )}
+              {/* Info Details */}
+              <GamecenterInfoCard
+                title={title}
+                address={address}
+                rating={rating}
+                gamesCount={detail.games.length}
+                reviewsCount={reviews.length}
+                onScrollTo={scrollToId}
+              />
 
-                {/* Reviews */}
-                <section
-                  id="reviews"
-                  className="flex flex-col gap-3 scroll-mt-20"
-                >
-                  <SectionTitle title="نظرات کاربران" />
-                  {reviews.length === 0 ? (
-                    <p className="rounded-card border border-dashed border-[var(--border-color)] p-6 text-center text-xs text-[var(--text-muted)]">
-                      هنوز نظری برای این گیمنت ثبت نشده است.
-                    </p>
-                  ) : (
-                    <>
-                      <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2">
-                        {visibleReviews.map((r) => (
-                          <article
-                            key={r.id}
-                            className="bg-[var(--bg-card)] rounded-card p-3.5 border border-[var(--border-subtle)] flex flex-col gap-2"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="w-6 h-6 shrink-0 rounded-child bg-[var(--foreground)] text-[var(--primary)] font-black text-xs flex items-center justify-center pt-0.5">
-                                  {r.author[0]}
-                                </span>
-                                <span className="text-xs font-bold truncate">
-                                  {r.author}
-                                </span>
-                              </div>
-                              <span className="text-xs font-bold text-[var(--accent-star)]">
-                                ★ {toPersianDigits(r.rating)}
-                              </span>
-                            </div>
-                            {r.comment && (
-                              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                                {r.comment}
-                              </p>
-                            )}
-                            {r.createdAt && (
-                              <span className="text-[10px] text-[var(--text-subtle)]">
-                                {formatDayLabel(r.createdAt)}
-                              </span>
-                            )}
-                          </article>
-                        ))}
-                      </div>
-                      {reviews.length > 4 && (
-                        <button
-                          type="button"
-                          onClick={() => setShowAllReviews((v) => !v)}
-                          className="self-center h-9 px-5 rounded-full border border-[var(--border-color)] text-xs font-bold text-[var(--text-white)] hover:border-[var(--primary)]"
-                        >
-                          {showAllReviews
-                            ? "نمایش کمتر"
-                            : `نمایش همه ${toPersianDigits(reviews.length)} نظر`}
-                        </button>
-                      )}
-                    </>
-                  )}
-                </section>
-              </div>
-
-              {/* ===== Desktop booking card ===== */}
+              {/* Desktop booking card embedded in sidebar below info */}
               <BookingCta
                 variant="card"
                 lines={lines}
@@ -631,8 +542,105 @@ export default function GameCenterDetailPage({
                 onPick={() => scrollToId("stations")}
                 onBook={openSheet}
               />
+            </aside>
+
+            {/* ===== Main column ( سمت راست: ابتدا دستگاه ها، سپس بازی ها و نظرات ) ===== */}
+            <div className="flex flex-col gap-8 min-w-0 mt-6 lg:mt-0 lg:order-1">
+              {/* Step 1: devices */}
+              <section
+                id="stations"
+                className="flex flex-col gap-3 scroll-mt-20"
+              >
+                <SectionTitle
+                  step={1}
+                  title="انتخاب دستگاه"
+                  hint="دستگاه‌های موردنظر برای رزرو را انتخاب کنید"
+                />
+                <DevicePicker
+                  groups={groups}
+                  cart={cart}
+                  onQtyChange={handleQtyChange}
+                  onExtraChange={handleExtraChange}
+                />
+              </section>
+
+              {/* Horizontal divider */}
+              <hr className="border-[var(--border-subtle)] my-1" />
+
+              {/* Games */}
+              {detail.games.length > 0 && (
+                <section
+                  id="games"
+                  className="flex flex-col gap-3 scroll-mt-20"
+                >
+                  <SectionTitle
+                    title="بازی‌های نصب‌شده"
+                    hint={`${toPersianDigits(detail.games.length)} بازی`}
+                  />
+                  <GamesMarquee games={detail.games} />
+                </section>
+              )}
+
+              {/* Reviews */}
+              <section
+                id="reviews"
+                className="flex flex-col gap-3 scroll-mt-20"
+              >
+                <SectionTitle title="نظرات کاربران" />
+                {reviews.length === 0 ? (
+                  <p className="rounded-card border border-dashed border-[var(--border-color)] p-6 text-center text-xs text-[var(--text-muted)]">
+                    هنوز نظری برای این گیمنت ثبت نشده است.
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2">
+                      {visibleReviews.map((r) => (
+                        <article
+                          key={r.id}
+                          className="bg-[var(--bg-card)] rounded-card p-3.5 border border-[var(--border-subtle)] flex flex-col gap-2"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="w-6 h-6 shrink-0 rounded-child bg-[var(--foreground)] text-[var(--primary)] font-black text-xs flex items-center justify-center pt-0.5">
+                                {r.author[0]}
+                              </span>
+                              <span className="text-xs font-bold truncate">
+                                {r.author}
+                              </span>
+                            </div>
+                            <span className="text-xs font-bold text-[var(--accent-star)]">
+                              ★ {toPersianDigits(r.rating)}
+                            </span>
+                          </div>
+                          {r.comment && (
+                            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                              {r.comment}
+                            </p>
+                          )}
+                          {r.createdAt && (
+                            <span className="text-[10px] text-[var(--text-subtle)]">
+                              {formatDayLabel(r.createdAt)}
+                            </span>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                    {reviews.length > 4 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllReviews((v) => !v)}
+                        className="self-center h-9 px-5 rounded-full border border-[var(--border-color)] text-xs font-bold text-[var(--text-white)] hover:border-[var(--primary)]"
+                      >
+                        {showAllReviews
+                          ? "نمایش کمتر"
+                          : `نمایش همه ${toPersianDigits(reviews.length)} نظر`}
+                      </button>
+                    )}
+                  </>
+                )}
+              </section>
             </div>
-          </>
+          </div>
         )}
       </main>
 
