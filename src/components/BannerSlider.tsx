@@ -220,11 +220,26 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
           }}
           aria-label="بزرگنمایی تصویر"
           title="بزرگنمایی تصویر"
-          className="absolute top-3 left-3 z-20 w-9 h-9 rounded-full bg-[var(--bg-body)]/75 backdrop-blur-md border border-[var(--border-color)] text-[var(--text-white)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-all flex items-center justify-center active:scale-95 shadow-lg"
+          className="absolute bottom-3 right-3 z-20 w-9 h-9 rounded-full bg-[var(--bg-body)]/75 backdrop-blur-md border border-[var(--border-color)] text-[var(--text-white)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-all flex items-center justify-center active:scale-95 shadow-lg"
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m-3-3h6" />
-          </svg>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="white"
+  stroke-width="1"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M4 8v-2a2 2 0 0 1 2 -2h2" />
+  <path d="M4 16v2a2 2 0 0 0 2 2h2" />
+  <path d="M16 4h2a2 2 0 0 1 2 2v2" />
+  <path d="M16 20h2a2 2 0 0 0 2 -2v-2" />
+</svg>
+
         </button>
       )}
 
@@ -232,7 +247,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
         setApi={setApi}
         opts={emblaOptions}
         plugins={plugins}
-        className="w-full rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        className="w-full  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
       >
         <div onClickCapture={handleContainerClick} className="rounded-card overflow-hidden cursor-grab active:cursor-grabbing select-none">
           <CarouselContent className="-mr-3 lg:-mr-4">
@@ -396,7 +411,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
                       src={item.imageUrl}
                       alt={item.alt}
                       draggable={false}
-                      className="max-h-[82vh] max-w-full object-contain select-none rounded-card border border-[var(--border-subtle)] shadow-2xl"
+                      className="h-[95vh] w-full max-w-[1100px] object-contain select-none rounded-card border border-[var(--border-subtle)] shadow-2xl"
                     />
                   </CarouselItem>
                 ))}

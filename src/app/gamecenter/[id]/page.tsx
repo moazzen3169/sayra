@@ -372,7 +372,7 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
         onNotificationClick={() => {}}
       />
 
-      <main className="flex-1 mt-16 flex flex-col gap-6 pt-3">
+      <main className="flex-1 mt-13 flex flex-col gap-6 pt-3">
         {/* Loading */}
         {!detail && !loadError && (
           <div className="px-4 desk:px-6 lg:px-8 flex flex-col gap-4 animate-pulse" aria-busy="true">
@@ -411,7 +411,7 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
           <>
             {/* Gallery slider (همان BannerSlider صفحه اصلی) */}
             {galleryItems.length > 0 && (
-              <div className="px-4 desk:px-6 lg:px-8">
+              <div className="">
                 <BannerSlider
                   banners={galleryItems}
                   aspectClassName={GALLERY_ASPECT}
@@ -420,7 +420,7 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
               </div>
             )}
 
-            <div className="px-4 relative  desk:px-6 lg:px-8 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-8 lg:items-start">
+            <div className="px-4 relative  desk:px-6  lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-8 lg:items-start">
               {/* ===== Main column ===== */}
               <div className="flex flex-col gap-8 min-w-0">
                 {/* Info */}
@@ -449,7 +449,7 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
                         href={mapsUrl(address)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 h-10 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-xs font-bold flex items-center justify-center gap-2 hover:bg-[var(--foreground)] transition-colors"
+                        className=" px-3  h-10 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-xs font-bold flex items-center justify-center gap-2 hover:bg-[var(--foreground)] transition-colors"
                       >
                         <svg className="w-4 h-4 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -462,7 +462,7 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
                       <button
                         type="button"
                         onClick={() => scrollToId("games")}
-                        className="flex-1 h-10 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-xs font-bold flex items-center justify-center gap-2 hover:bg-[var(--foreground)] transition-colors"
+                        className=" px-3  h-10 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-xs font-bold flex items-center justify-center gap-2 hover:bg-[var(--foreground)] transition-colors"
                       >
                         <svg className="w-4 h-4 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 12h4m-2-2v4m7-3h.01M18 13h.01M7 6h10a4 4 0 014 4v5a3 3 0 01-5.2 2l-1.3-1.5h-4l-1.3 1.5A3 3 0 013 15v-5a4 4 0 014-4z" />
@@ -482,16 +482,12 @@ export default function GameCenterDetailPage({ params }: { params: Promise<{ id:
                     onQtyChange={handleQtyChange}
                     onExtraChange={handleExtraChange}
                   />
-                  {groups.length > 0 && (
-                    <p className="text-[11px] text-[var(--text-subtle)]">
-                      بعد از انتخاب دستگاه‌ها، روز و ساعت‌ها را در مرحله بعد انتخاب می‌کنید.
-                    </p>
-                  )}
+
                 </section>
 
                 {/* Games */}
                 {detail.games.length > 0 && (
-                  <section id="games" className="flex flex-col gap-3 scroll-mt-20">
+                  <section id="games" className="flex flex-col gap-3 scroll-mt-20 w-[1350px]">
                     <SectionTitle title="بازی‌های نصب‌شده" hint={`${toPersianDigits(detail.games.length)} بازی`} />
                     <GamesMarquee games={detail.games} />
                   </section>

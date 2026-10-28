@@ -55,8 +55,8 @@ const MarqueeRow: React.FC<{ games: GameItem[]; reverse?: boolean }> = ({ games,
       dir="ltr"
       className="marquee overflow-hidden"
       style={{
-        maskImage: "linear-gradient(to right, transparent, #000 8%, #000 92%, transparent)",
-        WebkitMaskImage: "linear-gradient(to right, transparent, #000 8%, #000 92%, transparent)",
+        maskImage: "",
+        WebkitMaskImage: "",
       }}
     >
       <div
