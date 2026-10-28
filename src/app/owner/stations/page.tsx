@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
+import { Option, SearchableSelect } from "@/components/ui/SearchableSelect";
 import { useOwner } from "@/context/OwnerContext";
 import { isAbortError } from "@/lib/api/client";
 import { formatPrice, toPersianDigits } from "@/lib/format";
@@ -10,12 +11,21 @@ import { ownerService } from "@/services/ownerService";
 import type { GameStationInfo } from "@/services/gamingCenterService";
 import type { StationInput } from "@/types/owner";
 
-const TYPES: StationInput["stationType"][] = ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"];
+const STATION_OPTIONS: Option[] = [
+  { value: "PC", label: "PC (کامپیوتر گیمینگ)" },
+  { value: "PLAYSTATION", label: "PLAYSTATION (پلی‌استیشن)" },
+  { value: "XBOX", label: "XBOX (ایکس‌باکس)" },
+  { value: "SWITCH", label: "SWITCH (نینتندو سوییچ)" },
+  { value: "VR", label: "VR (واقعیت مجازی)" },
+];
+
 const input =
-  "h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none";
+  "h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none text-[var(--text-white)] placeholder:text-[var(--text-muted)]";
 
 export default function OwnerStationsPage() {
-  const { centerId } = useOwner();
+  const { centerId, verificationStatus } = useOwner();
+  const isApproved = verificationStatus === "APPROVED";
+
   const [stations, setStations] = useState<GameStationInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
@@ -23,14 +33,10 @@ export default function OwnerStationsPage() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [name, setName] = useState("");
+
   const [type, setType] = useState<StationInput["stationType"]>("PC");
   const [price, setPrice] = useState("");
-  const [minH, setMinH] = useState("");
-  const [maxH, setMaxH] = useState("");
-  const [defH, setDefH] = useState("");
-  const [incMin, setIncMin] = useState("");
-  const [isVip, setIsVip] = useState(false);
+  const [description, setDescription] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -59,31 +65,28 @@ export default function OwnerStationsPage() {
     e.preventDefault();
     if (saving) return;
     const hourlyPrice = Number(price);
-    if (!name.trim() || !isFinite(hourlyPrice) || hourlyPrice <= 0) {
-      setFormError("نام و قیمت ساعتی معتبر وارد کنید.");
+    if (!type || !isFinite(hourlyPrice) || hourlyPrice <= 0) {
+      setFormError("نوع دستگاه و قیمت ساعتی معتبر را وارد کنید.");
       return;
     }
     setSaving(true);
     setFormError(null);
+
+    const selectedLabel = STATION_OPTIONS.find((o) => o.value === type)?.label.split(" ")[0] || type;
+    const count = (stations?.length || 0) + 1;
+    const autoName = `${selectedLabel} #${toPersianDigits(count)}`;
+
     try {
       await ownerService.createStation(centerId, {
-        name: name.trim(),
+        name: autoName,
         stationType: type,
         hourlyPrice,
-        minRentHours: num(minH),
-        maxRentHours: num(maxH),
-        defaultDurationHours: num(defH),
-        incrementMinutes: num(incMin),
-        isVip,
+        description: description.trim() || undefined,
       });
       setOpen(false);
-      setName("");
+      setType("PC");
       setPrice("");
-      setMinH("");
-      setMaxH("");
-      setDefH("");
-      setIncMin("");
-      setIsVip(false);
+      setDescription("");
       setReload((v) => v + 1);
     } catch (err) {
       setFormError(getErrorMessage(err));
@@ -99,8 +102,9 @@ export default function OwnerStationsPage() {
       <main className="flex-1 mt-16 px-4 py-4 lg:max-w-[880px] lg:mx-auto lg:w-full lg:px-0 flex flex-col gap-3">
         <button
           type="button"
+          disabled={!isApproved}
           onClick={() => setOpen(true)}
-          className="h-12 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm hover:opacity-90 transition-opacity"
+          className="h-12 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
         >
           + افزودن دستگاه
         </button>
@@ -145,37 +149,59 @@ export default function OwnerStationsPage() {
         >
           <form
             onSubmit={submit}
-            className="w-full max-w-[460px] max-h-[92vh] overflow-y-auto bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-3"
+            className="w-full max-w-[460px] max-h-[92vh] overflow-y-auto bg-[var(--bg-card)] border-t sm:border border-[var(--border-subtle)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-base font-black">افزودن دستگاه</h3>
             {formError && <p className="text-xs font-bold text-[var(--accent-red)]">{formError}</p>}
 
-            <input className={input} placeholder="نام (مثلاً PS5 #1)" value={name} onChange={(e) => setName(e.target.value)} />
-            <select className={input} value={type} onChange={(e) => setType(e.target.value as StationInput["stationType"])}>
-              {TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-            <input className={input} type="number" min={0} placeholder="قیمت ساعتی (تومان)" value={price} onChange={(e) => setPrice(e.target.value)} />
-            <div className="grid grid-cols-2 gap-3">
-              <input className={input} type="number" min={0} placeholder="حداقل ساعت" value={minH} onChange={(e) => setMinH(e.target.value)} />
-              <input className={input} type="number" min={0} placeholder="حداکثر ساعت" value={maxH} onChange={(e) => setMaxH(e.target.value)} />
-              <input className={input} type="number" min={0} placeholder="مدت پیش‌فرض (ساعت)" value={defH} onChange={(e) => setDefH(e.target.value)} />
-              <input className={input} type="number" min={0} placeholder="گام زمانی (دقیقه)" value={incMin} onChange={(e) => setIncMin(e.target.value)} />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-[var(--text-muted)]">نوع دستگاه</label>
+              <SearchableSelect
+                options={STATION_OPTIONS}
+                value={type}
+                onChange={(v) => setType(v as StationInput["stationType"])}
+                placeholder="انتخاب نوع دستگاه"
+                searchPlaceholder="جستجوی نوع دستگاه..."
+              />
             </div>
-            <label className="flex items-center gap-2 text-xs font-bold">
-              <input type="checkbox" checked={isVip} onChange={(e) => setIsVip(e.target.checked)} />
-              VIP
-            </label>
 
-            <div className="flex gap-2 pt-1">
-              <button type="submit" disabled={saving} className="flex-1 h-11 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm disabled:opacity-60">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-[var(--text-muted)]">قیمت دستگاه برای ۱ ساعت (تومان)</label>
+              <input
+                className={input}
+                type="number"
+                min={0}
+                placeholder="مثلاً ۱۵۰,۰۰۰"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-[var(--text-muted)]">توضیحات دستگاه (اختیاری)</label>
+              <textarea
+                className="p-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none text-[var(--text-white)] placeholder:text-[var(--text-muted)] resize-none"
+                rows={3}
+                placeholder="توضیحات تکمیلی درباره دستگاه، مشخصات یا تجهیزات..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex-1 h-11 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm disabled:opacity-60"
+              >
                 {saving ? "در حال ثبت..." : "ثبت دستگاه"}
               </button>
-              <button type="button" onClick={() => setOpen(false)} className="h-11 px-5 rounded-card bg-[var(--foreground)] text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="h-11 px-5 rounded-card bg-[var(--foreground)] text-xs font-bold"
+              >
                 انصراف
               </button>
             </div>

@@ -5,9 +5,10 @@ import { AuthModal } from "@/components/AuthModal";
 import { useAuth } from "@/context/AuthContext";
 import { isAbortError } from "@/lib/api/client";
 import { ownerService } from "@/services/ownerService";
-import type { OwnerMe, PublicCenter } from "@/types/owner";
+import type { OwnerMe, OwnerVerificationData, PublicCenter, VerificationStatus } from "@/types/owner";
 
 const OWNER_CENTER_KEY = "sayra_owner_center_id";
+const OWNER_VERIFICATION_KEY = "sayra_owner_verification";
 
 const MOCK_OWNER_ME: OwnerMe = {
   id: "owner-demo-1",
@@ -15,6 +16,7 @@ const MOCK_OWNER_ME: OwnerMe = {
   phone: "۰۹۱۲۳۴۵۶۷۸۹",
   gamingCenterId: "gc-1",
   subscriptionDaysLeft: 30,
+  verificationStatus: "APPROVED",
 };
 
 const MOCK_CENTER: PublicCenter = {
@@ -30,6 +32,10 @@ interface OwnerContextType {
   centerId: string;
   center: PublicCenter | null;
   ownerName: string;
+  verificationStatus: VerificationStatus;
+  verificationData: OwnerVerificationData | null;
+  submitVerification: (data: OwnerVerificationData) => void;
+  setVerificationStatus: (status: VerificationStatus) => void;
 }
 
 const OwnerContext = createContext<OwnerContextType | null>(null);
@@ -51,6 +57,48 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [centerId, setCenterId] = useState<string>("gc-1");
   const [center, setCenter] = useState<PublicCenter | null>(MOCK_CENTER);
   const [authOpen, setAuthOpen] = useState(false);
+
+  const [verificationStatus, setVerificationStatusState] = useState<VerificationStatus>("APPROVED");
+  const [verificationData, setVerificationData] = useState<OwnerVerificationData | null>(null);
+
+  // Read saved verification from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(OWNER_VERIFICATION_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.status) setVerificationStatusState(parsed.status);
+        if (parsed.data) setVerificationData(parsed.data);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const submitVerification = (data: OwnerVerificationData) => {
+    setVerificationData(data);
+    setVerificationStatusState("PENDING");
+    try {
+      localStorage.setItem(
+        OWNER_VERIFICATION_KEY,
+        JSON.stringify({ status: "PENDING", data })
+      );
+    } catch {
+      // ignore
+    }
+  };
+
+  const setVerificationStatus = (status: VerificationStatus) => {
+    setVerificationStatusState(status);
+    try {
+      localStorage.setItem(
+        OWNER_VERIFICATION_KEY,
+        JSON.stringify({ status, data: verificationData })
+      );
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     if (authLoading) return;
@@ -83,6 +131,7 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setMe((prev) => ({
           ...MOCK_OWNER_ME,
           fullName: user?.fullName || prev?.fullName || MOCK_OWNER_ME.fullName,
+          verificationStatus: verificationStatus,
         }));
         setCenterId("gc-1");
         setCenter(MOCK_CENTER);
@@ -113,10 +162,14 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <OwnerContext.Provider
       value={{
-        me: activeMe,
+        me: { ...activeMe, verificationStatus },
         centerId: activeCenterId,
         center: center || MOCK_CENTER,
-        ownerName: activeMe.fullName || user?.fullName || "صاحب گیمنت",
+        ownerName: verificationData?.ownerName || activeMe.fullName || user?.fullName || "صاحب گیمنت",
+        verificationStatus,
+        verificationData,
+        submitVerification,
+        setVerificationStatus,
       }}
     >
       {children}
