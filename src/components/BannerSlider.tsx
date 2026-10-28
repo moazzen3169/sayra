@@ -207,7 +207,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
     <div
       aria-label={ariaLabel}
       aria-live={isPlaying ? "off" : "polite"}
-      className={`relative group/slider rounded-card  px-4 desk:w-[450px]    desk:px-6 desk:pt-6 ${className}`}
+      className={`relative group/slider rounded-card  px-4   desk:px-6 desk:pt-6 ${className}`}
     >
       {/* Zoom / Expand Button */}
       {slidesCount > 0 && (
