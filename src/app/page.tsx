@@ -140,7 +140,7 @@ export default function HomePage() {
             className="w-full flex flex-col gap-3"
           >
             <div className="flex items-center justify-between">
-              <h2 className="font-extrabold text-base text-[var(--text-white)]">
+              <h2 className="font-bold text-base text-[var(--text-white)]">
                 گیمنت‌های محبوب {selectedCity !== "تبریز" ? `(${selectedCity})` : ""}
               </h2>
               <div className="flex items-center gap-1 relative h-8 bg-[var(--bg-card)] rounded-lg p-0.5 border border-[var(--border-subtle)]">
@@ -173,7 +173,7 @@ export default function HomePage() {
         {/* ۵. بخش پیشنهاد ویژه و گیمنت‌های برتر سایرا */}
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h2 className="font-extrabold text-base text-[var(--text-white)]">پیشنهاد ویژه سایرا</h2>
+            <h2 className="font-bold text-base text-[var(--text-white)]">پیشنهاد ویژه سایرا</h2>
             <span className="text-xs text-[var(--text-muted)]">برترین کیفیت و امکانات</span>
           </div>
 

@@ -20,7 +20,7 @@ export const OwnerPageHeader: React.FC<{ title: string }> = ({ title }) => {
             <path d="m12 5 7 7-7 7" />
           </svg>
         </button>
-        <h1 className="text-sm font-extrabold text-[var(--text-white)] truncate">{title}</h1>
+        <h1 className="text-sm font-bold text-[var(--text-white)] truncate">{title}</h1>
       </div>
       <div className="shrink-0">
         <OwnerVerificationBadge size="sm" />

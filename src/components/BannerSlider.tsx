@@ -378,7 +378,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
         <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 animate-fadeIn">
           {/* Top Bar */}
           <div className="flex items-center justify-between z-10 px-2 py-1 max-w-[1200px] w-full mx-auto">
-            <span className="text-sm font-black text-[var(--text-white)] bg-[var(--bg-card)]/80 px-3 py-1.5 rounded-full border border-[var(--border-subtle)]">
+            <span className="text-xs font-bold text-[var(--text-white)] bg-[var(--bg-card)]/80 px-3 py-1.5 rounded-full border border-[var(--border-subtle)]">
               {toPersianDigits(fullscreenIndex + 1)} از {toPersianDigits(slidesCount)}
             </span>
             <button

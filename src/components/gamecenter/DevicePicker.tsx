@@ -37,11 +37,11 @@ const Stepper: React.FC<{
       onClick={() => onChange(value - 1)}
       disabled={value <= min}
       aria-label="کم کردن"
-      className="w-10 h-10 rounded-lg bg-[var(--bg-card)] text-[var(--text-white)] text-lg font-black flex items-center justify-center disabled:opacity-30 active:scale-95 transition"
+      className="w-10 h-10 rounded-lg bg-[var(--bg-card)] text-[var(--text-white)] text-lg font-bold flex items-center justify-center disabled:opacity-30 active:scale-95 transition"
     >
       −
     </button>
-    <span className="text-sm font-black text-[var(--primary)]" aria-live="polite">
+    <span className="text-sm font-bold text-[var(--primary)]" aria-live="polite">
       {toPersianDigits(value)}
     </span>
     <button
@@ -49,7 +49,7 @@ const Stepper: React.FC<{
       onClick={() => onChange(value + 1)}
       disabled={value >= max}
       aria-label="اضافه کردن"
-      className="w-10 h-10 rounded-lg bg-[var(--bg-card)] text-[var(--text-white)] text-lg font-black flex items-center justify-center disabled:opacity-30 active:scale-95 transition"
+      className="w-10 h-10 rounded-lg bg-[var(--bg-card)] text-[var(--text-white)] text-lg font-bold flex items-center justify-center disabled:opacity-30 active:scale-95 transition"
     >
       +
     </button>
@@ -135,7 +135,7 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
                         className="w-full h-full object-cover drop-shadow-xl"
                       />
                       {selected && (
-                        <span className="absolute top-2 left-2 min-w-6 h-6 px-1.5 rounded-full bg-[var(--primary)] text-on-primary text-xs font-black flex items-center justify-center pt-0.5">
+                        <span className="absolute top-2 left-2 min-w-6 h-6 px-1.5 rounded-full bg-[var(--primary)] text-on-primary text-xs font-bold flex items-center justify-center pt-0.5">
                           {toPersianDigits(qty)}
                         </span>
                       )}
@@ -143,13 +143,13 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
 
                     {/* اطلاعات */}
                     <div className="flex flex-col gap-1 min-w-0">
-                      <h3 className="text-sm font-extrabold text-[var(--text-white)] truncate">{g.label}</h3>
+                      <h3 className="text-sm font-bold text-[var(--text-white)] truncate">{g.label}</h3>
                       <div className="flex items-baseline gap-1 flex-wrap">
-                        {!samePrice && <span className="text-[10px] text-[var(--text-muted)]">از</span>}
-                        <span className="text-sm font-black text-[var(--primary)]">{formatPrice(g.minPrice)}</span>
-                        <span className="text-[10px] text-[var(--text-muted)]">تومان / ساعت</span>
+                        {!samePrice && <span className="text-xs text-[var(--text-muted)]">از</span>}
+                        <span className="text-sm font-bold text-[var(--primary)]">{formatPrice(g.minPrice)}</span>
+                        <span className="text-xs text-[var(--text-muted)]">تومان / ساعت</span>
                       </div>
-                      <span className="text-[11px] text-[var(--text-subtle)]">
+                      <span className="text-xs text-[var(--text-subtle)]">
                         {toPersianDigits(g.capacity)} دستگاه موجود
                       </span>
                     </div>
@@ -157,7 +157,7 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
                     {/* دستهٔ اضافه (فقط کنسول‌ها) */}
                     {selected && g.isConsole && (
                       <div className="rounded-card bg-[var(--bg-body)]/50 border border-[var(--border-subtle)] p-2.5 flex flex-col gap-1.5">
-                        <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
+                        <p className="text-xs text-[var(--text-muted)] leading-relaxed">
                           هر دستگاه با{" "}
                           <strong className="text-[var(--text-white)]">
                             {toPersianDigits(g.defaultControllers)} دسته
@@ -167,13 +167,13 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
                           <button
                             type="button"
                             onClick={() => setActiveConsoleModal(g)}
-                            className="h-8 rounded-lg bg-[var(--foreground)] hover:bg-[var(--primary)] hover:text-on-primary text-[11px] font-bold text-[var(--text-white)] transition-colors"
+                            className="h-8 rounded-lg bg-[var(--foreground)] hover:bg-[var(--primary)] hover:text-on-primary text-xs font-bold text-[var(--text-white)] transition-colors"
                           >
                             {extra > 0 ? `${toPersianDigits(extra)} دسته اضافه • تغییر` : "+ دسته اضافه"}
                           </button>
                         )}
                         {canExtra && extra > 0 && g.extraControllerPrice ? (
-                          <span className="text-[10px] text-center font-black text-[var(--primary)]">
+                          <span className="text-xs text-center font-bold text-[var(--primary)]">
                             +{formatPrice(qty * extra * g.extraControllerPrice)} تومان / ساعت
                           </span>
                         ) : null}
@@ -186,7 +186,7 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
                         <button
                           type="button"
                           onClick={() => handleAddClick(g)}
-                          className="h-11 w-full rounded-card bg-[var(--foreground)] hover:bg-[var(--primary)] hover:text-on-primary text-[var(--text-white)] text-sm font-black transition-colors active:scale-[0.98]"
+                          className="h-11 w-full rounded-card bg-[var(--foreground)] hover:bg-[var(--primary)] hover:text-on-primary text-[var(--text-white)] text-sm font-bold transition-colors active:scale-[0.98]"
                         >
                           + افزودن
                         </button>

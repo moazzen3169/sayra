@@ -162,9 +162,9 @@ export default function OwnerDashboardPage() {
         {/* Top bar */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-baseline gap-2 min-w-0">
-            <h1 className="text-base font-extrabold truncate">{ownerName}</h1>
+            <h1 className="text-base font-bold truncate">{ownerName}</h1>
             {isApproved && (
-              <Link href="/owner/edit" className="text-[11px] text-[var(--primary)] hover:underline">
+              <Link href="/owner/edit" className="text-xs text-[var(--primary)] hover:underline">
                 ویرایش
               </Link>
             )}
@@ -180,7 +180,7 @@ export default function OwnerDashboardPage() {
             {verificationStatus === "NOT_SUBMITTED" && (
               <>
                 <div className="flex flex-col gap-1">
-                  <h2 className="text-base font-black text-[var(--text-white)]">احراز هویت صاحب گیمنت</h2>
+                  <h2 className="text-base font-bold text-[var(--text-white)]">احراز هویت صاحب گیمنت</h2>
                   <p className="text-xs text-[var(--text-muted)]">
                     برای دسترسی به سایر بخش‌ها و فعال‌سازی پنل مدیریت، اطلاعات و مدرک شغلی خود را ثبت کنید.
                   </p>
@@ -194,7 +194,7 @@ export default function OwnerDashboardPage() {
 
                 <form onSubmit={handleVerificationSubmit} className="flex flex-col gap-3">
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-extrabold text-[var(--text-muted)]">نام و نام خانوادگی صاحب گیمنت</label>
+                    <label className="text-xs font-bold text-[var(--text-muted)]">نام و نام خانوادگی صاحب گیمنت</label>
                     <input
                       value={vOwnerName}
                       onChange={(e) => setVOwnerName(e.target.value)}
@@ -204,7 +204,7 @@ export default function OwnerDashboardPage() {
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-extrabold text-[var(--text-muted)]">کد ملی</label>
+                    <label className="text-xs font-bold text-[var(--text-muted)]">کد ملی</label>
                     <input
                       value={vNationalId}
                       onChange={(e) => setVNationalId(e.target.value)}
@@ -214,7 +214,7 @@ export default function OwnerDashboardPage() {
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-extrabold text-[var(--text-muted)]">نام گیمنت</label>
+                    <label className="text-xs font-bold text-[var(--text-muted)]">نام گیمنت</label>
                     <input
                       value={vCenterName}
                       onChange={(e) => setVCenterName(e.target.value)}
@@ -224,7 +224,7 @@ export default function OwnerDashboardPage() {
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-extrabold text-[var(--text-muted)]">آدرس گیمنت</label>
+                    <label className="text-xs font-bold text-[var(--text-muted)]">آدرس گیمنت</label>
                     <textarea
                       value={vCenterAddress}
                       onChange={(e) => setVCenterAddress(e.target.value)}
@@ -235,7 +235,7 @@ export default function OwnerDashboardPage() {
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-extrabold text-[var(--text-muted)]">عکس پروانه کسب</label>
+                    <label className="text-xs font-bold text-[var(--text-muted)]">عکس پروانه کسب</label>
                     <div
                       onClick={() => licenseInputRef.current?.click()}
                       className="h-20 rounded-card border-2 border-dashed border-[var(--border-subtle)] bg-[var(--foreground)]/20 hover:bg-[var(--foreground)]/30 transition-colors flex flex-col items-center justify-center gap-1 cursor-pointer"
@@ -243,7 +243,7 @@ export default function OwnerDashboardPage() {
                       <svg className="w-6 h-6 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                       </svg>
-                      <span className="text-xs font-extrabold text-[var(--primary)]">
+                      <span className="text-xs font-bold text-[var(--primary)]">
                         {licenseFile ? licenseFile.name : "انتخاب یا آپلود عکس پروانه کسب"}
                       </span>
                     </div>
@@ -258,7 +258,7 @@ export default function OwnerDashboardPage() {
 
                   <button
                     type="submit"
-                    className="mt-2 h-12 rounded-card bg-[var(--primary)] text-on-primary text-sm font-black hover:opacity-90 transition-opacity"
+                    className="mt-2 h-12 rounded-card bg-[var(--primary)] text-on-primary text-sm font-bold hover:opacity-90 transition-opacity"
                   >
                     ارسال جهت بررسی و احراز هویت
                   </button>
@@ -273,7 +273,7 @@ export default function OwnerDashboardPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h45m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h2 className="text-base font-black text-[var(--text-white)]">اطلاعات شما در صف انتظار بررسی است</h2>
+                <h2 className="text-base font-bold text-[var(--text-white)]">اطلاعات شما در صف انتظار بررسی است</h2>
                 <p className="text-xs text-[var(--text-muted)] max-w-md leading-relaxed">
                   مدارک و اطلاعات احراز هویت شما ارسال شده و توسط پشتیبانی در حال بررسی است. پس از تأیید، دسترسی شما به تمام بخش‌های پنل فعال خواهد شد.
                 </p>
@@ -285,14 +285,14 @@ export default function OwnerDashboardPage() {
                 <div className="w-14 h-14 rounded-full bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 flex items-center justify-center text-[var(--accent-red)] text-2xl">
                   ⚠️
                 </div>
-                <h2 className="text-base font-black text-[var(--text-white)]">احراز هویت شما تایید نشد</h2>
+                <h2 className="text-base font-bold text-[var(--text-white)]">احراز هویت شما تایید نشد</h2>
                 <p className="text-xs text-[var(--text-muted)] max-w-md leading-relaxed">
                   اطلاعات یا پروانه کسب ارسال شده مورد تایید قرار نگرفت. لطفاً مجدداً اطلاعات صحیح را وارد کرده و تصویر خوانا ارسال کنید.
                 </p>
                 <button
                   type="button"
                   onClick={() => setVerificationStatus("NOT_SUBMITTED")}
-                  className="mt-2 h-10 px-5 rounded-card bg-[var(--primary)] text-on-primary text-xs font-black"
+                  className="mt-2 h-10 px-5 rounded-card bg-[var(--primary)] text-on-primary text-xs font-bold"
                 >
                   ویرایش و تلاش مجدد
                 </button>
@@ -342,14 +342,14 @@ export default function OwnerDashboardPage() {
           </div>
 
           <div className="relative flex flex-col gap-1">
-            <span className="text-[11px] opacity-80">درآمد قابل برداشت</span>
+            <span className="text-xs opacity-80">درآمد قابل برداشت</span>
             <div className="flex items-baseline gap-1.5">
               <span className="text-3xl font-black">
                 {withdrawable === null ? "—" : formatPrice(withdrawable)}
               </span>
               <span className="text-lg font-black">تومان</span>
             </div>
-            <span className="text-[11px] opacity-80 mt-1">
+            <span className="text-xs opacity-80 mt-1">
               {ownerName} / {center?.name ?? "گیمنت"}
             </span>
           </div>
@@ -362,12 +362,12 @@ export default function OwnerDashboardPage() {
               <span className="relative w-full aspect-square rounded-card bg-[var(--foreground)]/70 flex items-center justify-center text-[var(--primary)]">
                 <Icon d={t.icon} />
                 {t.badge === "pending" && pendingCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-6 h-6 px-1 rounded-full bg-[var(--primary)] text-on-primary text-xs font-black flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 min-w-6 h-6 px-1 rounded-full bg-[var(--primary)] text-on-primary text-xs font-bold flex items-center justify-center">
                     {toPersianDigits(pendingCount)}
                   </span>
                 )}
               </span>
-              <span className="text-[11px] text-[var(--text-white)] text-center leading-tight">{t.label}</span>
+              <span className="text-xs text-[var(--text-white)] text-center leading-tight">{t.label}</span>
             </Link>
           ))}
         </div>

@@ -58,7 +58,7 @@ export default function OwnerWithdrawPage() {
           ثبت درخواست برداشت (به‌زودی)
         </button>
 
-        <h2 className="text-sm font-extrabold mt-2">کمیسیون‌های رزرو</h2>
+        <h2 className="text-sm font-bold mt-2">کمیسیون‌های رزرو</h2>
         {earnings === null && <div className="h-20 rounded-card bg-[var(--bg-card)] animate-pulse" />}
         {earnings && earnings.length === 0 && (
           <p className="py-6 text-center text-xs text-[var(--text-muted)]">موردی ثبت نشده است.</p>

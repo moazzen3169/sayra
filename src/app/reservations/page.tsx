@@ -92,7 +92,7 @@ export default function ReservationsHistoryPage() {
               </svg>
             </div>
             <div className="flex flex-col gap-2 max-w-sm">
-              <h2 className="text-base font-black text-[var(--text-white)]">
+              <h2 className="text-base font-bold text-[var(--text-white)]">
                 مشاهده تاریخچه رزروها نیازمند ورود است
               </h2>
               <p className="text-xs text-[var(--text-muted)] leading-relaxed">
@@ -102,7 +102,7 @@ export default function ReservationsHistoryPage() {
             <button
               type="button"
               onClick={() => setIsAuthModalOpen(true)}
-              className="h-12 px-8 mt-2 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+              className="h-12 px-8 mt-2 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
             >
               <span>ورود / ثبت‌نام در حساب کاربری</span>
               <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -135,7 +135,7 @@ export default function ReservationsHistoryPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v5h5M12 7v5l3 2" />
               </svg>
             </div>
-            <p className="text-sm font-extrabold text-[var(--text-white)]">هنوز رزروی ثبت نکرده‌اید</p>
+            <p className="text-sm font-bold text-[var(--text-white)]">هنوز رزروی ثبت نکرده‌اید</p>
             <p className="text-xs text-[var(--text-muted)]">رزروهای شما اینجا نمایش داده می‌شوند.</p>
           </div>
         )}

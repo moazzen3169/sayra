@@ -74,14 +74,14 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
 
         {/* Discount Badge (Top-Left) */}
         {discountBadgeText ? (
-          <span className="absolute top-2.5 left-2.5 px-2.5 pt-1 pb-0.5 rounded-full bg-[var(--primary)] text-on-primary font-black text-xs flex items-center shadow-md z-10">
+          <span className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-[var(--primary)] text-on-primary font-bold text-xs flex items-center shadow-md z-10">
             {discountBadgeText}
           </span>
         ) : null}
 
         {/* Optional End Date Chip (Bottom-Right) */}
         {endLabel ? (
-          <span className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-full bg-[var(--bg-body)]/80 backdrop-blur-md text-white text-[10px] font-bold border border-white/10 z-10">
+          <span className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-full bg-[var(--bg-body)]/80 backdrop-blur-md text-white text-xs font-bold border border-white/10 z-10">
             تا {endLabel}
           </span>
         ) : null}
@@ -97,7 +97,7 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
           </span>
         </div>
 
-        <h4 className="text-sm font-extrabold text-[var(--text-white)] line-clamp-1 group-hover:text-[var(--primary)] transition-colors">
+        <h4 className="text-sm font-bold text-[var(--text-white)] line-clamp-1 group-hover:text-[var(--primary)] transition-colors">
           {name}
         </h4>
 
@@ -105,18 +105,18 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
       </div>
 
       {/* Price Pill */}
-      <div className="mx-3 mt-auto h-9 rounded-full bg-[var(--foreground)]/50 px-3 flex items-center justify-between text-[11px]">
+      <div className="mx-3 mt-auto h-9 rounded-full bg-[var(--foreground)]/50 px-3 flex items-center justify-between text-xs">
         {effectiveDiscountedPrice !== undefined ? (
           <div className="flex items-center gap-1.5">
-            <span className="font-extrabold text-[var(--primary)]">
+            <span className="font-bold text-[var(--primary)]">
               {formatPrice(effectiveDiscountedPrice)} تومان
             </span>
-            <span className="text-[10px] line-through text-[var(--text-subtle)] font-medium">
+            <span className="text-xs line-through text-[var(--text-subtle)] font-medium">
               {formatPrice(hourlyPrice)}
             </span>
           </div>
         ) : (
-          <div className="font-extrabold text-[var(--text-white)]">
+          <div className="font-bold text-[var(--text-white)]">
             <span className="text-[var(--text-muted)] font-normal ml-1">از</span>
             {formatPrice(hourlyPrice)} تومان
           </div>

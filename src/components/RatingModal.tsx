@@ -52,7 +52,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({ isOpen, reservationId,
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-          <h3 className="text-base font-black text-[var(--text-white)]">افزودن نظر</h3>
+          <h3 className="text-base font-bold text-[var(--text-white)]">افزودن نظر</h3>
           <button type="button" onClick={onClose} className="w-8 h-8 text-[var(--text-muted)] text-lg">
             ✕
           </button>
@@ -92,7 +92,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({ isOpen, reservationId,
           type="button"
           onClick={handleSubmit}
           disabled={submitting}
-          className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-60 text-on-primary font-black text-sm transition-all active:scale-[0.98]"
+          className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-60 text-on-primary font-bold text-sm transition-all active:scale-[0.98]"
         >
           {submitting ? "در حال ثبت..." : "ثبت نظر"}
         </button>

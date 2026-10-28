@@ -201,7 +201,7 @@ export const Header: React.FC<HeaderProps> = ({
                   />
                 </svg>
 
-                <span className="text-[13px] font-extrabold">
+                <span className="text-xs font-bold">
                   {currentCity}
                 </span>
 
@@ -245,7 +245,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                   {unreadCount > 0 && (
                     <span
-                      className="absolute -top-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] px-1 text-[9px] font-black text-on-primary"
+                      className="absolute -top-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] px-1 text-xs font-bold text-on-primary"
                       aria-label={`${toPersianDigits(unreadCount)} اعلان خوانده‌نشده`}
                     >
                       {notificationBadge}
@@ -277,12 +277,12 @@ export const Header: React.FC<HeaderProps> = ({
                   <path strokeLinecap="round" d="m20 20-3.5-3.5" />
                 </svg>
 
-                <span className="truncate text-[12px] text-[var(--text-subtle)]">
+                <span className="truncate text-xs text-[var(--text-subtle)]">
                   جست‌وجوی گیم‌نت، سیستم یا بازی…
                 </span>
               </span>
 
-              <span className="shrink-0 rounded bg-[var(--foreground)]/50 px-2 py-0.5 text-[10px] font-bold text-[var(--text-muted)]">
+              <span className="shrink-0 rounded bg-[var(--foreground)]/50 px-2 py-0.5 text-xs font-bold text-[var(--text-muted)]">
                 جستجو
               </span>
             </button>
@@ -382,7 +382,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </span>
 
-              <span className="hidden shrink-0 rounded border border-[var(--border-subtle)] bg-[var(--foreground)]/40 px-2 py-1 text-[10px] font-semibold text-[var(--text-muted)] xl:inline-flex">
+              <span className="hidden shrink-0 rounded border border-[var(--border-subtle)] bg-[var(--foreground)]/40 px-2 py-1 text-xs font-medium text-[var(--text-muted)] xl:inline-flex">
                 /
               </span>
             </button>

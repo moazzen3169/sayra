@@ -59,7 +59,7 @@ export const PaymentSuccessModal: React.FC<PaymentSuccessModalProps> = ({
 
         {/* Title & Message */}
         <div className="flex flex-col gap-1.5">
-          <h3 className="text-xl font-black text-[var(--text-white)]">
+          <h3 className="text-xl font-bold text-[var(--text-white)]">
             پرداخت با موفقیت انجام شد
           </h3>
           <p className="text-xs text-[var(--text-muted)]">
@@ -117,7 +117,7 @@ export const PaymentSuccessModal: React.FC<PaymentSuccessModalProps> = ({
               <span className="text-[var(--text-muted)] font-bold">مبلغ پرداخت شده:</span>
               <div className="flex items-center gap-1 font-black text-sm text-[var(--primary)]">
                 <span>{formatPrice(details.grandTotal)}</span>
-                <span className="text-[11px] font-normal text-[var(--text-white)]">تومان</span>
+                <span className="text-xs font-normal text-[var(--text-white)]">تومان</span>
               </div>
             </div>
           )}
@@ -127,7 +127,7 @@ export const PaymentSuccessModal: React.FC<PaymentSuccessModalProps> = ({
         <button
           type="button"
           onClick={handleViewDetails}
-          className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+          className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
         >
           <span>مشاهده جزئیات رزرو</span>
         </button>

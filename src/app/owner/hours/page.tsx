@@ -82,11 +82,11 @@ export default function OwnerHoursPage() {
             <label className="text-xs font-bold">منطقه زمانی</label>
             <input className={input} dir="ltr" placeholder="Asia/Tehran" value={tz} onChange={(e) => setTz(e.target.value)} />
 
-            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
               ثبت روزهای تعطیل به‌زودی در این بخش فعال خواهد شد.
             </p>
 
-            <button type="submit" disabled={saving} className="h-12 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm disabled:opacity-60">
+            <button type="submit" disabled={saving} className="h-12 rounded-card bg-[var(--primary)] text-on-primary font-bold text-sm disabled:opacity-60">
               {saving ? "در حال ذخیره..." : "ذخیره"}
             </button>
           </form>

@@ -110,7 +110,7 @@ export const DiscountedCentersSection: React.FC<DiscountedCentersSectionProps> =
               </svg>
               <h2
                 id="discounted-centers-heading"
-                className="font-black text-base text-[var(--text-black)]"
+                className="font-bold text-base text-[var(--text-black)]"
               >
                 گیمنت‌های تخفیف‌دار
               </h2>

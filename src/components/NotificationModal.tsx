@@ -102,9 +102,9 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
             </svg>
           </button>
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-black text-[var(--text-white)]">اعلانات سایرا</h2>
+            <h2 className="text-base font-bold text-[var(--text-white)]">اعلانات سایرا</h2>
             {unreadCount > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-[var(--primary)] text-on-primary text-xs font-black">
+              <span className="px-2 py-0.5 rounded-full bg-[var(--primary)] text-on-primary text-xs font-bold">
                 {unreadCount} جدید
               </span>
             )}
@@ -115,7 +115,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
           <button
             type="button"
             onClick={handleMarkAll}
-            className="text-xs font-extrabold text-[var(--primary)] hover:underline"
+            className="text-xs font-bold text-[var(--primary)] hover:underline"
           >
             علامت به عنوان خوانده شده
           </button>
@@ -158,7 +158,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.4-1.4a2 2 0 01-.6-1.4V11a6 6 0 00-4-5.66V5a2 2 0 10-4 0v.34C7.67 6.17 6 8.39 6 11v3.2c0 .54-.21 1.05-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
             </div>
-            <p className="text-sm font-extrabold text-[var(--text-white)]">هیچ اعلانی یافت نشد</p>
+            <p className="text-sm font-bold text-[var(--text-white)]">هیچ اعلانی یافت نشد</p>
             <p className="text-xs text-[var(--text-muted)]">پیام‌ها و اطلاعیه‌های سایرا در این بخش نمایش داده می‌شوند.</p>
           </div>
         ) : (
@@ -184,9 +184,9 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
                     {item.type === "system" && (
                       <span className="w-2 h-2 rounded-full bg-[var(--text-muted)]" />
                     )}
-                    <h3 className="text-sm font-black text-[var(--text-white)]">{item.title}</h3>
+                    <h3 className="text-sm font-bold text-[var(--text-white)]">{item.title}</h3>
                   </div>
-                  <span className="text-[11px] text-[var(--text-subtle)]">{item.timestamp}</span>
+                  <span className="text-xs text-[var(--text-subtle)]">{item.timestamp}</span>
                 </div>
 
                 <p className="text-xs text-[var(--text-muted)] leading-relaxed pl-4">{item.message}</p>

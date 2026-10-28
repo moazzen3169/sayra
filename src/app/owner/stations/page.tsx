@@ -104,7 +104,7 @@ export default function OwnerStationsPage() {
           type="button"
           disabled={!isApproved}
           onClick={() => setOpen(true)}
-          className="h-12 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+          className="h-12 rounded-card bg-[var(--primary)] text-on-primary font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
         >
           + افزودن دستگاه
         </button>
@@ -123,11 +123,11 @@ export default function OwnerStationsPage() {
               </div>
               <div className="flex-1 min-w-0 flex flex-col gap-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-extrabold truncate">{s.name}</span>
-                  {s.isVip && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[var(--primary)] text-on-primary">VIP</span>}
-                  {s.isActive === false && <span className="text-[10px] font-bold text-[var(--accent-red)]">غیرفعال</span>}
+                  <span className="text-sm font-bold truncate">{s.name}</span>
+                  {s.isVip && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--primary)] text-on-primary">VIP</span>}
+                  {s.isActive === false && <span className="text-xs font-bold text-[var(--accent-red)]">غیرفعال</span>}
                 </div>
-                <span className="text-[11px] text-[var(--text-muted)]">
+                <span className="text-xs text-[var(--text-muted)]">
                   {s.stationType}
                   {s.minRentHours ? ` • حداقل ${toPersianDigits(s.minRentHours)} ساعت` : ""}
                   {s.maxRentHours ? ` • حداکثر ${toPersianDigits(s.maxRentHours)} ساعت` : ""}
@@ -135,7 +135,7 @@ export default function OwnerStationsPage() {
               </div>
               <div className="text-left shrink-0">
                 <div className="text-sm font-black text-[var(--primary)]">{formatPrice(s.hourlyPrice)}</div>
-                <div className="text-[10px] text-[var(--text-muted)]">تومان / ساعت</div>
+                <div className="text-xs text-[var(--text-muted)]">تومان / ساعت</div>
               </div>
             </div>
           ))}
@@ -152,7 +152,7 @@ export default function OwnerStationsPage() {
             className="w-full max-w-[460px] max-h-[92vh] overflow-y-auto bg-[var(--bg-card)] border-t sm:border border-[var(--border-subtle)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-black">افزودن دستگاه</h3>
+            <h3 className="text-base font-bold">افزودن دستگاه</h3>
             {formError && <p className="text-xs font-bold text-[var(--accent-red)]">{formError}</p>}
 
             <div className="flex flex-col gap-1.5">
@@ -193,7 +193,7 @@ export default function OwnerStationsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 h-11 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm disabled:opacity-60"
+                className="flex-1 h-11 rounded-card bg-[var(--primary)] text-on-primary font-bold text-sm disabled:opacity-60"
               >
                 {saving ? "در حال ثبت..." : "ثبت دستگاه"}
               </button>

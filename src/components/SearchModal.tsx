@@ -377,7 +377,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                   </span>
                 </p>
 
-                <span className="text-[11px] text-[var(--text-muted)]">
+                <span className="text-xs text-[var(--text-muted)]">
                   {toPersianDigits(
                     filteredCenters.length +
                       filteredDevices.length +
@@ -464,7 +464,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                             <span>{toPersianDigits(center.rating)}</span>
                           </div>
 
-                          <div className="mt-1 text-[11px] text-[var(--text-muted)]">
+                          <div className="mt-1 text-xs text-[var(--text-muted)]">
                             {formatPrice(center.hourlyPrice)} تومان
                           </div>
                         </div>
