@@ -154,7 +154,7 @@ const BookingCta: React.FC<BookingCtaProps> = ({
   }
 
   return (
-    <aside className="hidden lg:flex sticky top-20 self-start max-h-[calc(100dvh-6rem)] overflow-y-auto flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5">
+    <aside className="hidden lg:flex sticky top-20 self-start max-h-[calc(100dvh-6rem)] overflow-y-auto flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 w-full">
       
       
       
@@ -509,9 +509,9 @@ export default function GameCenterDetailPage({
         )}
 
         {detail && (
-          <div className="px-4 desk:px-6 relative flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8 lg:items-start">
+          <div className="px-4 desk:p-6 relative flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_450px] lg:gap-8 lg:items-start">
             {/* ===== Sidebar column ( گالری در بالا + جزییات گیمنت در زیر آن ) ===== */}
-            <aside className="flex flex-col gap-5 min-w-0 lg:order-2">
+            <aside className="flex flex-col gap-5 min-w-0 lg:order-2 desk:bg-[var(--bg-card)] rounded-[14px] desk:p-2">
               {/* Gallery */}
               {galleryItems.length > 0 && (
                 <div className="w-full">

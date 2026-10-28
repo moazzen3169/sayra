@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 
 interface ExtraControllerModalProps {
@@ -20,135 +21,174 @@ export const ExtraControllerModal: React.FC<ExtraControllerModalProps> = ({
   onConfirm,
   deviceName,
   defaultControllers = 2,
-  initialCount = 0,
+  initialCount = 2,
   maxExtra = 4,
   pricePerController = 30000,
 }) => {
-  const [count, setCount] = useState<number>(initialCount);
-  const [prevInitial, setPrevInitial] = useState<number>(initialCount);
+  const [count, setCount] = useState(initialCount);
 
-  if (initialCount !== prevInitial) {
-    setPrevInitial(initialCount);
-    setCount(initialCount);
+useEffect(() => {
+  if (isOpen) {
+    setCount(
+      Math.max(
+        defaultControllers,
+        Math.min(initialCount, defaultControllers + maxExtra)
+      )
+    );
   }
+}, [isOpen, initialCount, defaultControllers, maxExtra]);
 
   if (!isOpen) return null;
 
-  const handleIncrement = () => {
-    if (count < maxExtra) setCount((c) => c + 1);
-  };
-
-  const handleDecrement = () => {
-    if (count > 0) setCount((c) => c - 1);
-  };
+  const maxControllers = defaultControllers + maxExtra;
+  const extraCount = Math.max(0, count - defaultControllers);
+  const totalPrice = extraCount * pricePerController;
 
   const handleConfirm = () => {
-    onConfirm(count);
+    onConfirm(extraCount);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+    <div
+      dir="rtl"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn"
+      onClick={onClose}
+    >
       <div
-        className="w-full max-w-sm bg-[var(--bg-card)] border border-[var(--border-color)] rounded-card p-5 flex flex-col gap-5 shadow-2xl relative overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="extra-controller-title"
+        className="w-full max-w-sm bg-[var(--bg-card)] border border-[var(--border-color)] rounded-card p-5 flex flex-col gap-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-card bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+            <div className="w-9 h-9 rounded-card bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
+                />
               </svg>
             </div>
-            <h3 className="text-base font-black text-[var(--text-white)]">دسته بازی اضافه</h3>
+
+            <div>
+              <h3
+                id="extra-controller-title"
+                className="text-base font-black text-[var(--text-white)]"
+              >
+                تعداد دسته‌ها
+              </h3>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                {deviceName}
+              </p>
+            </div>
           </div>
+
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg text-[var(--text-muted)] flex items-center justify-center text-lg transition-colors"
+            aria-label="بستن"
+            className="w-8 h-8 rounded-lg text-[var(--text-muted)] flex items-center justify-center text-lg hover:bg-[var(--foreground)] transition-colors"
           >
             ✕
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex flex-col gap-3 text-right">
-          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-              هر دستگاه <span className="text-[var(--text-white)] font-bold">{deviceName}</span> به‌صورت پیش‌فرض همراه با <strong className="text-[var(--primary)] font-extrabold">{toPersianDigits(defaultControllers)} دسته</strong> ارائه می‌شود.
-          </p>
-            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-              آیا برای بازی گروهی به دسته اضافه نیاز دارید؟ (حداکثر {toPersianDigits(maxExtra)} دسته اضافه برای هر دستگاه)
-            </p>
-
-          {/* Extra controller counter card */}
-          <div className="bg-[var(--foreground)]/50 rounded-card p-3.5 border border-[var(--border-subtle)] flex items-center justify-between">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs font-bold text-[var(--text-white)]">تعداد دسته اضافه</span>
-                {pricePerController > 0 ? (
-                  <span className="text-[11px] text-[var(--primary)] font-bold">
-                    +{formatPrice(pricePerController)} تومان / دسته / ساعت
-                  </span>
-                ) : (
-                  <span className="text-[11px] text-[var(--text-muted)]">رایگان</span>
-                )}
+        {/* Controller Counter */}
+        <div className="bg-[var(--foreground)]/40 rounded-card border border-[var(--border-subtle)] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <span className="block text-sm font-bold text-[var(--text-white)]">
+                تعداد دسته
+              </span>
+              <span className="block text-xs text-[var(--text-muted)] mt-1">
+                {toPersianDigits(defaultControllers)} دسته به صورت پیشفرض
+              </span>
             </div>
 
             <div className="flex items-center gap-3 bg-[var(--bg-card)] rounded-card p-1 border border-[var(--border-color)]">
               <button
                 type="button"
-                onClick={handleDecrement}
+                onClick={() => setCount((c) => Math.max(0, c - 1))}
                 disabled={count <= 0}
-                className="w-8 h-8 rounded-lg bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-sm disabled:opacity-30 hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
+                aria-label="کاهش تعداد دسته‌ها"
+                className="w-9 h-9 rounded-lg bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-lg disabled:opacity-30 hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
               >
-                -
+                −
               </button>
-              <span className="w-6 text-center text-sm font-black text-[var(--primary)]">
+
+              <span
+                aria-live="polite"
+                className="w-6 text-center text-base font-black text-[var(--primary)]"
+              >
                 {toPersianDigits(count)}
               </span>
+
               <button
                 type="button"
-                onClick={handleIncrement}
-                  disabled={count >= maxExtra}
-                className="w-8 h-8 rounded-lg bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-sm disabled:opacity-30 hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
+                onClick={() => setCount((c) => Math.min(maxControllers, c + 1))}
+                disabled={count >= maxControllers}
+                aria-label="افزایش تعداد دسته‌ها"
+                className="w-9 h-9 rounded-lg bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-lg disabled:opacity-30 hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
               >
                 +
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Summary text */}
-            {count > 0 && pricePerController > 0 && (
-              <div className="flex items-center justify-between text-xs px-1 text-[var(--text-white)] bg-[var(--primary)]/10 p-2.5 rounded-card border border-[var(--primary)]/20">
-                <span>هزینه دسته‌های اضافه:</span>
-              <span className="font-extrabold text-[var(--primary)]">
-                +{formatPrice(count * pricePerController)} تومان/ساعت
+        {/* Price Summary */}
+        <div className="rounded-card border border-[var(--border-subtle)] p-3.5 flex items-center justify-between gap-3">
+          <div>
+            <span className="block text-xs text-[var(--text-muted)]">
+              هزینه دسته اضافه / ساعت
+            </span>
+            <span className="block text-sm font-bold text-[var(--text-white)] mt-1">
+              {extraCount === 0
+                ? "رایگان"
+                : `${toPersianDigits(extraCount)} دسته اضافه`}
+            </span>
+          </div>
+
+          <div className="text-left">
+            <span
+              className={`text-base font-black ${
+                totalPrice > 0
+                  ? "text-[var(--primary)]"
+                  : "text-[var(--text-white)]"
+              }`}
+            >
+              {totalPrice > 0
+                ? `${formatPrice(totalPrice)} تومان`
+                : "۰ تومان"}
+            </span>
+            {totalPrice > 0 && (
+              <span className="block text-[10px] text-[var(--text-muted)] mt-1">
+                هر دسته {formatPrice(pricePerController)} تومان
               </span>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 pt-1">
-          <button
-            type="button"
-            onClick={handleConfirm}
-            className="flex-1 h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-xs transition-colors"
-          >
-            تایید و ثبت
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setCount(0);
-              onConfirm(0);
-              onClose();
-            }}
-            className="h-11 px-4 rounded-card bg-[var(--foreground)]/60 text-[var(--text-muted)] hover:text-[var(--text-white)] text-xs font-bold transition-colors"
-          >
-            بدون دسته اضافه
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleConfirm}
+          className="w-full h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm transition-colors"
+        >
+          تایید و ثبت
+        </button>
       </div>
     </div>
   );
