@@ -207,7 +207,7 @@ export default function ProfilePage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
       <Header locationName="تبریز" />
 
-      <main className="flex-1 mt-[120px] lg:mt-[128px] px-4 py-4 flex flex-col gap-5">
+      <main className="flex-1 pt-[var(--header-h)] px-4 py-4 flex flex-col gap-5">
         {/* Loading State */}
         {isLoading && (
           <div className="w-full max-w-md lg:max-w-xl mx-auto p-6 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse flex flex-col gap-4">
@@ -275,7 +275,7 @@ export default function ProfilePage() {
                 <button
                   type="submit"
                   disabled={authLoading}
-                  className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
+                  className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
                 >
                   <span>{authLoading ? "در حال ارسال..." : "ارسال کد تایید"}</span>
                   {!authLoading && (
@@ -338,7 +338,7 @@ export default function ProfilePage() {
                 <button
                   type="submit"
                   disabled={authLoading}
-                  className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
+                  className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
                 >
                   <span>{authLoading ? "در حال بررسی..." : "تایید و ورود"}</span>
                   {!authLoading && (
@@ -393,7 +393,7 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={() => setIsWalletModalOpen(true)}
-                className="h-9 px-3.5 rounded-card bg-[var(--primary)]/10 hover:bg-[var(--primary)] hover:text-[#101014] text-[var(--primary)] border border-[var(--primary)]/30 text-xs font-black transition-all active:scale-95"
+                className="h-9 px-3.5 rounded-card bg-[var(--primary)]/10 hover:bg-[var(--primary)] hover:text-on-primary text-[var(--primary)] border border-[var(--primary)]/30 text-xs font-black transition-all active:scale-95"
               >
                 + افزایش
               </button>
@@ -606,7 +606,7 @@ export default function ProfilePage() {
                 </button>
                 <button
                   type="submit"
-                  className="h-11 flex-1 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-xs shadow-md"
+                  className="h-11 flex-1 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-xs shadow-md"
                 >
                   ذخیره تغییرات
                 </button>
@@ -655,7 +655,7 @@ export default function ProfilePage() {
                     onClick={() => setWalletChargeAmount(amt)}
                     className={`h-11 rounded-card border text-xs font-bold transition-all ${
                       walletChargeAmount === amt
-                        ? "bg-[var(--primary)] text-[#101014] border-[var(--primary)] shadow-md"
+                        ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] shadow-md"
                         : "bg-[var(--foreground)]/40 border-[var(--border-subtle)] text-[var(--text-white)] hover:border-[var(--primary)]/50"
                     }`}
                   >
@@ -669,7 +669,7 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={() => handleChargeWallet(walletChargeAmount)}
-                className="h-11 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-xs shadow-lg mt-1 transition-all active:scale-[0.98]"
+                className="h-11 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-xs shadow-lg mt-1 transition-all active:scale-[0.98]"
               >
                 پرداخت و شارژ {formatPrice(walletChargeAmount)} تومان
               </button>

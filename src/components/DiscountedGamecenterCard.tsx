@@ -4,6 +4,7 @@ import { DiscountedCenter } from "@/types/home";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatDiscountBadge } from "@/lib/discount";
 import { formatDayLabel } from "@/lib/reservationUi";
+import { Icon } from "@/components/ui/Icon";
 
 export interface GamecenterCardData {
   id: string;
@@ -44,12 +45,7 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
     discount,
   } = center;
 
-  const effectiveDiscountedPrice =
-    discountedHourlyPrice !== undefined
-      ? discountedHourlyPrice
-      : discountPercent && discountPercent > 0
-      ? Math.round(hourlyPrice * (1 - discountPercent / 100))
-      : undefined;
+  const effectiveDiscountedPrice = discountedHourlyPrice;
 
   const discountBadgeText = discount
     ? formatDiscountBadge(discount.valueType, discount.value)
@@ -78,7 +74,7 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
 
         {/* Discount Badge (Top-Left) */}
         {discountBadgeText ? (
-          <span className="absolute top-2.5 left-2.5 px-2.5 pt-1 pb-0.5 rounded-full bg-[var(--primary)] text-[#101014] font-black text-xs flex items-center shadow-md z-10">
+          <span className="absolute top-2.5 left-2.5 px-2.5 pt-1 pb-0.5 rounded-full bg-[var(--primary)] text-on-primary font-black text-xs flex items-center shadow-md z-10">
             {discountBadgeText}
           </span>
         ) : null}
@@ -94,7 +90,8 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
       {/* Body Info */}
       <div className="px-3 pt-2.5 flex flex-col gap-1 flex-1">
         <div className="flex items-center gap-1 text-xs text-[var(--primary)] font-bold">
-          <span>★ {toPersianDigits(rating.toFixed(1))}</span>
+          <Icon name="star" size={14} className="text-[var(--accent-star)] fill-[var(--accent-star)]" />
+          <span>{toPersianDigits(rating.toFixed(1))}</span>
           <span className="text-[var(--text-muted)] font-normal">
             ({toPersianDigits(reviewsCount)})
           </span>

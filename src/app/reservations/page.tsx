@@ -63,7 +63,7 @@ export default function ReservationsHistoryPage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
       <Header locationName="تبریز" />
 
-      <main className="flex-1 mt-[120px] lg:mt-[128px] flex flex-col">
+      <main className="flex-1 pt-[var(--header-h)] flex flex-col">
 
 
         {/* Loading State (Auth initializing or items fetching) */}
@@ -102,7 +102,7 @@ export default function ReservationsHistoryPage() {
             <button
               type="button"
               onClick={() => setIsAuthModalOpen(true)}
-              className="h-12 px-8 mt-2 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+              className="h-12 px-8 mt-2 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
             >
               <span>ورود / ثبت‌نام در حساب کاربری</span>
               <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

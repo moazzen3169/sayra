@@ -67,8 +67,11 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const saved = localStorage.getItem(OWNER_VERIFICATION_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.status) setVerificationStatusState(parsed.status);
-        if (parsed.data) setVerificationData(parsed.data);
+        const timer = setTimeout(() => {
+          if (parsed.status) setVerificationStatusState(parsed.status);
+          if (parsed.data) setVerificationData(parsed.data);
+        }, 0);
+        return () => clearTimeout(timer);
       }
     } catch {
       // ignore

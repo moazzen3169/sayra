@@ -71,7 +71,7 @@ const SectionTitle: React.FC<{
   <div className="flex items-center justify-between gap-3">
     <div className="flex items-center gap-2 min-w-0">
       {step ? (
-        <span className="w-6 h-6 shrink-0 rounded-full bg-[var(--primary)] text-[#101014] text-xs font-black flex items-center justify-center pt-0.5">
+        <span className="w-6 h-6 shrink-0 rounded-full bg-[var(--primary)] text-on-primary text-xs font-black flex items-center justify-center pt-0.5">
           {toPersianDigits(step)}
         </span>
       ) : (
@@ -134,7 +134,7 @@ const BookingCta: React.FC<BookingCtaProps> = ({
       onClick={has ? onBook : onPick}
       className={`h-12 rounded-card font-black text-sm transition-all active:scale-[0.98] ${
         has
-          ? "bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014]"
+          ? "bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary"
           : "bg-[var(--foreground)] text-[var(--text-white)]"
       } ${variant === "bar" ? "px-5 shrink-0" : "w-full"}`}
     >
@@ -493,7 +493,7 @@ export default function GameCenterDetailPage({
               <button
                 type="button"
                 onClick={() => setReloadToken((v) => v + 1)}
-                className="h-10 px-5 rounded-card bg-[var(--primary)] text-[#101014] text-xs font-black"
+                className="h-10 px-5 rounded-card bg-[var(--primary)] text-on-primary text-xs font-black"
               >
                 تلاش دوباره
               </button>

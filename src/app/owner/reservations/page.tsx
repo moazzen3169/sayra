@@ -145,7 +145,7 @@ function Content() {
               onClick={() => setFilter(f.id)}
               className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors ${
                 filter === f.id
-                  ? "bg-[var(--primary)] text-[#101014] border-[var(--primary)]"
+                  ? "bg-[var(--primary)] text-on-primary border-[var(--primary)]"
                   : "bg-[var(--bg-card)] border-[var(--border-subtle)]"
               }`}
             >
@@ -205,7 +205,7 @@ function Content() {
 
                   <div className="flex flex-wrap gap-2 pt-1">
                     {r.status === "CONFIRMED" && (
-                      <button type="button" disabled={busy} onClick={() => runSession(r, "start")} className={`${btn} bg-[var(--primary)] text-[#101014]`}>
+                      <button type="button" disabled={busy} onClick={() => runSession(r, "start")} className={`${btn} bg-[var(--primary)] text-on-primary`}>
                         شروع سانس
                       </button>
                     )}
@@ -252,7 +252,7 @@ function Content() {
             <input type="datetime-local" required value={pEnd} onChange={(e) => setPEnd(e.target.value)} dir="ltr" className="h-11 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-sm outline-none" />
             <textarea value={pNote} onChange={(e) => setPNote(e.target.value)} rows={2} placeholder="توضیح (اختیاری)" className="rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] p-3 text-sm outline-none resize-none" />
             <div className="flex gap-2 pt-1">
-              <button type="submit" disabled={proposing} className="flex-1 h-11 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm disabled:opacity-60">
+              <button type="submit" disabled={proposing} className="flex-1 h-11 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm disabled:opacity-60">
                 {proposing ? "در حال ارسال..." : "ارسال پیشنهاد"}
               </button>
               <button type="button" onClick={() => setProposeFor(null)} className="h-11 px-5 rounded-card bg-[var(--foreground)] text-xs font-bold">

@@ -10,9 +10,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = "sm" })
   const ui = getStatusUi(status);
   return (
     <span
-      className={`inline-flex items-center shrink-0 rounded-child px-2.5 pt-1 pb-0.5 font-bold ${
-        size === "md" ? "text-xs" : "text-[10px]"
-      } ${ui.className}`}
+      className={`inline-flex items-center shrink-0 rounded-full px-2.5 py-1 text-xs font-bold leading-none ${ui.className}`}
     >
       {ui.label}
     </span>

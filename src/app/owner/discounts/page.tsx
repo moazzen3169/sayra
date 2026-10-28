@@ -76,7 +76,7 @@ const INITIAL_DISCOUNTS: DiscountItem[] = [
 
 const PRESETS = [
   {
-    label: "⚡ تخفیف ۲۰٪ همه دستگاه‌ها",
+    label: "تخفیف ۲۰٪ همه دستگاه‌ها",
     title: "تخفیف عمومی ۲۰٪",
     discountType: "PERCENTAGE" as const,
     value: "20",
@@ -86,7 +86,7 @@ const PRESETS = [
     maxUsage: "50",
   },
   {
-    label: "🎮 ویژه سیستم‌های پلی‌استیشن",
+    label: "ویژه سیستم‌های پلی‌استیشن",
     title: "تخفیف ویژه PS5",
     discountType: "PERCENTAGE" as const,
     value: "25",
@@ -96,7 +96,7 @@ const PRESETS = [
     maxUsage: "30",
   },
   {
-    label: "💰 کاهش ۵۰ هزار تومانی قیمت",
+    label: "کاهش ۵۰ هزار تومانی قیمت",
     title: "تخفیف ۵۰ هزار تومانی رزرو",
     discountType: "FIXED_AMOUNT" as const,
     value: "50000",
@@ -252,7 +252,7 @@ export default function OwnerDiscountsPage() {
         <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 sm:p-5 flex flex-col gap-2 relative overflow-hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-[var(--primary)] animate-pulse" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[var(--primary)]" />
               <h2 className="text-sm font-black text-[var(--primary)]">
                 تخفیف‌های ویژه گیمنت {center?.name ?? ""}
               </h2>
@@ -289,7 +289,7 @@ export default function OwnerDiscountsPage() {
             resetForm();
             setOpenModal(true);
           }}
-          className="h-12 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm hover:opacity-90 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+          className="h-12 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm hover:opacity-90 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
         >
           <span className="text-base font-black">+</span>
           <span>ایجاد تخفیف جدید (دستگاه خاص / همه دستگاه‌ها)</span>
@@ -344,7 +344,6 @@ export default function OwnerDiscountsPage() {
         {/* Discounts List */}
         {filteredDiscounts.length === 0 ? (
           <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] py-12 px-4 text-center flex flex-col items-center gap-2">
-            <span className="text-2xl">🏷️</span>
             <p className="text-xs text-[var(--text-muted)] font-medium">هیچ تخفیفی در این بخش یافت نشد.</p>
           </div>
         ) : (
@@ -374,7 +373,7 @@ export default function OwnerDiscountsPage() {
                         </span>
 
                         <span className="text-[11px] font-bold bg-[var(--foreground)] text-[var(--text-white)] px-2.5 py-0.5 rounded-full border border-white/10">
-                          🎯 {item.targetDeviceName}
+                          {item.targetDeviceName}
                         </span>
                       </div>
 
@@ -392,7 +391,7 @@ export default function OwnerDiscountsPage() {
                           : "bg-[var(--foreground)] text-[var(--text-muted)] border border-white/10"
                       }`}
                     >
-                      {item.isActive ? "● فعال" : "○ غیرفعال"}
+                      {item.isActive ? "فعال" : "غیرفعال"}
                     </button>
                   </div>
 
@@ -416,7 +415,7 @@ export default function OwnerDiscountsPage() {
                         </strong>
                         {item.maxUsage ? ` از ${toPersianDigits(item.maxUsage)} بار` : " (نامحدود)"}
                       </span>
-                      <span className="text-[var(--text-subtle)]">⏳ {item.expiresAt}</span>
+                      <span className="text-[var(--text-subtle)]">{item.expiresAt}</span>
                     </div>
 
                     {item.maxUsage && (
@@ -478,7 +477,7 @@ export default function OwnerDiscountsPage() {
 
             {/* Quick Presets Section */}
             <div className="flex flex-col gap-2">
-              <span className="text-xs font-bold text-[var(--primary)]">⚡ ساخت سریع با الگوی آماده:</span>
+              <span className="text-xs font-bold text-[var(--primary)]">ساخت سریع با الگوی آماده:</span>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {PRESETS.map((p, idx) => (
                   <button
@@ -503,7 +502,7 @@ export default function OwnerDiscountsPage() {
                 {/* 1. Target Scope / Device Selection */}
                 <div className="flex flex-col gap-2 bg-[var(--foreground)]/20 p-3.5 rounded-card border border-[var(--border-subtle)]">
                   <label className="text-xs font-extrabold text-[var(--text-white)] flex items-center gap-1.5">
-                    <span>🎯 دستگاه‌های تحت تخفیف (یک دستگاه یا همه)</span>
+                    <span>دستگاه‌های تحت تخفیف (یک دستگاه یا همه)</span>
                   </label>
 
                   <div className="grid grid-cols-3 gap-2">
@@ -515,7 +514,7 @@ export default function OwnerDiscountsPage() {
                       }}
                       className={`h-9 px-2 rounded-card text-xs font-bold border transition-all cursor-pointer ${
                         targetScope === "ALL"
-                          ? "bg-[var(--primary)] text-[#101014] border-[var(--primary)] font-black"
+                          ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-black"
                           : "bg-[var(--foreground)]/50 text-[var(--text-muted)] border-transparent hover:text-white"
                       }`}
                     >
@@ -530,7 +529,7 @@ export default function OwnerDiscountsPage() {
                       }}
                       className={`h-9 px-2 rounded-card text-xs font-bold border transition-all cursor-pointer ${
                         targetScope === "STATION_TYPE"
-                          ? "bg-[var(--primary)] text-[#101014] border-[var(--primary)] font-black"
+                          ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-black"
                           : "bg-[var(--foreground)]/50 text-[var(--text-muted)] border-transparent hover:text-white"
                       }`}
                     >
@@ -546,7 +545,7 @@ export default function OwnerDiscountsPage() {
                       }}
                       className={`h-9 px-2 rounded-card text-xs font-bold border transition-all cursor-pointer ${
                         targetScope === "SPECIFIC_STATION"
-                          ? "bg-[var(--primary)] text-[#101014] border-[var(--primary)] font-black"
+                          ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-black"
                           : "bg-[var(--foreground)]/50 text-[var(--text-muted)] border-transparent hover:text-white"
                       }`}
                     >
@@ -593,7 +592,7 @@ export default function OwnerDiscountsPage() {
                   )}
 
                   <p className="text-[11px] text-[var(--text-muted)]">
-                    💡 با انتخاب یک دستگاه، تخفیف تنها روی گزینه‌های همان دستگاه اعمال می‌شود.
+                    با انتخاب یک دستگاه، تخفیف تنها روی گزینه‌های همان دستگاه اعمال می‌شود.
                   </p>
                 </div>
 
@@ -632,7 +631,7 @@ export default function OwnerDiscountsPage() {
                 {/* 3. Duration Selection (x مدت) */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-[var(--text-white)] flex items-center justify-between">
-                    <span>⌛ مدت زمان اعتبار تخفیف</span>
+                    <span>مدت زمان اعتبار تخفیف</span>
                     <span className="text-[11px] text-[var(--primary)]">
                       {toPersianDigits(durationDays)} روز اعتبار
                     </span>
@@ -658,7 +657,7 @@ export default function OwnerDiscountsPage() {
                 <div className="flex flex-col gap-2 bg-[var(--foreground)]/20 p-3.5 rounded-card border border-[var(--border-subtle)]">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-[var(--text-white)]">
-                      🔢 محدودیت تعداد استفاده
+                      محدودیت تعداد استفاده
                     </label>
                     <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] cursor-pointer">
                       <input
@@ -682,7 +681,7 @@ export default function OwnerDiscountsPage() {
                     />
                   ) : (
                     <div className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)] flex items-center text-xs text-[var(--primary)] font-bold">
-                      ♾️ استفاده نامحدود تا انقضای زمان
+                      استفاده نامحدود تا انقضای زمان
                     </div>
                   )}
                   <p className="text-[11px] text-[var(--text-muted)]">
@@ -719,7 +718,7 @@ export default function OwnerDiscountsPage() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="flex-1 h-12 rounded-card bg-[var(--primary)] text-[#101014] font-black text-sm disabled:opacity-60 transition-all shadow-md cursor-pointer"
+                    className="flex-1 h-12 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm disabled:opacity-60 transition-all shadow-md cursor-pointer"
                   >
                     {submitting ? "در حال ثبت تخفیف..." : "ثبت و فعال‌سازی تخفیف"}
                   </button>
@@ -736,8 +735,8 @@ export default function OwnerDiscountsPage() {
               {/* Right Column: Live Interactive Preview Card */}
               <div className="lg:col-span-5 flex flex-col gap-3 sticky top-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-[var(--primary)] flex items-center gap-1">
-                    <span>👁️</span> پیش‌نمایش کارت گیمنت برای کاربران
+                  <span className="text-xs font-black text-[var(--primary)]">
+                    پیش‌نمایش کارت گیمنت برای کاربران
                   </span>
                   <span className="text-[10px] text-[var(--text-muted)]">نمایش زنده</span>
                 </div>
@@ -758,8 +757,7 @@ export default function OwnerDiscountsPage() {
                     />
 
                     {/* Discount Badge (Top-Left) */}
-                    <div className="absolute top-2.5 left-2.5 px-3 py-1 rounded-full bg-[var(--primary)] text-[#101014] font-black text-xs shadow-lg flex items-center gap-1 z-10">
-                      <span>🏷️</span>
+                    <div className="absolute top-2.5 left-2.5 px-3 py-1 rounded-full bg-[var(--primary)] text-on-primary font-black text-xs shadow-lg flex items-center gap-1 z-10">
                       <span>
                         {discountType === "PERCENTAGE"
                           ? `${toPersianDigits(value || "0")}٪ تخفیف`
@@ -769,19 +767,19 @@ export default function OwnerDiscountsPage() {
 
                     {/* Scope Badge (Top-Right) */}
                     <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-white text-[10px] font-extrabold border border-white/15 z-10">
-                      🎯 {targetDeviceName}
+                      {targetDeviceName}
                     </div>
 
                     {/* Duration Badge (Bottom-Right) */}
                     <div className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md text-white text-[10px] font-bold border border-white/10 z-10">
-                      ⏳ تا {toPersianDigits(durationDays)} روز دیگر
+                      تا {toPersianDigits(durationDays)} روز دیگر
                     </div>
                   </div>
 
                   {/* Body Details */}
                   <div className="p-3.5 flex flex-col gap-1.5">
                     <div className="flex items-center gap-1 text-xs text-[var(--accent-star)] font-extrabold">
-                      <span>★ ۴.۸</span>
+                      <span>۴.۸</span>
                       <span className="text-[var(--text-muted)] font-normal">(۴۲ نظر)</span>
                     </div>
 
@@ -809,14 +807,14 @@ export default function OwnerDiscountsPage() {
                     {/* Usage Banner Indicator */}
                     {hasUsageLimit && maxUsage && (
                       <div className="mt-1 text-[10px] font-bold text-center text-[var(--primary)] bg-[var(--primary)]/10 py-1 rounded-card border border-[var(--primary)]/20">
-                        🎁 سقف استفاده: {toPersianDigits(maxUsage)} نفر اول
+                        سقف استفاده: {toPersianDigits(maxUsage)} نفر اول
                       </div>
                     )}
                   </div>
                 </div>
 
                 <div className="p-3 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] text-[11px] text-[var(--text-muted)] leading-relaxed">
-                  📌 <strong className="text-[var(--text-white)]">راهنمای صاحب گیمنت:</strong> این کارت همان شکل نمایشی است که بازیکنان هنگام مشاهده لیست گیمنت‌ها در اپلیکیشن دیده‌اند.
+                  <strong className="text-[var(--text-white)]">راهنمای صاحب گیمنت:</strong> این کارت همان شکل نمایشی است که بازیکنان هنگام مشاهده لیست گیمنت‌ها در اپلیکیشن دیده‌اند.
                 </div>
               </div>
             </form>

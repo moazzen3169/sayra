@@ -127,7 +127,7 @@ export const PaymentSuccessModal: React.FC<PaymentSuccessModalProps> = ({
         <button
           type="button"
           onClick={handleViewDetails}
-          className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[#101014] font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+          className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
         >
           <span>مشاهده جزئیات رزرو</span>
         </button>

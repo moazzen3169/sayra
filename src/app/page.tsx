@@ -112,7 +112,7 @@ export default function HomePage() {
         onCityChange={(city) => setSelectedCity(city)}
       />
 
-      <main className="flex-1 p-4 flex flex-col gap-6 lg:gap-8 mt-[120px] lg:mt-[90px]">
+      <main className="flex-1 p-4 flex flex-col gap-6 lg:gap-8 pt-[var(--header-h)]">
         {/* ۱. بخش اسلایدر بنرهای تبلیغاتی */}
         <section>
           <BannerSlider banners={banners} isLoading={bannersLoading} />
@@ -145,11 +145,11 @@ export default function HomePage() {
               </h2>
               <div className="flex items-center gap-1 relative h-8 bg-[var(--bg-card)] rounded-lg p-0.5 border border-[var(--border-subtle)]">
                 <CarouselPrevious
-                  className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-[#101014] transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                  className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
                   title="قبلی"
                 />
                 <CarouselNext
-                  className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-[#101014] transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                  className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
                   title="بعدی"
                 />
               </div>

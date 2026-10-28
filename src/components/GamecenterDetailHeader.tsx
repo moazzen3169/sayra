@@ -81,7 +81,7 @@ export const GamecenterDetailHeader: React.FC<GamecenterDetailHeaderProps> = ({
               />
             </svg>
             {unreadNotificationsCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--primary)] text-[#101014] text-[10px] font-black flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--primary)] text-on-primary text-[10px] font-black flex items-center justify-center">
                 {unreadNotificationsCount}
               </span>
             )}

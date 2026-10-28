@@ -122,11 +122,13 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
     let active = true;
     const controller = new AbortController();
 
-    setLoading(true);
-    setLoadError(null);
-    setSlots([]);
-    setAvail({});
-    setSelectedKeys([]);
+    const timer = setTimeout(() => {
+      setLoading(true);
+      setLoadError(null);
+      setSlots([]);
+      setAvail({});
+      setSelectedKeys([]);
+    }, 0);
 
     (async () => {
       try {
@@ -183,6 +185,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
 
     return () => {
       active = false;
+      clearTimeout(timer);
       controller.abort();
     };
   }, [gamingCenterSlug, stations, date.fullDate, refreshKey, retryToken]);
@@ -269,7 +272,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
                     type="button"
                     onClick={() => scrollDates(d)}
                     aria-label={d === "next" ? "روزهای بعدی" : "روزهای قبلی"}
-                    className="w-7 h-7 rounded bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center hover:bg-[var(--primary)] hover:text-[#101014] transition-colors"
+                    className="w-7 h-7 rounded bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d={d === "next" ? "M15 19l-7-7 7-7" : "M9 5l7 7-7 7"} />
@@ -291,7 +294,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
                     disabled={isSubmitting}
                     className={`snap-start shrink-0 w-[84px] h-16 rounded-card flex flex-col items-center justify-center gap-0.5 border transition-all ${
                       active
-                        ? "bg-[var(--primary)] text-[#101014] border-[var(--primary)]"
+                        ? "bg-[var(--primary)] text-on-primary border-[var(--primary)]"
                         : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
                     }`}
                   >
@@ -369,7 +372,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
                           !ok
                             ? "bg-[var(--foreground)]/20 border-transparent text-[var(--text-subtle)] line-through cursor-not-allowed opacity-50"
                             : active
-                            ? "bg-[var(--primary)] text-[#101014] border-[var(--primary)] font-black"
+                            ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-black"
                             : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--primary)]/60"
                         }`}
                       >
@@ -429,7 +432,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
             type="button"
             disabled={!canSubmit}
             onClick={() => items && onConfirm({ date, slots: selectedSlots, items })}
-            className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:bg-[var(--foreground)] disabled:text-[var(--text-muted)] text-[#101014] font-black text-sm transition-all active:scale-[0.98]"
+            className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:bg-[var(--foreground)] disabled:text-[var(--text-muted)] text-on-primary font-black text-sm transition-all active:scale-[0.98]"
           >
             {buttonText}
           </button>

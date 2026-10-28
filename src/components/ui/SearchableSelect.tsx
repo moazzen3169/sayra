@@ -91,7 +91,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   }}
                   className={`w-full text-right px-3 py-2.5 rounded-md text-xs font-bold transition-colors flex items-center justify-between ${
                     opt.value === value
-                      ? "bg-[var(--primary)] text-[#101014]"
+                      ? "bg-[var(--primary)] text-on-primary"
                       : "text-[var(--text-white)] hover:bg-[var(--foreground)]/30"
                   }`}
                 >

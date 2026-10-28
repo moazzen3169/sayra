@@ -7,19 +7,19 @@ import type { PaymentState, ReservationStatus } from "@/types/reservation";
 
 export const STATUS_UI: Record<ReservationStatus, { label: string; className: string }> = {
   PENDING: {
-    label: "درحال انتظار",
+    label: "در انتظار تأیید",
     className: "bg-[var(--primary-muted)] text-[var(--primary)] border border-[var(--primary)]/30",
   },
   CONFIRMED: {
-    label: "تایید شد!",
+    label: "تأیید شده",
     className: "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30",
   },
   IN_PROGRESS: {
-    label: "درحال انجام",
-    className: "bg-[var(--primary)] text-[#101014] border border-[var(--primary)]",
+    label: "در حال انجام",
+    className: "bg-[var(--primary)] text-on-primary border border-[var(--primary)]",
   },
   COMPLETED: {
-    label: "تکمیل شده!",
+    label: "انجام شده",
     className: "bg-[var(--foreground)] text-[var(--text-white)] border border-[var(--border-color)]",
   },
   CANCELED: {
@@ -104,7 +104,7 @@ export function formatClock(iso: string, alwaysMinutes = false): string {
 
 /** مثال: «امروز از ساعت ۱۳ الی ۱۴» */
 export function formatReservationWhen(startIso: string, endIso: string): string {
-  return `${formatDayLabel(startIso)} از ساعت ${formatClock(startIso)} الی ${formatClock(endIso)}`;
+  return `${formatDayLabel(startIso)} از ساعت ${formatClock(startIso)} تا ${formatClock(endIso)}`;
 }
 
 /* ---------- Misc ---------- */

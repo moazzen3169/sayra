@@ -135,7 +135,7 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
                         className="w-full h-full object-cover drop-shadow-xl"
                       />
                       {selected && (
-                        <span className="absolute top-2 left-2 min-w-6 h-6 px-1.5 rounded-full bg-[var(--primary)] text-[#101014] text-xs font-black flex items-center justify-center pt-0.5">
+                        <span className="absolute top-2 left-2 min-w-6 h-6 px-1.5 rounded-full bg-[var(--primary)] text-on-primary text-xs font-black flex items-center justify-center pt-0.5">
                           {toPersianDigits(qty)}
                         </span>
                       )}
@@ -167,7 +167,7 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
                           <button
                             type="button"
                             onClick={() => setActiveConsoleModal(g)}
-                            className="h-8 rounded-lg bg-[var(--foreground)] hover:bg-[var(--primary)] hover:text-[#101014] text-[11px] font-bold text-[var(--text-white)] transition-colors"
+                            className="h-8 rounded-lg bg-[var(--foreground)] hover:bg-[var(--primary)] hover:text-on-primary text-[11px] font-bold text-[var(--text-white)] transition-colors"
                           >
                             {extra > 0 ? `${toPersianDigits(extra)} دسته اضافه • تغییر` : "+ دسته اضافه"}
                           </button>
@@ -186,7 +186,7 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
                         <button
                           type="button"
                           onClick={() => handleAddClick(g)}
-                          className="h-11 w-full rounded-card bg-[var(--foreground)] hover:bg-[var(--primary)] hover:text-[#101014] text-[var(--text-white)] text-sm font-black transition-colors active:scale-[0.98]"
+                          className="h-11 w-full rounded-card bg-[var(--foreground)] hover:bg-[var(--primary)] hover:text-on-primary text-[var(--text-white)] text-sm font-black transition-colors active:scale-[0.98]"
                         >
                           + افزودن
                         </button>
