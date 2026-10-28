@@ -98,6 +98,8 @@ interface BookingCtaProps {
   onPick: () => void;
   onBook: () => void;
   variant: "bar" | "card";
+  /** فقط در دسکتاپ، بالای کارت رزرو نمایش داده می‌شود */
+  gallery?: React.ReactNode;
 }
 
 const BookingCta: React.FC<BookingCtaProps> = ({
@@ -107,6 +109,7 @@ const BookingCta: React.FC<BookingCtaProps> = ({
   onPick,
   onBook,
   variant,
+  gallery,
 }) => {
   const has = deviceCount > 0;
 
@@ -154,41 +157,43 @@ const BookingCta: React.FC<BookingCtaProps> = ({
   }
 
   return (
-    <aside className="hidden lg:flex sticky top-20 self-start max-h-[calc(100dvh-6rem)] overflow-y-auto flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5">
-      
-      
-      
-      <h3 className="text-sm font-extrabold text-[var(--text-white)]">
-        رزرو آنلاین
-      </h3>
+    <aside className="hidden lg:flex sticky top-20 self-start max-h-[calc(100dvh-6rem)] overflow-y-auto flex-col gap-4">
+      {/* گالری مربعی (فقط دسکتاپ) */}
+      {gallery}
 
-      {has && (
-        <ul className="flex flex-col gap-1.5 text-xs text-[var(--text-muted)]">
-          {lines.map((l) => (
-            <li
-              key={l.group.key}
-              className="flex items-center justify-between gap-2"
-            >
-              <span className="text-[var(--text-white)] font-bold truncate">
-                {l.group.label}
-              </span>
-              <span className="shrink-0">
-                {toPersianDigits(l.qty)} عدد
-                {l.extra > 0 ? ` • +${toPersianDigits(l.extra)} دسته` : ""}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="flex flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5">
+        <h3 className="text-sm font-extrabold text-[var(--text-white)]">
+          رزرو آنلاین
+        </h3>
 
-      {info}
-      {button}
+        {has && (
+          <ul className="flex flex-col gap-1.5 text-xs text-[var(--text-muted)]">
+            {lines.map((l) => (
+              <li
+                key={l.group.key}
+                className="flex items-center justify-between gap-2"
+              >
+                <span className="text-[var(--text-white)] font-bold truncate">
+                  {l.group.label}
+                </span>
+                <span className="shrink-0">
+                  {toPersianDigits(l.qty)} عدد
+                  {l.extra > 0 ? ` • +${toPersianDigits(l.extra)} دسته` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
 
-      <ol className="flex flex-col gap-1.5 text-[11px] text-[var(--text-muted)] border-t border-[var(--border-subtle)] pt-3">
-        <li>۱. نوع و تعداد دستگاه را انتخاب کنید</li>
-        <li>۲. روز و ساعت‌ها را انتخاب کنید</li>
-        <li>۳. رزرو را ثبت کنید</li>
-      </ol>
+        {info}
+        {button}
+
+        <ol className="flex flex-col gap-1.5 text-[11px] text-[var(--text-muted)] border-t border-[var(--border-subtle)] pt-3">
+          <li>۱. نوع و تعداد دستگاه را انتخاب کنید</li>
+          <li>۲. روز و ساعت‌ها را انتخاب کنید</li>
+          <li>۳. رزرو را ثبت کنید</li>
+        </ol>
+      </div>
     </aside>
   );
 };
@@ -512,7 +517,7 @@ export default function GameCenterDetailPage({
           <>
             {/* Gallery slider (همان BannerSlider صفحه اصلی) */}
             {galleryItems.length > 0 && (
-              <div className="">
+              <div className="lg:hidden">
                 <BannerSlider
                   banners={galleryItems}
                   aspectClassName={GALLERY_ASPECT}
@@ -630,6 +635,16 @@ export default function GameCenterDetailPage({
                 hourly={hourly}
                 onPick={() => scrollToId("stations")}
                 onBook={openSheet}
+                gallery={
+                  galleryItems.length > 0 ? (
+                    <BannerSlider
+                      banners={galleryItems}
+                      aspectClassName="aspect-square"
+                      ariaLabel="گالری تصاویر گیمنت"
+                      className="lg:w-full! lg:px-0! lg:pt-0!"
+                    />
+                  ) : null
+                }
               />
             </div>
           </>
