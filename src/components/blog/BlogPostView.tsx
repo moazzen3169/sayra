@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { BlogArticleContent } from "@/components/blog/BlogArticleContent";
 import { BlogPostCard } from "@/components/blog/BlogPostCard";
+import { BlogPromoBanner } from "@/components/blog/BlogPromoBanner";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -147,7 +148,10 @@ export const BlogPostView: React.FC<{ slug: string }> = ({ slug }) => {
       </div>
       <PageHeader title="وبلاگ" onBack={goBack} className="lg:hidden" />
 
-      <main className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-8 px-4 pt-4 lg:px-8 lg:pt-[calc(var(--header-h)+1rem)]">
+      {/* بنر چسبان موبایل با ارتفاع دقیق ۸۰px و قابلیت مخفی‌سازی در زیر هدر */}
+      <BlogPromoBanner />
+
+      <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-8 px-4 pt-4 lg:px-8 lg:pt-[calc(var(--header-h,80px)+1.5rem)]">
         <Link
           href="/blog"
           className="hidden h-11 items-center gap-1.5 self-start text-xs font-bold text-[var(--text-muted)] transition-colors hover:text-[var(--primary)] lg:flex"
@@ -156,92 +160,104 @@ export const BlogPostView: React.FC<{ slug: string }> = ({ slug }) => {
           <span>همه‌ی مقاله‌ها</span>
         </Link>
 
-        {!current && (
-          <div className="mx-auto w-full max-w-[720px]">
-            <DetailSkeleton />
-          </div>
-        )}
-
-        {current?.notFound && (
-          <EmptyState
-            title="مقاله‌ای که دنبالش هستید پیدا نشد"
-            description="ممکن است این مقاله حذف شده یا نشانی آن تغییر کرده باشد."
-            actionLabel="مشاهده همه‌ی مقاله‌ها"
-            onAction={() => router.push("/blog")}
-          />
-        )}
-
-        {current?.error && !current.notFound && (
-          <ErrorState
-            title="بارگذاری مقاله انجام نشد"
-            description={current.error}
-            onRetry={() => setReload((v) => v + 1)}
-          />
-        )}
-
-        {post && (
-          <article className="mx-auto flex w-full max-w-[720px] flex-col gap-6">
-            <header className="flex flex-col gap-3">
-              <Link
-                href={`/blog?category=${encodeURIComponent(post.category)}`}
-                className="self-start"
-              >
-                <Badge variant="neutral">{post.categoryLabel}</Badge>
-              </Link>
-              <h1 className="text-xl font-bold leading-9 text-[var(--text-white)]">
-                {post.title}
-              </h1>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[var(--text-muted)]">
-                <MetaItem icon="user" text={post.authorName} />
-                <MetaItem icon="calendar" text={formatBlogDate(post.publishedAt)} />
-                <MetaItem
-                  icon="clock"
-                  text={`${formatReadingMinutes(post.readingMinutes)} مطالعه`}
-                />
+        {/* دو قسمت اصلی صفحه در دسکتاپ (قسمت اول: محتوای وبلاگ حدود ۸۰٪ ، قسمت دوم: کارت تبلیغ ۲۰٪) */}
+        <div className="flex w-full flex-col items-start gap-8 lg:flex-row">
+          {/* قسمت اول: جزییات و کل محتوای وبلاگ */}
+          <div className="flex-1 min-w-0 w-full flex flex-col gap-6">
+            {!current && (
+              <div className="w-full">
+                <DetailSkeleton />
               </div>
-            </header>
+            )}
 
-            <div className="aspect-[16/9] overflow-hidden rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]">
-              <img
-                src={post.coverUrl}
-                alt={post.title}
-                className="h-full w-full object-cover"
+            {current?.notFound && (
+              <EmptyState
+                title="مقاله‌ای که دنبالش هستید پیدا نشد"
+                description="ممکن است این مقاله حذف شده یا نشانی آن تغییر کرده باشد."
+                actionLabel="مشاهده همه‌ی مقاله‌ها"
+                onAction={() => router.push("/blog")}
               />
-            </div>
+            )}
 
-            <BlogArticleContent blocks={post.content} />
+            {current?.error && !current.notFound && (
+              <ErrorState
+                title="بارگذاری مقاله انجام نشد"
+                description={current.error}
+                onRetry={() => setReload((v) => v + 1)}
+              />
+            )}
 
-            <footer className="flex flex-col gap-4 border-t border-[var(--border-subtle)] pt-4">
-              {post.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {post.tags.map((tag) => (
-                    <Link
-                      key={tag}
-                      href={`/blog?q=${encodeURIComponent(tag)}`}
-                      className="flex h-10 items-center rounded-full border border-[var(--border-subtle)] bg-[var(--bg-card)] px-4 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/60 hover:text-[var(--primary)]"
-                    >
-                      {tag}
-                    </Link>
-                  ))}
+            {post && (
+              <article className="flex w-full flex-col gap-6">
+                <header className="flex flex-col gap-3">
+                  <Link
+                    href={`/blog?category=${encodeURIComponent(post.category)}`}
+                    className="self-start"
+                  >
+                    <Badge variant="neutral">{post.categoryLabel}</Badge>
+                  </Link>
+                  <h1 className="text-xl font-bold leading-9 text-[var(--text-white)] sm:text-2xl">
+                    {post.title}
+                  </h1>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[var(--text-muted)]">
+                    <MetaItem icon="user" text={post.authorName} />
+                    <MetaItem icon="calendar" text={formatBlogDate(post.publishedAt)} />
+                    <MetaItem
+                      icon="clock"
+                      text={`${formatReadingMinutes(post.readingMinutes)} مطالعه`}
+                    />
+                  </div>
+                </header>
+
+                <div className="aspect-[16/9] w-full overflow-hidden rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]">
+                  <img
+                    src={post.coverUrl}
+                    alt={post.title}
+                    className="h-full w-full object-cover"
+                  />
                 </div>
-              )}
 
-              <button
-                type="button"
-                onClick={handleShare}
-                className="flex h-11 items-center gap-2 self-start rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)] px-4 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--border-color)]"
-              >
-                <Icon name={shareState === "copied" ? "check" : "share"} size={16} />
-                <span aria-live="polite">{shareLabel}</span>
-              </button>
-            </footer>
-          </article>
-        )}
+                <BlogArticleContent blocks={post.content} />
 
+                <footer className="flex flex-col gap-4 border-t border-[var(--border-subtle)] pt-4">
+                  {post.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {post.tags.map((tag) => (
+                        <Link
+                          key={tag}
+                          href={`/blog?q=${encodeURIComponent(tag)}`}
+                          className="flex h-10 items-center rounded-full border border-[var(--border-subtle)] bg-[var(--bg-card)] px-4 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/60 hover:text-[var(--primary)]"
+                        >
+                          {tag}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="flex h-11 items-center gap-2 self-start rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)] px-4 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--border-color)]"
+                  >
+                    <Icon name={shareState === "copied" ? "check" : "share"} size={16} />
+                    <span aria-live="polite">{shareLabel}</span>
+                  </button>
+                </footer>
+              </article>
+            )}
+          </div>
+
+          {/* قسمت دوم: کارت تبلیغ ۲۰٪ ثابت چسبان تا بخش پست‌های پیشنهادی در دسکتاپ */}
+          <div className="hidden lg:block lg:w-[280px] xl:w-[320px] shrink-0 sticky top-[calc(var(--header-h,80px)+1.5rem)] self-start z-10">
+            <BlogPromoBanner />
+          </div>
+        </div>
+
+        {/* بخش پست‌های پیشنهادی (پایین‌تر از دو ستون قرار گرفته تا کارت چسبان قبل از این بخش متوقف شود) */}
         {post && relatedItems.length > 0 && (
           <section className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-8">
             <SectionTitle title="مقاله‌های مرتبط" />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {relatedItems.map((item) => (
                 <BlogPostCard key={item.id} post={item} />
               ))}
