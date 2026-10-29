@@ -149,16 +149,10 @@ export const BlogPostView: React.FC<{ slug: string }> = ({ slug }) => {
       <PageHeader title="وبلاگ" onBack={goBack} className="lg:hidden" />
 
       {/* بنر چسبان موبایل با ارتفاع دقیق ۸۰px و قابلیت مخفی‌سازی در زیر هدر */}
-      <BlogPromoBanner />
+      <BlogPromoBanner variant="mobile" />
 
-      <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-8 px-4 pt-4 lg:px-8 lg:pt-[calc(var(--header-h,80px)+1.5rem)]">
-        <Link
-          href="/blog"
-          className="hidden h-11 items-center gap-1.5 self-start text-xs font-bold text-[var(--text-muted)] transition-colors hover:text-[var(--primary)] lg:flex"
-        >
-          <Icon name="back" size={16} />
-          <span>همه‌ی مقاله‌ها</span>
-        </Link>
+      <main className="mx-auto flex w-full max-w-[var(--max-app-width)] flex-1 flex-col gap-8 px-4 pt-4 lg:px-8 lg:pt-[calc(var(--header-h,80px))]">
+
 
         {/* دو قسمت اصلی صفحه در دسکتاپ (قسمت اول: محتوای وبلاگ حدود ۸۰٪ ، قسمت دوم: کارت تبلیغ ۲۰٪) */}
         <div className="flex w-full flex-col items-start gap-8 lg:flex-row">
@@ -189,6 +183,13 @@ export const BlogPostView: React.FC<{ slug: string }> = ({ slug }) => {
 
             {post && (
               <article className="flex w-full flex-col gap-6">
+                        <Link
+          href="/blog"
+          className="hidden h-11 items-center gap-1.5 self-start text-xs font-bold text-[var(--text-muted)] transition-colors hover:text-[var(--primary)] lg:flex"
+        >
+          <Icon name="back" size={16} />
+          <span>همه‌ی مقاله‌ها</span>
+        </Link>
                 <header className="flex flex-col gap-3">
                   <Link
                     href={`/blog?category=${encodeURIComponent(post.category)}`}
@@ -249,7 +250,7 @@ export const BlogPostView: React.FC<{ slug: string }> = ({ slug }) => {
 
           {/* قسمت دوم: کارت تبلیغ ۲۰٪ ثابت چسبان تا بخش پست‌های پیشنهادی در دسکتاپ */}
           <div className="hidden lg:block lg:w-[280px] xl:w-[320px] shrink-0 sticky top-[calc(var(--header-h,80px)+1.5rem)] self-start z-10">
-            <BlogPromoBanner />
+            <BlogPromoBanner variant="desktop" />
           </div>
         </div>
 

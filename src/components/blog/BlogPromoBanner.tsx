@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 
 export interface BlogPromoBannerProps {
+  /** نوع نمایش بنر */
+  variant?: "mobile" | "desktop" | "responsive";
   /** آدرس مقصد دکمه‌ی فراخوان (CTA) */
   href?: string;
   /** عنوان تبلیغ */
@@ -22,10 +24,12 @@ export interface BlogPromoBannerProps {
 
 /**
  * کامپوننت تبلیغ خودی در صفحه جزییات وبلاگ
- * - در دسکتاپ: کارت عمودی چسبان (Sticky) در ستون ۲۰ درصدی
- * - در موبایل: بنر ثابتی با ارتفاع دقیق ۸۰px زیر هدر با دکمه‌ی بستن/مخفی‌سازی
+ * - mobile: فقط بنر موبایل
+ * - desktop: فقط کارت دسکتاپ
+ * - responsive: نمایش نسخه متناسب با اندازه صفحه
  */
 export const BlogPromoBanner: React.FC<BlogPromoBannerProps> = ({
+  variant = "responsive",
   href = "/?discount=true",
   title = "گیم‌نت‌های تخفیف‌دار سایرا",
   description = "رزرو آنلاین سانس‌های بازی با تخفیف‌های استثنایی در برترین گیم‌نت‌ها",
@@ -39,7 +43,7 @@ export const BlogPromoBanner: React.FC<BlogPromoBannerProps> = ({
     <>
       {/* ================= MOBILE PROMO BANNER ================= */}
       {/* نمایش در زیر هدر موبایل با ارتفاع دقیق ۸۰px و دکمه‌ی مخفی‌سازی */}
-      {!isDismissed && (
+      {variant !== "desktop" && !isDismissed && (
         <div className="sticky top-14 z-30 flex h-[80px] w-full items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-card)] px-4 py-2 shadow-md lg:hidden">
           <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
             <div className="flex items-center gap-1.5">
@@ -76,41 +80,40 @@ export const BlogPromoBanner: React.FC<BlogPromoBannerProps> = ({
       )}
 
       {/* ================= DESKTOP PROMO CARD ================= */}
-      {/* کارت عمودی شیک در اندازه دسکتاپ که قرار است ۲۰٪ عرض صفحه را اشغال کند */}
-      <aside className="hidden w-full flex-col gap-3.5 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 shadow-lg lg:flex">
-        {/* بنر تصویری بالای کارت */}
-        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-child border border-[var(--border-subtle)] bg-[var(--foreground)]">
-          <img
-            src={imageUrl}
-            alt={title}
-            className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
-          />
-          <div className="absolute top-2.5 right-2.5">
-            <Badge variant="primary" className="shadow-sm">
-              {badgeText}
-            </Badge>
+      {/* کارت دسکتاپ برای ستون تبلیغات */}
+      {variant !== "mobile" && (
+        <aside className="hidden w-full flex-col gap-3.5 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 shadow-lg lg:flex">
+          <div className="relative aspect-[16/9] w-full overflow-hidden rounded-child border border-[var(--border-subtle)] bg-[var(--foreground)]">
+            <img
+              src={imageUrl}
+              alt={title}
+              className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+            />
+            <div className="absolute top-2.5 right-2.5">
+              <Badge variant="primary" className="shadow-sm">
+                {badgeText}
+              </Badge>
+            </div>
           </div>
-        </div>
 
-        {/* متن و جزئیات */}
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-sm font-bold text-[var(--text-white)] leading-6">
-            {title}
-          </h3>
-          <p className="text-xs text-[var(--text-muted)] leading-5">
-            {description}
-          </p>
-        </div>
+          <div className="flex flex-col gap-1.5">
+            <h3 className="text-sm font-bold text-[var(--text-white)] leading-6">
+              {title}
+            </h3>
+            <p className="text-xs text-[var(--text-muted)] leading-5">
+              {description}
+            </p>
+          </div>
 
-        {/* دکمه CTA اصلی */}
-        <Link
-          href={href}
-          className="flex h-11 w-full items-center justify-center gap-1.5 rounded-card bg-[var(--primary)] px-4 text-xs font-bold text-on-primary transition-colors hover:bg-[var(--primary-hover)] active:scale-[0.98]"
-        >
-          <span>{ctaText}</span>
-          <Icon name="back" size={16} className="rotate-180" />
-        </Link>
-      </aside>
+          <Link
+            href={href}
+            className="flex h-11 w-full items-center justify-center gap-1.5 rounded-card bg-[var(--primary)] px-4 text-xs font-bold text-on-primary transition-colors hover:bg-[var(--primary-hover)] active:scale-[0.98]"
+          >
+            <span>{ctaText}</span>
+            <Icon name="back" size={16} className="rotate-180" />
+          </Link>
+        </aside>
+      )}
     </>
   );
 };
