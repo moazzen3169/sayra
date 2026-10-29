@@ -11,6 +11,8 @@ import {
   AdminUserReservation,
   AdminPaginatedResult,
   AdminListQueryParams,
+  AdminOwnerVerification,
+  AdminAdRequest,
 } from "@/types/admin";
 import {
   ADMIN_DASHBOARD_MOCK_DATA,
@@ -20,6 +22,8 @@ import {
   MOCK_CANNED_RESPONSES,
   MOCK_ADMIN_REVIEWS,
   MOCK_ADMIN_USER_RESERVATIONS,
+  MOCK_ADMIN_OWNER_VERIFICATIONS,
+  MOCK_ADMIN_AD_REQUESTS,
 } from "@/lib/mocks/admin.mock";
 
 // In-memory / LocalStorage state store for mock administrative data
@@ -28,6 +32,8 @@ let usersStore: AdminUser[] = [...MOCK_ADMIN_USERS];
 let ticketsStore: AdminTicket[] = [...MOCK_ADMIN_TICKETS];
 let reviewsStore: AdminReview[] = [...MOCK_ADMIN_REVIEWS];
 let reservationsStore: AdminUserReservation[] = [...MOCK_ADMIN_USER_RESERVATIONS];
+let verificationsStore: AdminOwnerVerification[] = [...MOCK_ADMIN_OWNER_VERIFICATIONS];
+let adRequestsStore: AdminAdRequest[] = [...MOCK_ADMIN_AD_REQUESTS];
 
 // Load from localStorage on client side if available
 if (typeof window !== "undefined") {
@@ -46,6 +52,12 @@ if (typeof window !== "undefined") {
 
     const resSaved = localStorage.getItem("sayra_admin_reservations");
     if (resSaved) reservationsStore = JSON.parse(resSaved);
+
+    const verifSaved = localStorage.getItem("sayra_admin_verifications");
+    if (verifSaved) verificationsStore = JSON.parse(verifSaved);
+
+    const adsSaved = localStorage.getItem("sayra_admin_ads");
+    if (adsSaved) adRequestsStore = JSON.parse(adsSaved);
   } catch (e) {
     console.warn("Failed to load admin mock store from localStorage", e);
   }
@@ -288,8 +300,8 @@ export const adminService = {
 
     // Sort
     filtered.sort((a, b) => {
-      let valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
-      let valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
 
       if (typeof valA === "string" && typeof valB === "string") {
         return sortOrder === "asc"
@@ -597,5 +609,204 @@ export const adminService = {
   async getUserReviews(userId: string): Promise<AdminReview[]> {
     const items = reviewsStore.filter((r) => r.userId === userId);
     return Promise.resolve(items);
+  },
+
+  // ==================== OWNER VERIFICATION ====================
+
+  async getOwnerVerifications(
+    params: AdminListQueryParams = {}
+  ): Promise<AdminPaginatedResult<AdminOwnerVerification>> {
+    const {
+      search = "",
+      status = "all",
+      city = "all",
+      sortBy = "submittedAt",
+      sortOrder = "desc",
+      page = 1,
+      pageSize = 10,
+    } = params;
+
+    let filtered = [...verificationsStore];
+
+    // Filter by Search (Owner Name, Gamecenter Name, Phone, National ID)
+    if (search.trim()) {
+      const query = search.trim().toLowerCase();
+      filtered = filtered.filter(
+        (v) =>
+          v.ownerName.toLowerCase().includes(query) ||
+          v.gamecenterName.toLowerCase().includes(query) ||
+          v.ownerPhone.includes(query) ||
+          v.ownerNationalId.includes(query) ||
+          v.gamecenterCity.toLowerCase().includes(query)
+      );
+    }
+
+    // Filter by Status
+    if (status && status !== "all") {
+      filtered = filtered.filter((v) => v.status === status);
+    }
+
+    // Filter by City
+    if (city && city !== "all") {
+      filtered = filtered.filter((v) => v.gamecenterCity === city);
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+
+      if (typeof valA === "string" && typeof valB === "string") {
+        return sortOrder === "asc"
+          ? valA.localeCompare(valB, "fa")
+          : valB.localeCompare(valA, "fa");
+      }
+
+      return 0;
+    });
+
+    // Pagination
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    const safePage = Math.max(1, Math.min(page, totalPages));
+    const start = (safePage - 1) * pageSize;
+    const items = filtered.slice(start, start + pageSize);
+
+    return Promise.resolve({
+      items,
+      total,
+      page: safePage,
+      pageSize,
+      totalPages,
+    });
+  },
+
+  async getOwnerVerificationById(id: string): Promise<AdminOwnerVerification | null> {
+    const item = verificationsStore.find((v) => v.id === id);
+    return Promise.resolve(item || null);
+  },
+
+  async updateOwnerVerificationStatus(
+    id: string,
+    status: "APPROVED" | "REJECTED",
+    reason?: string,
+    adminName: string = "مدیر پشتیبانی سایرا"
+  ): Promise<AdminOwnerVerification> {
+    const index = verificationsStore.findIndex((v) => v.id === id);
+    if (index === -1) {
+      throw new Error("درخواست احراز هویت مورد نظر یافت نشد.");
+    }
+
+    const current = verificationsStore[index];
+    const isModification = current.status !== "PENDING" && current.status !== status;
+    const nowFormatted = new Date().toLocaleDateString("fa-IR") + " - " + new Date().toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+
+    const newLog = {
+      id: `log-${Date.now()}`,
+      adminName,
+      action: isModification ? ("MODIFIED" as const) : status,
+      note: reason || (status === "APPROVED" ? "درخواست احراز هویت تأیید شد." : "درخواست احراز هویت رد شد."),
+      date: nowFormatted,
+    };
+
+    const updated: AdminOwnerVerification = {
+      ...current,
+      status,
+      rejectionReason: status === "REJECTED" ? reason : undefined,
+      updatedAt: nowFormatted,
+      reviewLogs: [newLog, ...(current.reviewLogs || [])],
+    };
+
+    verificationsStore[index] = updated;
+    persistStore("sayra_admin_verifications", verificationsStore);
+    return Promise.resolve(updated);
+  },
+
+  // ==================== ADVERTISING REQUESTS ====================
+
+  async getAdRequests(
+    params: AdminListQueryParams = {}
+  ): Promise<AdminPaginatedResult<AdminAdRequest>> {
+    const {
+      search = "",
+      status = "all",
+      sortBy = "submittedAt",
+      sortOrder = "desc",
+      page = 1,
+      pageSize = 10,
+    } = params;
+
+    let filtered = [...adRequestsStore];
+
+    // Filter by Search (Title, Description, Gamecenter Name, Owner Name, Owner Phone)
+    if (search.trim()) {
+      const query = search.trim().toLowerCase();
+      filtered = filtered.filter(
+        (ad) =>
+          ad.title.toLowerCase().includes(query) ||
+          ad.description.toLowerCase().includes(query) ||
+          ad.gamecenterName.toLowerCase().includes(query) ||
+          ad.ownerName.toLowerCase().includes(query) ||
+          ad.ownerPhone.includes(query)
+      );
+    }
+
+    // Filter by Status
+    if (status && status !== "all") {
+      filtered = filtered.filter((ad) => ad.status === status);
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+
+      if (typeof valA === "string" && typeof valB === "string") {
+        return sortOrder === "asc"
+          ? valA.localeCompare(valB, "fa")
+          : valB.localeCompare(valA, "fa");
+      }
+
+      return 0;
+    });
+
+    // Pagination
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    const safePage = Math.max(1, Math.min(page, totalPages));
+    const start = (safePage - 1) * pageSize;
+    const items = filtered.slice(start, start + pageSize);
+
+    return Promise.resolve({
+      items,
+      total,
+      page: safePage,
+      pageSize,
+      totalPages,
+    });
+  },
+
+  async updateAdRequestStatus(
+    id: string,
+    status: "APPROVED" | "REJECTED",
+    decisionReason?: string
+  ): Promise<AdminAdRequest> {
+    const index = adRequestsStore.findIndex((ad) => ad.id === id);
+    if (index === -1) {
+      throw new Error("درخواست تبلیغ مورد نظر یافت نشد.");
+    }
+
+    const nowFormatted = new Date().toLocaleDateString("fa-IR") + " - " + new Date().toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+
+    const updated: AdminAdRequest = {
+      ...adRequestsStore[index],
+      status,
+      decisionReason,
+      updatedAt: nowFormatted,
+    };
+
+    adRequestsStore[index] = updated;
+    persistStore("sayra_admin_ads", adRequestsStore);
+    return Promise.resolve(updated);
   },
 };

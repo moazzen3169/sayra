@@ -166,6 +166,68 @@ export interface AdminPaginatedResult<T> {
   totalPages: number;
 }
 
+export interface AdminVerificationDocument {
+  id: string;
+  name: string;
+  url: string;
+  type: "image" | "pdf" | "unsupported";
+}
+
+export interface AdminVerificationQuestionAnswer {
+  question: string;
+  answer: string;
+}
+
+export interface AdminVerificationReviewLog {
+  id: string;
+  adminName: string;
+  action: "APPROVED" | "REJECTED" | "MODIFIED";
+  note?: string;
+  date: string;
+}
+
+export interface AdminOwnerVerification {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  ownerPhone: string;
+  ownerNationalId: string;
+  gamecenterId: string;
+  gamecenterName: string;
+  gamecenterAddress: string;
+  gamecenterCity: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  submittedAt: string;
+  updatedAt?: string;
+  verificationData: {
+    centerName: string;
+    centerAddress: string;
+    licenseFileName?: string;
+    licenseImageUrl?: string;
+    documents: AdminVerificationDocument[];
+    submittedAnswers: AdminVerificationQuestionAnswer[];
+  };
+  rejectionReason?: string;
+  reviewLogs: AdminVerificationReviewLog[];
+}
+
+export interface AdminAdRequest {
+  id: string;
+  title: string;
+  description: string;
+  bannerUrl?: string;
+  durationDays: number;
+  gamecenterId: string;
+  gamecenterName: string;
+  ownerId: string;
+  ownerName: string;
+  ownerPhone: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED";
+  submittedAt: string;
+  updatedAt?: string;
+  decisionReason?: string;
+}
+
 export interface AdminListQueryParams {
   search?: string;
   status?: string;
