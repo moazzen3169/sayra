@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { adminService } from "@/services/adminService";
+import { KPI_DEFINITIONS } from "@/types/analytics";
 import { AdminDashboardData, AdminRecentReservation } from "@/types/admin";
 import { AdminPageContainer } from "@/components/admin/layout/AdminPageContainer";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";
@@ -117,26 +118,36 @@ export default function AdminDashboardPage() {
       {/* Section 1: Header and Time Horizon */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border-subtle pb-4">
         <div>
-          <h1 className="text-page-title text-text-white">داشبورد مدیریتی</h1>
+          <h1 className="text-page-title text-text-white">داشبورد مدیریتی و پایش عملیات</h1>
           <p className="text-secondary text-text-muted mt-1">
-            خلاصه جامع وضعیت عملکرد سیستم، رزروها و موارد نیازمند رسیدگی
+            پاسخ سریع به وضعیت فعلی کسب‌وکار، سلامت پلتفرم و موارد نیازمند اقدام فوری
           </p>
         </div>
 
         <div className="flex items-center gap-2 bg-card-bg border border-border rounded-card px-3 py-1.5 self-start sm:self-auto">
           <Icon name="calendar" size={16} className="text-text-muted" />
-          <span className="text-secondary text-text-muted">محدوده زمان:</span>
-          <span className="text-body font-bold text-text-white">هفته جاری</span>
+          <span className="text-secondary text-text-muted">محدوده زمانی:</span>
+          <span className="text-body font-bold text-text-white">هفته جاری (۷ روز اخیر)</span>
         </div>
       </div>
 
       {/* Section 2: Key Indicators */}
       <div>
-        <h2 className="text-section-title text-text-white mb-4">شاخص‌های کلیدی</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-section-title text-text-white">شاخص‌های کلیدی وضعیت آنلاین</h2>
+          <Link
+            href="/admin/reports"
+            className="text-xs text-primary hover:underline font-bold inline-flex items-center gap-1"
+          >
+            <span>مشاهده گزارش‌های تفصیلی</span>
+            <Icon name="back" size={12} />
+          </Link>
+        </div>
+
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} className="h-28 rounded-card" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton key={i} className="h-32 rounded-card" />
             ))}
           </div>
         ) : isError || !data ? (
@@ -144,17 +155,31 @@ export default function AdminDashboardPage() {
             خطا در بارگذاری اطلاعات شاخص‌های کلیدی
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-            {data.stats.map((stat) => (
-              <AdminStatCard
-                key={stat.id}
-                title={stat.title}
-                value={stat.value}
-                unit={stat.unit}
-                description={stat.description}
-                iconName={stat.iconName}
-              />
-            ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            {data.stats.map((stat) => {
+              const def = KPI_DEFINITIONS[stat.id];
+              return (
+                <AdminStatCard
+                  key={stat.id}
+                  title={stat.title}
+                  value={stat.value}
+                  unit={stat.unit}
+                  description={stat.description || def?.definition}
+                  definitionFormula={def?.formula}
+                  isAvailable={def ? def.isAvailable : true}
+                  unavailableReason={def?.unavailableReason}
+                  iconName={stat.iconName}
+                />
+              );
+            })}
+            {/* Explicit Unavailable Financial Metric Showcase (Profits & Expenses) */}
+            <AdminStatCard
+              title={KPI_DEFINITIONS.platform_profit.title}
+              value="---"
+              isAvailable={KPI_DEFINITIONS.platform_profit.isAvailable}
+              unavailableReason={KPI_DEFINITIONS.platform_profit.unavailableReason}
+              iconName="wallet"
+            />
           </div>
         )}
       </div>
@@ -164,39 +189,41 @@ export default function AdminDashboardPage() {
         <div className="lg:col-span-2 bg-card-bg border border-border rounded-card p-5 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-section-title text-text-white">روند رزروهای هفته</h2>
+              <h2 className="text-section-title text-text-white">روند عملیاتی رزروها و گردش مالی هفته</h2>
               <p className="text-secondary text-text-muted mt-0.5">
-                تعداد و مجموع مبلغ رزروها به تفکیک روزهای هفته
+                تعداد و مجموع مبلغ رزروها (تکمیل‌شده و در انتظار) به تفکیک روزهای هفته
               </p>
             </div>
-            <div className="flex items-center gap-2 text-secondary text-text-muted">
-              <span className="w-3 h-3 rounded-full bg-primary" />
-              <span>رزروها</span>
+            <div className="flex items-center gap-3 text-xs text-text-muted">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-primary" />
+                <span>تعداد رزرو</span>
+              </div>
             </div>
           </div>
 
           {isLoading ? (
-            <Skeleton className="h-48 w-full rounded-card" />
+            <Skeleton className="h-56 w-full rounded-card" />
           ) : !data || data.reservationTrend.length === 0 ? (
             <div className="py-12 text-center text-text-muted text-body">
               اطلاعاتی برای نمایش روند رزروها در دست نیست
             </div>
           ) : (
-            <div className="space-y-3 my-2">
+            <div className="space-y-3.5 my-2">
               {data.reservationTrend.map((point, idx) => {
                 const maxCount = Math.max(...data.reservationTrend.map((p) => p.count), 1);
                 const widthPercent = Math.round((point.count / maxCount) * 100);
                 return (
                   <div key={idx} className="space-y-1">
-                    <div className="flex justify-between text-secondary">
+                    <div className="flex justify-between text-xs sm:text-sm">
                       <span className="text-text-white font-bold">{point.label}</span>
-                      <span className="text-text-muted">
+                      <span className="text-text-muted font-mono">
                         {point.count} رزرو • {formatPrice(point.amount)}
                       </span>
                     </div>
-                    <div className="w-full bg-foreground/30 h-2.5 rounded-full overflow-hidden">
+                    <div className="w-full bg-foreground/30 h-3 rounded-full overflow-hidden p-0.5 border border-border-subtle/30">
                       <div
-                        className="bg-primary h-full rounded-full transition-all duration-300"
+                        className="bg-primary h-full rounded-full transition-all duration-500"
                         style={{ width: `${widthPercent}%` }}
                       />
                     </div>
@@ -210,7 +237,10 @@ export default function AdminDashboardPage() {
         {/* Section 4: Items Requiring Attention */}
         <div className="bg-card-bg border border-border rounded-card p-5 flex flex-col">
           <div className="flex items-center justify-between mb-4 border-b border-border-subtle pb-3">
-            <h2 className="text-section-title text-text-white">نیازمند رسیدگی</h2>
+            <div>
+              <h2 className="text-section-title text-text-white">عملیات نیازمند توجه فوری</h2>
+              <p className="text-xs text-text-subtle mt-0.5">درخواست‌های معوق و تیکت‌های منتظر پاسخ</p>
+            </div>
             <Badge variant="warning">{data?.pendingItems.length || 0} مورد</Badge>
           </div>
 
@@ -225,7 +255,7 @@ export default function AdminDashboardPage() {
               هیچ مورد معوقه‌ای برای رسیدگی وجود ندارد
             </div>
           ) : (
-            <div className="space-y-3 flex-1 overflow-y-auto">
+            <div className="space-y-3 flex-1 overflow-y-auto max-h-[320px] pr-1">
               {data.pendingItems.map((item) => (
                 <div
                   key={item.id}
@@ -243,12 +273,12 @@ export default function AdminDashboardPage() {
                     {item.subtitle}
                   </p>
                   <div className="flex items-center justify-between pt-1 border-t border-border-subtle/50 text-xs">
-                    <span className="text-text-subtle">{item.date}</span>
+                    <span className="text-text-subtle font-mono">{item.date}</span>
                     <Link
                       href={item.link}
                       className="text-primary hover:underline font-bold inline-flex items-center gap-1"
                     >
-                      <span>بررسی</span>
+                      <span>بررسی و اقدام</span>
                       <Icon name="back" size={12} />
                     </Link>
                   </div>
@@ -259,13 +289,37 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Section 5: Recent Reservations Summary */}
+      {/* Section 5: Quick Access Links */}
+      <div className="bg-card-bg border border-border rounded-card p-5">
+        <h2 className="text-section-title text-text-white mb-3">دسترسی سریع به بخش‌های مدیریتی</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[
+            { label: "مدیریت گیمنت‌ها", icon: "gamepad", href: "/admin/gamecenters" },
+            { label: "احراز هویت مالکین", icon: "user", href: "/admin/owners" },
+            { label: "تیکت‌های پشتیبانی", icon: "ticket", href: "/admin/tickets" },
+            { label: "کاربران سیستم", icon: "user", href: "/admin/users" },
+            { label: "کمپین و تخفیف‌ها", icon: "star", href: "/admin/campaigns" },
+            { label: "گزارش‌های جامع", icon: "calendar", href: "/admin/reports" },
+          ].map((link, i) => (
+            <Link
+              key={i}
+              href={link.href}
+              className="flex items-center gap-2 p-3 rounded-card bg-foreground/20 border border-border-subtle hover:border-primary hover:bg-foreground/40 transition-colors text-text-white text-xs font-bold"
+            >
+              <Icon name={link.icon as any} size={16} className="text-primary shrink-0" />
+              <span className="truncate">{link.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Section 6: Recent Reservations Summary */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-section-title text-text-white">آخرین رزروها</h2>
+            <h2 className="text-section-title text-text-white">آخرین رزروهای ثبت‌شده</h2>
             <p className="text-secondary text-text-muted mt-0.5">
-              خلاصه رزروهای اخیر ثبت‌شده در پلتفرم
+              لیست لحظه‌ای از رزروهای ورودی کاربران
             </p>
           </div>
         </div>
