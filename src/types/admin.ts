@@ -93,19 +93,43 @@ export interface AdminUserInput {
   nationalId?: string;
 }
 
+export interface AdminTicketMessage {
+  id: string;
+  ticketId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: "USER" | "OWNER" | "ADMIN";
+  message: string;
+  createdAt: string;
+}
+
+export interface CannedResponse {
+  id: string;
+  title: string;
+  category?: string;
+  text: string;
+}
+
 export interface AdminTicket {
   id: string;
   userId?: string;
   userName?: string;
+  userPhone?: string;
+  userRole?: "USER" | "OWNER";
   gamecenterId?: string;
   gamecenterName?: string;
+  reservationId?: string;
+  reservationCode?: string;
   subject: string;
   status: "OPEN" | "PENDING" | "ANSWERED" | "CLOSED";
   priority: "LOW" | "MEDIUM" | "HIGH";
   category: "TECHNICAL" | "FINANCIAL" | "SALES" | "ACCOUNT" | "GENERAL";
+  assignedAdminId?: string;
+  assignedAdminName?: string;
   createdAt: string;
   lastUpdate: string;
   messagesCount?: number;
+  messages?: AdminTicketMessage[];
 }
 
 export interface AdminReview {
@@ -147,6 +171,9 @@ export interface AdminListQueryParams {
   status?: string;
   city?: string;
   role?: string;
+  senderType?: string;
+  assignedAdminId?: string;
+  needingResponseOnly?: boolean;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   page?: number;
