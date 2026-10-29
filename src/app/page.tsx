@@ -8,6 +8,7 @@ import { DiscountedGamecenterCard } from "@/components/DiscountedGamecenterCard"
 import { BannerSlider } from "@/components/BannerSlider";
 import { DeviceCategories } from "@/components/DeviceCategories";
 import { DiscountedCentersSection } from "@/components/DiscountedCentersSection";
+import { HomeBlogSection } from "@/components/blog/HomeBlogSection";
 import {
   Carousel,
   CarouselContent,
@@ -190,6 +191,9 @@ export default function HomePage() {
             ))}
           </div>
         </section>
+
+        {/* ۶. چهار مقاله‌ی جدید وبلاگ در انتهای صفحه اصلی */}
+        <HomeBlogSection />
       </main>
 
       <BottomBar activeTab={activeTab} onTabChange={setActiveTab} />
