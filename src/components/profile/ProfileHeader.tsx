@@ -33,8 +33,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   };
 
   return (
-    <header className="fixed top-0 inset-x-0 z-40 h-16 bg-[var(--bg-card)] border-b border-[var(--border-subtle)] shadow-sm">
-      <div className="mx-auto flex h-full max-w-[1200px] items-center justify-between px-4 lg:px-8 gap-2">
+    <header className="fixed max-w-[var(--max-app-width)] mx-auto top-0 inset-x-0 z-40 h-16 bg-[var(--bg-card)] border-b border-[var(--border-subtle)] shadow-sm">
+      <div className="mx-auto flex h-full  items-center justify-between px-4 lg:px-8 gap-2">
         {/* Right Section: Back Button + Welcome & User Name */}
         <div className="flex items-center gap-2.5 min-w-0">
           <button
@@ -58,22 +58,15 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             </svg>
           </button>
 
-          <div className="flex flex-col min-w-0">
-            <span className="text-[11px] sm:text-xs text-[var(--text-muted)] truncate font-medium">
-              خوش آمدید 👋
-            </span>
-            <span className="text-xs sm:text-sm font-bold text-[var(--text-white)] truncate">
-              {displayName}
-            </span>
-          </div>
-        </div>
-
         {/* Center Section: Page Title */}
         <div className="flex items-center justify-center min-w-0 px-2 text-center">
           <h1 className="text-xs sm:text-sm md:text-base font-bold text-[var(--text-white)] truncate">
             {title}
           </h1>
         </div>
+        </div>
+
+
 
         {/* Left Section: Home Button */}
         <div className="flex items-center gap-2 shrink-0">

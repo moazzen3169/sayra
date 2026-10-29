@@ -77,11 +77,12 @@
   --accent-warning: #FBBF24;
   --header-h: 104px;
   --max-app-width: 780px;
+  --max-profile-width: 1000px;
 }
 
 @media (min-width: 781px) {
   :root {
-    --max-app-width: 1400px;
+    --max-app-width: 1400px;    
   }
 }
 

@@ -355,7 +355,7 @@ export default function ProfilePage() {
 
         {/* Authenticated State */}
         {!isLoading && isLoggedIn && user && (
-          <div className="w-full max-w-md lg:max-w-xl mx-auto flex flex-col gap-4 animate-fadeIn">
+          <div className="w-full max-w-[var(--max-profile-width)]  mx-auto flex flex-col gap-4 animate-fadeIn">
             {/* User Info Card */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-5 flex items-center gap-4 shadow-lg relative overflow-hidden">
               <div className="w-16 h-16 rounded-full bg-[var(--foreground)] border-2 border-[var(--primary)] flex items-center justify-center text-[var(--primary)] text-2xl font-bold shrink-0 shadow-md">

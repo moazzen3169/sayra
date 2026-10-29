@@ -13,7 +13,7 @@ export interface NavItem {
 
 const GLOBAL_NAV_ITEMS: NavItem[] = [
   { id: "home", label: "صفحه اصلی", href: "/" },
-  { id: "reservations", label: "رزروهای من", href: "/reservations" },
+  { id: "reservations", label: "'گیمنت ها'", href: "/gamecenters" },
 ];
 
 interface DesktopNavProps {
