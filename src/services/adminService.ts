@@ -5,6 +5,8 @@ import {
   AdminUser,
   AdminUserInput,
   AdminTicket,
+  AdminTicketMessage,
+  CannedResponse,
   AdminReview,
   AdminUserReservation,
   AdminPaginatedResult,
@@ -15,6 +17,7 @@ import {
   MOCK_ADMIN_GAMECENTERS,
   MOCK_ADMIN_USERS,
   MOCK_ADMIN_TICKETS,
+  MOCK_CANNED_RESPONSES,
   MOCK_ADMIN_REVIEWS,
   MOCK_ADMIN_USER_RESERVATIONS,
 } from "@/lib/mocks/admin.mock";
@@ -127,8 +130,8 @@ export const adminService = {
 
     // Sort
     filtered.sort((a, b) => {
-      let valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
-      let valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
 
       if (typeof valA === "string" && typeof valB === "string") {
         return sortOrder === "asc"
@@ -225,6 +228,211 @@ export const adminService = {
 
     persistStore("sayra_admin_gamecenters", gamecentersStore);
     return Promise.resolve(true);
+  },
+
+  // ==================== TICKETS ====================
+
+  async getTickets(
+    params: AdminListQueryParams = {}
+  ): Promise<AdminPaginatedResult<AdminTicket>> {
+    const {
+      search = "",
+      status = "all",
+      senderType = "all",
+      assignedAdminId = "all",
+      needingResponseOnly = false,
+      sortBy = "lastUpdate",
+      sortOrder = "desc",
+      page = 1,
+      pageSize = 10,
+    } = params;
+
+    let filtered = [...ticketsStore];
+
+    // Filter needing response (OPEN or PENDING)
+    if (needingResponseOnly) {
+      filtered = filtered.filter((t) => t.status === "OPEN" || t.status === "PENDING");
+    }
+
+    // Filter by Search (ID, Subject, User Name, Gamecenter Name, Reservation Code)
+    if (search.trim()) {
+      const query = search.trim().toLowerCase();
+      filtered = filtered.filter(
+        (t) =>
+          t.id.toLowerCase().includes(query) ||
+          t.subject.toLowerCase().includes(query) ||
+          (t.userName && t.userName.toLowerCase().includes(query)) ||
+          (t.gamecenterName && t.gamecenterName.toLowerCase().includes(query)) ||
+          (t.reservationCode && t.reservationCode.toLowerCase().includes(query))
+      );
+    }
+
+    // Filter by Status
+    if (status && status !== "all") {
+      filtered = filtered.filter((t) => t.status === status);
+    }
+
+    // Filter by Sender Type (USER / OWNER)
+    if (senderType && senderType !== "all") {
+      filtered = filtered.filter((t) => (t.userRole || "USER") === senderType);
+    }
+
+    // Filter by Assigned Admin
+    if (assignedAdminId && assignedAdminId !== "all") {
+      if (assignedAdminId === "unassigned") {
+        filtered = filtered.filter((t) => !t.assignedAdminId);
+      } else {
+        filtered = filtered.filter((t) => t.assignedAdminId === assignedAdminId);
+      }
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      let valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+      let valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+
+      if (typeof valA === "string" && typeof valB === "string") {
+        return sortOrder === "asc"
+          ? valA.localeCompare(valB, "fa")
+          : valB.localeCompare(valA, "fa");
+      }
+
+      return 0;
+    });
+
+    // Pagination
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    const safePage = Math.max(1, Math.min(page, totalPages));
+    const start = (safePage - 1) * pageSize;
+    const items = filtered.slice(start, start + pageSize);
+
+    return Promise.resolve({
+      items,
+      total,
+      page: safePage,
+      pageSize,
+      totalPages,
+    });
+  },
+
+  async getTicketById(id: string): Promise<AdminTicket | null> {
+    const t = ticketsStore.find((item) => item.id === id);
+    return Promise.resolve(t || null);
+  },
+
+  async replyToTicket(
+    ticketId: string,
+    messageText: string,
+    senderAdminId?: string
+  ): Promise<AdminTicket> {
+    const index = ticketsStore.findIndex((t) => t.id === ticketId);
+    if (index === -1) {
+      throw new Error("تیکت مورد نظر یافت نشد.");
+    }
+
+    const trimmed = messageText.trim();
+    if (!trimmed) {
+      throw new Error("متن پاسخ نمی‌تواند خالی باشد.");
+    }
+
+    const currentTicket = ticketsStore[index];
+    const adminUser = usersStore.find((u) => u.id === senderAdminId) ||
+      usersStore.find((u) => u.role === "ADMIN") || {
+        id: "usr-8",
+        fullName: "مدیر پشتیبانی سایرا",
+      };
+
+    const nowFormatted = new Date().toLocaleDateString("fa-IR") + " - " + new Date().toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+
+    const newMessage: AdminTicketMessage = {
+      id: `msg-${ticketId}-${Date.now()}`,
+      ticketId,
+      senderId: adminUser.id,
+      senderName: adminUser.fullName,
+      senderRole: "ADMIN",
+      message: trimmed,
+      createdAt: nowFormatted,
+    };
+
+    const updatedMessages = [...(currentTicket.messages || []), newMessage];
+
+    const updatedTicket: AdminTicket = {
+      ...currentTicket,
+      status: "ANSWERED",
+      lastUpdate: nowFormatted,
+      messagesCount: updatedMessages.length,
+      messages: updatedMessages,
+      assignedAdminId: currentTicket.assignedAdminId || adminUser.id,
+      assignedAdminName: currentTicket.assignedAdminName || adminUser.fullName,
+    };
+
+    ticketsStore[index] = updatedTicket;
+    persistStore("sayra_admin_tickets", ticketsStore);
+    return Promise.resolve(updatedTicket);
+  },
+
+  async updateTicketStatus(
+    ticketId: string,
+    status: AdminTicket["status"]
+  ): Promise<AdminTicket> {
+    const index = ticketsStore.findIndex((t) => t.id === ticketId);
+    if (index === -1) {
+      throw new Error("تیکت مورد نظر یافت نشد.");
+    }
+
+    const nowFormatted = new Date().toLocaleDateString("fa-IR") + " - " + new Date().toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+
+    const updatedTicket: AdminTicket = {
+      ...ticketsStore[index],
+      status,
+      lastUpdate: nowFormatted,
+    };
+
+    ticketsStore[index] = updatedTicket;
+    persistStore("sayra_admin_tickets", ticketsStore);
+    return Promise.resolve(updatedTicket);
+  },
+
+  async assignTicket(
+    ticketId: string,
+    adminId: string | null
+  ): Promise<AdminTicket> {
+    const index = ticketsStore.findIndex((t) => t.id === ticketId);
+    if (index === -1) {
+      throw new Error("تیکت مورد نظر یافت نشد.");
+    }
+
+    let adminName: string | undefined = undefined;
+    if (adminId) {
+      const adminUser = usersStore.find((u) => u.id === adminId && u.role === "ADMIN");
+      if (!adminUser) {
+        throw new Error("کاربر مدیریتی یافت نشد.");
+      }
+      adminName = adminUser.fullName;
+    }
+
+    const nowFormatted = new Date().toLocaleDateString("fa-IR") + " - " + new Date().toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+
+    const updatedTicket: AdminTicket = {
+      ...ticketsStore[index],
+      assignedAdminId: adminId || undefined,
+      assignedAdminName: adminName,
+      lastUpdate: nowFormatted,
+    };
+
+    ticketsStore[index] = updatedTicket;
+    persistStore("sayra_admin_tickets", ticketsStore);
+    return Promise.resolve(updatedTicket);
+  },
+
+  async getCannedResponses(): Promise<CannedResponse[]> {
+    return Promise.resolve(MOCK_CANNED_RESPONSES);
+  },
+
+  async getAdmins(): Promise<AdminUser[]> {
+    const admins = usersStore.filter((u) => u.role === "ADMIN");
+    return Promise.resolve(admins);
   },
 
   async getGamecenterTickets(gamecenterId: string): Promise<AdminTicket[]> {
