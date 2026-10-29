@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { Header } from "@/components/Header";
 import { BottomBar } from "@/components/BottomBar";
 import { useAuth } from "@/context/AuthContext";
@@ -402,9 +403,8 @@ export default function ProfilePage() {
             {/* Menu Options Group */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card overflow-hidden divide-y divide-[var(--border-subtle)] shadow-lg">
               {/* 1. پشتیبانی */}
-              <button
-                type="button"
-                onClick={() => setIsSupportModalOpen(true)}
+              <Link
+                href="/support"
                 className="w-full p-4 flex items-center justify-between hover:bg-[var(--foreground)]/30 transition-colors text-right group"
               >
                 <div className="flex items-center gap-3">
@@ -421,7 +421,7 @@ export default function ProfilePage() {
                 <svg className="w-5 h-5 text-[var(--text-subtle)] transform rotate-180 group-hover:translate-x-[-2px] transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
-              </button>
+              </Link>
 
               {/* 2. ویرایش اطلاعات */}
               <button
