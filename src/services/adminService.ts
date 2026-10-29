@@ -25,6 +25,17 @@ import {
   MOCK_ADMIN_OWNER_VERIFICATIONS,
   MOCK_ADMIN_AD_REQUESTS,
 } from "@/lib/mocks/admin.mock";
+import type {
+  BlogPostDetail,
+  BlogPostStatus,
+  AdminBlogPostInput,
+  BlogCategory,
+} from "@/types/blog";
+import {
+  MOCK_BLOG_CATEGORIES,
+  MOCK_BLOG_POSTS,
+  findMockPost,
+} from "@/lib/mocks/blog.mock";
 
 // In-memory / LocalStorage state store for mock administrative data
 let gamecentersStore: AdminGamecenter[] = [...MOCK_ADMIN_GAMECENTERS];
@@ -34,6 +45,10 @@ let reviewsStore: AdminReview[] = [...MOCK_ADMIN_REVIEWS];
 let reservationsStore: AdminUserReservation[] = [...MOCK_ADMIN_USER_RESERVATIONS];
 let verificationsStore: AdminOwnerVerification[] = [...MOCK_ADMIN_OWNER_VERIFICATIONS];
 let adRequestsStore: AdminAdRequest[] = [...MOCK_ADMIN_AD_REQUESTS];
+let blogPostsStore: BlogPostDetail[] = MOCK_BLOG_POSTS.map((summary) => {
+  const detail = findMockPost(summary.slug);
+  return detail || { ...summary, content: [] };
+});
 
 // Load from localStorage on client side if available
 if (typeof window !== "undefined") {
@@ -58,6 +73,9 @@ if (typeof window !== "undefined") {
 
     const adsSaved = localStorage.getItem("sayra_admin_ads");
     if (adsSaved) adRequestsStore = JSON.parse(adsSaved);
+
+    const blogSaved = localStorage.getItem("sayra_admin_blog_posts");
+    if (blogSaved) blogPostsStore = JSON.parse(blogSaved);
   } catch (e) {
     console.warn("Failed to load admin mock store from localStorage", e);
   }
@@ -808,5 +826,209 @@ export const adminService = {
     adRequestsStore[index] = updated;
     persistStore("sayra_admin_ads", adRequestsStore);
     return Promise.resolve(updated);
+  },
+
+  // ==================== BLOG POSTS ====================
+
+  async getBlogPosts(
+    params: AdminListQueryParams & { category?: string } = {}
+  ): Promise<AdminPaginatedResult<BlogPostDetail>> {
+    const {
+      search = "",
+      status = "all",
+      category = "all",
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      page = 1,
+      pageSize = 10,
+    } = params;
+
+    let filtered = [...blogPostsStore];
+
+    // Filter by search
+    if (search.trim()) {
+      const query = search.trim().toLowerCase();
+      filtered = filtered.filter(
+        (p) =>
+          p.title.toLowerCase().includes(query) ||
+          p.slug.toLowerCase().includes(query) ||
+          p.excerpt.toLowerCase().includes(query) ||
+          p.authorName.toLowerCase().includes(query) ||
+          p.tags.some((t) => t.toLowerCase().includes(query)) ||
+          p.categoryLabel.toLowerCase().includes(query)
+      );
+    }
+
+    // Filter by status
+    if (status && status !== "all") {
+      filtered = filtered.filter((p) => (p.status ?? "PUBLISHED") === status);
+    }
+
+    // Filter by category
+    if (category && category !== "all") {
+      filtered = filtered.filter((p) => p.category === category);
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      const valA = (a as unknown as Record<string, unknown>)[sortBy] ?? "";
+      const valB = (b as unknown as Record<string, unknown>)[sortBy] ?? "";
+
+      if (typeof valA === "string" && typeof valB === "string") {
+        return sortOrder === "asc"
+          ? valA.localeCompare(valB, "fa")
+          : valB.localeCompare(valA, "fa");
+      }
+
+      if (typeof valA === "number" && typeof valB === "number") {
+        return sortOrder === "asc" ? valA - valB : valB - valA;
+      }
+
+      return 0;
+    });
+
+    // Pagination
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    const safePage = Math.max(1, Math.min(page, totalPages));
+    const start = (safePage - 1) * pageSize;
+    const items = filtered.slice(start, start + pageSize);
+
+    return Promise.resolve({
+      items,
+      total,
+      page: safePage,
+      pageSize,
+      totalPages,
+    });
+  },
+
+  async getBlogPostById(id: string): Promise<BlogPostDetail | null> {
+    const post = blogPostsStore.find((p) => p.id === id || p.slug === id);
+    return Promise.resolve(post || null);
+  },
+
+  async createBlogPost(input: AdminBlogPostInput): Promise<BlogPostDetail> {
+    const existing = blogPostsStore.find((p) => p.slug === input.slug.trim());
+    if (existing) {
+      throw new Error("این شناسه (Slug) قبلاً استفاده شده است.");
+    }
+
+    const categoryObj = MOCK_BLOG_CATEGORIES.find((c) => c.id === input.category);
+    const nowIso = new Date().toISOString();
+
+    const newPost: BlogPostDetail = {
+      id: `bp-${Date.now()}`,
+      slug: input.slug.trim(),
+      title: input.title.trim(),
+      excerpt: input.excerpt.trim(),
+      coverUrl: input.coverUrl.trim() || "/img/gamnet-1.webp",
+      category: input.category,
+      categoryLabel: categoryObj ? categoryObj.label : "عمومی",
+      authorName: input.authorName.trim() || "تحریریه‌ی سایرا",
+      readingMinutes: input.readingMinutes || 5,
+      tags: input.tags,
+      featured: Boolean(input.featured),
+      status: input.status,
+      publishedAt: input.status === "PUBLISHED" ? (input.publishedAt || nowIso) : "",
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      viewsCount: 0,
+      content: input.content || [],
+    };
+
+    blogPostsStore.unshift(newPost);
+    persistStore("sayra_admin_blog_posts", blogPostsStore);
+    return Promise.resolve(newPost);
+  },
+
+  async updateBlogPost(
+    id: string,
+    input: Partial<AdminBlogPostInput>
+  ): Promise<BlogPostDetail> {
+    const index = blogPostsStore.findIndex((p) => p.id === id);
+    if (index === -1) {
+      throw new Error("مقاله مورد نظر یافت نشد.");
+    }
+
+    const current = blogPostsStore[index];
+
+    if (input.slug && input.slug !== current.slug) {
+      const slugConflict = blogPostsStore.find((p) => p.slug === input.slug && p.id !== id);
+      if (slugConflict) {
+        throw new Error("این شناسه (Slug) قبلاً استفاده شده است.");
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const newStatus = input.status ?? current.status ?? "PUBLISHED";
+    let newPublishedAt = current.publishedAt;
+
+    if (newStatus === "PUBLISHED" && !current.publishedAt) {
+      newPublishedAt = input.publishedAt || nowIso;
+    } else if (input.publishedAt !== undefined) {
+      newPublishedAt = input.publishedAt;
+    }
+
+    const categoryObj = input.category
+      ? MOCK_BLOG_CATEGORIES.find((c) => c.id === input.category)
+      : undefined;
+
+    const updated: BlogPostDetail = {
+      ...current,
+      ...input,
+      status: newStatus,
+      publishedAt: newPublishedAt,
+      updatedAt: nowIso,
+      categoryLabel: categoryObj ? categoryObj.label : current.categoryLabel,
+    };
+
+    blogPostsStore[index] = updated;
+    persistStore("sayra_admin_blog_posts", blogPostsStore);
+    return Promise.resolve(updated);
+  },
+
+  async updateBlogPostStatus(
+    id: string,
+    status: BlogPostStatus
+  ): Promise<BlogPostDetail> {
+    const index = blogPostsStore.findIndex((p) => p.id === id);
+    if (index === -1) {
+      throw new Error("مقاله مورد نظر یافت نشد.");
+    }
+
+    const current = blogPostsStore[index];
+    const nowIso = new Date().toISOString();
+    let publishedAt = current.publishedAt;
+
+    if (status === "PUBLISHED" && !publishedAt) {
+      publishedAt = nowIso;
+    }
+
+    const updated: BlogPostDetail = {
+      ...current,
+      status,
+      publishedAt,
+      updatedAt: nowIso,
+    };
+
+    blogPostsStore[index] = updated;
+    persistStore("sayra_admin_blog_posts", blogPostsStore);
+    return Promise.resolve(updated);
+  },
+
+  async deleteBlogPost(id: string): Promise<boolean> {
+    const initialLength = blogPostsStore.length;
+    blogPostsStore = blogPostsStore.filter((p) => p.id !== id);
+    if (blogPostsStore.length === initialLength) {
+      throw new Error("مقاله مورد نظر یافت نشد.");
+    }
+
+    persistStore("sayra_admin_blog_posts", blogPostsStore);
+    return Promise.resolve(true);
+  },
+
+  async getBlogCategories(): Promise<BlogCategory[]> {
+    return Promise.resolve(MOCK_BLOG_CATEGORIES);
   },
 };

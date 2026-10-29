@@ -67,6 +67,24 @@ function sortPosts(list: BlogPostSummary[], sort: BlogSort): BlogPostSummary[] {
   }
 }
 
+function getPublishedPosts(): BlogPostDetail[] {
+  let posts: BlogPostDetail[] = MOCK_BLOG_POSTS.map((summary) => {
+    const detail = findMockPost(summary.slug);
+    return detail || { ...summary, content: [] };
+  });
+
+  if (typeof window !== "undefined") {
+    try {
+      const blogSaved = localStorage.getItem("sayra_admin_blog_posts");
+      if (blogSaved) posts = JSON.parse(blogSaved);
+    } catch (e) {
+      console.warn("Failed to read admin blog store", e);
+    }
+  }
+
+  return posts.filter((p) => (p.status ?? "PUBLISHED") === "PUBLISHED");
+}
+
 export const blogService = {
   async getCategories(signal?: AbortSignal): Promise<BlogCategory[]> {
     await wait(100, signal);
@@ -79,8 +97,9 @@ export const blogService = {
   ): Promise<BlogListResult> {
     await wait(250, signal);
 
+    const published = getPublishedPosts();
     const q = params.q ? normalizeSearchText(params.q) : "";
-    const filtered = MOCK_BLOG_POSTS.filter((p) => {
+    const filtered = published.filter((p) => {
       if (params.category && p.category !== params.category) return false;
       if (!q) return true;
       const haystack = normalizeSearchText(
@@ -96,15 +115,17 @@ export const blogService = {
 
   async getFeatured(signal?: AbortSignal): Promise<BlogPostSummary[]> {
     await wait(150, signal);
+    const published = getPublishedPosts();
     return sortPosts(
-      MOCK_BLOG_POSTS.filter((p) => p.featured),
+      published.filter((p) => p.featured),
       "newest"
     ).slice(0, 4);
   },
 
   async getBySlug(slug: string, signal?: AbortSignal): Promise<BlogPostDetail> {
     await wait(250, signal);
-    const post = findMockPost(slug);
+    const published = getPublishedPosts();
+    const post = published.find((p) => p.slug === slug);
     if (!post) {
       throw new ApiError(404, "NOT_FOUND", "مقاله پیدا نشد.");
     }
@@ -116,9 +137,10 @@ export const blogService = {
     signal?: AbortSignal
   ): Promise<BlogPostSummary[]> {
     await wait(200, signal);
-    const current = MOCK_BLOG_POSTS.find((p) => p.slug === slug);
+    const published = getPublishedPosts();
+    const current = published.find((p) => p.slug === slug);
     const others = sortPosts(
-      MOCK_BLOG_POSTS.filter((p) => p.slug !== slug),
+      published.filter((p) => p.slug !== slug),
       "newest"
     );
     const sameCategory = others.filter((p) => p.category === current?.category);
