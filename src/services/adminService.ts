@@ -15,6 +15,7 @@ import {
   AdminAdRequest,
   AdminCampaign,
   AdminCampaignInput,
+  SiteSettings,
 } from "@/types/admin";
 import {
   ADMIN_DASHBOARD_MOCK_DATA,
@@ -27,6 +28,7 @@ import {
   MOCK_ADMIN_OWNER_VERIFICATIONS,
   MOCK_ADMIN_AD_REQUESTS,
   MOCK_ADMIN_CAMPAIGNS,
+  MOCK_SITE_SETTINGS,
 } from "@/lib/mocks/admin.mock";
 import type {
   BlogPostDetail,
@@ -49,6 +51,7 @@ let reservationsStore: AdminUserReservation[] = [...MOCK_ADMIN_USER_RESERVATIONS
 let verificationsStore: AdminOwnerVerification[] = [...MOCK_ADMIN_OWNER_VERIFICATIONS];
 let adRequestsStore: AdminAdRequest[] = [...MOCK_ADMIN_AD_REQUESTS];
 let campaignsStore: AdminCampaign[] = [...MOCK_ADMIN_CAMPAIGNS];
+let siteSettingsStore: SiteSettings = { ...MOCK_SITE_SETTINGS };
 let blogPostsStore: BlogPostDetail[] = MOCK_BLOG_POSTS.map((summary) => {
   const detail = findMockPost(summary.slug);
   return detail || { ...summary, content: [] };
@@ -80,6 +83,9 @@ if (typeof window !== "undefined") {
 
     const cmpSaved = localStorage.getItem("sayra_admin_campaigns");
     if (cmpSaved) campaignsStore = JSON.parse(cmpSaved);
+
+    const stgSaved = localStorage.getItem("sayra_admin_site_settings");
+    if (stgSaved) siteSettingsStore = JSON.parse(stgSaved);
 
     const blogSaved = localStorage.getItem("sayra_admin_blog_posts");
     if (blogSaved) blogPostsStore = JSON.parse(blogSaved);
@@ -530,8 +536,8 @@ export const adminService = {
 
     // Sort
     filtered.sort((a, b) => {
-      let valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
-      let valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
 
       if (typeof valA === "string" && typeof valB === "string") {
         return sortOrder === "asc"
@@ -1254,5 +1260,17 @@ export const adminService = {
 
     persistStore("sayra_admin_campaigns", campaignsStore);
     return Promise.resolve(true);
+  },
+
+  // ==================== SITE SETTINGS ====================
+
+  async getSiteSettings(): Promise<SiteSettings> {
+    return Promise.resolve(JSON.parse(JSON.stringify(siteSettingsStore)));
+  },
+
+  async updateSiteSettings(newSettings: SiteSettings): Promise<SiteSettings> {
+    siteSettingsStore = JSON.parse(JSON.stringify(newSettings));
+    persistStore("sayra_admin_site_settings", siteSettingsStore);
+    return Promise.resolve(JSON.parse(JSON.stringify(siteSettingsStore)));
   },
 };

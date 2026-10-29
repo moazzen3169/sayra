@@ -7,6 +7,7 @@ import {
   AdminUserReservation,
   AdminCampaign,
   CannedResponse,
+  SiteSettings,
 } from "@/types/admin";
 
 export const ADMIN_DASHBOARD_MOCK_DATA: AdminDashboardData = {
@@ -999,3 +1000,36 @@ export const MOCK_ADMIN_CAMPAIGNS: AdminCampaign[] = [
     createdAt: "۱۴۰۲/۱۰/۰۱",
   },
 ];
+
+export const MOCK_SITE_SETTINGS: SiteSettings = {
+  general: {
+    siteTitle: "سامانه رزرو گیمنت سایرا",
+    supportPhone: "02188889999",
+    supportEmail: "support@sayra.ir",
+    centralAddress: "تهران، خیابان ولیعصر، نرسیده به میدان ونک، برج نگار، طبقه ۵",
+    maintenanceMode: false,
+    maintenanceMessage: "سیستم به‌منظور ارتقاء زیرساخت تا ساعاتی دیگر در دسترس نخواهد بود.",
+  },
+  reservation: {
+    platformCommissionPercent: 10,
+    maxAdvanceBookingDays: 14,
+    onlinePaymentTimeoutMinutes: 15,
+    cancellationPenaltyPercent: 20,
+    freeCancellationHours: 2,
+  },
+  notification: {
+    autoSendBookingSms: true,
+    autoSendReminderSms: true,
+    welcomeSmsTemplate: "خوش آمدید! به خانواده بزرگ سایرا پیوستید. با سایرا هیجان بازی‌های گروهی را آنلاین رزرو کنید.",
+    reviewApprovalPolicy: "AUTO",
+  },
+  securityInfo: {
+    smsGatewayConnected: true,
+    smsGatewayProvider: "Kavenegar (REST API v1)",
+    paymentGatewayConnected: true,
+    paymentGatewayProvider: "ZarinPal / Shaparak Gateway",
+    sslCertificateStatus: "فعال (اعتبار تا ۱۴۰۴/۰۶/۱۵)",
+    apiVersion: "v1.2.4-production",
+    lastBackupDate: "۱۴۰۳/۰۷/۱۲ - ۰۴:۰۰ صبح",
+  },
+};
