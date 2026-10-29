@@ -303,3 +303,44 @@ export interface AdminCampaignInput {
   totalUsageLimit?: number;
   perUserUsageLimit?: number;
 }
+
+export interface SiteGeneralSettings {
+  siteTitle: string;
+  supportPhone: string;
+  supportEmail: string;
+  centralAddress: string;
+  maintenanceMode: boolean;
+  maintenanceMessage?: string;
+}
+
+export interface SiteReservationSettings {
+  platformCommissionPercent: number;
+  maxAdvanceBookingDays: number;
+  onlinePaymentTimeoutMinutes: number;
+  cancellationPenaltyPercent: number;
+  freeCancellationHours: number;
+}
+
+export interface SiteNotificationSettings {
+  autoSendBookingSms: boolean;
+  autoSendReminderSms: boolean;
+  welcomeSmsTemplate: string;
+  reviewApprovalPolicy: "AUTO" | "MANUAL";
+}
+
+export interface SiteSecuritySettingsInfo {
+  smsGatewayConnected: boolean;
+  smsGatewayProvider: string;
+  paymentGatewayConnected: boolean;
+  paymentGatewayProvider: string;
+  sslCertificateStatus: string;
+  apiVersion: string;
+  lastBackupDate: string;
+}
+
+export interface SiteSettings {
+  general: SiteGeneralSettings;
+  reservation: SiteReservationSettings;
+  notification: SiteNotificationSettings;
+  securityInfo: SiteSecuritySettingsInfo;
+}
