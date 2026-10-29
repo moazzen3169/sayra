@@ -13,6 +13,8 @@ import {
   AdminListQueryParams,
   AdminOwnerVerification,
   AdminAdRequest,
+  AdminCampaign,
+  AdminCampaignInput,
 } from "@/types/admin";
 import {
   ADMIN_DASHBOARD_MOCK_DATA,
@@ -24,6 +26,7 @@ import {
   MOCK_ADMIN_USER_RESERVATIONS,
   MOCK_ADMIN_OWNER_VERIFICATIONS,
   MOCK_ADMIN_AD_REQUESTS,
+  MOCK_ADMIN_CAMPAIGNS,
 } from "@/lib/mocks/admin.mock";
 import type {
   BlogPostDetail,
@@ -45,6 +48,7 @@ let reviewsStore: AdminReview[] = [...MOCK_ADMIN_REVIEWS];
 let reservationsStore: AdminUserReservation[] = [...MOCK_ADMIN_USER_RESERVATIONS];
 let verificationsStore: AdminOwnerVerification[] = [...MOCK_ADMIN_OWNER_VERIFICATIONS];
 let adRequestsStore: AdminAdRequest[] = [...MOCK_ADMIN_AD_REQUESTS];
+let campaignsStore: AdminCampaign[] = [...MOCK_ADMIN_CAMPAIGNS];
 let blogPostsStore: BlogPostDetail[] = MOCK_BLOG_POSTS.map((summary) => {
   const detail = findMockPost(summary.slug);
   return detail || { ...summary, content: [] };
@@ -73,6 +77,9 @@ if (typeof window !== "undefined") {
 
     const adsSaved = localStorage.getItem("sayra_admin_ads");
     if (adsSaved) adRequestsStore = JSON.parse(adsSaved);
+
+    const cmpSaved = localStorage.getItem("sayra_admin_campaigns");
+    if (cmpSaved) campaignsStore = JSON.parse(cmpSaved);
 
     const blogSaved = localStorage.getItem("sayra_admin_blog_posts");
     if (blogSaved) blogPostsStore = JSON.parse(blogSaved);
@@ -1030,5 +1037,222 @@ export const adminService = {
 
   async getBlogCategories(): Promise<BlogCategory[]> {
     return Promise.resolve(MOCK_BLOG_CATEGORIES);
+  },
+
+  // ==================== CAMPAIGNS & DISCOUNTS ====================
+
+  async getCampaigns(
+    params: AdminListQueryParams = {}
+  ): Promise<AdminPaginatedResult<AdminCampaign>> {
+    const {
+      search = "",
+      status = "all",
+      discountType = "all",
+      scopeType = "all",
+      targetAudience = "all",
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      page = 1,
+      pageSize = 10,
+    } = params;
+
+    let filtered = [...campaignsStore];
+
+    // Search by title, code, description
+    if (search.trim()) {
+      const query = search.trim().toLowerCase();
+      filtered = filtered.filter(
+        (c) =>
+          c.title.toLowerCase().includes(query) ||
+          c.code.toLowerCase().includes(query) ||
+          (c.description && c.description.toLowerCase().includes(query))
+      );
+    }
+
+    // Filter by status
+    if (status && status !== "all") {
+      filtered = filtered.filter((c) => c.status === status);
+    }
+
+    // Filter by discountType
+    if (discountType && discountType !== "all") {
+      filtered = filtered.filter((c) => c.discountType === discountType);
+    }
+
+    // Filter by scopeType
+    if (scopeType && scopeType !== "all") {
+      filtered = filtered.filter((c) => c.scopeType === scopeType);
+    }
+
+    // Filter by targetAudience
+    if (targetAudience && targetAudience !== "all") {
+      filtered = filtered.filter((c) => c.targetAudience === targetAudience);
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+
+      if (typeof valA === "string" && typeof valB === "string") {
+        return sortOrder === "asc"
+          ? valA.localeCompare(valB, "fa")
+          : valB.localeCompare(valA, "fa");
+      }
+
+      if (typeof valA === "number" && typeof valB === "number") {
+        return sortOrder === "asc" ? valA - valB : valB - valA;
+      }
+
+      return 0;
+    });
+
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    const safePage = Math.max(1, Math.min(page, totalPages));
+    const start = (safePage - 1) * pageSize;
+    const items = filtered.slice(start, start + pageSize);
+
+    return Promise.resolve({
+      items,
+      total,
+      page: safePage,
+      pageSize,
+      totalPages,
+    });
+  },
+
+  async getCampaignById(id: string): Promise<AdminCampaign | null> {
+    const item = campaignsStore.find((c) => c.id === id);
+    return Promise.resolve(item || null);
+  },
+
+  async createCampaign(input: AdminCampaignInput): Promise<AdminCampaign> {
+    // Check if code already exists
+    const codeExists = campaignsStore.some(
+      (c) => c.code.trim().toUpperCase() === input.code.trim().toUpperCase()
+    );
+    if (codeExists) {
+      throw new Error("کد تخفیف وارد شده تکراری است. لطفاً کد دیگری انتخاب کنید.");
+    }
+
+    // Resolve gamecenter names if scope is SPECIFIC_GAMECENTERS
+    let applicableGamecenterNames: string[] | undefined = undefined;
+    if (input.scopeType === "SPECIFIC_GAMECENTERS" && input.applicableGamecenterIds?.length) {
+      applicableGamecenterNames = input.applicableGamecenterIds
+        .map((gcId) => gamecentersStore.find((g) => g.id === gcId)?.name)
+        .filter((n): n is string => Boolean(n));
+    }
+
+    // Resolve user names if audience is SPECIFIC_USERS
+    let specificUserNames: string[] | undefined = undefined;
+    if (input.targetAudience === "SPECIFIC_USERS" && input.specificUserIds?.length) {
+      specificUserNames = input.specificUserIds
+        .map((uId) => usersStore.find((u) => u.id === uId)?.fullName)
+        .filter((n): n is string => Boolean(n));
+    }
+
+    const nowFormatted = new Date().toLocaleDateString("fa-IR");
+    const newId = `cmp-${Date.now()}`;
+
+    const newCampaign: AdminCampaign = {
+      id: newId,
+      ...input,
+      code: input.code.trim().toUpperCase(),
+      applicableGamecenterNames,
+      specificUserNames,
+      usedCount: 0,
+      createdAt: nowFormatted,
+    };
+
+    campaignsStore.unshift(newCampaign);
+    persistStore("sayra_admin_campaigns", campaignsStore);
+    return Promise.resolve(newCampaign);
+  },
+
+  async updateCampaign(
+    id: string,
+    input: Partial<AdminCampaignInput>
+  ): Promise<AdminCampaign> {
+    const index = campaignsStore.findIndex((c) => c.id === id);
+    if (index === -1) {
+      throw new Error("کمپین مورد نظر یافت نشد.");
+    }
+
+    const current = campaignsStore[index];
+
+    if (input.code && input.code.trim().toUpperCase() !== current.code) {
+      const codeExists = campaignsStore.some(
+        (c) => c.id !== id && c.code.trim().toUpperCase() === input.code?.trim().toUpperCase()
+      );
+      if (codeExists) {
+        throw new Error("کد تخفیف وارد شده تکراری است.");
+      }
+    }
+
+    let applicableGamecenterNames = current.applicableGamecenterNames;
+    if (input.scopeType === "SPECIFIC_GAMECENTERS" && input.applicableGamecenterIds) {
+      applicableGamecenterNames = input.applicableGamecenterIds
+        .map((gcId) => gamecentersStore.find((g) => g.id === gcId)?.name)
+        .filter((n): n is string => Boolean(n));
+    } else if (input.scopeType && input.scopeType !== "SPECIFIC_GAMECENTERS") {
+      applicableGamecenterNames = undefined;
+    }
+
+    let specificUserNames = current.specificUserNames;
+    if (input.targetAudience === "SPECIFIC_USERS" && input.specificUserIds) {
+      specificUserNames = input.specificUserIds
+        .map((uId) => usersStore.find((u) => u.id === uId)?.fullName)
+        .filter((n): n is string => Boolean(n));
+    } else if (input.targetAudience && input.targetAudience !== "SPECIFIC_USERS") {
+      specificUserNames = undefined;
+    }
+
+    const nowFormatted = new Date().toLocaleDateString("fa-IR");
+
+    const updated: AdminCampaign = {
+      ...current,
+      ...input,
+      code: input.code ? input.code.trim().toUpperCase() : current.code,
+      applicableGamecenterNames,
+      specificUserNames,
+      updatedAt: nowFormatted,
+    };
+
+    campaignsStore[index] = updated;
+    persistStore("sayra_admin_campaigns", campaignsStore);
+    return Promise.resolve(updated);
+  },
+
+  async toggleCampaignStatus(id: string): Promise<AdminCampaign> {
+    const index = campaignsStore.findIndex((c) => c.id === id);
+    if (index === -1) {
+      throw new Error("کمپین مورد نظر یافت نشد.");
+    }
+
+    const current = campaignsStore[index];
+    const newStatus = current.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    const nowFormatted = new Date().toLocaleDateString("fa-IR");
+
+    const updated: AdminCampaign = {
+      ...current,
+      status: newStatus,
+      updatedAt: nowFormatted,
+    };
+
+    campaignsStore[index] = updated;
+    persistStore("sayra_admin_campaigns", campaignsStore);
+    return Promise.resolve(updated);
+  },
+
+  async deleteCampaign(id: string): Promise<boolean> {
+    const initialLength = campaignsStore.length;
+    campaignsStore = campaignsStore.filter((c) => c.id !== id);
+    if (campaignsStore.length === initialLength) {
+      throw new Error("کمپین مورد نظر یافت نشد.");
+    }
+
+    persistStore("sayra_admin_campaigns", campaignsStore);
+    return Promise.resolve(true);
   },
 };
