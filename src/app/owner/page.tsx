@@ -158,8 +158,7 @@ export default function OwnerDashboardPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
-      <main className="flex-1 px-4 pt-5 flex flex-col gap-5 lg:max-w-[880px] lg:mx-auto lg:w-full lg:px-0">
-        {/* Top bar */}
+<main className="flex-1 px-4 pt-5 flex flex-col gap-5  lg:max-w-[880px] lg:mx-auto lg:w-full lg:px-0">        {/* Top bar */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-baseline gap-2 min-w-0">
             <h1 className="text-base font-bold truncate">{ownerName}</h1>
@@ -302,7 +301,7 @@ export default function OwnerDashboardPage() {
         )}
 
         {/* Locked Content Overlay / Container when not approved */}
-        <div className={!isApproved ? "pointer-events-none opacity-40 select-none" : ""}>
+        <div className={!isApproved ? "pointer-events-none opacity-40 flex flex-col select-none" : "flex flex-col gap-5"}>
 
         {/* Search */}
         <form onSubmit={handleSearch} className="relative">
