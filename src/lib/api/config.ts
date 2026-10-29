@@ -6,6 +6,7 @@ export const API_BASE_URL = (
 /** Timezone نمایش تاریخ/ساعت؛ باید با Contract بک‌اند هماهنگ باشد */
 export const APP_TIME_ZONE = process.env.NEXT_PUBLIC_APP_TIME_ZONE ?? "Asia/Tehran";
 
-export const USE_MOCK_RESERVATIONS = process.env.NEXT_PUBLIC_USE_MOCK_RESERVATIONS === "true";
+export const USE_MOCK_RESERVATIONS = process.env.NEXT_PUBLIC_USE_MOCK_RESERVATIONS !== "false";
+export const USE_MOCK_DATA = USE_MOCK_RESERVATIONS;
 
 export const ACCESS_TOKEN_KEY = "sayra_access_token";

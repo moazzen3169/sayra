@@ -1,5 +1,6 @@
 import type { GamecenterDetail, GameItem } from "@/types/gamecenter";
-import type { GameStationInfo } from "@/services/gamingCenterService";
+import type { GameStationInfo, AvailabilitySlot } from "@/services/gamingCenterService";
+import { generateHourlySlots } from "@/lib/slots";
 
 /**
  * فقط برای حالت Mock / طراحی.
@@ -38,6 +39,22 @@ const station = (
   hourlyPrice,
   isActive: true,
 });
+
+const MOCK_TZ_OFFSET = "+03:30";
+export function buildMockAvailabilitySlots(date: string): AvailabilitySlot[] {
+  return generateHourlySlots().map((s) => {
+    const hh = String(s.startHour).padStart(2, "0");
+    const startMs = Date.parse(`${date}T${hh}:00:00${MOCK_TZ_OFFSET}`);
+    const start = new Date(startMs).toISOString();
+    const end = new Date(startMs + 3_600_000).toISOString();
+    return {
+      startTime: start,
+      endTime: end,
+      isAvailable: startMs > Date.now(),
+      status: startMs > Date.now() ? "AVAILABLE" : "UNAVAILABLE",
+    };
+  });
+}
 
 export function getMockGamecenterDetail(slug: string): GamecenterDetail {
   return {
