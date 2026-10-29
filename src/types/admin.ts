@@ -44,3 +44,111 @@ export interface AdminDashboardData {
   pendingItems: AdminPendingItem[];
   recentReservations: AdminRecentReservation[];
 }
+
+export interface AdminGamecenter {
+  id: string;
+  name: string;
+  slug: string;
+  ownerName: string;
+  ownerPhone: string;
+  city: string;
+  address: string;
+  description?: string;
+  isActive: boolean;
+  rating?: number;
+  stationsCount?: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface AdminGamecenterInput {
+  name: string;
+  slug: string;
+  ownerName: string;
+  ownerPhone: string;
+  city: string;
+  address: string;
+  description?: string;
+  isActive: boolean;
+}
+
+export interface AdminUser {
+  id: string;
+  fullName: string;
+  phone: string;
+  email?: string;
+  role: "USER" | "OWNER" | "ADMIN";
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  nationalId?: string;
+}
+
+export interface AdminUserInput {
+  fullName: string;
+  phone: string;
+  email?: string;
+  role: "USER" | "OWNER" | "ADMIN";
+  isActive: boolean;
+  nationalId?: string;
+}
+
+export interface AdminTicket {
+  id: string;
+  userId?: string;
+  userName?: string;
+  gamecenterId?: string;
+  gamecenterName?: string;
+  subject: string;
+  status: "OPEN" | "PENDING" | "ANSWERED" | "CLOSED";
+  priority: "LOW" | "MEDIUM" | "HIGH";
+  category: "TECHNICAL" | "FINANCIAL" | "SALES" | "ACCOUNT" | "GENERAL";
+  createdAt: string;
+  lastUpdate: string;
+  messagesCount?: number;
+}
+
+export interface AdminReview {
+  id: string;
+  userId: string;
+  userName: string;
+  gamecenterId: string;
+  gamecenterName: string;
+  rating: number;
+  comment: string;
+  status: "PUBLISHED" | "HIDDEN" | "PENDING";
+  createdAt: string;
+}
+
+export interface AdminUserReservation {
+  id: string;
+  reservationCode: string;
+  userId: string;
+  gamecenterId: string;
+  gamecenterName: string;
+  deviceName: string;
+  date: string;
+  timeSlot: string;
+  amount: number;
+  status: "CONFIRMED" | "PENDING" | "COMPLETED" | "CANCELED";
+  paymentStatus: "PAID" | "UNPAID" | "PENDING" | "REFUNDED";
+}
+
+export interface AdminPaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface AdminListQueryParams {
+  search?: string;
+  status?: string;
+  city?: string;
+  role?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
