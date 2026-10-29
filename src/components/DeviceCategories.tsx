@@ -68,7 +68,7 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
     >
       <div className="mb-5 flex items-center gap-2">
         <span className="h-5 w-1 rounded-full bg-[var(--primary)]" />
-        <h2 className="text-base font-black text-[var(--text-white)]">
+        <h2 className="text-base font-bold text-[var(--text-white)]">
           دسته‌بندی دستگاه‌ها
         </h2>
       </div>
@@ -117,8 +117,7 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
               <span
                 className={[
                   "relative z-20 mt-2 w-full text-center",
-                  "text-[11px] font-extrabold leading-5",
-                  "sm:text-xs lg:text-[13px]",
+                  "text-xs font-bold leading-5",
                   "whitespace-nowrap",
                   isSelected
                     ? "text-[var(--primary)]"

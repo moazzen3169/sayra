@@ -128,7 +128,7 @@ export default function OwnerSupportPage() {
             <button type="button" onClick={() => setSelected(null)} className="self-start text-xs font-bold text-[var(--primary)] hover:underline">
               ← بازگشت به تیکت‌ها
             </button>
-            <h2 className="text-sm font-extrabold">{selected.subject}</h2>
+            <h2 className="text-sm font-bold">{selected.subject}</h2>
 
             <div className="flex flex-col gap-2">
               {selected.messages?.map((m) => (
@@ -146,7 +146,7 @@ export default function OwnerSupportPage() {
                       پیوست
                     </a>
                   )}
-                  <span className="text-[10px] opacity-60">
+                  <span className="text-xs opacity-60">
                     {formatDayLabel(m.createdAt)} {formatClock(m.createdAt, true)}
                   </span>
                 </div>
@@ -167,7 +167,7 @@ export default function OwnerSupportPage() {
                     {file ? file.name.slice(0, 18) : "پیوست فایل"}
                   </button>
                   <input ref={fileRef} type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-                  <button type="submit" disabled={busy} className="flex-1 h-10 rounded-card bg-[var(--primary)] text-on-primary font-black text-xs disabled:opacity-60">
+                  <button type="submit" disabled={busy} className="flex-1 h-10 rounded-card bg-[var(--primary)] text-on-primary font-bold text-xs disabled:opacity-60">
                     {busy ? "در حال ارسال..." : "ارسال"}
                   </button>
                 </div>
@@ -176,7 +176,7 @@ export default function OwnerSupportPage() {
           </div>
         ) : creating ? (
           <form onSubmit={createTicket} className="lg:max-w-[640px] lg:mx-auto lg:w-full flex flex-col gap-3">
-            <h2 className="text-sm font-extrabold">تیکت جدید</h2>
+            <h2 className="text-sm font-bold">تیکت جدید</h2>
             <input className={input} placeholder="موضوع" value={subject} onChange={(e) => setSubject(e.target.value)} />
             <select className={input} value={category} onChange={(e) => setCategory(e.target.value as typeof category)}>
               {CATEGORIES.map((c) => (
@@ -193,7 +193,7 @@ export default function OwnerSupportPage() {
               className="rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] p-3 text-sm outline-none resize-none"
             />
             <div className="flex gap-2">
-              <button type="submit" disabled={busy} className="flex-1 h-11 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm disabled:opacity-60">
+              <button type="submit" disabled={busy} className="flex-1 h-11 rounded-card bg-[var(--primary)] text-on-primary font-bold text-sm disabled:opacity-60">
                 {busy ? "در حال ارسال..." : "ثبت تیکت"}
               </button>
               <button type="button" onClick={() => setCreating(false)} className="h-11 px-5 rounded-card bg-[var(--foreground)] text-xs font-bold">
@@ -203,7 +203,7 @@ export default function OwnerSupportPage() {
           </form>
         ) : (
           <>
-            <button type="button" onClick={() => setCreating(true)} className="h-12 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm hover:opacity-90 transition-opacity">
+            <button type="button" onClick={() => setCreating(true)} className="h-12 rounded-card bg-[var(--primary)] text-on-primary font-bold text-sm hover:opacity-90 transition-opacity">
               + تیکت جدید
             </button>
 
@@ -221,7 +221,7 @@ export default function OwnerSupportPage() {
                   className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex items-center justify-between gap-3 text-right hover:border-[var(--border-color)] transition-colors"
                 >
                   <span className="text-sm font-bold truncate">{t.subject}</span>
-                  <span className="text-[11px] text-[var(--text-muted)] shrink-0">{STATUS_LABEL[t.status] ?? t.status}</span>
+                  <span className="text-xs text-[var(--text-muted)] shrink-0">{STATUS_LABEL[t.status] ?? t.status}</span>
                 </button>
               ))}
             </div>

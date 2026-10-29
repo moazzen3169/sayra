@@ -88,7 +88,7 @@ export const ExtraControllerModal: React.FC<ExtraControllerModalProps> = ({
             <div>
               <h3
                 id="extra-controller-title"
-                className="text-base font-black text-[var(--text-white)]"
+                className="text-base font-bold text-[var(--text-white)]"
               >
                 تعداد دسته‌ها
               </h3>
@@ -126,14 +126,14 @@ export const ExtraControllerModal: React.FC<ExtraControllerModalProps> = ({
                 onClick={() => setCount((c) => Math.max(0, c - 1))}
                 disabled={count <= 0}
                 aria-label="کاهش تعداد دسته‌ها"
-                className="w-9 h-9 rounded-lg bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-lg disabled:opacity-30 hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
+                className="w-9 h-9 rounded-lg bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-bold text-lg disabled:opacity-30 hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
               >
                 −
               </button>
 
               <span
                 aria-live="polite"
-                className="w-6 text-center text-base font-black text-[var(--primary)]"
+                className="w-6 text-center text-base font-bold text-[var(--primary)]"
               >
                 {toPersianDigits(count)}
               </span>
@@ -143,7 +143,7 @@ export const ExtraControllerModal: React.FC<ExtraControllerModalProps> = ({
                 onClick={() => setCount((c) => Math.min(maxControllers, c + 1))}
                 disabled={count >= maxControllers}
                 aria-label="افزایش تعداد دسته‌ها"
-                className="w-9 h-9 rounded-lg bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-lg disabled:opacity-30 hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
+                className="w-9 h-9 rounded-lg bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-bold text-lg disabled:opacity-30 hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
               >
                 +
               </button>
@@ -177,7 +177,7 @@ export const ExtraControllerModal: React.FC<ExtraControllerModalProps> = ({
                 : "۰ تومان"}
             </span>
             {totalPrice > 0 && (
-              <span className="block text-[10px] text-[var(--text-muted)] mt-1">
+              <span className="block text-xs text-[var(--text-muted)] mt-1">
                 هر دسته {formatPrice(pricePerController)} تومان
               </span>
             )}
@@ -188,7 +188,7 @@ export const ExtraControllerModal: React.FC<ExtraControllerModalProps> = ({
         <button
           type="button"
           onClick={handleConfirm}
-          className="w-full h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-sm transition-colors"
+          className="w-full h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-sm transition-colors"
         >
           تایید و ثبت
         </button>

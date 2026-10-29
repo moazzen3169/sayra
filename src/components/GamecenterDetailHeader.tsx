@@ -49,10 +49,10 @@ export const GamecenterDetailHeader: React.FC<GamecenterDetailHeaderProps> = ({
 
           {showDetails && (
             <div className="flex flex-col min-w-0 animate-fadeIn transition-all">
-              <h1 className="text-sm font-extrabold text-[var(--text-white)] truncate">
+              <h1 className="text-sm font-bold text-[var(--text-white)] truncate">
                 {title}
               </h1>
-              <p className="text-[11px] text-[var(--text-muted)] truncate">
+              <p className="text-xs text-[var(--text-muted)] truncate">
                 {location}
               </p>
             </div>
@@ -81,7 +81,7 @@ export const GamecenterDetailHeader: React.FC<GamecenterDetailHeaderProps> = ({
               />
             </svg>
             {unreadNotificationsCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--primary)] text-on-primary text-[10px] font-black flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--primary)] text-on-primary text-xs font-bold flex items-center justify-center">
                 {unreadNotificationsCount}
               </span>
             )}

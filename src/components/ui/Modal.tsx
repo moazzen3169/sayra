@@ -56,7 +56,7 @@ export const Modal: React.FC<ModalProps> = ({
       >
         <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
           {title ? (
-            <h3 className="text-base font-extrabold text-[var(--text-white)]">{title}</h3>
+            <h3 className="text-base font-bold text-[var(--text-white)]">{title}</h3>
           ) : (
             <div />
           )}

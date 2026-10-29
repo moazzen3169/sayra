@@ -136,7 +136,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <h3 className="text-base font-black text-[var(--text-white)]">انتخاب تاریخ و تایم رزرو</h3>
+            <h3 className="text-base font-bold text-[var(--text-white)]">انتخاب تاریخ و تایم رزرو</h3>
           </div>
           <button
             type="button"
@@ -151,7 +151,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
         <div className="flex flex-col gap-5 overflow-y-auto pr-0.5">
           {/* Reservation Summary Brief */}
           <div className="flex flex-col gap-1.5 text-xs">
-            <div className="font-extrabold text-[var(--primary)]">خلاصه رزرو شما:</div>
+            <div className="font-bold text-[var(--primary)]">خلاصه رزرو شما:</div>
             <div className="flex flex-wrap gap-2 text-[var(--text-white)]">
               {cartItems.map((item) => (
                 <span key={item.device.id} className="bg-[var(--bg-body)] px-2.5 py-1 rounded-lg border border-[var(--border-subtle)] text-xs">
@@ -165,7 +165,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
           {/* Date Selection */}
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-extrabold text-[var(--text-white)]">
+              <h4 className="text-sm font-bold text-[var(--text-white)]">
                 ۱. انتخاب روز رزرو
               </h4>
               <div className="flex items-center gap-1 bg-[var(--foreground)]/30 rounded-lg p-0.5 border border-[var(--border-subtle)]">
@@ -205,15 +205,15 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
                     onClick={() => setSelectedDateId(dateObj.id)}
                     className={`w-24 min-w-[96px] h-16 shrink-0 rounded-card flex flex-col items-center justify-center gap-0.5 border transition-all cursor-pointer ${
                       isSelected
-                        ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-black shadow-lg scale-[1.02]"
+                        ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-bold shadow-lg scale-[1.02]"
                         : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
                     }`}
                   >
-                    <span className="text-xs font-extrabold truncate w-full text-center px-1">
+                    <span className="text-xs font-bold truncate w-full text-center px-1">
                       {dateObj.dayName}
                     </span>
                     <span
-                      className={`text-[11px] ${
+                      className={`text-xs ${
                         isSelected ? "text-on-primary/80 font-bold" : "text-[var(--text-muted)]"
                       }`}
                     >
@@ -228,10 +228,10 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
           {/* Time Slot Selection */}
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-extrabold text-[var(--text-white)]">
+              <h4 className="text-sm font-bold text-[var(--text-white)]">
                 ۲. انتخاب ساعات بازی (۱ ساعته)
               </h4>
-              <span className="text-[11px] text-[var(--text-muted)]">
+              <span className="text-xs text-[var(--text-muted)]">
                 امکان انتخاب چند ساعت
               </span>
             </div>
@@ -246,13 +246,13 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
                     onClick={() => handleToggleSlot(slot.id)}
                     className={`h-11 rounded-card flex items-center justify-between px-3 text-xs font-bold border transition-all cursor-pointer ${
                       isSelected
-                        ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-black shadow-md"
+                        ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-bold shadow-md"
                         : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
                     }`}
                   >
                     <span>{slot.timeLabel}</span>
                     {isSelected && (
-                      <span className="w-4 h-4 rounded-full bg-[#101014] text-[var(--primary)] text-[10px] flex items-center justify-center font-black">
+                      <span className="w-4 h-4 rounded-full bg-[#101014] text-[var(--primary)] text-xs flex items-center justify-center font-bold">
                         <Icon name="check" size={12} />
                       </span>
                     )}
@@ -267,7 +267,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
         <div className="flex flex-col gap-3 pt-3 border-t border-[var(--border-color)] bg-[var(--bg-card)]">
           <div className="flex items-center justify-between px-1">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[11px] text-[var(--text-muted)]">
+              <span className="text-xs text-[var(--text-muted)]">
                 مدت زمان: {toPersianDigits(totalHours)} ساعت ({selectedDateObj.dayName})
               </span>
               <div className="flex items-center gap-1">
@@ -282,7 +282,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
             <button
               type="button"
               onClick={handleFinalConfirm}
-              className="h-12 px-6 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+              className="h-12 px-6 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
             >
               <span>تکمیل و ثبت رزرو</span>
               <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

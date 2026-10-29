@@ -48,7 +48,7 @@ export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({ 
       {/* Top Header: Gaming Center Name + Status Badge */}
       <div className="flex items-start justify-between gap-3 min-w-0">
         <div className="flex flex-col gap-1 min-w-0">
-          <h3 className="text-base font-extrabold text-[var(--text-white)] break-words leading-tight">
+          <h3 className="text-base font-bold text-[var(--text-white)] break-words leading-tight">
             {reservation.gamingCenterName ?? "گیمنت"}
           </h3>
           {reservation.gamingCenterAddress && (
@@ -77,7 +77,7 @@ export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({ 
               {reservation.stationSnapshot?.name ?? "ایستگاه گیمینگ"}
             </span>
             {reservation.stationSnapshot?.stationType && (
-              <span className="text-[11px] text-[var(--text-subtle)]">
+              <span className="text-xs text-[var(--text-subtle)]">
                 {reservation.stationSnapshot.stationType}
               </span>
             )}
@@ -85,10 +85,10 @@ export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({ 
         </div>
 
         <div className="flex flex-col items-end shrink-0">
-          <span className="text-[11px] text-[var(--text-subtle)]">مبلغ رزرو</span>
+          <span className="text-xs text-[var(--text-subtle)]">مبلغ رزرو</span>
           <div className="flex items-baseline gap-1 text-[var(--primary)]">
             <span className="text-base font-black">{formatPrice(reservation.totalPrice)}</span>
-            <span className="text-[11px] font-normal text-[var(--text-muted)]">تومان</span>
+            <span className="text-xs font-normal text-[var(--text-muted)]">تومان</span>
           </div>
         </div>
       </div>
@@ -101,7 +101,7 @@ export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({ 
           </svg>
           <span className="font-bold text-[var(--text-white)]">زمان رزرو:</span>
         </div>
-        <span className="font-extrabold text-[var(--text-white)] text-left break-words min-w-0">
+        <span className="font-bold text-[var(--text-white)] text-left break-words min-w-0">
           {formatReservationWhen(reservation.startTime, reservation.endTime)}
         </span>
       </div>
@@ -117,7 +117,7 @@ export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({ 
           >
             <span>کد رزرو:</span>
             <span className="font-black text-[var(--text-white)] font-mono">{toPersianDigits(reservation.reservationCode)}</span>
-            <span className="text-[10px] text-[var(--primary)] font-bold mr-0.5">
+            <span className="text-xs text-[var(--primary)] font-bold mr-0.5">
               {copied ? "کپی شد ✓" : "📋"}
             </span>
           </button>
@@ -145,7 +145,7 @@ export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({ 
             <button
               type="button"
               onClick={() => onRate?.(reservation)}
-              className="h-8 px-3 rounded-child bg-[var(--accent-star)] hover:bg-[var(--accent-star)]/90 text-on-primary text-xs font-black transition-transform active:scale-95"
+              className="h-8 px-3 rounded-child bg-[var(--accent-star)] hover:bg-[var(--accent-star)]/90 text-on-primary text-xs font-bold transition-transform active:scale-95"
             >
               ثبت نظر
             </button>

@@ -38,9 +38,9 @@ export const DesktopNav: React.FC<DesktopNavProps> = ({ onSearchClick }) => {
             href={item.href}
             className={`text-xs font-bold transition-colors py-1 relative ${
               isActive
-                ? "text-[var(--primary)] font-black"
+                ? "text-[var(--primary)] font-bold"
                 : item.featured
-                ? "text-[var(--text-white)] hover:text-[var(--primary)] font-extrabold"
+                ? "text-[var(--text-white)] hover:text-[var(--primary)] font-bold"
                 : "text-[var(--text-muted)] hover:text-[var(--text-white)]"
             }`}
           >

@@ -311,7 +311,7 @@ export default function OwnerEditPage() {
                     <span>📍 Lat: <strong className="text-[var(--text-white)]">{lat}</strong></span>
                     <span>Lng: <strong className="text-[var(--text-white)]">{lng}</strong></span>
                   </div>
-                  <span className="text-[11px] text-[var(--text-muted)]">
+                  <span className="text-xs text-[var(--text-muted)]">
                     برای تغییر موقعیت می‌توانید مختصات را وارد کنید یا موقعیت کنونی را بزنید
                   </span>
                 </div>
@@ -393,7 +393,7 @@ export default function OwnerEditPage() {
 
               {/* Quick toggle popular games */}
               <div className="flex flex-col gap-1.5 mt-1">
-                <span className="text-[11px] text-[var(--text-muted)]">انتخاب سریع از بازی‌های محبوب:</span>
+                <span className="text-xs text-[var(--text-muted)]">انتخاب سریع از بازی‌های محبوب:</span>
                 <div className="flex flex-wrap gap-1.5">
                   {POPULAR_GAMES.map((gameName) => {
                     const selected = games.includes(gameName);
@@ -402,7 +402,7 @@ export default function OwnerEditPage() {
                         key={gameName}
                         type="button"
                         onClick={() => togglePopularGame(gameName)}
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors cursor-pointer border ${
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer border ${
                           selected
                             ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-bold"
                             : "bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-white)]"
@@ -418,7 +418,7 @@ export default function OwnerEditPage() {
 
             {/* ۵ & ۶. رزرو آنلاین و تایید خودکار */}
             <div className="flex flex-col gap-3 mt-1">
-              <h2 className="text-xs font-extrabold text-[var(--text-white)]">تنظیمات رزرو</h2>
+              <h2 className="text-xs font-bold text-[var(--text-white)]">تنظیمات رزرو</h2>
               <Toggle label="فعال بودن رزرو آنلاین" checked={allowOnline} onChange={setAllowOnline} />
               <Toggle label="تایید خودکار رزروهای آنلاین" checked={autoConfirm} onChange={setAutoConfirm} />
             </div>
@@ -426,7 +426,7 @@ export default function OwnerEditPage() {
             <button
               type="submit"
               disabled={saving}
-              className="h-12 mt-2 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-60 cursor-pointer"
+              className="h-12 mt-2 rounded-card bg-[var(--primary)] text-on-primary font-bold text-sm hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-60 cursor-pointer"
             >
               {saving ? "در حال ذخیره..." : "ذخیره تغییرات"}
             </button>

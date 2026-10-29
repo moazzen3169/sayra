@@ -78,7 +78,7 @@ export default function OwnerAdsPage() {
         <div className="rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 p-4 flex flex-col gap-1 text-[var(--text-white)]">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-red)] animate-pulse" />
-            <h2 className="text-sm font-extrabold text-[var(--accent-red)]">تبلیغات و دیده‌شدن بیشتر</h2>
+            <h2 className="text-sm font-bold text-[var(--accent-red)]">تبلیغات و دیده‌شدن بیشتر</h2>
           </div>
           <p className="text-xs text-[var(--text-muted)] leading-relaxed mt-1">
             با ایجاد تبلیغ برای گیمنت <span className="text-[var(--text-white)] font-bold">{center?.name ?? ""}</span>، بنر گیمنت شما در جایگاه‌های ویژه برنامه سایرا نمایش داده خواهد شد.
@@ -100,13 +100,13 @@ export default function OwnerAdsPage() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="h-12 rounded-card bg-[var(--accent-red)] text-white font-extrabold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+          className="h-12 rounded-card bg-[var(--accent-red)] text-white font-bold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
         >
           <span>+</span>
           <span>ایجاد کمپین تبلیغاتی جدید</span>
         </button>
 
-        <h3 className="text-sm font-extrabold mt-2">کمپین‌های فعال و قبلی</h3>
+        <h3 className="text-sm font-bold mt-2">کمپین‌های فعال و قبلی</h3>
 
         {ads.length === 0 ? (
           <p className="py-12 text-center text-xs text-[var(--text-muted)]">هنوز کمپین تبلیغاتی ثبت نکرده‌اید.</p>
@@ -117,7 +117,7 @@ export default function OwnerAdsPage() {
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-sm font-bold truncate">{ad.title}</h4>
                   <span
-                    className={`text-[10px] font-black px-2.5 py-1 rounded-full shrink-0 ${
+                    className={`text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${
                       ad.status === "ACTIVE"
                         ? "bg-[var(--accent-green)]/20 text-[var(--accent-green)]"
                         : ad.status === "PENDING"
@@ -129,7 +129,7 @@ export default function OwnerAdsPage() {
                   </span>
                 </div>
                 <p className="text-xs text-[var(--text-muted)] leading-relaxed line-clamp-2">{ad.description}</p>
-                <div className="flex items-center justify-between text-[11px] text-[var(--text-subtle)] border-t border-[var(--border-subtle)] pt-2 mt-1">
+                <div className="flex items-center justify-between text-xs text-[var(--text-subtle)] border-t border-[var(--border-subtle)] pt-2 mt-1">
                   <span>تاریخ: {toPersianDigits(ad.createdAt)}</span>
                   <span>اعتبار: {toPersianDigits(ad.daysLeft)} روز</span>
                 </div>
@@ -151,7 +151,7 @@ export default function OwnerAdsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-[var(--text-white)]">ایجاد کمپین تبلیغاتی</h3>
+              <h3 className="text-base font-bold text-[var(--text-white)]">ایجاد کمپین تبلیغاتی</h3>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
@@ -199,7 +199,7 @@ export default function OwnerAdsPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex-1 h-11 rounded-card bg-[var(--accent-red)] text-white font-extrabold text-sm disabled:opacity-60"
+                className="flex-1 h-11 rounded-card bg-[var(--accent-red)] text-white font-bold text-sm disabled:opacity-60"
               >
                 {submitting ? "در حال ارسال..." : "ثبت و ارسال تبلیغ"}
               </button>

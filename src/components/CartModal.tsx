@@ -69,8 +69,8 @@ export const CartModal: React.FC<CartModalProps> = ({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
             </div>
-            <h3 className="text-base font-black text-[var(--text-white)]">خلاصه سبد رزرو</h3>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[var(--primary)] text-on-primary font-black">
+            <h3 className="text-base font-bold text-[var(--text-white)]">خلاصه سبد رزرو</h3>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[var(--primary)] text-on-primary font-bold">
               {toPersianDigits(totalDeviceCount)} دستگاه
             </span>
           </div>
@@ -89,7 +89,7 @@ export const CartModal: React.FC<CartModalProps> = ({
           {cartItems.length === 0 ? (
             <div className="py-8 text-center text-xs text-[var(--text-muted)] flex flex-col items-center gap-2">
               <p>سبد رزرو شما خالی است.</p>
-              <p className="text-[11px] text-[var(--text-subtle)]">لطفاً از لیست دستگاه‌ها حداقل یک دستگاه انتخاب کنید.</p>
+              <p className="text-xs text-[var(--text-subtle)]">لطفاً از لیست دستگاه‌ها حداقل یک دستگاه انتخاب کنید.</p>
             </div>
           ) : (
             cartItems.map((item) => {
@@ -104,10 +104,10 @@ export const CartModal: React.FC<CartModalProps> = ({
                 >
                   <div className="flex flex-col gap-1 flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-extrabold text-[var(--text-white)] truncate">
+                      <span className="text-sm font-bold text-[var(--text-white)] truncate">
                         {item.device.name}
                       </span>
-                      <span className="text-[11px] font-bold text-[var(--primary)] bg-[var(--primary)]/10 px-2 py-0.5 rounded-md border border-[var(--primary)]/20 shrink-0">
+                      <span className="text-xs font-bold text-[var(--primary)] bg-[var(--primary)]/10 px-2 py-0.5 rounded-md border border-[var(--primary)]/20 shrink-0">
                         {toPersianDigits(item.quantity)} عدد
                       </span>
                     </div>
@@ -123,7 +123,7 @@ export const CartModal: React.FC<CartModalProps> = ({
                             <button
                               type="button"
                               onClick={() => onUpdateExtraControllers(item.device.id)}
-                              className="text-[10px] text-[var(--primary)] underline hover:opacity-80 font-bold mr-1"
+                              className="text-xs text-[var(--primary)] underline hover:opacity-80 font-bold mr-1"
                             >
                               تغییر
                             </button>
@@ -139,18 +139,18 @@ export const CartModal: React.FC<CartModalProps> = ({
                       <button
                         type="button"
                         onClick={() => onUpdateQuantity(item.device.id, -1)}
-                        className="w-6 h-6 rounded-md bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-xs hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
+                        className="w-6 h-6 rounded-md bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-bold text-xs hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
                       >
                         -
                       </button>
-                      <span className="w-5 text-center text-xs font-black text-[var(--primary)]">
+                      <span className="w-5 text-center text-xs font-bold text-[var(--primary)]">
                         {toPersianDigits(item.quantity)}
                       </span>
                       <button
                         type="button"
                         onClick={() => onUpdateQuantity(item.device.id, 1)}
                         disabled={item.quantity >= item.device.availableCount}
-                        className="w-6 h-6 rounded-md bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-black text-xs disabled:opacity-30 hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
+                        className="w-6 h-6 rounded-md bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center font-bold text-xs disabled:opacity-30 hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
                       >
                         +
                       </button>
@@ -187,7 +187,7 @@ export const CartModal: React.FC<CartModalProps> = ({
             <button
               type="button"
               onClick={onProceedToDateTime}
-              className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+              className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
             >
               <span>تایید و انتخاب زمان رزرو</span>
               <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

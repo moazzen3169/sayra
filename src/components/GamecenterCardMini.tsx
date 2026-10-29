@@ -51,12 +51,12 @@ export const GamecenterCardMini: React.FC<GamecenterCardMiniProps> = ({
           <span>★ {toPersianDigits(rating.toFixed(1))}</span>
           <span className="text-[var(--text-muted)] font-normal">({toPersianDigits(reviewsCount)})</span>
         </div>
-        <h4 className="text-base font-extrabold text-[var(--text-white)] line-clamp-1 group-hover:text-[var(--primary)] transition-colors">{name}</h4>
+        <h4 className="text-sm font-bold text-[var(--text-white)] line-clamp-1 group-hover:text-[var(--primary)] transition-colors">{name}</h4>
         <p className="text-xs text-[var(--text-muted)] line-clamp-1">{location}</p>
       </div>
 
-      <div className="mx-3 mt-3 h-9 rounded-full bg-[var(--foreground)]/50 px-3 flex items-center justify-between text-[11px]">
-        <span className="font-extrabold text-[var(--text-white)]">
+      <div className="mx-3 mt-3 h-9 rounded-full bg-[var(--foreground)]/50 px-3 flex items-center justify-between text-xs">
+        <span className="font-bold text-[var(--text-white)]">
           {formatPrice(hourlyPrice)} تومان
         </span>
         <span className="text-[var(--text-muted)]">/ {durationLabel}</span>

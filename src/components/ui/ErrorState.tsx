@@ -25,7 +25,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
       <div className="w-12 h-12 rounded-full bg-[var(--accent-red)]/10 text-[var(--accent-red)] flex items-center justify-center">
         <Icon name="alert" size={24} />
       </div>
-      <h3 className="text-sm font-extrabold text-[var(--text-white)]">{title}</h3>
+      <h3 className="text-sm font-bold text-[var(--text-white)]">{title}</h3>
       <p className="text-xs text-[var(--text-muted)] max-w-sm leading-relaxed">{description}</p>
       {onRetry && (
         <button

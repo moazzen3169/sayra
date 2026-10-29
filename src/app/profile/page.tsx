@@ -226,7 +226,7 @@ export default function ProfilePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
-              <h1 className="text-lg font-black text-[var(--text-white)]">
+              <h1 className="text-base font-bold text-[var(--text-white)]">
                 {authStep === "info" ? "ورود یا ثبت‌نام در سایرا" : "تایید شماره موبایل"}
               </h1>
               <p className="text-xs text-[var(--text-muted)] leading-relaxed max-w-xs">
@@ -275,7 +275,7 @@ export default function ProfilePage() {
                 <button
                   type="submit"
                   disabled={authLoading}
-                  className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
+                  className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
                 >
                   <span>{authLoading ? "در حال ارسال..." : "ارسال کد تایید"}</span>
                   {!authLoading && (
@@ -338,7 +338,7 @@ export default function ProfilePage() {
                 <button
                   type="submit"
                   disabled={authLoading}
-                  className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
+                  className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
                 >
                   <span>{authLoading ? "در حال بررسی..." : "تایید و ورود"}</span>
                   {!authLoading && (
@@ -357,15 +357,15 @@ export default function ProfilePage() {
           <div className="w-full max-w-md lg:max-w-xl mx-auto flex flex-col gap-4 animate-fadeIn">
             {/* User Info Card */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-5 flex items-center gap-4 shadow-lg relative overflow-hidden">
-              <div className="w-16 h-16 rounded-full bg-[var(--foreground)] border-2 border-[var(--primary)] flex items-center justify-center text-[var(--primary)] text-2xl font-black shrink-0 shadow-md">
+              <div className="w-16 h-16 rounded-full bg-[var(--foreground)] border-2 border-[var(--primary)] flex items-center justify-center text-[var(--primary)] text-2xl font-bold shrink-0 shadow-md">
                 {user.fullName ? user.fullName.charAt(0) : "ک"}
               </div>
               <div className="flex flex-col gap-1 overflow-hidden">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-base font-black text-[var(--text-white)] truncate">
+                  <h2 className="text-base font-bold text-[var(--text-white)] truncate">
                     {user.fullName || "کاربر سایرا"}
                   </h2>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30">
                     کاربر سایرا
                   </span>
                 </div>
@@ -384,7 +384,7 @@ export default function ProfilePage() {
                   </svg>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-[var(--text-muted)] font-extrabold">موجودی کیف پول</span>
+                  <span className="text-xs text-[var(--text-muted)] font-bold">موجودی کیف پول</span>
                   <span className="text-sm font-black text-[var(--text-white)]">
                     {formatPrice(walletBalance)} <span className="text-xs text-[var(--text-muted)] font-normal">تومان</span>
                   </span>
@@ -393,7 +393,7 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={() => setIsWalletModalOpen(true)}
-                className="h-9 px-3.5 rounded-card bg-[var(--primary)]/10 hover:bg-[var(--primary)] hover:text-on-primary text-[var(--primary)] border border-[var(--primary)]/30 text-xs font-black transition-all active:scale-95"
+                className="h-9 px-3.5 rounded-card bg-[var(--primary)]/10 hover:bg-[var(--primary)] hover:text-on-primary text-[var(--primary)] border border-[var(--primary)]/30 text-xs font-bold transition-all active:scale-95"
               >
                 + افزایش
               </button>
@@ -415,7 +415,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-[var(--text-white)]">پشتیبانی</span>
-                    <span className="text-[11px] text-[var(--text-muted)]">ارتباط با کارشناسان و پاسخ به سوالات</span>
+                    <span className="text-xs text-[var(--text-muted)]">ارتباط با کارشناسان و پاسخ به سوالات</span>
                   </div>
                 </div>
                 <svg className="w-5 h-5 text-[var(--text-subtle)] transform rotate-180 group-hover:translate-x-[-2px] transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -437,7 +437,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-[var(--text-white)]">ویرایش اطلاعات</span>
-                    <span className="text-[11px] text-[var(--text-muted)]">ویرایش نام و اطلاعات کاربری</span>
+                    <span className="text-xs text-[var(--text-muted)]">ویرایش نام و اطلاعات کاربری</span>
                   </div>
                 </div>
                 <svg className="w-5 h-5 text-[var(--text-subtle)] transform rotate-180 group-hover:translate-x-[-2px] transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -459,7 +459,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-[var(--text-white)]">کیف پول</span>
-                    <span className="text-[11px] text-[var(--text-muted)]">افزایش موجودی و مدیریت تراکنش‌ها</span>
+                    <span className="text-xs text-[var(--text-muted)]">افزایش موجودی و مدیریت تراکنش‌ها</span>
                   </div>
                 </div>
                 <svg className="w-5 h-5 text-[var(--text-subtle)] transform rotate-180 group-hover:translate-x-[-2px] transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -481,7 +481,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-[var(--accent-red)]">خروج از حساب</span>
-                    <span className="text-[11px] text-[var(--text-muted)]">خروج از حساب کاربری فعلی</span>
+                    <span className="text-xs text-[var(--text-muted)]">خروج از حساب کاربری فعلی</span>
                   </div>
                 </div>
                 <svg className="w-5 h-5 text-[var(--accent-red)]/60 transform rotate-180 group-hover:translate-x-[-2px] transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -504,7 +504,7 @@ export default function ProfilePage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
                 </div>
-                <h3 className="text-base font-black text-[var(--text-white)]">پشتیبانی سایرا</h3>
+                <h3 className="text-base font-bold text-[var(--text-white)]">پشتیبانی سایرا</h3>
               </div>
               <button type="button" onClick={() => setIsSupportModalOpen(false)} className="w-8 h-8 text-[var(--text-muted)] hover:text-[var(--text-white)] flex items-center justify-center text-lg">✕</button>
             </div>
@@ -523,10 +523,10 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-xs font-bold text-[var(--text-white)]">تماس تلفنی</span>
-                    <span className="text-[11px] text-[var(--text-muted)] font-mono">۰۲۱-۹۱۰۰۰۰۰۰</span>
+                    <span className="text-xs text-[var(--text-muted)] font-mono">۰۲۱-۹۱۰۰۰۰۰۰</span>
                   </div>
                 </div>
-                <span className="text-xs font-black text-[var(--primary)]">تماس</span>
+                <span className="text-xs font-bold text-[var(--primary)]">تماس</span>
               </a>
 
               <a href="https://t.me/SayraSupport" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3.5 rounded-card bg-[var(--foreground)]/50 border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all">
@@ -538,10 +538,10 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-xs font-bold text-[var(--text-white)]">پشتیبانی تلگرام</span>
-                    <span className="text-[11px] text-[var(--text-muted)] dir-ltr text-right">@SayraSupport</span>
+                    <span className="text-xs text-[var(--text-muted)] dir-ltr text-right">@SayraSupport</span>
                   </div>
                 </div>
-                <span className="text-xs font-black text-[var(--primary)]">چت تلگرام</span>
+                <span className="text-xs font-bold text-[var(--primary)]">چت تلگرام</span>
               </a>
             </div>
 
@@ -563,7 +563,7 @@ export default function ProfilePage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                 </div>
-                <h3 className="text-base font-black text-[var(--text-white)]">ویرایش اطلاعات حساب</h3>
+                <h3 className="text-base font-bold text-[var(--text-white)]">ویرایش اطلاعات حساب</h3>
               </div>
               <button type="button" onClick={() => setIsEditModalOpen(false)} className="w-8 h-8 text-[var(--text-muted)] hover:text-[var(--text-white)] flex items-center justify-center text-lg">✕</button>
             </div>
@@ -606,7 +606,7 @@ export default function ProfilePage() {
                 </button>
                 <button
                   type="submit"
-                  className="h-11 flex-1 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-xs shadow-md"
+                  className="h-11 flex-1 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs shadow-md"
                 >
                   ذخیره تغییرات
                 </button>
@@ -627,7 +627,7 @@ export default function ProfilePage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <h3 className="text-base font-black text-[var(--text-white)]">مدیریت کیف پول</h3>
+                <h3 className="text-base font-bold text-[var(--text-white)]">مدیریت کیف پول</h3>
               </div>
               <button type="button" onClick={() => setIsWalletModalOpen(false)} className="w-8 h-8 text-[var(--text-muted)] hover:text-[var(--text-white)] flex items-center justify-center text-lg">✕</button>
             </div>
@@ -669,7 +669,7 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={() => handleChargeWallet(walletChargeAmount)}
-                className="h-11 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-black text-xs shadow-lg mt-1 transition-all active:scale-[0.98]"
+                className="h-11 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs shadow-lg mt-1 transition-all active:scale-[0.98]"
               >
                 پرداخت و شارژ {formatPrice(walletChargeAmount)} تومان
               </button>

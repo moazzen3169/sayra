@@ -181,7 +181,7 @@ function Content() {
               <article key={r.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex flex-col justify-between gap-3">
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-extrabold truncate">{r.stationSnapshot?.name ?? "ایستگاه"}</h3>
+                    <h3 className="text-sm font-bold truncate">{r.stationSnapshot?.name ?? "ایستگاه"}</h3>
                     <StatusBadge status={r.status} />
                   </div>
 
@@ -245,14 +245,14 @@ function Content() {
             className="w-full max-w-[460px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-3"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-black">پیشنهاد زمان جدید</h3>
+            <h3 className="text-base font-bold">پیشنهاد زمان جدید</h3>
             <label className="text-xs font-bold">شروع</label>
             <input type="datetime-local" required value={pStart} onChange={(e) => setPStart(e.target.value)} dir="ltr" className="h-11 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-sm outline-none" />
             <label className="text-xs font-bold">پایان</label>
             <input type="datetime-local" required value={pEnd} onChange={(e) => setPEnd(e.target.value)} dir="ltr" className="h-11 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-sm outline-none" />
             <textarea value={pNote} onChange={(e) => setPNote(e.target.value)} rows={2} placeholder="توضیح (اختیاری)" className="rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] p-3 text-sm outline-none resize-none" />
             <div className="flex gap-2 pt-1">
-              <button type="submit" disabled={proposing} className="flex-1 h-11 rounded-card bg-[var(--primary)] text-on-primary font-black text-sm disabled:opacity-60">
+              <button type="submit" disabled={proposing} className="flex-1 h-11 rounded-card bg-[var(--primary)] text-on-primary font-bold text-sm disabled:opacity-60">
                 {proposing ? "در حال ارسال..." : "ارسال پیشنهاد"}
               </button>
               <button type="button" onClick={() => setProposeFor(null)} className="h-11 px-5 rounded-card bg-[var(--foreground)] text-xs font-bold">

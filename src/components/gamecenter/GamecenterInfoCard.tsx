@@ -20,7 +20,7 @@ const Chip: React.FC<{
   label: string;
 }> = ({ onClick, href, icon, label }) => {
   const cls =
-    "shrink-0 h-8 px-3 rounded-full bg-[var(--foreground)]/50 border border-[var(--border-subtle)] text-[11px] font-bold text-[var(--text-white)] flex items-center gap-1.5 hover:border-[var(--primary)]/60 hover:text-[var(--primary)] transition-colors active:scale-95";
+    "shrink-0 h-8 px-3 rounded-full bg-[var(--foreground)]/50 border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-white)] flex items-center gap-1.5 hover:border-[var(--primary)]/60 hover:text-[var(--primary)] transition-colors active:scale-95";
 
   if (href) {
     return (
@@ -84,7 +84,7 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
       <section className="relative z-10  flex-col gap-4">
         <div className="flex items-center justify-between gap-3 mb-3">
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-extrabold leading-tight truncate">
+            <h1 className="text-base font-bold leading-tight truncate">
               {title}
             </h1>
 
@@ -92,7 +92,7 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
               <button
                 type="button"
                 onClick={() => setSheetOpen(true)}
-                className="mt-1 w-full flex items-center gap-1 text-right text-[11px] text-[var(--text-muted)] hover:text-[var(--text-white)] transition-colors"
+                className="mt-1 w-full flex items-center gap-1 text-right text-xs text-[var(--text-muted)] hover:text-[var(--text-white)] transition-colors"
                 aria-label="مشاهده اطلاعات کامل گیمنت"
               >
                 <svg
@@ -133,7 +133,7 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
 
                 {toPersianDigits(rating.avg.toFixed(1))}
               </span>
-              <span className="text-[10px] text-[var(--text-muted)] mt-1">
+              <span className="text-xs text-[var(--text-muted)] mt-1">
                 {toPersianDigits(rating.count)} دیدگاه
               </span>
             </button>
@@ -203,7 +203,7 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
-              <h2 className="text-base font-black">{title}</h2>
+              <h2 className="text-base font-bold">{title}</h2>
               <button
                 type="button"
                 onClick={() => setSheetOpen(false)}
@@ -223,9 +223,9 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
                 <span className="text-xs text-[var(--text-muted)]">
                   امتیاز کاربران
                 </span>
-                <span className="text-sm font-black text-[var(--accent-star)]">
+                <span className="text-sm font-bold text-[var(--accent-star)]">
                   ★ {toPersianDigits(rating.avg.toFixed(1))}
-                  <span className="text-[11px] font-normal text-[var(--text-muted)] mr-1">
+                  <span className="text-xs font-normal text-[var(--text-muted)] mr-1">
                     ({toPersianDigits(rating.count)} دیدگاه)
                   </span>
                 </span>
@@ -242,7 +242,7 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
                   href={mapsUrl(address)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary text-sm font-black flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+                  className="h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
                 >
                   مسیریابی تا گیمنت
                 </a>

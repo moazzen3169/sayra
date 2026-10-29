@@ -236,8 +236,8 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between gap-3 px-4 pt-4 pb-3 border-b border-[var(--border-subtle)]">
           <div className="flex flex-col min-w-0">
-            <h3 className="text-base font-black text-[var(--text-white)]">انتخاب روز و ساعت</h3>
-            <span className="text-[11px] text-[var(--text-muted)] truncate">
+            <h3 className="text-base font-bold text-[var(--text-white)]">انتخاب روز و ساعت</h3>
+            <span className="text-xs text-[var(--text-muted)] truncate">
               {lines
                 .map(
                   (l) =>
@@ -264,7 +264,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
           {/* Step 1: day */}
           <section className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-extrabold text-[var(--text-white)]">۱. روز را انتخاب کنید</h4>
+              <h4 className="text-sm font-bold text-[var(--text-white)]">۱. روز را انتخاب کنید</h4>
               <div className="hidden sm:flex items-center gap-1">
                 {(["prev", "next"] as const).map((d) => (
                   <button
@@ -298,8 +298,8 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
                         : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
                     }`}
                   >
-                    <span className="text-xs font-extrabold">{d.dayName}</span>
-                    <span className={`text-[11px] ${active ? "font-bold opacity-80" : "text-[var(--text-muted)]"}`}>
+                    <span className="text-xs font-bold">{d.dayName}</span>
+                    <span className={`text-xs ${active ? "font-bold opacity-80" : "text-[var(--text-muted)]"}`}>
                       {d.dateStr}
                     </span>
                   </button>
@@ -311,19 +311,19 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
           {/* Step 2: time (چندانتخابی) */}
           <section className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between gap-2">
-              <h4 className="text-sm font-extrabold text-[var(--text-white)]">۲. ساعت‌ها را انتخاب کنید</h4>
+              <h4 className="text-sm font-bold text-[var(--text-white)]">۲. ساعت‌ها را انتخاب کنید</h4>
               {selectedSlots.length > 0 && (
                 <button
                   type="button"
                   onClick={() => setSelectedKeys([])}
                   disabled={isSubmitting}
-                  className="text-[11px] font-bold text-[var(--text-muted)] hover:text-[var(--text-white)]"
+                  className="text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-white)]"
                 >
                   پاک کردن انتخاب
                 </button>
               )}
             </div>
-            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
               هر کادر یک ساعت است. برای بازی ۱۲ تا ۱۵، سه ساعتِ ۱۲ و ۱۳ و ۱۴ را انتخاب کنید.
               {deviceCount > 1 && " فقط ساعت‌هایی فعال هستند که همه‌ی دستگاه‌های انتخابی شما در آن خالی باشند."}
             </p>
@@ -372,22 +372,22 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
                           !ok
                             ? "bg-[var(--foreground)]/20 border-transparent text-[var(--text-subtle)] line-through cursor-not-allowed opacity-50"
                             : active
-                            ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-black"
+                            ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-bold"
                             : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--primary)]/60"
                         }`}
                       >
                         {active && (
-                          <span className="absolute top-1 left-1 w-4 h-4 rounded-full bg-[#101014] text-[var(--primary)] text-[9px] flex items-center justify-center font-black">
+                          <span className="absolute top-1 left-1 w-4 h-4 rounded-full bg-[#101014] text-[var(--primary)] text-xs flex items-center justify-center font-bold">
                             ✓
                           </span>
                         )}
-                        <span className="text-sm font-extrabold">{s.startLabel}</span>
-                        {s.endLabel && <span className="text-[10px] opacity-70">تا {s.endLabel}</span>}
+                        <span className="text-sm font-bold">{s.startLabel}</span>
+                        {s.endLabel && <span className="text-xs opacity-70">تا {s.endLabel}</span>}
                       </button>
                     );
                   })}
                 </div>
-                <p className="text-[11px] text-[var(--text-subtle)]">ساعت‌های خط‌خورده در دسترس نیستند.</p>
+                <p className="text-xs text-[var(--text-subtle)]">ساعت‌های خط‌خورده در دسترس نیستند.</p>
               </>
             )}
           </section>
@@ -409,7 +409,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
               <span className="text-[var(--text-muted)]">
                 {toPersianDigits(deviceCount)} دستگاه • {toPersianDigits(selectedSlots.length)} ساعت
               </span>
-              <span className="font-extrabold text-[var(--text-white)] truncate">
+              <span className="font-bold text-[var(--text-white)] truncate">
                 {selectedSlots.length > 0
                   ? `${date.dayName}: ${selectedSlots.map((s) => s.startLabel).join("، ")}`
                   : "هنوز ساعتی انتخاب نشده"}
@@ -419,12 +419,12 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
               <span className="text-[var(--text-muted)]">برآورد مبلغ</span>
               <span className="font-black text-[var(--primary)]">
                 {selectedSlots.length > 0 ? formatPrice(estimate) : "—"}{" "}
-                <span className="text-[10px] font-normal text-[var(--text-white)]">تومان</span>
+                <span className="text-xs font-normal text-[var(--text-white)]">تومان</span>
               </span>
             </div>
           </div>
 
-          <p className="text-[11px] text-[var(--text-subtle)] leading-relaxed">
+          <p className="text-xs text-[var(--text-subtle)] leading-relaxed">
             مبلغ نهایی (با احتساب تخفیف) پس از ثبت رزرو توسط سیستم اعلام می‌شود.
           </p>
 
@@ -432,7 +432,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
             type="button"
             disabled={!canSubmit}
             onClick={() => items && onConfirm({ date, slots: selectedSlots, items })}
-            className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:bg-[var(--foreground)] disabled:text-[var(--text-muted)] text-on-primary font-black text-sm transition-all active:scale-[0.98]"
+            className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:bg-[var(--foreground)] disabled:text-[var(--text-muted)] text-on-primary font-bold text-sm transition-all active:scale-[0.98]"
           >
             {buttonText}
           </button>

@@ -38,7 +38,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         <div className="flex flex-col min-w-0">
           <h1 className="text-sm font-bold text-[var(--text-white)] truncate">{title}</h1>
           {subtitle && (
-            <p className="text-[11px] text-[var(--text-muted)] truncate">{subtitle}</p>
+            <p className="text-xs text-[var(--text-muted)] truncate">{subtitle}</p>
           )}
         </div>
       </div>

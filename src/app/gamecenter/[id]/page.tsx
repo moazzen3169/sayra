@@ -71,18 +71,18 @@ const SectionTitle: React.FC<{
   <div className="flex items-center justify-between gap-3">
     <div className="flex items-center gap-2 min-w-0">
       {step ? (
-        <span className="w-6 h-6 shrink-0 rounded-full bg-[var(--primary)] text-on-primary text-xs font-black flex items-center justify-center pt-0.5">
+        <span className="w-6 h-6 shrink-0 rounded-full bg-[var(--primary)] text-on-primary text-xs font-bold flex items-center justify-center pt-0.5">
           {toPersianDigits(step)}
         </span>
       ) : (
         <span className="h-5 w-1 rounded-full bg-[var(--primary)]" />
       )}
-      <h2 className="text-base font-extrabold text-[var(--text-white)] truncate">
+      <h2 className="text-base font-bold text-[var(--text-white)] truncate">
         {title}
       </h2>
     </div>
     {hint && (
-      <span className="text-[11px] text-[var(--text-muted)] shrink-0">
+      <span className="text-xs text-[var(--text-muted)] shrink-0">
         {hint}
       </span>
     )}
@@ -112,12 +112,12 @@ const BookingCta: React.FC<BookingCtaProps> = ({
 
   const info = has ? (
     <div className="flex flex-col min-w-0">
-      <span className="text-[11px] text-[var(--text-muted)]">
+      <span className="text-xs text-[var(--text-muted)]">
         {toPersianDigits(deviceCount)} دستگاه انتخاب شده
       </span>
       <span className="text-base font-black text-[var(--primary)]">
         {formatPrice(hourly)}{" "}
-        <span className="text-[11px] font-normal text-[var(--text-white)]">
+        <span className="text-xs font-normal text-[var(--text-white)]">
           تومان / ساعت
         </span>
       </span>
@@ -132,7 +132,7 @@ const BookingCta: React.FC<BookingCtaProps> = ({
     <button
       type="button"
       onClick={has ? onBook : onPick}
-      className={`h-12 rounded-card font-black text-sm transition-all active:scale-[0.98] ${
+      className={`h-12 rounded-card font-bold text-sm transition-all active:scale-[0.98] ${
         has
           ? "bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary"
           : "bg-[var(--foreground)] text-[var(--text-white)]"
@@ -158,7 +158,7 @@ const BookingCta: React.FC<BookingCtaProps> = ({
       
       
       
-      <h3 className="text-sm font-extrabold text-[var(--text-white)]">
+      <h3 className="text-sm font-bold text-[var(--text-white)]">
         رزرو آنلاین
       </h3>
 
@@ -184,7 +184,7 @@ const BookingCta: React.FC<BookingCtaProps> = ({
       {info}
       {button}
 
-      <ol className="flex flex-col gap-1.5 text-[11px] text-[var(--text-muted)] border-t border-[var(--border-subtle)] pt-3">
+      <ol className="flex flex-col gap-1.5 text-xs text-[var(--text-muted)] border-t border-[var(--border-subtle)] pt-3">
         <li>۱. نوع و تعداد دستگاه را انتخاب کنید</li>
         <li>۲. روز و ساعت‌ها را انتخاب کنید</li>
         <li>۳. رزرو را ثبت کنید</li>
@@ -249,16 +249,17 @@ export default function GameCenterDetailPage({
     let active = true;
     const controller = new AbortController();
 
-    setLoadError(null);
-    setDetail(null);
-
     loadGamecenterDetail(gamingCenterSlug, controller.signal)
       .then((d) => {
-        if (active) setDetail(d);
+        if (active) {
+          setDetail(d);
+          setLoadError(null);
+        }
       })
       .catch((e) => {
         if (!active || isAbortError(e)) return;
         setLoadError(getErrorMessage(e));
+        setDetail(null);
       });
 
     return () => {
@@ -493,7 +494,7 @@ export default function GameCenterDetailPage({
               <button
                 type="button"
                 onClick={() => setReloadToken((v) => v + 1)}
-                className="h-10 px-5 rounded-card bg-[var(--primary)] text-on-primary text-xs font-black"
+                className="h-10 px-5 rounded-card bg-[var(--primary)] text-on-primary text-xs font-bold"
               >
                 تلاش دوباره
               </button>
@@ -601,7 +602,7 @@ export default function GameCenterDetailPage({
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 min-w-0">
-                              <span className="w-6 h-6 shrink-0 rounded-child bg-[var(--foreground)] text-[var(--primary)] font-black text-xs flex items-center justify-center pt-0.5">
+                              <span className="w-6 h-6 shrink-0 rounded-child bg-[var(--foreground)] text-[var(--primary)] font-bold text-xs flex items-center justify-center pt-0.5">
                                 {r.author[0]}
                               </span>
                               <span className="text-xs font-bold truncate">
@@ -618,7 +619,7 @@ export default function GameCenterDetailPage({
                             </p>
                           )}
                           {r.createdAt && (
-                            <span className="text-[10px] text-[var(--text-subtle)]">
+                            <span className="text-xs text-[var(--text-subtle)]">
                               {formatDayLabel(r.createdAt)}
                             </span>
                           )}

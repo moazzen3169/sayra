@@ -28,7 +28,7 @@ export const PromoBanner: React.FC<PromoBannerProps> = ({
 
       <div className="flex flex-col gap-1.5 z-10 max-w-[70%]">
 
-        <h3 className="text-base font-extrabold text-[var(--text-white)] group-hover:text-[var(--primary)] transition-colors leading-snug">
+        <h3 className="text-base font-bold text-[var(--text-white)] group-hover:text-[var(--primary)] transition-colors leading-snug">
           {title}
         </h3>
         <p className="text-xs text-[var(--text-muted)] line-clamp-1">{subtitle}</p>

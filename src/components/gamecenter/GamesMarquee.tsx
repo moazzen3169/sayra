@@ -85,7 +85,7 @@ export const GamesMarquee: React.FC<{ games: GameItem[] }> = ({ games }) => {
       {q ? (
         results.length > 0 ? (
           <div className="flex flex-col gap-3">
-            <span className="text-[11px] text-[var(--text-muted)]">
+            <span className="text-xs text-[var(--text-muted)]">
               {toPersianDigits(results.length)} بازی پیدا شد
             </span>
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
