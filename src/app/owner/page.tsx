@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOwner } from "@/context/OwnerContext";
-import { OwnerVerificationBadge } from "@/components/owner/OwnerVerificationBadge";
+import { OwnerHeader } from "@/components/owner/OwnerHeader";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService, pickNumber } from "@/services/ownerService";
@@ -158,20 +158,9 @@ export default function OwnerDashboardPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
-<main className="flex-1 px-4 pt-5 flex flex-col gap-5  lg:max-w-[880px] lg:mx-auto lg:w-full lg:px-0">        {/* Top bar */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-baseline gap-2 min-w-0">
-            <h1 className="text-base font-bold truncate">{ownerName}</h1>
-            {isApproved && (
-              <Link href="/owner/edit" className="text-xs text-[var(--primary)] hover:underline">
-                ویرایش
-              </Link>
-            )}
-          </div>
-          <div className="shrink-0 flex items-center gap-2">
-            <OwnerVerificationBadge size="md" />
-          </div>
-        </div>
+      <OwnerHeader title="پنل مدیریت" isSubpage={false} />
+
+      <main className="flex-1 px-4 pt-20 flex flex-col gap-5 lg:max-w-[880px] lg:mx-auto lg:w-full lg:px-0">
 
         {/* Verification Form / Notice section if not approved */}
         {!isApproved && (

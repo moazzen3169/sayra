@@ -2,10 +2,9 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Header } from "@/components/Header";
+import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { BottomBar } from "@/components/BottomBar";
 import { Icon } from "@/components/ui/Icon";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { isAbortError } from "@/lib/api/client";
@@ -146,11 +145,9 @@ export default function SupportPage() {
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-12">
       {/* App Shell Header */}
-      <Header locationName="تبریز" />
+      <ProfileHeader title="پشتیبانی و پاسخگویی" isSubpage={true} />
 
-      <main className="flex-1 pt-[var(--header-h)] px-4 py-4 flex flex-col gap-6 lg:max-w-[880px] lg:mx-auto lg:w-full">
-        {/* Page Header */}
-        <PageHeader title="پشتیبانی و پاسخگویی" backHref="/" />
+      <main className="flex-1 pt-20 px-4 py-4 flex flex-col gap-6 lg:max-w-[880px] lg:mx-auto lg:w-full">
 
         {/* Overview Banner */}
         <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
@@ -381,10 +378,8 @@ export default function SupportPage() {
                 <EmptyState
                   title="تیکتی یافت نشد"
                   description="هنوز هیچ تیکتی ثبت نکرده‌اید. در صورت وجود سوال یا مشکل، تیکت جدید ثبت کنید."
-                  action={{
-                    label: "ثبت تیکت جدید",
-                    onClick: () => setCreating(true),
-                  }}
+                  actionLabel="ثبت تیکت جدید"
+                  onAction={() => setCreating(true)}
                 />
               )}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Header } from "@/components/Header";
+import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { BottomBar } from "@/components/BottomBar";
 import { FirstReservationStrip } from "@/components/FirstReservationStrip";
 import { ReservationHistoryCard } from "@/components/ReservationHistoryCard";
@@ -61,9 +61,9 @@ export default function ReservationsHistoryPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
-      <Header locationName="تبریز" />
+      <ProfileHeader title="رزروهای من" isSubpage={true} />
 
-      <main className="flex-1 pt-[var(--header-h)] flex flex-col">
+      <main className="flex-1 pt-20 flex flex-col">
 
 
         {/* Loading State (Auth initializing or items fetching) */}
