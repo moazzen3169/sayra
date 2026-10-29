@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { Icon, IconName } from "@/components/ui/Icon";
 
@@ -121,6 +122,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   onClose,
   selectedCity = "تبریز",
 }) => {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [recentSearches, setRecentSearches] =
     useState<string[]>(INITIAL_RECENTS);
@@ -207,10 +209,23 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     );
   };
 
+  const executeSearch = (text: string) => {
+    const value = text.trim();
+    if (!value) return;
+    saveRecentSearch(value);
+    onClose();
+    router.push(`/gamecenters?q=${encodeURIComponent(value)}`);
+  };
+
   const selectSuggestion = (text: string) => {
-    setQuery(text);
-    saveRecentSearch(text);
-    inputRef.current?.focus();
+    executeSearch(text);
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (query) {
+      executeSearch(query);
+    }
   };
 
   const clearSearch = () => {
@@ -230,7 +245,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     >
       {/* Search bar */}
       <header className="shrink-0 border-b border-[var(--border-subtle)] bg-[var(--bg-body)]">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
+        <form onSubmit={handleFormSubmit} className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
           <button
             type="button"
             onClick={onClose}
@@ -287,7 +302,14 @@ export const SearchModal: React.FC<SearchModalProps> = ({
               </button>
             )}
           </div>
-        </div>
+
+          <button
+            type="submit"
+            className="h-10 px-4 rounded-card bg-[var(--primary)] text-on-primary font-bold text-xs shrink-0 hover:bg-[var(--primary-hover)] transition-colors"
+          >
+            جست‌وجو
+          </button>
+        </form>
       </header>
 
       {/* Search content */}

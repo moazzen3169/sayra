@@ -10,6 +10,8 @@ const desktopViewports = [781, 900, 1024, 1180, 1280, 1440, 1920];
 
 const routes = [
   { name: 'home', path: '/' },
+  { name: 'gamecenters', path: '/gamecenters' },
+  { name: 'gamecenters-filtered', path: '/gamecenters?category=ps5&sort=popular' },
   { name: 'gamecenter-detail', path: '/gamecenter/gc-1' },
   { name: 'reservations', path: '/reservations' },
   { name: 'reservation-detail', path: '/reservations/r-1' },

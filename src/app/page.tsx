@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { BottomBar, TabType } from "@/components/BottomBar";
 import { DiscountedGamecenterCard } from "@/components/DiscountedGamecenterCard";
@@ -73,6 +74,7 @@ const featuredCenters = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>("home");
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>("ps5");
   const [selectedCity, setSelectedCity] = useState("تبریز");
@@ -104,6 +106,11 @@ export default function HomePage() {
     };
   }, []);
 
+  const handleCategorySelect = (id: string) => {
+    setSelectedCategory(id);
+    router.push(`/gamecenters?category=${encodeURIComponent(id)}`);
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
       <Header
@@ -122,7 +129,7 @@ export default function HomePage() {
         <section>
           <DeviceCategories
             selectedCategoryId={selectedCategory}
-            onSelectCategory={(id) => setSelectedCategory(id)}
+            onSelectCategory={handleCategorySelect}
           />
         </section>
 
