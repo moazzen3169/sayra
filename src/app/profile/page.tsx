@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Header } from "@/components/Header";
+import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { BottomBar } from "@/components/BottomBar";
 import { useAuth } from "@/context/AuthContext";
 import { authService } from "@/services/authService";
@@ -206,9 +206,9 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
-      <Header locationName="تبریز" />
+      <ProfileHeader title="حساب کاربری" isSubpage={false} />
 
-      <main className="flex-1 pt-[var(--header-h)] px-4 py-4 flex flex-col gap-5">
+      <main className="flex-1 pt-20 px-4 py-4 flex flex-col gap-5">
         {/* Loading State */}
         {isLoading && (
           <div className="w-full max-w-md lg:max-w-xl mx-auto p-6 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse flex flex-col gap-4">
