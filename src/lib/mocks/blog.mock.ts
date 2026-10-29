@@ -27,6 +27,9 @@ const summary = (p: SummaryInput): BlogPostSummary => ({
   ...p,
   authorName: p.authorName ?? "تحریریه‌ی سایرا",
   categoryLabel: labelOf(p.category),
+  status: p.status ?? "PUBLISHED",
+  createdAt: p.createdAt ?? p.publishedAt,
+  updatedAt: p.updatedAt ?? p.publishedAt,
 });
 
 export const MOCK_BLOG_POSTS: BlogPostSummary[] = [
@@ -137,6 +140,34 @@ export const MOCK_BLOG_POSTS: BlogPostSummary[] = [
     readingMinutes: 6,
     tags: ["واقعیت مجازی", "مبتدی"],
     viewsCount: 1210,
+  }),
+  summary({
+    id: "bp-9",
+    slug: "upcoming-tournaments-2026",
+    title: "پیش‌نویس: راهنمای شرکت در تورنمنت‌های پاییزی سایرا",
+    excerpt:
+      "جزئیات نحوه ثبت‌نام و قوانین مسابقات منطقه‌ای در گیمنت‌های منتخب سایرا.",
+    coverUrl: "/img/gamnet-4.webp",
+    category: "games",
+    status: "DRAFT",
+    publishedAt: "",
+    createdAt: "2026-10-25T11:00:00+03:30",
+    readingMinutes: 5,
+    tags: ["تورنمنت", "مسابقات", "پیش‌نویس"],
+  }),
+  summary({
+    id: "bp-10",
+    slug: "summer-discount-campaign-2025",
+    title: "بایگانی‌شده: گزارش کمپین تخفیف‌های تابستانه ۱۴۰۴",
+    excerpt:
+      "خلاصه عملکرد و استقبال کاربران از طرح تخفیف‌های گروهی رزرو گیمنت در تابستان گذشته.",
+    coverUrl: "/img/gamnet-5.webp",
+    category: "tips",
+    status: "ARCHIVED",
+    publishedAt: "2025-08-30T10:00:00+03:30",
+    createdAt: "2025-08-25T09:00:00+03:30",
+    readingMinutes: 4,
+    tags: ["بایگانی", "کمپین", "تخفیف"],
   }),
 ];
 
