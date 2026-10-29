@@ -236,8 +236,70 @@ export interface AdminListQueryParams {
   senderType?: string;
   assignedAdminId?: string;
   needingResponseOnly?: boolean;
+  discountType?: string;
+  scopeType?: string;
+  targetAudience?: string;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   page?: number;
   pageSize?: number;
+}
+
+export type DiscountType = "PERCENTAGE" | "FIXED_AMOUNT";
+
+export type CampaignScopeType = "GLOBAL" | "SPECIFIC_GAMECENTERS" | "DEVICE_TYPES";
+
+export type TargetAudienceType =
+  | "ALL"
+  | "NEW_USERS"
+  | "FIRST_RESERVATION"
+  | "REGULAR_CUSTOMERS"
+  | "SPECIFIC_USERS";
+
+export type CampaignStatus = "ACTIVE" | "INACTIVE" | "SCHEDULED" | "EXPIRED";
+
+export interface AdminCampaign {
+  id: string;
+  title: string;
+  code: string;
+  description?: string;
+  discountType: DiscountType;
+  discountValue: number;
+  maxDiscountAmount?: number;
+  minOrderAmount?: number;
+  scopeType: CampaignScopeType;
+  applicableGamecenterIds?: string[];
+  applicableGamecenterNames?: string[];
+  applicableDeviceTypes?: string[];
+  targetAudience: TargetAudienceType;
+  specificUserIds?: string[];
+  specificUserNames?: string[];
+  startDate: string;
+  endDate: string;
+  status: CampaignStatus;
+  totalUsageLimit?: number;
+  usedCount: number;
+  perUserUsageLimit?: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface AdminCampaignInput {
+  title: string;
+  code: string;
+  description?: string;
+  discountType: DiscountType;
+  discountValue: number;
+  maxDiscountAmount?: number;
+  minOrderAmount?: number;
+  scopeType: CampaignScopeType;
+  applicableGamecenterIds?: string[];
+  applicableDeviceTypes?: string[];
+  targetAudience: TargetAudienceType;
+  specificUserIds?: string[];
+  startDate: string;
+  endDate: string;
+  status: CampaignStatus;
+  totalUsageLimit?: number;
+  perUserUsageLimit?: number;
 }
