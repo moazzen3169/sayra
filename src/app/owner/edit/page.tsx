@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
 import { useOwner } from "@/context/OwnerContext";
+import { isAbortError } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService } from "@/services/ownerService";
-import type { CenterSettings } from "@/types/owner";
+import type { CenterSettings, MediaItem } from "@/types/owner";
 
 const inputClass =
   "h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none text-[var(--text-white)] placeholder:text-[var(--text-subtle)]";
@@ -63,10 +64,10 @@ export default function OwnerEditPage() {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // ۱. نام گیمنت
-  const [name, setName] = useState("");
+  const [name, setName] = useState(center?.name || "");
 
   // ۲. آدرس گیمنت
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState(center?.description || "");
 
   // ۳. انتخاب از روی نقشه (Latitude / Longitude)
   const [lat, setLat] = useState<number>(38.08);
@@ -86,52 +87,60 @@ export default function OwnerEditPage() {
   const [allowOnline, setAllowOnline] = useState(true);
   const [autoConfirm, setAutoConfirm] = useState(false);
 
-  useEffect(() => {
-    const active = true;
+  // تصاویر گالری
+  const [media, setMedia] = useState<MediaItem[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [deleteConfirmMedia, setDeleteConfirmMedia] = useState<MediaItem | null>(null);
+  const [deletingImage, setDeletingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Load saved settings if stored locally
+  useEffect(() => {
+    let active = true;
+
+    // Set initial values from center prop
+    if (center) {
+      setName((prev) => prev || center.name || "");
+      setAddress((prev) => prev || center.description || "");
+    }
+
+    // Load local stored state if available
     try {
       const savedRaw = localStorage.getItem(`sayra_owner_edit_${centerId}`);
       if (savedRaw) {
         const saved = JSON.parse(savedRaw);
-        const timer = setTimeout(() => {
-          if (!active) return;
-          if (saved.name) setName(saved.name);
-          if (saved.address) setAddress(saved.address);
-          if (typeof saved.lat === "number") setLat(saved.lat);
-          if (typeof saved.lng === "number") setLng(saved.lng);
-          if (Array.isArray(saved.games)) setGames(saved.games);
-          if (typeof saved.allowOnline === "boolean") setAllowOnline(saved.allowOnline);
-          if (typeof saved.autoConfirm === "boolean") setAutoConfirm(saved.autoConfirm);
-        }, 0);
-        return () => clearTimeout(timer);
+        if (saved.name) setName(saved.name);
+        if (saved.address) setAddress(saved.address);
+        if (typeof saved.lat === "number") setLat(saved.lat);
+        if (typeof saved.lng === "number") setLng(saved.lng);
+        if (Array.isArray(saved.games)) setGames(saved.games);
+        if (typeof saved.allowOnline === "boolean") setAllowOnline(saved.allowOnline);
+        if (typeof saved.autoConfirm === "boolean") setAutoConfirm(saved.autoConfirm);
       }
     } catch {
       // ignore
     }
 
-    ownerService
-      .getSettings(centerId)
-      .then((s) => {
-        if (!active) return;
-        setAllowOnline(s.allowOnlineBooking !== false);
-        setAutoConfirm(!!s.onlineBookingAutoConfirm);
-      })
-      .catch(() => {
-        // Fallback gracefully without showing network error banner on initial load
-      })
-      .finally(() => {
-        if (active) setLoaded(true);
-      });
+    const controller = new AbortController();
 
-    // Populate initial center info if not already loaded from saved state
-    if (center) {
-      const timer = setTimeout(() => {
-        setName((prev) => prev || center.name || "");
-        setAddress((prev) => prev || center.description || "");
-      }, 0);
-      return () => clearTimeout(timer);
-    }
+    Promise.allSettled([
+      ownerService.getSettings(centerId, controller.signal),
+      ownerService.listMedia(center?.slug || centerId, controller.signal),
+    ]).then(([settingsRes, mediaRes]) => {
+      if (!active) return;
+      if (settingsRes.status === "fulfilled" && settingsRes.value) {
+        setAllowOnline(settingsRes.value.allowOnlineBooking !== false);
+        setAutoConfirm(!!settingsRes.value.onlineBookingAutoConfirm);
+      }
+      if (mediaRes.status === "fulfilled" && Array.isArray(mediaRes.value)) {
+        setMedia(mediaRes.value);
+      }
+      setLoaded(true);
+    });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [centerId, center]);
 
   const addGame = (gameName: string) => {
@@ -423,6 +432,75 @@ export default function OwnerEditPage() {
               <Toggle label="تایید خودکار رزروهای آنلاین" checked={autoConfirm} onChange={setAutoConfirm} />
             </div>
 
+            {/* ۷. گالری تصاویر و حذف با دکمه X */}
+            <div className="flex flex-col gap-3 mt-2 border-t border-[var(--border-subtle)] pt-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-bold text-[var(--text-white)]">تصاویر موجود در گیمنت</h2>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                >
+                  + افزودن عکس جدید
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!file || uploadingImage) return;
+                    setUploadingImage(true);
+                    try {
+                      await ownerService.uploadGalleryImage(centerId, file);
+                      const updated = await ownerService.listMedia(center?.slug || centerId);
+                      setMedia(updated);
+                    } catch (err) {
+                      setMsg({ ok: false, text: getErrorMessage(err) });
+                    } finally {
+                      setUploadingImage(false);
+                    }
+                  }}
+                />
+              </div>
+
+              {media.length === 0 ? (
+                <div className="p-4 rounded-card border border-dashed border-[var(--border-subtle)] text-center text-xs text-[var(--text-muted)]">
+                  هیچ تصویری برای این گیمنت آپلود نشده است.
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                  {media.map((img, idx) => {
+                    const imgId = img.id || `${img.url}-${idx}`;
+                    return (
+                      <div
+                        key={imgId}
+                        className="relative aspect-square rounded-card border border-[var(--border-subtle)] overflow-hidden group bg-[var(--foreground)]/30"
+                      >
+                        <img
+                          src={img.url}
+                          alt={img.altText || "تصویر گیمنت"}
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Delete X Button on top right */}
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirmMedia(img)}
+                          aria-label="حذف عکس"
+                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/80 hover:bg-[var(--accent-red)] text-white font-black text-xs flex items-center justify-center transition-colors shadow-md cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <button
               type="submit"
               disabled={saving}
@@ -433,6 +511,68 @@ export default function OwnerEditPage() {
           </form>
         )}
       </main>
+
+      {/* Confirmation Modal for Image Deletion */}
+      {deleteConfirmMedia && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fadeIn"
+          onClick={() => !deletingImage && setDeleteConfirmMedia(null)}
+        >
+          <div
+            className="w-full max-w-[380px] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-5 flex flex-col gap-4 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 rounded-full bg-[var(--accent-red)]/10 text-[var(--accent-red)] mx-auto flex items-center justify-center text-xl font-bold">
+              🗑️
+            </div>
+            <div className="flex flex-col gap-1">
+              <h3 className="text-sm font-bold text-[var(--text-white)]">تایید حذف تصویر</h3>
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                آیا از حذف این تصویر اطمینان دارید؟ این عمل قابل بازگشت نیست.
+              </p>
+            </div>
+
+            {deleteConfirmMedia.url && (
+              <div className="w-24 h-24 mx-auto rounded-card overflow-hidden border border-[var(--border-subtle)]">
+                <img src={deleteConfirmMedia.url} alt="پیش‌نمایش" className="w-full h-full object-cover" />
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                disabled={deletingImage}
+                onClick={async () => {
+                  if (deletingImage || !deleteConfirmMedia) return;
+                  setDeletingImage(true);
+                  try {
+                    const targetId = deleteConfirmMedia.id || deleteConfirmMedia.url;
+                    await ownerService.deleteMedia(centerId, targetId);
+                    setMedia((prev) => prev.filter((m) => (m.id || m.url) !== targetId));
+                    setDeleteConfirmMedia(null);
+                    setMsg({ ok: true, text: "تصویر با موفقیت حذف شد." });
+                  } catch (err) {
+                    setMsg({ ok: false, text: getErrorMessage(err) });
+                  } finally {
+                    setDeletingImage(false);
+                  }
+                }}
+                className="flex-1 h-10 rounded-card bg-[var(--accent-red)] text-white font-bold text-xs disabled:opacity-60"
+              >
+                {deletingImage ? "در حال حذف..." : "حذف تصویر"}
+              </button>
+              <button
+                type="button"
+                disabled={deletingImage}
+                onClick={() => setDeleteConfirmMedia(null)}
+                className="h-10 px-4 rounded-card bg-[var(--foreground)] text-xs font-bold text-[var(--text-white)]"
+              >
+                انصراف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

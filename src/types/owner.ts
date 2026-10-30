@@ -62,6 +62,8 @@ export interface OwnerRating {
   status?: "PUBLISHED" | "HIDDEN" | "DELETED";
   customerName?: string;
   createdAt?: string;
+  reply?: string;
+  repliedAt?: string;
 }
 
 export interface MediaItem {
@@ -75,6 +77,10 @@ export interface StationInput {
   name: string;
   stationType: "PC" | "PLAYSTATION" | "XBOX" | "SWITCH" | "VR";
   hourlyPrice: number;
+  quantity?: number;
+  defaultControllers?: number;
+  maxExtraControllers?: number;
+  extraControllerPrice?: number;
   description?: string;
   minRentHours?: number;
   maxRentHours?: number;

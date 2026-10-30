@@ -134,13 +134,13 @@ let mockReservationsStore: OwnerReservation[] = [
 ];
 
 let mockStationsStore: GameStationInfo[] = [
-  { id: "st-pc-1", gamingCenterId: "gc-1", name: "کامپیوتر گیمینگ #۱", stationType: "PC", hourlyPrice: 180000, isActive: true },
-  { id: "st-pc-2", gamingCenterId: "gc-1", name: "کامپیوتر گیمینگ #۲", stationType: "PC", hourlyPrice: 180000, isActive: true },
-  { id: "st-pc-3", gamingCenterId: "gc-1", name: "کامپیوتر گیمینگ VIP", stationType: "PC", hourlyPrice: 260000, isVip: true, isActive: true },
-  { id: "st-ps5-1", gamingCenterId: "gc-1", name: "پلی‌استیشن ۵ #۱", stationType: "PLAYSTATION", hourlyPrice: 220000, isActive: true },
-  { id: "st-ps5-2", gamingCenterId: "gc-1", name: "پلی‌استیشن ۵ VIP", stationType: "PLAYSTATION", hourlyPrice: 300000, isVip: true, isActive: true },
-  { id: "st-xbox-1", gamingCenterId: "gc-1", name: "ایکس‌باکس سری ایکس #۱", stationType: "XBOX", hourlyPrice: 190000, isActive: true },
-  { id: "st-vr-1", gamingCenterId: "gc-1", name: "اتاق واقعیت مجازی VR", stationType: "VR", hourlyPrice: 280000, isVip: true, isActive: true },
+  { id: "st-pc-1", gamingCenterId: "gc-1", name: "کامپیوتر گیمینگ #۱", stationType: "PC", hourlyPrice: 180000, quantity: 5, defaultControllers: 0, maxExtraControllers: 0, extraControllerPrice: 0, isActive: true },
+  { id: "st-pc-2", gamingCenterId: "gc-1", name: "کامپیوتر گیمینگ #۲", stationType: "PC", hourlyPrice: 180000, quantity: 5, defaultControllers: 0, maxExtraControllers: 0, extraControllerPrice: 0, isActive: true },
+  { id: "st-pc-3", gamingCenterId: "gc-1", name: "کامپیوتر گیمینگ VIP", stationType: "PC", hourlyPrice: 260000, quantity: 3, isVip: true, defaultControllers: 0, maxExtraControllers: 0, extraControllerPrice: 0, isActive: true },
+  { id: "st-ps5-1", gamingCenterId: "gc-1", name: "پلی‌استیشن ۵ #۱", stationType: "PLAYSTATION", hourlyPrice: 220000, quantity: 4, defaultControllers: 2, maxExtraControllers: 2, extraControllerPrice: 50000, isActive: true },
+  { id: "st-ps5-2", gamingCenterId: "gc-1", name: "پلی‌استیشن ۵ VIP", stationType: "PLAYSTATION", hourlyPrice: 300000, quantity: 2, isVip: true, defaultControllers: 2, maxExtraControllers: 2, extraControllerPrice: 60000, isActive: true },
+  { id: "st-xbox-1", gamingCenterId: "gc-1", name: "ایکس‌باکس سری ایکس #۱", stationType: "XBOX", hourlyPrice: 190000, quantity: 3, defaultControllers: 2, maxExtraControllers: 2, extraControllerPrice: 40000, isActive: true },
+  { id: "st-vr-1", gamingCenterId: "gc-1", name: "اتاق واقعیت مجازی VR", stationType: "VR", hourlyPrice: 280000, quantity: 1, isVip: true, defaultControllers: 0, maxExtraControllers: 0, extraControllerPrice: 0, isActive: true },
 ];
 
 let mockSettingsStore: CenterSettings = {
@@ -387,6 +387,24 @@ export const ownerService = {
     }
   },
 
+  async updateReservationStatus(
+    centerId: string,
+    reservationId: string,
+    status: OwnerReservation["status"]
+  ): Promise<void> {
+    if (USE_MOCK_RESERVATIONS) {
+      const target = mockReservationsStore.find((r) => r.id === reservationId);
+      if (target) target.status = status;
+      return;
+    }
+    try {
+      await apiClient.patch(ENDPOINTS.owner.reservations(centerId) + `/${reservationId}`, { status });
+    } catch {
+      const target = mockReservationsStore.find((r) => r.id === reservationId);
+      if (target) target.status = status;
+    }
+  },
+
   async createStation(centerId: string, payload: StationInput): Promise<void> {
     if (USE_MOCK_RESERVATIONS) {
       const newStation: GameStationInfo = {
@@ -395,6 +413,10 @@ export const ownerService = {
         name: payload.name,
         stationType: payload.stationType,
         hourlyPrice: payload.hourlyPrice,
+        quantity: payload.quantity ?? 1,
+        defaultControllers: payload.defaultControllers ?? 0,
+        maxExtraControllers: payload.maxExtraControllers ?? 0,
+        extraControllerPrice: payload.extraControllerPrice ?? 0,
         isVip: payload.isVip,
         isActive: true,
         minRentHours: payload.minRentHours,
@@ -441,6 +463,18 @@ export const ownerService = {
     }
   },
 
+  async deleteMedia(centerId: string, mediaId: string): Promise<void> {
+    if (USE_MOCK_RESERVATIONS) {
+      mockMediaStore = mockMediaStore.filter((m) => m.id !== mediaId);
+      return;
+    }
+    try {
+      await apiClient.delete(ENDPOINTS.owner.mediaUpload(centerId) + `/${mediaId}`);
+    } catch {
+      mockMediaStore = mockMediaStore.filter((m) => m.id !== mediaId);
+    }
+  },
+
   async listRatings(slug: string, signal?: AbortSignal): Promise<OwnerRating[]> {
     if (USE_MOCK_RESERVATIONS) {
       return mockRatingsStore.filter((r) => r.status !== "DELETED");
@@ -451,6 +485,30 @@ export const ownerService = {
       return arr.length > 0 ? arr : mockRatingsStore.filter((r) => r.status !== "DELETED");
     } catch {
       return mockRatingsStore.filter((r) => r.status !== "DELETED");
+    }
+  },
+
+  async replyToRating(
+    centerId: string,
+    ratingId: string,
+    replyText: string
+  ): Promise<void> {
+    if (USE_MOCK_RESERVATIONS) {
+      const target = mockRatingsStore.find((r) => r.id === ratingId);
+      if (target) {
+        target.reply = replyText;
+        target.repliedAt = new Date().toISOString();
+      }
+      return;
+    }
+    try {
+      await apiClient.post(ENDPOINTS.owner.ratingStatus(centerId, ratingId) + "/reply", { reply: replyText });
+    } catch {
+      const target = mockRatingsStore.find((r) => r.id === ratingId);
+      if (target) {
+        target.reply = replyText;
+        target.repliedAt = new Date().toISOString();
+      }
     }
   },
 

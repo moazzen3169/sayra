@@ -24,6 +24,7 @@ export interface GameStationInfo {
   incrementMinutes?: number;
   isActive?: boolean;
 
+  quantity?: number;
   deviceModel?: string;
   extraControllerPrice?: number;
   defaultControllers?: number;
