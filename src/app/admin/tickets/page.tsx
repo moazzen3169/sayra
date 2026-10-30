@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AdminPageContainer } from "@/components/admin/layout/AdminPageContainer";
 import { TicketListPane } from "@/components/admin/tickets/TicketListPane";
@@ -14,7 +14,7 @@ function SupportTicketContent() {
   const router = useRouter();
   const initialTicketId = searchParams.get("ticketId");
 
-  // State for List & Filters
+  // لیست و فیلترها
   const [tickets, setTickets] = useState<AdminTicket[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -26,33 +26,38 @@ function SupportTicketContent() {
   const [assignedFilter, setAssignedFilter] = useState("all");
   const [needingResponseOnly, setNeedingResponseOnly] = useState(false);
 
-  // Selected Ticket State
+  // تیکت انتخاب‌شده
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(initialTicketId);
   const [selectedTicket, setSelectedTicket] = useState<AdminTicket | null>(null);
+  // برای جلوگیری از دریافت دوباره‌ی لیست با هر بار انتخاب تیکت
+  const selectedIdRef = useRef<string | null>(initialTicketId);
 
-  // Mobile View Toggle: 'list' | 'detail'
+  // نمای موبایل: لیست یا جزئیات
   const [mobileView, setMobileView] = useState<"list" | "detail">("list");
 
-  // Metadata Stores
+  // داده‌های جانبی
   const [adminsList, setAdminsList] = useState<AdminUser[]>([]);
   const [cannedResponses, setCannedResponses] = useState<CannedResponse[]>([]);
 
-  // Loaders & Processing States
   const [isListLoading, setIsListLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Feedback Notification
   const [feedback, setFeedback] = useState<{ type: "success" | "danger"; message: string } | null>(
     null
   );
 
-  const showFeedback = (type: "success" | "danger", message: string) => {
+  const showFeedback = useCallback((type: "success" | "danger", message: string) => {
     setFeedback({ type, message });
     setTimeout(() => setFeedback(null), 4000);
-  };
+  }, []);
 
-  // Load Admin list & Canned responses on mount
+  const selectTicket = useCallback((id: string | null) => {
+    selectedIdRef.current = id;
+    setSelectedTicketId(id);
+  }, []);
+
+  // مدیران و پاسخ‌های آماده
   useEffect(() => {
     async function loadMeta() {
       try {
@@ -69,7 +74,7 @@ function SupportTicketContent() {
     loadMeta();
   }, []);
 
-  // Load Tickets List
+  // لیست تیکت‌ها
   const loadTicketsList = useCallback(async () => {
     setIsListLoading(true);
     try {
@@ -88,22 +93,31 @@ function SupportTicketContent() {
       setTotal(res.total);
       setTotalPages(res.totalPages);
 
-      // Auto-select first ticket if none selected and on desktop
-      if (!selectedTicketId && res.items.length > 0) {
-        setSelectedTicketId(res.items[0].id);
+      // انتخاب خودکار اولین تیکت فقط وقتی هیچ تیکتی انتخاب نشده است
+      if (!selectedIdRef.current && res.items.length > 0) {
+        selectTicket(res.items[0].id);
       }
     } catch {
-      showFeedback("danger", "خطا در دریافت لیست تیکت‌ها.");
+      showFeedback("danger", "دریافت فهرست تیکت‌ها انجام نشد. دوباره تلاش کنید.");
     } finally {
       setIsListLoading(false);
     }
-  }, [search, statusFilter, senderFilter, assignedFilter, needingResponseOnly, page, selectedTicketId]);
+  }, [
+    search,
+    statusFilter,
+    senderFilter,
+    assignedFilter,
+    needingResponseOnly,
+    page,
+    selectTicket,
+    showFeedback,
+  ]);
 
   useEffect(() => {
     loadTicketsList();
   }, [loadTicketsList]);
 
-  // Load Active Ticket Details
+  // جزئیات تیکت انتخاب‌شده
   const loadSelectedTicket = useCallback(async () => {
     if (!selectedTicketId) {
       setSelectedTicket(null);
@@ -115,43 +129,45 @@ function SupportTicketContent() {
       const tkt = await adminService.getTicketById(selectedTicketId);
       setSelectedTicket(tkt);
     } catch {
-      showFeedback("danger", "خطا در دریافت جزئیات تیکت انتخابی.");
+      showFeedback("danger", "دریافت جزئیات تیکت انجام نشد. دوباره تلاش کنید.");
       setSelectedTicket(null);
     } finally {
       setIsDetailLoading(false);
     }
-  }, [selectedTicketId]);
+  }, [selectedTicketId, showFeedback]);
 
   useEffect(() => {
     loadSelectedTicket();
   }, [loadSelectedTicket]);
 
-  // Handle URL Ticket Parameter sync
+  // همگام‌سازی با پارامتر ticketId در آدرس (مثلاً لینک از صفحه‌ی کاربر یا گیمنت)
   useEffect(() => {
-    if (initialTicketId && initialTicketId !== selectedTicketId) {
+    if (initialTicketId) {
+      selectedIdRef.current = initialTicketId;
       setSelectedTicketId(initialTicketId);
       setMobileView("detail");
     }
-  }, [initialTicketId, selectedTicketId]);
+  }, [initialTicketId]);
 
   const handleSelectTicket = (tId: string) => {
-    setSelectedTicketId(tId);
+    selectTicket(tId);
     setMobileView("detail");
     router.replace(`/admin/tickets?ticketId=${tId}`, { scroll: false });
   };
 
-  // Actions
+  // عملیات
   const handleReply = async (message: string) => {
     if (!selectedTicketId) return;
     setIsSubmitting(true);
     try {
       const updated = await adminService.replyToTicket(selectedTicketId, message);
       setSelectedTicket(updated);
-      showFeedback("success", "پاسخ شما با موفقیت به تیکت اضافه گردید.");
+      showFeedback("success", "پاسخ شما ثبت شد.");
       loadTicketsList();
     } catch (err: unknown) {
       const e = err as Error;
-      showFeedback("danger", e.message || "خطا در ارسال پاسخ تیکت.");
+      showFeedback("danger", e.message || "ارسال پاسخ انجام نشد. دوباره تلاش کنید.");
+      throw e; // تا متن پاسخ در کادر حفظ شود
     } finally {
       setIsSubmitting(false);
     }
@@ -162,11 +178,11 @@ function SupportTicketContent() {
     try {
       const updated = await adminService.updateTicketStatus(selectedTicketId, status);
       setSelectedTicket(updated);
-      showFeedback("success", "وضعیت تیکت با موفقیت به‌روزرسانی شد.");
+      showFeedback("success", "وضعیت تیکت تغییر کرد.");
       loadTicketsList();
     } catch (err: unknown) {
       const e = err as Error;
-      showFeedback("danger", e.message || "خطا در تغییر وضعیت تیکت.");
+      showFeedback("danger", e.message || "تغییر وضعیت انجام نشد. دوباره تلاش کنید.");
     }
   };
 
@@ -175,57 +191,24 @@ function SupportTicketContent() {
     try {
       const updated = await adminService.assignTicket(selectedTicketId, adminId);
       setSelectedTicket(updated);
-      showFeedback("success", "مسئول جدید تیکت با موفقیت ثبت گردید.");
+      showFeedback("success", "مسئول تیکت ثبت شد.");
       loadTicketsList();
     } catch (err: unknown) {
       const e = err as Error;
-      showFeedback("danger", e.message || "خطا در ارجاع تیکت.");
+      showFeedback("danger", e.message || "ارجاع تیکت انجام نشد. دوباره تلاش کنید.");
+      throw e;
     }
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full h-[calc(100vh-170px)] min-h-[600px]">
-      {/* Header & Stats Title */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-4 shrink-0">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-page-title text-[var(--text-white)]">مرکز مدیریت تیکت‌ها</h1>
-          <p className="text-secondary text-[var(--text-muted)]">
-            پاسخ‌دهی سریع، مشاهده سابقه مکالمات، تغییر وضعیت و ارجاع تیکت‌های پشتیبانی کاربران و صاحبان گیمنت ({total} تیکت)
-          </p>
-        </div>
+    <div className="flex h-[calc(100dvh-9rem)] min-h-[560px] w-full flex-col gap-4">
+      {/* عنوان صفحه */}
 
-        {/* Mobile View Switcher */}
-        <div className="flex lg:hidden items-center gap-2 bg-[var(--foreground)]/30 p-1 rounded-card border border-[var(--border-subtle)]">
-          <button
-            type="button"
-            onClick={() => setMobileView("list")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-              mobileView === "list"
-                ? "bg-[var(--primary)] text-on-primary"
-                : "text-[var(--text-muted)]"
-            }`}
-          >
-            فهرست تیکت‌ها
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileView("detail")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-              mobileView === "detail"
-                ? "bg-[var(--primary)] text-on-primary"
-                : "text-[var(--text-muted)]"
-            }`}
-          >
-            محتوای تیکت
-          </button>
-        </div>
-      </div>
 
-      {/* Main Master-Detail Workspace Grid */}
-      <div className="flex-1 flex gap-6 overflow-hidden">
-        {/* Left / Sidebar Pane: Ticket List */}
+      {/* فضای اصلی: لیست + مکالمه */}
+      <div className="flex min-h-0 flex-1 gap-4 overflow-hidden">
         <div
-          className={`w-full lg:w-[380px] lg:shrink-0 h-full ${
+          className={`h-full w-full lg:w-[360px] lg:shrink-0 ${
             mobileView === "list" ? "block" : "hidden lg:block"
           }`}
         >
@@ -267,35 +250,34 @@ function SupportTicketContent() {
           />
         </div>
 
-        {/* Main Content Pane: Ticket Workspace & Conversation */}
         <div
-          className={`flex-1 h-full min-w-0 ${
-            mobileView === "detail" ? "block" : "hidden lg:block"
+          className={`flex h-full min-w-0 flex-1 flex-col gap-2 ${
+            mobileView === "detail" ? "flex" : "hidden lg:flex"
           }`}
         >
-          {/* Mobile Back Button */}
-          <div className="lg:hidden mb-3">
-            <button
-              type="button"
-              onClick={() => setMobileView("list")}
-              className="text-xs font-bold text-[var(--primary)] flex items-center gap-1.5 p-2 rounded-lg bg-[var(--foreground)]/20 hover:bg-[var(--foreground)]/40 transition-colors"
-            >
-              <Icon name="back" size={16} />
-              <span>بازگشت به فهرست تیکت‌ها</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setMobileView("list")}
+            className="flex h-11 shrink-0 items-center gap-1.5 self-start text-xs font-bold text-[var(--primary)] lg:hidden"
+          >
+            <Icon name="back" size={16} />
+            <span>بازگشت به فهرست</span>
+          </button>
 
-          <TicketDetailPane
-            ticket={selectedTicket}
-            admins={adminsList}
-            cannedResponses={cannedResponses}
-            onReply={handleReply}
-            onStatusChange={handleStatusChange}
-            onAssign={handleAssign}
-            isLoading={isDetailLoading}
-            isSubmitting={isSubmitting}
-            feedback={feedback}
-          />
+          <div className="min-h-0 flex-1">
+            <TicketDetailPane
+              key={selectedTicketId ?? "none"}
+              ticket={selectedTicket}
+              admins={adminsList}
+              cannedResponses={cannedResponses}
+              onReply={handleReply}
+              onStatusChange={handleStatusChange}
+              onAssign={handleAssign}
+              isLoading={isDetailLoading}
+              isSubmitting={isSubmitting}
+              feedback={feedback}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -307,9 +289,15 @@ export default function TicketsAdminPage() {
     <AdminPageContainer>
       <Suspense
         fallback={
-          <div className="p-8 text-center text-xs text-[var(--text-muted)] flex flex-col items-center justify-center gap-2">
-            <div className="w-6 h-6 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-            <span>در حال بارگذاری مرکز تیکت‌ها...</span>
+          <div
+            className="flex flex-col items-center justify-center gap-2 p-8 text-center text-xs text-[var(--text-muted)]"
+            aria-busy="true"
+          >
+            <div
+              className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--primary)] border-t-transparent"
+              aria-hidden="true"
+            />
+            <span>در حال بارگذاری تیکت‌ها...</span>
           </div>
         }
       >
