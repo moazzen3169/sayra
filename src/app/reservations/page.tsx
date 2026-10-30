@@ -142,7 +142,7 @@ export default function ReservationsHistoryPage() {
 
         {/* Reservation List */}
         {isLoggedIn && items !== null && !error && items.length > 0 && (
-          <div className="flex flex-col lg:grid lg:grid-cols-2 lg:gap-4 lg:px-8">
+          <div className="flex flex-col lg:grid  mx-auto w-full  max-w-[var(--max-mini-app-width)] lg:px-8">
             {items.map((r) => (
               <ReservationHistoryCard key={r.id} reservation={r} onRate={setRatingTarget} />
             ))}

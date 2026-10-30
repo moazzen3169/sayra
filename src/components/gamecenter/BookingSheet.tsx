@@ -56,7 +56,9 @@ function mapSlots(raw: AvailabilitySlot[]): RawSlot[] {
       startTime: s.startTime,
       startLabel: formatClock(s.startTime, true),
       endLabel: s.endTime ? formatClock(s.endTime, true) : undefined,
-      available: s.isAvailable !== false && (s.status === undefined || s.status === "AVAILABLE"),
+      available:
+        s.isAvailable !== false &&
+        (s.status === undefined || s.status === "AVAILABLE"),
     }));
 }
 
@@ -100,7 +102,10 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
   const dateListRef = useRef<HTMLDivElement>(null);
 
   const date = dates.find((d) => d.id === dateId) ?? dates[0];
-  const stations = useMemo(() => lines.flatMap((l) => l.group.stations), [lines]);
+  const stations = useMemo(
+    () => lines.flatMap((l) => l.group.stations),
+    [lines],
+  );
   const deviceCount = lines.reduce((a, l) => a + l.qty, 0);
 
   // قفل اسکرول + Escape
@@ -139,14 +144,14 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
                 gamingCenterSlug,
                 date.fullDate,
                 s.id,
-                controller.signal
+                controller.signal,
               );
               return { id: s.id, list: mapSlots(raw) };
             } catch (e) {
               if (isAbortError(e) || !USE_MOCK_RESERVATIONS) throw e;
               return { id: s.id, list: [] as RawSlot[] };
             }
-          })
+          }),
         );
 
         if (!active) return;
@@ -155,7 +160,10 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
         const meta = new Map<string, SlotView>();
 
         for (const e of entries) {
-          const list = e.list.length === 0 && USE_MOCK_RESERVATIONS ? buildMockSlots(date.fullDate) : e.list;
+          const list =
+            e.list.length === 0 && USE_MOCK_RESERVATIONS
+              ? buildMockSlots(date.fullDate)
+              : e.list;
           nextAvail[e.id] = {};
           for (const s of list) {
             nextAvail[e.id][s.key] = s.available;
@@ -171,7 +179,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
         }
 
         const sorted = Array.from(meta.values()).sort(
-          (a, b) => Date.parse(a.startTime) - Date.parse(b.startTime)
+          (a, b) => Date.parse(a.startTime) - Date.parse(b.startTime),
         );
         setAvail(nextAvail);
         setSlots(sorted);
@@ -191,26 +199,36 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
   }, [gamingCenterSlug, stations, date.fullDate, refreshKey, retryToken]);
 
   const toggleSlot = (key: string) =>
-    setSelectedKeys((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+    setSelectedKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
 
   const selectedSlots = useMemo(
     () => slots.filter((s) => selectedKeys.includes(s.key)),
-    [slots, selectedKeys]
+    [slots, selectedKeys],
   );
 
   const items = useMemo(
     () =>
       selectedSlots.length > 0
-        ? allocateItems(lines, selectedSlots.map((s) => s.startTime), avail)
+        ? allocateItems(
+            lines,
+            selectedSlots.map((s) => s.startTime),
+            avail,
+          )
         : [],
-    [lines, selectedSlots, avail]
+    [lines, selectedSlots, avail],
   );
 
   const estimate = items ? estimateItemsTotal(items) : 0;
-  const canSubmit = selectedSlots.length > 0 && !!items && items.length > 0 && !isSubmitting;
+  const canSubmit =
+    selectedSlots.length > 0 && !!items && items.length > 0 && !isSubmitting;
 
   const scrollDates = (dir: "next" | "prev") => {
-    dateListRef.current?.scrollBy({ left: dir === "next" ? -200 : 200, behavior: "smooth" });
+    dateListRef.current?.scrollBy({
+      left: dir === "next" ? -200 : 200,
+      behavior: "smooth",
+    });
   };
 
   const buttonText = isSubmitting
@@ -218,8 +236,8 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
       ? `در حال ثبت ${toPersianDigits(progress.done)} از ${toPersianDigits(progress.total)}...`
       : "در حال ثبت رزرو..."
     : selectedSlots.length > 0
-    ? `ثبت رزرو (${toPersianDigits(selectedSlots.length)} ساعت)`
-    : "ابتدا ساعت‌ها را انتخاب کنید";
+      ? `ثبت رزرو (${toPersianDigits(selectedSlots.length)} ساعت)`
+      : "ابتدا ساعت‌ها را انتخاب کنید";
 
   return (
     <div
@@ -236,14 +254,16 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between gap-3 px-4 pt-4 pb-3 border-b border-[var(--border-subtle)]">
           <div className="flex flex-col min-w-0">
-            <h3 className="text-base font-bold text-[var(--text-white)]">انتخاب روز و ساعت</h3>
+            <h3 className="text-base font-bold text-[var(--text-white)]">
+              انتخاب روز و ساعت
+            </h3>
             <span className="text-xs text-[var(--text-muted)] truncate">
               {lines
                 .map(
                   (l) =>
                     `${toPersianDigits(l.qty)} × ${l.group.label}${
                       l.extra > 0 ? ` (+${toPersianDigits(l.extra)} دسته)` : ""
-                    }`
+                    }`,
                 )
                 .join("، ")}
             </span>
@@ -253,9 +273,22 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
             onClick={onClose}
             disabled={isSubmitting}
             aria-label="بستن"
-            className="w-9 h-9 shrink-0 rounded-full bg-[var(--foreground)]/50 text-[var(--text-muted)] hover:text-[var(--text-white)] disabled:opacity-40"
+            className="w-9 h-9 flex   items-center  justify-center shrink-0 rounded-full bg-[var(--foreground)]/50 text-[var(--text-muted)] hover:text-[var(--text-white)] disabled:opacity-40"
           >
-            ✕
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              className="size-6"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6 18 18 6M6 6l12 12"
+              />
+            </svg>
           </button>
         </div>
 
@@ -264,7 +297,9 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
           {/* Step 1: day */}
           <section className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-bold text-[var(--text-white)]">۱. روز را انتخاب کنید</h4>
+              <h4 className="text-sm font-bold text-[var(--text-white)]">
+                ۱. روز را انتخاب کنید
+              </h4>
               <div className="hidden sm:flex items-center gap-1">
                 {(["prev", "next"] as const).map((d) => (
                   <button
@@ -274,15 +309,28 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
                     aria-label={d === "next" ? "روزهای بعدی" : "روزهای قبلی"}
                     className="w-7 h-7 rounded bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d={d === "next" ? "M15 19l-7-7 7-7" : "M9 5l7 7-7 7"} />
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d={d === "next" ? "M15 19l-7-7 7-7" : "M9 5l7 7-7 7"}
+                      />
                     </svg>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div ref={dateListRef} className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 scroll-smooth snap-x">
+            <div
+              ref={dateListRef}
+              className=" px-4 flex gap-2 overflow-x-auto pb-1 scroll-smooth snap-x"
+            >
               {dates.map((d) => {
                 const active = d.id === dateId;
                 return (
@@ -299,7 +347,9 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
                     }`}
                   >
                     <span className="text-xs font-bold">{d.dayName}</span>
-                    <span className={`text-xs ${active ? "font-bold opacity-80" : "text-[var(--text-muted)]"}`}>
+                    <span
+                      className={`text-xs ${active ? "font-bold opacity-80" : "text-[var(--text-muted)]"}`}
+                    >
                       {d.dateStr}
                     </span>
                   </button>
@@ -311,7 +361,9 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
           {/* Step 2: time (چندانتخابی) */}
           <section className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between gap-2">
-              <h4 className="text-sm font-bold text-[var(--text-white)]">۲. ساعت‌ها را انتخاب کنید</h4>
+              <h4 className="text-sm font-bold text-[var(--text-white)]">
+                ۲. ساعت‌ها را انتخاب کنید
+              </h4>
               {selectedSlots.length > 0 && (
                 <button
                   type="button"
@@ -323,22 +375,27 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
                 </button>
               )}
             </div>
-            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-              هر کادر یک ساعت است. برای بازی ۱۲ تا ۱۵، سه ساعتِ ۱۲ و ۱۳ و ۱۴ را انتخاب کنید.
-              {deviceCount > 1 && " فقط ساعت‌هایی فعال هستند که همه‌ی دستگاه‌های انتخابی شما در آن خالی باشند."}
-            </p>
+
 
             {loading && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2" aria-busy="true">
+              <div
+                className="grid grid-cols-3 sm:grid-cols-4 gap-2"
+                aria-busy="true"
+              >
                 {Array.from({ length: 12 }).map((_, i) => (
-                  <div key={i} className="h-14 rounded-card bg-[var(--foreground)]/40 animate-pulse" />
+                  <div
+                    key={i}
+                    className="h-14 rounded-card bg-[var(--foreground)]/40 animate-pulse"
+                  />
                 ))}
               </div>
             )}
 
             {!loading && loadError && (
               <div className="rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-4 flex flex-col items-center gap-3 text-center">
-                <p className="text-xs font-bold text-[var(--accent-red)]">{loadError}</p>
+                <p className="text-xs font-bold text-[var(--accent-red)]">
+                  {loadError}
+                </p>
                 <button
                   type="button"
                   onClick={() => setRetryToken((v) => v + 1)}
@@ -357,7 +414,11 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
 
             {!loading && !loadError && slots.length > 0 && (
               <>
-                <div role="group" aria-label="ساعت‌های موجود" className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                <div
+                  role="group"
+                  aria-label="ساعت‌های موجود"
+                  className="grid grid-cols-3 sm:grid-cols-4 gap-2"
+                >
                   {slots.map((s) => {
                     const ok = isSlotBookable(lines, s.startTime, avail);
                     const active = selectedKeys.includes(s.key);
@@ -372,8 +433,8 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
                           !ok
                             ? "bg-[var(--foreground)]/20 border-transparent text-[var(--text-subtle)] line-through cursor-not-allowed opacity-50"
                             : active
-                            ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-bold"
-                            : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--primary)]/60"
+                              ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-bold"
+                              : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--primary)]/60"
                         }`}
                       >
                         {active && (
@@ -381,13 +442,21 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
                             ✓
                           </span>
                         )}
-                        <span className="text-sm font-bold">{s.startLabel}</span>
-                        {s.endLabel && <span className="text-xs opacity-70">تا {s.endLabel}</span>}
+                        <span className="text-sm font-bold">
+                          {s.startLabel}
+                        </span>
+                        {s.endLabel && (
+                          <span className="text-xs opacity-70">
+                            تا {s.endLabel}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
                 </div>
-                <p className="text-xs text-[var(--text-subtle)]">ساعت‌های خط‌خورده در دسترس نیستند.</p>
+                <p className="text-xs text-[var(--text-subtle)]">
+                  ساعت‌های خط‌خورده در دسترس نیستند.
+                </p>
               </>
             )}
           </section>
@@ -407,7 +476,8 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
           <div className="flex items-center justify-between gap-3 text-xs">
             <div className="flex flex-col gap-0.5 min-w-0">
               <span className="text-[var(--text-muted)]">
-                {toPersianDigits(deviceCount)} دستگاه • {toPersianDigits(selectedSlots.length)} ساعت
+                {toPersianDigits(deviceCount)} دستگاه •{" "}
+                {toPersianDigits(selectedSlots.length)} ساعت
               </span>
               <span className="font-bold text-[var(--text-white)] truncate">
                 {selectedSlots.length > 0
@@ -419,19 +489,19 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
               <span className="text-[var(--text-muted)]">برآورد مبلغ</span>
               <span className="font-black text-[var(--primary)]">
                 {selectedSlots.length > 0 ? formatPrice(estimate) : "—"}{" "}
-                <span className="text-xs font-normal text-[var(--text-white)]">تومان</span>
+                <span className="text-xs font-normal text-[var(--text-white)]">
+                  تومان
+                </span>
               </span>
             </div>
           </div>
 
-          <p className="text-xs text-[var(--text-subtle)] leading-relaxed">
-            مبلغ نهایی (با احتساب تخفیف) پس از ثبت رزرو توسط سیستم اعلام می‌شود.
-          </p>
-
           <button
             type="button"
             disabled={!canSubmit}
-            onClick={() => items && onConfirm({ date, slots: selectedSlots, items })}
+            onClick={() =>
+              items && onConfirm({ date, slots: selectedSlots, items })
+            }
             className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:bg-[var(--foreground)] disabled:text-[var(--text-muted)] text-on-primary font-bold text-sm transition-all active:scale-[0.98]"
           >
             {buttonText}

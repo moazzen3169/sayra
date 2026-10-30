@@ -32,13 +32,10 @@ export const Header: React.FC<HeaderProps> = ({
   const { isLoggedIn } = useAuth();
 
   const [currentCity, setCurrentCity] = useState(locationName);
-  const [unreadCount, setUnreadCount] = useState(
-    unreadNotificationsCount
-  );
+  const [unreadCount, setUnreadCount] = useState(unreadNotificationsCount);
 
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
-  const [isNotificationModalOpen, setIsNotificationModalOpen] =
-    useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
 
@@ -82,7 +79,12 @@ export const Header: React.FC<HeaderProps> = ({
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement)?.tagName)) {
+      if (
+        e.key === "/" &&
+        !["INPUT", "TEXTAREA", "SELECT"].includes(
+          (e.target as HTMLElement)?.tagName,
+        )
+      ) {
         e.preventDefault();
         setIsSearchModalOpen(true);
       }
@@ -130,7 +132,11 @@ export const Header: React.FC<HeaderProps> = ({
           aria-hidden="true"
         >
           <circle cx="12" cy="8" r="3.5" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 20a7 7 0 0114 0" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M5 20a7 7 0 0114 0"
+          />
         </svg>
       ),
     },
@@ -201,9 +207,7 @@ export const Header: React.FC<HeaderProps> = ({
                   />
                 </svg>
 
-                <span className="text-xs font-bold">
-                  {currentCity}
-                </span>
+                <span className="text-xs font-bold">{currentCity}</span>
 
                 <svg
                   className="h-3 w-3 shrink-0 text-[var(--text-muted)]"
@@ -298,11 +302,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="flex shrink-0 items-center"
               aria-label="صفحه اصلی سایرا"
             >
-              <img
-                src="/design/sayra.svg"
-                alt="سایرا"
-                className="h-6 w-auto"
-              />
+              <img src="/design/sayra.svg" alt="سایرا" className="h-6 w-auto" />
             </Link>
 
             {/* Navigation */}
@@ -413,28 +413,13 @@ export const Header: React.FC<HeaderProps> = ({
 
               {/* Account menu — desktop only */}
               {isLoggedIn && (
-                <div
-                  ref={accountMenuRef}
-                  className="relative"
-                  onMouseEnter={() => setIsAccountMenuOpen(true)}
-                  onMouseLeave={() => setIsAccountMenuOpen(false)}
-                  onBlur={(event) => {
-                    if (
-                      !event.currentTarget.contains(
-                        event.relatedTarget as Node | null
-                      )
-                    ) {
-                      setIsAccountMenuOpen(false);
-                    }
-                  }}
-                >
+                <div ref={accountMenuRef} className="relative">
                   <button
                     ref={accountButtonRef}
                     type="button"
                     onClick={() =>
                       setIsAccountMenuOpen((previous) => !previous)
                     }
-                    onFocus={() => setIsAccountMenuOpen(true)}
                     aria-label="حساب کاربری"
                     aria-haspopup="menu"
                     aria-expanded={isAccountMenuOpen}
