@@ -36,6 +36,10 @@ export default function OwnerStationsPage() {
 
   const [type, setType] = useState<StationInput["stationType"]>("PC");
   const [price, setPrice] = useState("");
+  const [quantity, setQuantity] = useState("1");
+  const [defaultControllers, setDefaultControllers] = useState("2");
+  const [maxExtraControllers, setMaxExtraControllers] = useState("2");
+  const [extraControllerPrice, setExtraControllerPrice] = useState("50000");
   const [description, setDescription] = useState("");
 
   useEffect(() => {
@@ -81,11 +85,19 @@ export default function OwnerStationsPage() {
         name: autoName,
         stationType: type,
         hourlyPrice,
+        quantity: num(quantity) ?? 1,
+        defaultControllers: num(defaultControllers) ?? 0,
+        maxExtraControllers: num(maxExtraControllers) ?? 0,
+        extraControllerPrice: num(extraControllerPrice) ?? 0,
         description: description.trim() || undefined,
       });
       setOpen(false);
       setType("PC");
       setPrice("");
+      setQuantity("1");
+      setDefaultControllers("2");
+      setMaxExtraControllers("2");
+      setExtraControllerPrice("50000");
       setDescription("");
       setReload((v) => v + 1);
     } catch (err) {
@@ -129,13 +141,19 @@ export default function OwnerStationsPage() {
                 </div>
                 <span className="text-xs text-[var(--text-muted)]">
                   {s.stationType}
-                  {s.minRentHours ? ` • حداقل ${toPersianDigits(s.minRentHours)} ساعت` : ""}
-                  {s.maxRentHours ? ` • حداکثر ${toPersianDigits(s.maxRentHours)} ساعت` : ""}
+                  {s.quantity ? ` • موجودی: ${toPersianDigits(s.quantity)} دستگاه` : ""}
+                  {s.defaultControllers !== undefined && s.defaultControllers > 0 ? ` • ${toPersianDigits(s.defaultControllers)} دسته اصلی` : ""}
+                  {s.maxExtraControllers !== undefined && s.maxExtraControllers > 0 ? ` • حداکثر ${toPersianDigits(s.maxExtraControllers)} دسته اضافه` : ""}
                 </span>
               </div>
-              <div className="text-left shrink-0">
+              <div className="text-left shrink-0 flex flex-col items-end">
                 <div className="text-sm font-black text-[var(--primary)]">{formatPrice(s.hourlyPrice)}</div>
                 <div className="text-xs text-[var(--text-muted)]">تومان / ساعت</div>
+                {s.extraControllerPrice ? (
+                  <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                    دسته اضافه: {formatPrice(s.extraControllerPrice)} ت
+                  </div>
+                ) : null}
               </div>
             </div>
           ))}
@@ -176,6 +194,59 @@ export default function OwnerStationsPage() {
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
               />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-[var(--text-muted)]">تعداد موجود از این دستگاه</label>
+              <input
+                className={input}
+                type="number"
+                min={1}
+                placeholder="مثلاً ۵"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+              />
+            </div>
+
+            <div className="p-3.5 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)] flex flex-col gap-3">
+              <h4 className="text-xs font-bold text-[var(--text-white)]">تنظیمات دسته‌ها (کنترلرها)</h4>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-bold text-[var(--text-muted)]">تعداد دسته‌های همراه</label>
+                  <input
+                    className={input}
+                    type="number"
+                    min={0}
+                    placeholder="مثلاً ۲"
+                    value={defaultControllers}
+                    onChange={(e) => setDefaultControllers(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-bold text-[var(--text-muted)]">حداکثر دسته‌های اضافی</label>
+                  <input
+                    className={input}
+                    type="number"
+                    min={0}
+                    placeholder="مثلاً ۲"
+                    value={maxExtraControllers}
+                    onChange={(e) => setMaxExtraControllers(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-bold text-[var(--text-muted)]">قیمت هر دسته اضافه برای ۱ ساعت (تومان)</label>
+                <input
+                  className={input}
+                  type="number"
+                  min={0}
+                  placeholder="مثلاً ۵۰,۰۰۰"
+                  value={extraControllerPrice}
+                  onChange={(e) => setExtraControllerPrice(e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="flex flex-col gap-1.5">

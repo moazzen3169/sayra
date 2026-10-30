@@ -14,6 +14,8 @@ export default function OwnerReviewsPage() {
   const [items, setItems] = useState<OwnerRating[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [replyingId, setReplyingId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
@@ -38,12 +40,14 @@ export default function OwnerReviewsPage() {
     };
   }, [center?.slug, reload]);
 
-  const moderate = async (id: string, status: "HIDDEN" | "DELETED") => {
-    if (busyId) return;
-    setBusyId(id);
+  const handleReplySubmit = async (ratingId: string) => {
+    if (!replyText.trim() || busyId) return;
+    setBusyId(ratingId);
     setError(null);
     try {
-      await ownerService.setRatingStatus(centerId, id, status);
+      await ownerService.replyToRating(centerId, ratingId, replyText.trim());
+      setReplyingId(null);
+      setReplyText("");
       setReload((v) => v + 1);
     } catch (e) {
       setError(getErrorMessage(e));
@@ -80,32 +84,70 @@ export default function OwnerReviewsPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {items?.map((r) => (
-            <div key={r.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex flex-col justify-between gap-2">
+            <div key={r.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex flex-col justify-between gap-3">
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold">{r.customerName ?? "کاربر سایرا"}</span>
                   <span className="text-xs font-black text-[var(--accent-star)]">★ {toPersianDigits(r.rating)}</span>
                 </div>
-                {r.comment && <p className="text-xs text-[var(--text-muted)] leading-relaxed">{r.comment}</p>}
+                {r.comment && <p className="text-xs text-[var(--text-white)] leading-relaxed">{r.comment}</p>}
               </div>
-              <div className="flex gap-2 pt-2 border-t border-[var(--border-subtle)] mt-1">
-                <button
-                  type="button"
-                  disabled={busyId === r.id}
-                  onClick={() => moderate(r.id, "HIDDEN")}
-                  className="h-9 px-4 rounded-card bg-[var(--foreground)] text-xs font-bold disabled:opacity-50 hover:bg-[var(--foreground)]/80"
-                >
-                  مخفی کردن
-                </button>
-                <button
-                  type="button"
-                  disabled={busyId === r.id}
-                  onClick={() => moderate(r.id, "DELETED")}
-                  className="h-9 px-4 rounded-card border border-[var(--accent-red)]/50 text-[var(--accent-red)] text-xs font-bold disabled:opacity-50 hover:bg-[var(--accent-red)]/10"
-                >
-                  حذف
-                </button>
-              </div>
+
+              {/* Owner Reply Display */}
+              {r.reply && (
+                <div className="p-3 rounded-card bg-[var(--foreground)]/30 border border-[var(--primary)]/20 flex flex-col gap-1 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[var(--primary)]">پاسخ شما (مدیر گیمنت):</span>
+                  </div>
+                  <p className="text-[var(--text-white)] leading-relaxed">{r.reply}</p>
+                </div>
+              )}
+
+              {/* Reply Form / Action */}
+              {replyingId === r.id ? (
+                <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                  <textarea
+                    rows={2}
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder="پاسخ خود را بنویسید..."
+                    className="p-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-xs outline-none resize-none text-[var(--text-white)]"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={busyId === r.id || !replyText.trim()}
+                      onClick={() => handleReplySubmit(r.id)}
+                      className="h-9 px-4 rounded-card bg-[var(--primary)] text-on-primary text-xs font-bold disabled:opacity-50"
+                    >
+                      {busyId === r.id ? "در حال ثبت..." : "ثبت پاسخ"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReplyingId(null);
+                        setReplyText("");
+                      }}
+                      className="h-9 px-4 rounded-card bg-[var(--foreground)] text-xs font-bold text-[var(--text-muted)]"
+                    >
+                      انصراف
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-end pt-2 border-t border-[var(--border-subtle)]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReplyingId(r.id);
+                      setReplyText(r.reply || "");
+                    }}
+                    className="h-9 px-4 rounded-card border border-[var(--border-subtle)] text-xs font-bold text-[var(--primary)] hover:bg-[var(--primary)]/10 transition-colors"
+                  >
+                    {r.reply ? "ویرایش پاسخ" : "پاسخ به نظر"}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
