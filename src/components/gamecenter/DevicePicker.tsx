@@ -116,7 +116,7 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
               return (
                 <CarouselItem
                   key={g.key}
-                  className="pr-3 basis-[196px] sm:basis-[212px] min-w-0 flex"
+                  className="pr-3 basis-[254px] sm:basis-[254px] min-w-0 flex"
                 >
                   <article
                     className={`w-full rounded-card p-3 flex flex-col gap-3 border-2 transition-colors ${
@@ -126,7 +126,7 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
                     }`}
                   >
                     {/* تصویر */}
-                    <div className="relative h-30 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] flex items-center justify-center p-3 overflow-hidden">
+                    <div className="relative h-46 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] flex items-center justify-center p-3 overflow-hidden">
                       <img
                         src={g.image}
                         alt=""

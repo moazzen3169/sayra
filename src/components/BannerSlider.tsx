@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/carousel";
 import { BannerItem } from "@/types/home";
 
-const DEFAULT_ASPECT = "aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[3.2/1]";
+const DEFAULT_ASPECT = "aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[4/1]";
 
 export interface BannerSliderProps {
   banners?: BannerItem[];
@@ -411,7 +411,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
                       src={item.imageUrl}
                       alt={item.alt}
                       draggable={false}
-                      className="h-[95vh] w-full max-w-[1100px] object-contain select-none rounded-card border border-[var(--border-subtle)] shadow-2xl"
+                      className="h-[95vh] w-full max-w-[1100px] object-contain select-none rounded-card "
                     />
                   </CarouselItem>
                 ))}

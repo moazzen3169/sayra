@@ -156,12 +156,7 @@ export const BlogListView: React.FC = () => {
       />
 
       <main className="flex flex-1 flex-col gap-6 px-4 pb-4 pt-[var(--header-h)] lg:gap-8 lg:px-8">
-        <div className="flex flex-col gap-1 pt-4">
-          <h1 className="text-page-title">وبلاگ سایرا</h1>
-          <p className="text-xs text-[var(--text-muted)]">
-            راهنما، نکته و مقاله برای رزرو بهتر و تجربه‌ی بازی بهتر
-          </p>
-        </div>
+
 
         {showSlider && <BlogHeroSlider />}
 

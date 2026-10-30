@@ -88,7 +88,7 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
       </div>
 
       {/* Body Info */}
-      <div className="px-3 pt-2.5 flex flex-col gap-1 flex-1">
+      <div className="p-3 flex flex-col gap-1 flex-1">
         <div className="flex items-center gap-1 text-xs text-[var(--primary)] font-bold">
           <Icon name="star" size={14} className="text-[var(--accent-star)] fill-[var(--accent-star)]" />
           <span>{toPersianDigits(rating.toFixed(1))}</span>

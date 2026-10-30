@@ -74,7 +74,7 @@ export default function OwnerAdsPage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
       <OwnerPageHeader title="ایجاد تبلیغات" />
 
-      <main className="flex-1 mt-16 px-4 py-4 w-full max-w-[var(--max-profile-width)] mx-auto lg:px-0 flex flex-col gap-4">
+      <main className="flex-1 mt-16 px-4 py-4 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0 flex flex-col gap-4">
         <div className="rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 p-4 flex flex-col gap-1 text-[var(--text-white)]">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-red)] animate-pulse" />

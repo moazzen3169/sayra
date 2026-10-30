@@ -9,7 +9,7 @@ import React, {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import { GamecenterDetailHeader } from "@/components/GamecenterDetailHeader";
+import { Header } from "@/components/Header";
 import { BannerSlider } from "@/components/BannerSlider";
 import { AuthModal } from "@/components/AuthModal";
 import {
@@ -81,11 +81,7 @@ const SectionTitle: React.FC<{
         {title}
       </h2>
     </div>
-    {hint && (
-      <span className="text-xs text-[var(--text-muted)] shrink-0">
-        {hint}
-      </span>
-    )}
+
   </div>
 );
 
@@ -200,6 +196,8 @@ export default function GameCenterDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+    const [selectedCity, setSelectedCity] = useState("تبریز");
+  
   const router = useRouter();
   const { id: gamingCenterSlug } = use(params);
   const { isLoggedIn, user, login } = useAuth();
@@ -459,15 +457,13 @@ export default function GameCenterDetailPage({
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-32 lg:pb-12">
-      <GamecenterDetailHeader
-        title={title}
-        location={address}
-        showDetails={showStickyTitle}
-        onBackClick={() => router.back()}
-        onNotificationClick={() => {}}
+      <Header
+        locationName={selectedCity}
+        unreadNotificationsCount={2}
+        onCityChange={(city) => setSelectedCity(city)}
       />
 
-      <main className="flex-1 mt-13 flex flex-col gap-6 pt-3">
+      <main className="flex-1 pt-[var(--header-h)] flex flex-col gap-6 pt-3">
         {/* Loading */}
         {!detail && !loadError && (
           <div

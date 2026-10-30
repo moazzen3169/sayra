@@ -147,7 +147,7 @@ export default function SupportPage() {
       {/* App Shell Header */}
       <ProfileHeader title="پشتیبانی و پاسخگویی" isSubpage={true} />
 
-      <main className="flex-1 pt-20  py-4 flex flex-col gap-6 w-full max-w-[var(--max-profile-width)] mx-auto">
+      <main className="flex-1 pt-20  py-4 flex flex-col gap-6 w-full max-w-[var(--max-mini-app-width)] mx-auto">
 
         {/* Overview Banner */}
         <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">

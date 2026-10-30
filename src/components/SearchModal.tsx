@@ -60,7 +60,12 @@ const MOCK_GAMING_CENTERS = [
   },
 ];
 
-const DEVICES: { id: string; name: string; keywords: string; icon: IconName }[] = [
+const DEVICES: {
+  id: string;
+  name: string;
+  keywords: string;
+  icon: IconName;
+}[] = [
   {
     id: "dev-ps5-vip",
     name: "کنسول پلی‌استیشن ۵ پرو",
@@ -245,29 +250,10 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     >
       {/* Search bar */}
       <header className="shrink-0 border-b border-[var(--border-subtle)] bg-[var(--bg-body)]">
-        <form onSubmit={handleFormSubmit} className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="بستن جست‌وجو"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-card)] hover:text-[var(--text-white)]"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className="size-6"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="m8.25 4.5 7.5 7.5-7.5 7.5"
-              />
-            </svg>
-          </button>
-
+        <form
+          onSubmit={handleFormSubmit}
+          className="mx-auto flex w-full max-w-[var(--max-mini-app-width)] items-center gap-3 px-4 py-3 sm:px-6"
+        >
           <div className="relative min-w-0 flex-1">
             <svg
               className="pointer-events-none absolute right-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--primary)]"
@@ -304,17 +290,30 @@ export const SearchModal: React.FC<SearchModalProps> = ({
           </div>
 
           <button
-            type="submit"
-            className="h-10 px-4 rounded-card bg-[var(--primary)] text-on-primary font-bold text-xs shrink-0 hover:bg-[var(--primary-hover)] transition-colors"
+            type="button"
+            onClick={onClose}
+            aria-label="بستن جست‌وجو"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-card)] hover:text-[var(--text-white)]"
           >
-            جست‌وجو
+          <svg
+            className="h-5 w-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              d="m18 6-12 12M6 6l12 12"
+              strokeLinecap="round"
+            />
+          </svg>
           </button>
         </form>
       </header>
 
       {/* Search content */}
       <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-4 py-5 sm:px-6 sm:py-7">
+        <div className="mx-auto flex w-full max-w-[var(--max-mini-app-width)] flex-col gap-7 px-4 py-5 sm:px-6 sm:py-7">
           {/* Initial state: recent and only three suggestions */}
           {!hasQuery && (
             <>
@@ -482,7 +481,11 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 
                         <div className="shrink-0 text-left">
                           <div className="text-xs font-bold text-[var(--text-white)] flex items-center gap-1 justify-end">
-                            <Icon name="star" size={14} className="text-[var(--accent-star)] fill-[var(--accent-star)]" />
+                            <Icon
+                              name="star"
+                              size={14}
+                              className="text-[var(--accent-star)] fill-[var(--accent-star)]"
+                            />
                             <span>{toPersianDigits(center.rating)}</span>
                           </div>
 

@@ -17,7 +17,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { id: "gamecenters", title: "گیمنت‌ها", href: "/admin/gamecenters", iconName: "gamepad" },
   { id: "tickets", title: "تیکت‌ها", href: "/admin/tickets", iconName: "ticket" },
   { id: "blog", title: "وبلاگ", href: "/admin/blog", iconName: "edit" },
-  { id: "owners", title: "احراز صاحبان", href: "/admin/owners", iconName: "check" },
+  { id: "owners", title: "احراز هویت", href: "/admin/owners", iconName: "check" },
   { id: "reports", title: "گزارش‌ها", href: "/admin/reports", iconName: "calendar" },
   { id: "users", title: "کاربران", href: "/admin/users", iconName: "user" },
   { id: "ads", title: "تبلیغات", href: "/admin/ads", iconName: "tag" },

@@ -160,7 +160,7 @@ export default function OwnerDashboardPage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
       <OwnerHeader title="پنل مدیریت" isSubpage={false} />
 
-      <main className="flex-1 px-4 pt-20 flex flex-col gap-5 w-full max-w-[var(--max-profile-width)] mx-auto lg:px-0">
+      <main className="flex-1 px-4 pt-20 flex flex-col gap-5 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0">
 
         {/* Verification Form / Notice section if not approved */}
         {!isApproved && (

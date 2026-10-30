@@ -49,7 +49,8 @@ function GamecentersContent() {
   // URL query state
   const queryParam = searchParams.get("q") || "";
   const categoryParam = searchParams.get("category") || "all";
-  const sortParam = (searchParams.get("sort") as GamecenterFilterParams["sort"]) || "default";
+  const sortParam =
+    (searchParams.get("sort") as GamecenterFilterParams["sort"]) || "default";
   const cityParam = searchParams.get("city") || "تبریز";
 
   const [searchInput, setSearchInput] = useState(queryParam);
@@ -66,10 +67,18 @@ function GamecentersContent() {
   }, [cityParam]);
 
   // Update query params helper
-  const updateQueryParams = (updates: Record<string, string | null | undefined>) => {
+  const updateQueryParams = (
+    updates: Record<string, string | null | undefined>,
+  ) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([key, value]) => {
-      if (value === null || value === undefined || value === "" || (key === "category" && value === "all") || (key === "sort" && value === "default")) {
+      if (
+        value === null ||
+        value === undefined ||
+        value === "" ||
+        (key === "category" && value === "all") ||
+        (key === "sort" && value === "default")
+      ) {
         params.delete(key);
       } else {
         params.set(key, value);
@@ -98,13 +107,26 @@ function GamecentersContent() {
   };
 
   const isFilteringActive = useMemo(() => {
-    return Boolean(queryParam || (categoryParam && categoryParam !== "all") || sortParam !== "default");
+    return Boolean(
+      queryParam ||
+      (categoryParam && categoryParam !== "all") ||
+      sortParam !== "default",
+    );
   }, [queryParam, categoryParam, sortParam]);
 
   // Data queries
-  const discountedCenters = useMemo(() => gamecentersPageService.getDiscountedCenters(), []);
-  const newestCenters = useMemo(() => gamecentersPageService.getNewestCenters(), []);
-  const popularCenters = useMemo(() => gamecentersPageService.getPopularCenters(), []);
+  const discountedCenters = useMemo(
+    () => gamecentersPageService.getDiscountedCenters(),
+    [],
+  );
+  const newestCenters = useMemo(
+    () => gamecentersPageService.getNewestCenters(),
+    [],
+  );
+  const popularCenters = useMemo(
+    () => gamecentersPageService.getPopularCenters(),
+    [],
+  );
 
   const filteredResults = useMemo(() => {
     return gamecentersPageService.filterCenters({
@@ -115,7 +137,9 @@ function GamecentersContent() {
     });
   }, [queryParam, categoryParam, sortParam, selectedCity]);
 
-  const activeCategoryName = CATEGORIES.find((c) => c.id === categoryParam)?.name;
+  const activeCategoryName = CATEGORIES.find(
+    (c) => c.id === categoryParam,
+  )?.name;
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-12">
@@ -128,7 +152,7 @@ function GamecentersContent() {
         }}
       />
 
-      <main className="flex-1 px-4 desk:px-6 lg:px-8 flex flex-col gap-6 lg:gap-8 pt-[var(--header-h)] max-w-[1400px] w-full mx-auto">
+      <main className="flex-1 px-4 desk:px-6 lg:px-8 flex flex-col gap-6 lg:gap-8 pt-[var(--header-h)] max-w-[var(--max-app-width)] w-full mx-auto">
         {/* Page Heading & Search Controls */}
         <section className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
@@ -149,7 +173,7 @@ function GamecentersContent() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="جست‌وجوی نام گیمنت، آدرس یا امکانات..."
-                className="h-11 w-full rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] pr-10 pl-24 text-xs text-[var(--text-white)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]"
+                className="p-4 pr-10  w-full rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)]  text-xs text-[var(--text-white)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]"
               />
               <span className="absolute right-3 text-[var(--primary)] pointer-events-none">
                 <Icon name="search" size={18} />
@@ -170,9 +194,22 @@ function GamecentersContent() {
                 )}
                 <button
                   type="submit"
-                  className="h-7 px-3 rounded bg-[var(--primary)] text-on-primary text-xs font-bold hover:bg-[var(--primary-hover)] transition-colors"
+                  className="h-8 w-8  flex items-center justify-center rounded bg-[var(--primary)] text-on-primary text-xs font-bold hover:bg-[var(--primary-hover)] transition-colors"
                 >
-                  جست‌وجو
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    className="size-6"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+                    />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -181,7 +218,9 @@ function GamecentersContent() {
           {/* Category Filter Chips */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
             {CATEGORIES.map((cat) => {
-              const isActive = categoryParam === cat.id || (cat.id === "all" && !categoryParam);
+              const isActive =
+                categoryParam === cat.id ||
+                (cat.id === "all" && !categoryParam);
               return (
                 <button
                   key={cat.id}
@@ -203,10 +242,14 @@ function GamecentersContent() {
           {/* Sort & Quick Filter Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[var(--border-subtle)]/60">
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-              <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">مرتب‌سازی:</span>
+              <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">
+                مرتب‌سازی:
+              </span>
               <div className="flex items-center gap-1.5 shrink-0">
                 {SORT_OPTIONS.map((sortOpt) => {
-                  const isActive = sortParam === sortOpt.id || (sortOpt.id === "default" && !sortParam);
+                  const isActive =
+                    sortParam === sortOpt.id ||
+                    (sortOpt.id === "default" && !sortParam);
                   return (
                     <button
                       key={sortOpt.id}
@@ -296,7 +339,11 @@ function GamecentersContent() {
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
-                        <Icon name="info" size={20} className="text-[var(--text-black)]" />
+                        <Icon
+                          name="info"
+                          size={20}
+                          className="text-[var(--text-black)]"
+                        />
                         <h2 className="font-bold text-base text-[var(--text-black)]">
                           گیمنت‌های تخفیف‌دار
                         </h2>
@@ -343,7 +390,9 @@ function GamecentersContent() {
                     جدیدترین گیمنت‌ها
                   </h2>
                 </div>
-                <span className="text-xs text-[var(--text-muted)]">تازه‌ترین‌های افزوده شده</span>
+                <span className="text-xs text-[var(--text-muted)]">
+                  تازه‌ترین‌های افزوده شده
+                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -362,7 +411,9 @@ function GamecentersContent() {
                     محبوب‌ترین گیمنت‌ها
                   </h2>
                 </div>
-                <span className="text-xs text-[var(--text-muted)]">بیشترین رضایت و رزرو</span>
+                <span className="text-xs text-[var(--text-muted)]">
+                  بیشترین رضایت و رزرو
+                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

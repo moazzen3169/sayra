@@ -291,7 +291,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* ================= DESKTOP HEADER ================= */}
         <div className="hidden bg-body-bg lg:block">
-          <div className="mx-auto flex min-h-[68px] max-w-[1400px] items-center gap-4 border border-[var(--border-subtle)] p-6">
+          <div className="mx-auto flex min-h-[68px] max-w-[var(--max-app-width)] items-center gap-4 border border-[var(--border-subtle)] p-6">
             {/* Brand */}
             <Link
               href="/"

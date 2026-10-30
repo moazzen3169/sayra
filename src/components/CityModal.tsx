@@ -106,38 +106,10 @@ export const CityModal: React.FC<CityModalProps> = ({
       aria-modal="true"
       aria-labelledby="city-modal-title"
     >
-      {/* Header */}
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--border-subtle)] px-4 sm:px-8">
-        <h2
-          id="city-modal-title"
-          className="text-base font-bold"
-        >
-          انتخاب شهر
-        </h2>
-
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="بستن انتخاب شهر"
-          className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--foreground)]/10 hover:text-[var(--text-white)]"
-        >
-          <svg
-            className="h-5 w-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              d="m18 6-12 12M6 6l12 12"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
-      </header>
+      
 
       {/* Search */}
-      <div className="shrink-0 border-b border-[var(--border-subtle)] px-4 py-4 sm:px-8">
+      <div className="shrink-0 flex gap-4 border-b border-[var(--border-subtle)] px-4 py-4 sm:px-8">
         <div className="mx-auto w-full max-w-3xl">
           <div className="relative">
             <svg
@@ -191,6 +163,26 @@ export const CityModal: React.FC<CityModalProps> = ({
             )}
           </div>
         </div>
+        
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="بستن انتخاب شهر"
+          className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--foreground)]/10 hover:text-[var(--text-white)]"
+        >
+          <svg
+            className="h-5 w-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              d="m18 6-12 12M6 6l12 12"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
       </div>
 
       {/* Scrollable content */}
