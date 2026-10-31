@@ -48,12 +48,25 @@ export interface OwnerReservation extends Reservation {
 }
 
 export interface CenterSettings {
+  id?: string;
+  gamingCenterId?: string;
   timeZone?: string;
   workStartTime?: string;
   workEndTime?: string;
   allowOnlineBooking?: boolean;
   onlineBookingAutoConfirm?: boolean;
   preventOverlaps?: boolean;
+}
+
+export interface OwnerAnalyticsSummary {
+  totalIncome?: number;
+  totalReservations?: number;
+  activeStationsCount?: number;
+  withdrawableAmount?: number;
+  withdrawableRevenue?: number;
+  netRevenue?: number;
+  totalRevenue?: number;
+  [key: string]: unknown;
 }
 
 export interface SiteSettings {
