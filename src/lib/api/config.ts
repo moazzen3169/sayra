@@ -12,8 +12,8 @@ export const IS_PRODUCTION = process.env.NODE_ENV === "production";
  * 2. In browser when a proxy or custom origin is preferred, fallback to /api/v1 (or full URL)
  * 3. Default demo API URL
  */
-const DEFAULT_DEV_API_URL = "https://playnest-demo.style.dev/api/v1";
-const DEFAULT_PROD_API_URL = "https://playnest-demo.style.dev/api/v1";
+const DEFAULT_DEV_API_URL = "http://87.248.156.152/api/v1";
+const DEFAULT_PROD_API_URL = "http://87.248.156.152/api/v1";
 
 export const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ||
