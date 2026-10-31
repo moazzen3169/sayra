@@ -40,6 +40,23 @@ export default function OwnerReviewsPage() {
     };
   }, [center?.slug, reload]);
 
+  const handleModerate = async (
+    ratingId: string,
+    status: "PUBLISHED" | "HIDDEN" | "DELETED"
+  ) => {
+    if (busyId) return;
+    setBusyId(ratingId);
+    setError(null);
+    try {
+      await ownerService.setRatingStatus(centerId, ratingId, status);
+      setReload((v) => v + 1);
+    } catch (e) {
+      setError(getErrorMessage(e));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const handleReplySubmit = async (ratingId: string) => {
     if (!replyText.trim() || busyId) return;
     setBusyId(ratingId);
@@ -87,7 +104,22 @@ export default function OwnerReviewsPage() {
             <div key={r.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex flex-col justify-between gap-3">
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold">{r.customerName ?? "کاربر سایرا"}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold">{r.customerName ?? "کاربر سایرا"}</span>
+                    {r.status && (
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                          r.status === "PUBLISHED"
+                            ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
+                            : r.status === "HIDDEN"
+                            ? "bg-[var(--accent-yellow)]/15 text-[var(--accent-yellow)] border border-[var(--accent-yellow)]/30"
+                            : "bg-[var(--accent-red)]/15 text-[var(--accent-red)] border border-[var(--accent-red)]/30"
+                        }`}
+                      >
+                        {r.status === "PUBLISHED" ? "منتشر شده" : r.status === "HIDDEN" ? "پنهان شده" : "حذف شده"}
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs font-black text-[var(--accent-star)]">★ {toPersianDigits(r.rating)}</span>
                 </div>
                 {r.comment && <p className="text-xs text-[var(--text-white)] leading-relaxed">{r.comment}</p>}
@@ -135,7 +167,36 @@ export default function OwnerReviewsPage() {
                   </div>
                 </div>
               ) : (
-                <div className="flex justify-end pt-2 border-t border-[var(--border-subtle)]">
+                <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)] gap-2">
+                  <div className="flex items-center gap-1.5">
+                    {r.status === "HIDDEN" ? (
+                      <button
+                        type="button"
+                        disabled={busyId === r.id}
+                        onClick={() => handleModerate(r.id, "PUBLISHED")}
+                        className="h-8 px-2.5 rounded-card bg-[var(--foreground)] text-[11px] font-bold text-[var(--accent-green)] hover:bg-[var(--accent-green)]/10 disabled:opacity-50 transition-colors"
+                      >
+                        انتشار
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={busyId === r.id}
+                        onClick={() => handleModerate(r.id, "HIDDEN")}
+                        className="h-8 px-2.5 rounded-card bg-[var(--foreground)] text-[11px] font-bold text-[var(--accent-yellow)] hover:bg-[var(--accent-yellow)]/10 disabled:opacity-50 transition-colors"
+                      >
+                        پنهان کردن
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={busyId === r.id}
+                      onClick={() => handleModerate(r.id, "DELETED")}
+                      className="h-8 px-2.5 rounded-card bg-[var(--foreground)] text-[11px] font-bold text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 disabled:opacity-50 transition-colors"
+                    >
+                      حذف
+                    </button>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {

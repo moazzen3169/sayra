@@ -712,19 +712,33 @@ export const ownerService = {
     throw new Error("حذف تصویر در حال حاضر توسط سرور پشتیبانی نمی‌شود و منتظر پیاده‌سازی اندپوینت اختصاصی بک‌اند است.");
   },
 
+  /**
+   * دریافت نظرات و امتیازات مرکز بازی از اندپوینت عمومی:
+   * GET /public/gamingCenters/{gamingCenterSlug}/ratings
+   * هیچ‌گونه فال‌بک به داده‌های ماک در صورت عدم وجود نظر یا خطا اعمال نمی‌شود.
+   */
   async listRatings(slug: string, signal?: AbortSignal): Promise<OwnerRating[]> {
+    if (!slug) return [];
     if (USE_MOCK_RESERVATIONS) {
       return mockRatingsStore.filter((r) => r.status !== "DELETED");
     }
-    try {
-      const { data } = await apiClient.get<OwnerRating[]>(ENDPOINTS.gamingCenter.ratings(slug), { signal });
-      const arr = asArray<OwnerRating>(data);
-      return arr.length > 0 ? arr : mockRatingsStore.filter((r) => r.status !== "DELETED");
-    } catch {
-      return mockRatingsStore.filter((r) => r.status !== "DELETED");
+    const response = await apiClient.get<unknown>(ENDPOINTS.gamingCenter.ratings(slug), { signal });
+    const resData = response.data;
+    if (Array.isArray(resData)) {
+      return resData as OwnerRating[];
     }
+    if (resData && typeof resData === "object" && Array.isArray((resData as any).data)) {
+      return (resData as any).data as OwnerRating[];
+    }
+    return [];
   },
 
+  /**
+   * ثبت یا ویرایش پاسخ مدیر به نظر:
+   * مطابق OpenAPI v1.0-LOCKED، هیچ اندپوینتی برای ثبت پاسخ تعریف نشده است.
+   * برای جلوگیری از فراخوانی مسیرهای حدسی (/reply) و گزارش کاذب موفقیت، خطای مشخص اعلام می‌شود.
+   * جزئیات در docs/OWNER_REVIEWS_API_CONTRACT.md مستند شده است.
+   */
   async replyToRating(
     centerId: string,
     ratingId: string,
@@ -738,17 +752,16 @@ export const ownerService = {
       }
       return;
     }
-    try {
-      await apiClient.post(ENDPOINTS.owner.ratingStatus(centerId, ratingId) + "/reply", { reply: replyText });
-    } catch {
-      const target = mockRatingsStore.find((r) => r.id === ratingId);
-      if (target) {
-        target.reply = replyText;
-        target.repliedAt = new Date().toISOString();
-      }
-    }
+
+    throw new Error(
+      "ثبت پاسخ مدیر به نظر در حال حاضر توسط وب‌سرویس سرور پشتیبانی نمی‌شود و نیازمند پیاده‌سازی اندپوینت اختصاصی بک‌اند است (مستند شده در docs/OWNER_REVIEWS_API_CONTRACT.md)."
+    );
   },
 
+  /**
+   * مدیریت وضعیت نظر (انتشار، پنهان‌سازی یا حذف):
+   * PATCH /gamingCenters/{gamingCenterId}/ratings/{id}/status
+   */
   async setRatingStatus(
     centerId: string,
     ratingId: string,
@@ -759,12 +772,7 @@ export const ownerService = {
       if (target) target.status = status;
       return;
     }
-    try {
-      await apiClient.patch(ENDPOINTS.owner.ratingStatus(centerId, ratingId), { status });
-    } catch {
-      const target = mockRatingsStore.find((r) => r.id === ratingId);
-      if (target) target.status = status;
-    }
+    await apiClient.patch(ENDPOINTS.owner.ratingStatus(centerId, ratingId), { status });
   },
 
   async getAnalyticsSummary(centerId: string, signal?: AbortSignal): Promise<any> {
