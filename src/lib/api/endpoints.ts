@@ -63,5 +63,8 @@ export const ENDPOINTS = {
     ticket: (id: string) => `/tickets/${enc(id)}`,
     ticketMessages: (id: string) => `/tickets/${enc(id)}/messages`,
     ticketAttachments: (id: string) => `/tickets/${enc(id)}/attachments`,
+    discounts: (c: string) => `/gamingCenters/${enc(c)}/discounts`,
+    discount: (c: string, id: string) => `/gamingCenters/${enc(c)}/discounts/${enc(id)}`,
+    discountStatus: (c: string, id: string) => `/gamingCenters/${enc(c)}/discounts/${enc(id)}/status`,
   },
 } as const;
