@@ -10,27 +10,14 @@ import type { OwnerMe, OwnerVerificationData, PublicCenter, VerificationStatus }
 const OWNER_CENTER_KEY = "sayra_owner_center_id";
 const OWNER_VERIFICATION_KEY = "sayra_owner_verification";
 
-const MOCK_OWNER_ME: OwnerMe = {
-  id: "owner-demo-1",
-  fullName: "صاحب گیمنت گرگدن",
-  phone: "۰۹۱۲۳۴۵۶۷۸۹",
-  gamingCenterId: "gc-1",
-  subscriptionDaysLeft: 30,
-  verificationStatus: "APPROVED",
-};
-
-const MOCK_CENTER: PublicCenter = {
-  id: "gc-1",
-  name: "گیمنت گرگدن",
-  slug: "gergdan",
-  description: "تبریز، ولیعصر، بعد از میدان معلم",
-  isActive: true,
-};
-
 interface OwnerContextType {
-  me: OwnerMe;
+  me: OwnerMe | null;
   centerId: string;
   center: PublicCenter | null;
+  centers: PublicCenter[];
+  selectCenter: (centerId: string) => void;
+  isCenterLoading: boolean;
+  centerError: string | null;
   ownerName: string;
   verificationStatus: VerificationStatus;
   verificationData: OwnerVerificationData | null;
@@ -51,27 +38,27 @@ const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isLoggedIn, isLoading: authLoading, login, user } = useAuth();
+  const { isLoggedIn, isLoading: authLoading, login, logout, user } = useAuth();
 
-  const [me, setMe] = useState<OwnerMe>(MOCK_OWNER_ME);
-  const [centerId, setCenterId] = useState<string>("gc-1");
-  const [center, setCenter] = useState<PublicCenter | null>(MOCK_CENTER);
+  const [me, setMe] = useState<OwnerMe | null>(null);
+  const [centers, setCenters] = useState<PublicCenter[]>([]);
+  const [centerId, setCenterId] = useState<string>("");
+  const [center, setCenter] = useState<PublicCenter | null>(null);
+  const [isCenterLoading, setIsCenterLoading] = useState<boolean>(true);
+  const [centerError, setCenterError] = useState<string | null>(null);
+
   const [authOpen, setAuthOpen] = useState(false);
-
   const [verificationStatus, setVerificationStatusState] = useState<VerificationStatus>("APPROVED");
   const [verificationData, setVerificationData] = useState<OwnerVerificationData | null>(null);
 
-  // Read saved verification from localStorage on mount
+  // Read saved verification from localStorage on mount (for draft/view until backend endpoints arrive)
   useEffect(() => {
     try {
       const saved = localStorage.getItem(OWNER_VERIFICATION_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        const timer = setTimeout(() => {
-          if (parsed.status) setVerificationStatusState(parsed.status);
-          if (parsed.data) setVerificationData(parsed.data);
-        }, 0);
-        return () => clearTimeout(timer);
+        if (parsed.status) setVerificationStatusState(parsed.status);
+        if (parsed.data) setVerificationData(parsed.data);
       }
     } catch {
       // ignore
@@ -103,49 +90,167 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // Center selection function with validation against authorized centers
+  const selectCenter = (newCenterId: string) => {
+    if (!newCenterId) return;
+    const match = centers.find((c) => c.id === newCenterId);
+    if (!match) {
+      setCenterError("گیم‌نت انتخاب شده معتبر نیست یا به آن دسترسی ندارید.");
+      return;
+    }
+    setCenterId(newCenterId);
+    setCenter(match);
+    setCenterError(null);
+    try {
+      localStorage.setItem(OWNER_CENTER_KEY, newCenterId);
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     if (authLoading) return;
+
+    if (!isLoggedIn) {
+      setIsCenterLoading(false);
+      setMe(null);
+      setCenters([]);
+      setCenter(null);
+      setCenterId("");
+      setCenterError("برای دسترسی به پنل مدیریت باید وارد حساب کاربری خود شوید.");
+      setAuthOpen(true);
+      return;
+    }
+
     let active = true;
     const controller = new AbortController();
 
-    (async () => {
-      try {
-        const m = await ownerService.getMe();
-        if (!active) return;
-        setMe(m);
+    async function loadOwnerAndCenters() {
+      setIsCenterLoading(true);
+      setCenterError(null);
 
-        let id: string | null = m.gamingCenterId ?? m.gamingCenters?.[0]?.id ?? null;
-        if (!id) {
-          try {
-            id = localStorage.getItem(OWNER_CENTER_KEY);
-          } catch {
-            id = null;
+      try {
+        const profile = await ownerService.getMe(controller.signal);
+        if (!active) return;
+        setMe(profile);
+
+        // Security check: Customer accounts cannot access Owner panel
+        const role = profile.role?.toUpperCase();
+        if (role === "CUSTOMER") {
+          setCenterError("حساب کاربری شما دسترسی به پنل مدیریت گیم‌نت ندارد.");
+          setIsCenterLoading(false);
+          return;
+        }
+
+        // Verification status from backend if provided
+        if (profile.verificationStatus) {
+          setVerificationStatusState(profile.verificationStatus);
+        }
+
+        // Resolve accessible centers
+        let accessibleCenters: PublicCenter[] = [];
+
+        // 1. Direct centers on profile
+        if (profile.gamingCenters && profile.gamingCenters.length > 0) {
+          accessibleCenters = profile.gamingCenters.map((gc) => ({
+            id: gc.id,
+            name: gc.name || "گیم‌نت",
+            slug: gc.slug || gc.id,
+            description: gc.description,
+            isActive: gc.isActive ?? true,
+          }));
+        } else if (profile.gamingCenterId) {
+          // Profile has single center ID
+          const fetchedCenter = await ownerService.findCenter(profile.gamingCenterId, controller.signal).catch(() => null);
+          if (fetchedCenter) {
+            accessibleCenters = [fetchedCenter];
+          } else {
+            accessibleCenters = [{
+              id: profile.gamingCenterId,
+              name: "گیم‌نت",
+              slug: profile.gamingCenterId,
+              isActive: true,
+            }];
+          }
+        } else {
+          // Fetch centers list from backend
+          const allCenters = await ownerService.listCenters(controller.signal).catch(() => []);
+          // If profile has ownerId or center relationships
+          accessibleCenters = allCenters;
+        }
+
+        if (!active) return;
+        setCenters(accessibleCenters);
+
+        if (accessibleCenters.length === 0) {
+          setCenterError("هیچ مرکز بازی فعالی برای این حساب کاربری یافت نشد.");
+          setCenter(null);
+          setCenterId("");
+          setIsCenterLoading(false);
+          return;
+        }
+
+        // Validate localStorage center ID against accessible centers
+        let chosenCenter: PublicCenter | null = null;
+        let storedCenterId: string | null = null;
+        try {
+          storedCenterId = localStorage.getItem(OWNER_CENTER_KEY);
+        } catch {
+          storedCenterId = null;
+        }
+
+        if (storedCenterId) {
+          chosenCenter = accessibleCenters.find((c) => c.id === storedCenterId) ?? null;
+          if (!chosenCenter) {
+            // Stored center is not accessible/valid for this user! Clear it.
+            try {
+              localStorage.removeItem(OWNER_CENTER_KEY);
+            } catch {
+              // ignore
+            }
           }
         }
-        if (!id) id = "gc-1";
 
-        setCenterId(id);
-        const c = await ownerService.findCenter(id, controller.signal);
-        if (!active) return;
-        setCenter(c ?? MOCK_CENTER);
-      } catch (e) {
-        if (!active || isAbortError(e)) return;
-        // Fallback to mock data on error so owner pages are always fully viewable/designable
-        setMe((prev) => ({
-          ...MOCK_OWNER_ME,
-          fullName: user?.fullName || prev?.fullName || MOCK_OWNER_ME.fullName,
-          verificationStatus: verificationStatus,
-        }));
-        setCenterId("gc-1");
-        setCenter(MOCK_CENTER);
+        if (!chosenCenter) {
+          chosenCenter = accessibleCenters[0];
+          try {
+            localStorage.setItem(OWNER_CENTER_KEY, chosenCenter.id);
+          } catch {
+            // ignore
+          }
+        }
+
+        setCenterId(chosenCenter.id);
+        setCenter(chosenCenter);
+        setIsCenterLoading(false);
+      } catch (err: any) {
+        if (!active || isAbortError(err)) return;
+
+        const status = err?.status;
+        if (status === 401) {
+          logout();
+          setCenterError("نشست کاربری شما منقضی شده است. لطفاً مجدداً وارد شوید.");
+          setAuthOpen(true);
+        } else if (status === 403) {
+          setCenterError("دسترسی غیرمجاز. شما مجوز دسترسی به این بخش را ندارید.");
+        } else {
+          setCenterError(err?.message || "خطا در دریافت اطلاعات مالک و مرکز بازی.");
+        }
+        setMe(null);
+        setCenters([]);
+        setCenter(null);
+        setCenterId("");
+        setIsCenterLoading(false);
       }
-    })();
+    }
+
+    loadOwnerAndCenters();
 
     return () => {
       active = false;
       controller.abort();
     };
-  }, [authLoading, isLoggedIn, user?.fullName]);
+  }, [authLoading, isLoggedIn, logout]);
 
   if (authLoading) {
     return (
@@ -159,16 +264,24 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   }
 
-  const activeMe = me || MOCK_OWNER_ME;
-  const activeCenterId = centerId || "gc-1";
+  // Real owner display name resolution
+  const resolvedOwnerName =
+    verificationData?.ownerName ||
+    me?.fullName ||
+    user?.fullName ||
+    "";
 
   return (
     <OwnerContext.Provider
       value={{
-        me: { ...activeMe, verificationStatus },
-        centerId: activeCenterId,
-        center: center || MOCK_CENTER,
-        ownerName: verificationData?.ownerName || activeMe.fullName || user?.fullName || "صاحب گیمنت",
+        me,
+        centerId,
+        center,
+        centers,
+        selectCenter,
+        isCenterLoading,
+        centerError,
+        ownerName: resolvedOwnerName,
         verificationStatus,
         verificationData,
         submitVerification,

@@ -44,6 +44,10 @@ export default function OwnerDashboardPage() {
   const {
     centerId,
     center,
+    centers,
+    selectCenter,
+    isCenterLoading,
+    centerError,
     ownerName,
     verificationStatus,
     verificationData,
@@ -74,6 +78,11 @@ export default function OwnerDashboardPage() {
 
   // درآمد + تعداد رزروهای در انتظار
   useEffect(() => {
+    if (!centerId) {
+      setWithdrawable(null);
+      setPendingCount(0);
+      return;
+    }
     let active = true;
     Promise.allSettled([
       ownerService.getAnalyticsSummary(centerId),
@@ -156,11 +165,51 @@ export default function OwnerDashboardPage() {
   // تعداد کاشی‌های «+» تا ردیف ۴تایی کامل شود (حداقل یک کاشی)
   const addTiles = Math.max(1, Math.ceil((media.length + 1) / 4) * 4 - media.length);
 
+  if (isCenterLoading) {
+    return (
+      <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
+        <OwnerHeader title="پنل مدیریت" isSubpage={false} />
+        <main className="flex-1 px-4 pt-20 flex flex-col gap-5 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0">
+          <div className="h-12 rounded-card bg-[var(--bg-card)] animate-pulse" />
+          <div className="h-44 rounded-card bg-[var(--bg-card)] animate-pulse" />
+          <div className="grid grid-cols-4 gap-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="aspect-square rounded-card bg-[var(--bg-card)] animate-pulse" />
+            ))}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
       <OwnerHeader title="پنل مدیریت" isSubpage={false} />
 
       <main className="flex-1 px-4 pt-20 flex flex-col gap-5 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0">
+        {centerError && (
+          <div className="p-3.5 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold leading-relaxed">
+            {centerError}
+          </div>
+        )}
+
+        {/* Center Switcher if owner has multiple centers */}
+        {centers.length > 1 && (
+          <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3 flex items-center justify-between gap-3">
+            <span className="text-xs font-bold text-[var(--text-muted)]">انتخاب گیم‌نت:</span>
+            <select
+              value={centerId}
+              onChange={(e) => selectCenter(e.target.value)}
+              className="bg-[var(--foreground)]/50 border border-[var(--border-subtle)] rounded-card px-3 py-1.5 text-xs text-[var(--text-white)] focus:outline-none focus:border-[var(--primary)]"
+            >
+              {centers.map((c) => (
+                <option key={c.id} value={c.id} className="bg-[var(--bg-card)] text-[var(--text-white)]">
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Verification Form / Notice section if not approved */}
         {!isApproved && (

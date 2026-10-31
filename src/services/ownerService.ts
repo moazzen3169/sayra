@@ -247,31 +247,39 @@ let mockTicketsStore: Ticket[] = [
 ];
 
 export const ownerService = {
-  async getMe(): Promise<OwnerMe> {
-    if (USE_MOCK_RESERVATIONS) {
-      return { id: "owner-1", phone: "09123456789", fullName: "مدیر گیمنت گرگدن", role: "OWNER", verificationStatus: "APPROVED" };
-    }
-    try {
-      const { data } = await apiClient.get<OwnerMe>(ENDPOINTS.owner.me);
-      return data;
-    } catch {
-      return { id: "owner-1", phone: "09123456789", fullName: "مدیر گیمنت گرگدن", role: "OWNER", verificationStatus: "APPROVED" };
-    }
+  async getMe(signal?: AbortSignal): Promise<OwnerMe> {
+    const { data } = await apiClient.get<OwnerMe>(ENDPOINTS.owner.me, { signal });
+    return data;
   },
 
-  /** endpoint تکی برای گیمنت نداریم؛ از لیست عمومی پیدا می‌شود */
-  async findCenter(id: string, signal?: AbortSignal): Promise<PublicCenter | null> {
-    if (USE_MOCK_RESERVATIONS) {
-      return mockCenter;
-    }
+  /**
+   * دریافت گیم‌نت‌های در دسترس برای کاربر
+   * در صورت ارائه پارامترهای صفحه‌بندی، لیست مراکز بازی واکشی می‌شود
+   */
+  async listCenters(signal?: AbortSignal): Promise<PublicCenter[]> {
     try {
       const { data } = await apiClient.get<PublicCenter[]>(ENDPOINTS.owner.centers, {
         query: { page: 1, pageSize: 200, limit: 200 },
         signal,
       });
-      return asArray<PublicCenter>(data).find((c) => c.id === id) ?? mockCenter;
-    } catch {
-      return mockCenter;
+      return asArray<PublicCenter>(data);
+    } catch (err) {
+      if (USE_MOCK_RESERVATIONS) return [mockCenter];
+      throw err;
+    }
+  },
+
+  /** دریافت مشخصات مرکز بر اساس شناسه یا اسلاگ */
+  async findCenter(id: string, signal?: AbortSignal): Promise<PublicCenter | null> {
+    if (!id) return null;
+    try {
+      const centers = await ownerService.listCenters(signal);
+      return centers.find((c) => c.id === id || c.slug === id) ?? null;
+    } catch (err) {
+      if (USE_MOCK_RESERVATIONS && id === mockCenter.id) {
+        return mockCenter;
+      }
+      throw err;
     }
   },
 
