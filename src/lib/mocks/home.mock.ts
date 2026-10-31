@@ -3,8 +3,8 @@ import { BannerItem, DiscountedCenter } from "@/types/home";
 export const mockBanners: BannerItem[] = [
   {
     id: "banner-1",
-    imageUrl: "/img/gamnet-1.webp",
-    desktopImageUrl: "/img/gamnet-1.webp",
+    imageUrl: "/img/banners/banner.webp",
+    desktopImageUrl: "/img/banners/banner-desk.webp",
     alt: "تخفیف ویژه رزرو اول با سایرا",
     href: "/gamecenter/gc-1",
   },

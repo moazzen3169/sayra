@@ -1,0 +1,2 @@
+desktop: 	 1920px * 480px  px-[192px] py-[48px]
+tablet - mobile: 1920px * 960px  px-[192px] py-[96px]
