@@ -130,26 +130,23 @@ export default function ProfilePage() {
     try {
       const res = await authService.verifyOtp(cleanPhone, fullCode);
       const token = res?.accessToken;
-
-      if (token) {
-        try {
-          localStorage.setItem(ACCESS_TOKEN_KEY, token);
-        } catch {
-          // Ignore
-        }
-      }
+      const refreshToken = res?.refreshToken;
 
       let finalName = fullName.trim();
-      try {
-        const me = await authService.getMe();
-        if (me && me.fullName) {
-          finalName = me.fullName;
+      if (res?.user?.fullName) {
+        finalName = res.user.fullName;
+      } else {
+        try {
+          const me = await authService.getMe();
+          if (me && me.fullName) {
+            finalName = me.fullName;
+          }
+        } catch {
+          // Fallback to entered name
         }
-      } catch {
-        // Fallback to entered name
       }
 
-      login(finalName || "کاربر سایرا", cleanPhone, token);
+      login(finalName || "کاربر سایرا", cleanPhone, token, refreshToken);
       setAuthStep("info");
       setFullName("");
       setPhone("");

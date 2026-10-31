@@ -122,22 +122,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const res = await authService.verifyOtp(cleanPhone, fullCode);
       const token = res?.accessToken;
 
-      if (token) {
-        try {
-          localStorage.setItem(ACCESS_TOKEN_KEY, token);
-        } catch {
-          // Ignore
-        }
-      }
-
       let finalFullName = fullName.trim();
-      try {
-        const me = await authService.getMe();
-        if (me && me.fullName) {
-          finalFullName = me.fullName;
+      if (res?.user?.fullName) {
+        finalFullName = res.user.fullName;
+      } else {
+        try {
+          const me = await authService.getMe();
+          if (me && me.fullName) {
+            finalFullName = me.fullName;
+          }
+        } catch {
+          // Fallback to user entered full name
         }
-      } catch {
-        // Fallback to user entered full name
       }
 
       onSuccess(finalFullName || "کاربر سایرا", cleanPhone, token);

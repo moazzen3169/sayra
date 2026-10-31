@@ -1,8 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { ACCESS_TOKEN_KEY } from "@/lib/api/config";
-import { authService } from "@/services/authService";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { AUTH_USER_KEY } from "@/lib/api/config";
+import { authService, AuthUser } from "@/services/authService";
+import { getAccessToken, setTokens, clearTokens } from "@/lib/token";
 
 export interface UserProfile {
   id?: string;
@@ -13,146 +14,177 @@ export interface UserProfile {
 
 interface AuthContextType {
   isLoggedIn: boolean;
+  isAuthenticated: boolean;
   isLoading: boolean;
   user: UserProfile | null;
-  login: (fullName: string, phone: string, token?: string) => void;
-  logout: () => void;
+  login: (fullName: string, phone: string, token?: string, refreshToken?: string) => void;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
-const DEFAULT_MOCK_USER: UserProfile = {
-  id: "demo-user-1",
-  fullName: "کاربر سایرا",
-  phone: "۰۹۱۲۳۴۵۶۷۸۹",
-};
-
 const AuthContext = createContext<AuthContextType>({
-  isLoggedIn: true,
-  isLoading: false,
-  user: DEFAULT_MOCK_USER,
+  isLoggedIn: false,
+  isAuthenticated: false,
+  isLoading: true,
+  user: null,
   login: () => {},
-  logout: () => {},
+  logout: async () => {},
   refreshUser: async () => {},
 });
 
-const AUTH_STORAGE_KEY = "sayra_user_auth";
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile>(() => {
-    if (typeof window === "undefined") return DEFAULT_MOCK_USER;
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    if (typeof window === "undefined") return null;
     try {
-      const saved = localStorage.getItem(AUTH_STORAGE_KEY);
+      const token = getAccessToken();
+      if (!token) return null;
+      const saved = localStorage.getItem(AUTH_USER_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && (parsed.fullName || parsed.phone)) {
-          return parsed;
+          return { ...parsed, token };
         }
       }
     } catch {
       // Ignore
     }
-    return DEFAULT_MOCK_USER;
+    return null;
   });
 
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const logout = React.useCallback(() => {
-    setUser(DEFAULT_MOCK_USER);
-    setIsLoggedIn(true);
+  // Authentication status strictly reflects presence of valid session and user
+  const isAuthenticated = Boolean(user && (user.token || (typeof window !== "undefined" && getAccessToken())));
+  const isLoggedIn = isAuthenticated;
+
+  const logout = useCallback(async () => {
     try {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-      localStorage.removeItem(ACCESS_TOKEN_KEY);
+      await authService.logout();
     } catch {
-      // Ignore storage error
+      // Always complete local logout even if remote logout fails
+    } finally {
+      clearTokens();
+      setUser(null);
     }
   }, []);
 
-  const login = React.useCallback((fullName: string, phone: string, token?: string) => {
-    const newUser: UserProfile = { fullName: fullName || "کاربر سایرا", phone, token };
+  const login = useCallback((fullName: string, phone: string, token?: string, refreshToken?: string) => {
+    if (token) {
+      setTokens({ accessToken: token, refreshToken });
+    }
+    const currentToken = token || getAccessToken() || "";
+    const newUser: UserProfile = {
+      fullName: fullName || "کاربر سایرا",
+      phone,
+      token: currentToken || undefined,
+    };
     setUser(newUser);
-    setIsLoggedIn(true);
     try {
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
-      if (token) {
-        localStorage.setItem(ACCESS_TOKEN_KEY, token);
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(newUser));
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    const token = getAccessToken();
+    if (!token) {
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const me: AuthUser = await authService.getMe();
+      if (me) {
+        setUser((prev) => {
+          const updated: UserProfile = {
+            id: me.id,
+            fullName: me.fullName || prev?.fullName || "",
+            phone: me.phone || prev?.phone || "",
+            token,
+          };
+          try {
+            localStorage.setItem(AUTH_USER_KEY, JSON.stringify(updated));
+          } catch {
+            // Ignore
+          }
+          return updated;
+        });
       }
     } catch {
-      // Ignore storage error
+      // Missing or invalid token should clear invalid user
+      clearTokens();
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-    if (!token) {
-      queueMicrotask(() => setIsLoading(false));
-      return;
-    }
-
     let active = true;
-    authService
-      .getMe()
-      .then((me) => {
+
+    async function initAuth() {
+      const token = getAccessToken();
+      if (!token) {
+        if (active) {
+          setUser(null);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const me = await authService.getMe();
         if (!active) return;
         if (me) {
           setUser((prev) => {
             const updated: UserProfile = {
               id: me.id,
-              fullName: me.fullName || prev?.fullName || "کاربر سایرا",
-              phone: me.phone || prev?.phone || "۰۹۱۲۳۴۵۶۷۸۹",
+              fullName: me.fullName || prev?.fullName || "",
+              phone: me.phone || prev?.phone || "",
               token,
             };
-            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
+            try {
+              localStorage.setItem(AUTH_USER_KEY, JSON.stringify(updated));
+            } catch {
+              // Ignore
+            }
             return updated;
           });
         }
-      })
-      .catch(() => {
-        // In design / preview mode, maintain mock user and logged in state
-      })
-      .finally(() => {
+      } catch {
+        if (active) {
+          clearTokens();
+          setUser(null);
+        }
+      } finally {
         if (active) {
           setIsLoading(false);
         }
-      });
+      }
+    }
+
+    initAuth();
 
     return () => {
       active = false;
     };
   }, []);
 
-  const refreshUser = React.useCallback(async () => {
-    if (typeof window === "undefined") return;
-    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const me = await authService.getMe();
-      if (me) {
-        setUser((prev) => {
-          const updated: UserProfile = {
-            id: me.id,
-            fullName: me.fullName || prev?.fullName || "کاربر سایرا",
-            phone: me.phone || prev?.phone || "۰۹۱۲۳۴۵۶۷۸۹",
-            token,
-          };
-          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
-          return updated;
-        });
-      }
-    } catch {
-      // Ignore
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   return (
-    <AuthContext.Provider value={{ isLoggedIn, isLoading, user, login, logout, refreshUser }}>
+    <AuthContext.Provider
+      value={{
+        isLoggedIn,
+        isAuthenticated,
+        isLoading,
+        user,
+        login,
+        logout,
+        refreshUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
