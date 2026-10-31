@@ -11,16 +11,24 @@ export interface OwnerVerificationData {
   licenseFileName?: string;
 }
 
+export interface OwnerGamingCenterRef {
+  id: string;
+  name?: string;
+  slug?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
 export interface OwnerMe {
   id: string;
   phone?: string;
   fullName?: string;
   role?: string;
+  isActive?: boolean;
   verificationStatus?: VerificationStatus;
   verificationData?: OwnerVerificationData;
-  /** ⚠️ در OpenAPI نیست؛ فقط در صورت وجود در پاسخ /auth/me استفاده می‌شود */
   gamingCenterId?: string;
-  gamingCenters?: { id: string }[];
+  gamingCenters?: OwnerGamingCenterRef[];
   subscriptionDaysLeft?: number;
 }
 
