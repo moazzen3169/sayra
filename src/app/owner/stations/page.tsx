@@ -43,13 +43,19 @@ export default function OwnerStationsPage() {
   const [description, setDescription] = useState("");
 
   useEffect(() => {
+    if (!centerId) {
+      setStations([]);
+      return;
+    }
     let active = true;
+    setStations(null);
+    setError(null);
     const c = new AbortController();
     ownerService
       .listStations(centerId, c.signal)
       .then((d) => {
         if (!active) return;
-        setStations(d);
+        setStations(Array.isArray(d) ? d : []);
         setError(null);
       })
       .catch((e) => {
