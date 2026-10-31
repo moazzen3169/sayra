@@ -142,19 +142,21 @@ const ERROR_MESSAGES: Record<string, string> = {
   INVALID_TRANSITION: "در وضعیت فعلی رزرو، این عملیات امکان‌پذیر نیست.",
   VALIDATION_ERROR: "اطلاعات ارسال‌شده معتبر نیست.",
   CONFLICT: "تداخلی در درخواست شما وجود دارد.",
-  SLOT_NOT_AVAILABLE: "این ساعت دیگر خالی نیست. لطفاً ساعت دیگری انتخاب کنید.",
-  RESERVATION_OVERLAP: "این ساعت دیگر خالی نیست. لطفاً ساعت دیگری انتخاب کنید.",
-  OVERLAP_CONFLICT: "این ساعت دیگر خالی نیست. لطفاً ساعت دیگری انتخاب کنید.",
+  SLOT_NOT_AVAILABLE: "این ساعت دیگر خالی نیست یا با رزرو دیگری تداخل دارد. لطفاً ساعت دیگری انتخاب کنید.",
+  RESERVATION_OVERLAP: "این زمان با رزرو دیگری تداخل دارد. لطفاً زمان دیگری انتخاب کنید.",
+  OVERLAP_CONFLICT: "این ساعت با رزرو دیگری تداخل دارد. لطفاً ساعت دیگری انتخاب کنید.",
   RESERVATION_START_TIME_IN_PAST: "زمان انتخاب‌شده گذشته است. لطفاً ساعت دیگری انتخاب کنید.",
   ONLINE_RESERVATION_DISABLED: "رزرو آنلاین برای این گیمنت فعال نیست.",
   IDEMPOTENCY_REQUEST_IN_PROGRESS: "درخواست قبلی شما در حال پردازش است. چند لحظه صبر کنید.",
   IDEMPOTENCY_KEY_REQUIRED: "ثبت رزرو انجام نشد. لطفاً دوباره تلاش کنید.",
   IDEMPOTENCY_KEY_INVALID_LENGTH: "ثبت رزرو انجام نشد. لطفاً دوباره تلاش کنید.",
   IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD: "ثبت رزرو انجام نشد. لطفاً دوباره تلاش کنید.",
+  STATUS_TRANSITION_NOT_IMPLEMENTED: "تغییر وضعیت رزرو توسط سرور نیازمند تکمیل اندپوینت اختصاصی بک‌اند است.",
 };
 
 export function getErrorMessage(e: unknown): string {
   if (e instanceof ApiError) return ERROR_MESSAGES[e.code] ?? e.message;
+  if (e instanceof Error && e.message) return e.message;
   return "مشکلی پیش آمد. لطفاً دوباره تلاش کنید.";
 }
 

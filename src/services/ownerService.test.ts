@@ -165,4 +165,161 @@ describe("ownerService.getMe & center resolution", () => {
     const pendingCount = reservations.filter((r) => r.status === "PENDING").length;
     expect(pendingCount).toBe(2);
   });
+
+  it("handles OpenAPI paginated envelope correctly in listReservationsPaginated", async () => {
+    const mockPageData = {
+      success: true,
+      data: [
+        { id: "res-10", status: "PENDING", totalPrice: 100000 },
+        { id: "res-20", status: "CONFIRMED", totalPrice: 250000 },
+      ],
+      meta: {
+        pagination: {
+          total: 42,
+          page: 2,
+          pageSize: 20,
+          totalPages: 3,
+        },
+      },
+    };
+
+    let queryParamString = "";
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      const urlStr = String(url);
+      queryParamString = urlStr;
+      if (urlStr.includes("/gamingCenters/gc-100/reservation")) {
+        return new Response(JSON.stringify(mockPageData), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ success: false }), { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const result = await ownerService.listReservationsPaginated("gc-100", {
+      page: 2,
+      pageSize: 20,
+      status: "PENDING",
+    });
+
+    expect(queryParamString).toContain("page=2");
+    expect(queryParamString).toContain("pageSize=20");
+    expect(queryParamString).toContain("status=PENDING");
+    expect(result.items.length).toBe(2);
+    expect(result.total).toBe(42);
+    expect(result.page).toBe(2);
+    expect(result.pageSize).toBe(20);
+    expect(result.totalPages).toBe(3);
+  });
+
+  it("fetches single reservation detail using documented endpoint", async () => {
+    const mockDetail = {
+      id: "res-999",
+      gamingCenterId: "gc-100",
+      stationId: "st-55",
+      status: "CONFIRMED",
+      paymentState: "PAID",
+      totalHours: 2,
+      totalPrice: 400000,
+      startTime: "2026-04-01T14:00:00.000Z",
+      endTime: "2026-04-01T16:00:00.000Z",
+    };
+
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      const urlStr = String(url);
+      if (urlStr.includes("/gamingCenters/gc-100/reservation/res-999")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: mockDetail,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(JSON.stringify({ success: false }), { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const detail = await ownerService.getReservation("gc-100", "res-999");
+    expect(detail.id).toBe("res-999");
+    expect(detail.totalPrice).toBe(400000);
+    expect(detail.status).toBe("CONFIRMED");
+  });
+
+  it("sends time proposal with preserved duration and ISO date-times", async () => {
+    let capturedBody: any = null;
+    let capturedUrl = "";
+
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      capturedUrl = String(url);
+      if (capturedUrl.includes("/propose-time")) {
+        capturedBody = JSON.parse(String(init?.body));
+        return new Response(
+          JSON.stringify({ success: true }),
+          { status: 201, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(JSON.stringify({ success: false }), { status: 404 });
+    }) as unknown as typeof fetch;
+
+    await ownerService.proposeTime("gc-100", "res-777", {
+      startTime: "2026-04-02T16:00:00.000Z",
+      endTime: "2026-04-02T18:00:00.000Z",
+      note: "دستگاه قبلی نیاز به سرویس دارد",
+    });
+
+    expect(capturedUrl).toContain("/gamingCenters/gc-100/reservation/res-777/propose-time");
+    expect(capturedBody.startTime).toBe("2026-04-02T16:00:00.000Z");
+    expect(capturedBody.endTime).toBe("2026-04-02T18:00:00.000Z");
+    expect(capturedBody.note).toBe("دستگاه قبلی نیاز به سرویس دارد");
+  });
+
+  it("calls exact OpenAPI session routes for start, stop, pause, and resume", async () => {
+    const calledUrls: string[] = [];
+
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      calledUrls.push(String(url));
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+
+    await ownerService.session("gc-100", "res-1", "start");
+    await ownerService.session("gc-100", "res-1", "stop");
+    await ownerService.session("gc-100", "res-1", "pause");
+    await ownerService.session("gc-100", "res-1", "resume");
+
+    // start and stop use /reservation (singular)
+    expect(calledUrls[0]).toContain("/gamingCenters/gc-100/reservation/res-1/sessions/start");
+    expect(calledUrls[1]).toContain("/gamingCenters/gc-100/reservation/res-1/sessions/stop");
+    // pause and resume use /reservations (plural) per OpenAPI
+    expect(calledUrls[2]).toContain("/gamingCenters/gc-100/reservations/res-1/sessions/pause");
+    expect(calledUrls[3]).toContain("/gamingCenters/gc-100/reservations/res-1/sessions/resume");
+  });
+
+  it("handles status transition contract gaps without sending undocumented PATCH status", async () => {
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      const urlStr = String(url);
+      if (urlStr.includes("/confirm")) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: { code: "NOT_FOUND", message: "Not Found" },
+          }),
+          { status: 404, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(JSON.stringify({ success: false }), { status: 404 });
+    }) as unknown as typeof fetch;
+
+    let thrownError: any = null;
+    try {
+      await ownerService.updateReservationStatus("gc-100", "res-1", "CONFIRMED");
+    } catch (err) {
+      thrownError = err;
+    }
+
+    expect(thrownError).not.toBeNull();
+    expect(thrownError.message).toContain("docs/OWNER_RESERVATIONS_API_CONTRACT.md");
+  });
 });

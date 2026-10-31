@@ -283,20 +283,129 @@ export const ownerService = {
     }
   },
 
-  async listReservations(centerId: string, signal?: AbortSignal): Promise<OwnerReservation[]> {
-    if (USE_MOCK_RESERVATIONS) return [...mockReservationsStore];
-    try {
-      const { data } = await apiClient.get<OwnerReservation[]>(ENDPOINTS.owner.reservations(centerId), {
-        query: { page: 1, pageSize: 100 },
-        signal,
-      });
-      return asArray<OwnerReservation>(data);
-    } catch (err) {
-      if (USE_MOCK_RESERVATIONS) return [...mockReservationsStore];
-      throw err;
-    }
+  /**
+   * دریافت لیست رزروهای گیم‌نت به صورت صفحه‌بندی‌شده و منطبق با Pagination Envelope اوپن‌ای‌پی‌آی
+   */
+  async listReservations(
+    centerId: string,
+    options?: { page?: number; pageSize?: number; status?: string; signal?: AbortSignal }
+  ): Promise<OwnerReservation[]> {
+    const pageResult = await ownerService.listReservationsPaginated(centerId, options);
+    return pageResult.items;
   },
 
+  async listReservationsPaginated(
+    centerId: string,
+    options?: { page?: number; pageSize?: number; status?: string; signal?: AbortSignal }
+  ): Promise<{ items: OwnerReservation[]; total: number; page: number; pageSize: number; totalPages: number }> {
+    const requestedPage = options?.page ?? 1;
+    const requestedPageSize = options?.pageSize ?? 50;
+    const statusFilter = options?.status && options.status !== "ALL" ? options.status : undefined;
+
+    if (USE_MOCK_RESERVATIONS) {
+      let filtered = [...mockReservationsStore];
+      if (statusFilter) {
+        filtered = filtered.filter((r) => r.status === statusFilter);
+      }
+      const total = filtered.length;
+      const start = (requestedPage - 1) * requestedPageSize;
+      const items = filtered.slice(start, start + requestedPageSize);
+      return {
+        items,
+        total,
+        page: requestedPage,
+        pageSize: requestedPageSize,
+        totalPages: Math.ceil(total / requestedPageSize) || 1,
+      };
+    }
+
+    const query: Record<string, string | number> = {
+      page: requestedPage,
+      pageSize: requestedPageSize,
+    };
+    if (statusFilter) {
+      query.status = statusFilter;
+    }
+
+    const response = await apiClient.get<unknown>(ENDPOINTS.owner.reservations(centerId), {
+      query,
+      signal: options?.signal,
+    });
+
+    const resData = response.data;
+    let items: OwnerReservation[] = [];
+    let total = 0;
+    let page = requestedPage;
+    let pageSize = requestedPageSize;
+    let totalPages = 1;
+
+    // OpenAPI schema for /gamingCenters/{id}/reservation is Pagination schema:
+    // { success: true, data: Array, meta: { pagination: { total, totalItems, page, pageSize, totalPages } } }
+    if (Array.isArray(resData)) {
+      items = resData as OwnerReservation[];
+      total = items.length;
+    } else if (resData && typeof resData === "object") {
+      const rec = resData as Record<string, unknown>;
+      if (Array.isArray(rec.data)) {
+        items = rec.data as OwnerReservation[];
+      }
+      const pagination = (rec.meta as any)?.pagination ?? response.meta?.pagination;
+      if (pagination) {
+        total = pagination.total ?? pagination.totalItems ?? items.length;
+        page = pagination.page ?? requestedPage;
+        pageSize = pagination.pageSize ?? pagination.limit ?? requestedPageSize;
+        totalPages = pagination.totalPages ?? (Math.ceil(total / (pageSize || 1)) || 1);
+      } else {
+        total = items.length;
+      }
+    }
+
+    if (response.meta?.pagination) {
+      const p = response.meta.pagination;
+      total = p.total ?? p.totalItems ?? total;
+      page = p.page ?? page;
+      pageSize = p.pageSize ?? p.limit ?? pageSize;
+      totalPages = p.totalPages ?? totalPages;
+    }
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    };
+  },
+
+  /**
+   * دریافت مشخصات رزرو بر اساس شناسه از اندپوینت رسمی اوپن‌ای‌پی‌آی
+   * GET /gamingCenters/{gamingCenterId}/reservation/{reservationId}
+   */
+  async getReservation(centerId: string, reservationId: string, signal?: AbortSignal): Promise<OwnerReservation> {
+    if (USE_MOCK_RESERVATIONS) {
+      const found = mockReservationsStore.find((r) => r.id === reservationId);
+      if (found) return found;
+      throw new Error("رزرو پیدا نشد.");
+    }
+
+    const { data } = await apiClient.get<OwnerReservation | { success?: boolean; data?: OwnerReservation }>(
+      ENDPOINTS.owner.reservationDetail(centerId, reservationId),
+      { signal }
+    );
+
+    if (data && typeof data === "object" && "stationId" in data) {
+      return data as OwnerReservation;
+    }
+    if (data && typeof data === "object" && "data" in data && (data as any).data) {
+      return (data as any).data as OwnerReservation;
+    }
+    return data as OwnerReservation;
+  },
+
+  /**
+   * ارسال پیشنهاد زمان جدید
+   * POST /gamingCenters/{gamingCenterId}/reservation/{reservationId}/propose-time
+   */
   async proposeTime(
     centerId: string,
     reservationId: string,
@@ -310,13 +419,43 @@ export const ownerService = {
       }
       return;
     }
-    try {
-      await apiClient.post(ENDPOINTS.owner.proposeTime(centerId, reservationId), payload);
-    } catch {
-      // ignore in mock mode
-    }
+
+    await apiClient.post(ENDPOINTS.owner.proposeTime(centerId, reservationId), {
+      startTime: payload.startTime,
+      endTime: payload.endTime,
+      ...(payload.note ? { note: payload.note } : {}),
+    });
   },
 
+  /**
+   * دریافت پیشنهادات زمان ثبت‌شده برای یک رزرو
+   * GET /gamingCenters/{gamingCenterId}/reservation/{reservationId}/proposals
+   */
+  async listReservationProposals(
+    centerId: string,
+    reservationId: string,
+    signal?: AbortSignal
+  ): Promise<unknown[]> {
+    if (USE_MOCK_RESERVATIONS) return [];
+
+    const { data } = await apiClient.get<unknown[] | { data?: unknown[] }>(
+      ENDPOINTS.owner.proposals(centerId, reservationId),
+      { signal }
+    );
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === "object" && Array.isArray((data as any).data)) {
+      return (data as any).data;
+    }
+    return [];
+  },
+
+  /**
+   * مدیریت سشن‌های بازی با مسیرهای دقیق مشخص‌شده در اوپن‌ای‌پی‌آی:
+   * start: POST /gamingCenters/{gamingCenterId}/reservation/{reservationId}/sessions/start
+   * stop:  POST /gamingCenters/{gamingCenterId}/reservation/{reservationId}/sessions/stop
+   * pause: POST /gamingCenters/{gamingCenterId}/reservations/{reservationId}/sessions/pause
+   * resume: POST /gamingCenters/{gamingCenterId}/reservations/{reservationId}/sessions/resume
+   */
   async session(
     centerId: string,
     reservationId: string,
@@ -330,11 +469,8 @@ export const ownerService = {
       }
       return;
     }
-    try {
-      await apiClient.post(ENDPOINTS.owner.session(centerId, reservationId, action));
-    } catch {
-      // ignore in mock mode
-    }
+
+    await apiClient.post(ENDPOINTS.owner.session(centerId, reservationId, action));
   },
 
   async getSettings(centerId: string, signal?: AbortSignal): Promise<CenterSettings> {
@@ -407,6 +543,13 @@ export const ownerService = {
     return asArray<GameStationInfo>(data);
   },
 
+  /**
+   * عملیات تغییر وضعیت رزرو در پنل صاحب گیم‌نت:
+   * مطابق با گزارش CONTRACT GAP در docs/OWNER_RESERVATIONS_API_CONTRACT.md،
+   * اسکیما و مسیرهای رسمی OpenAPI (v1.0-LOCKED) برای عملیات‌های تایید رزرو (Confirm) و لغو/رد رزرو (Cancel/Reject)
+   * توسط صاحب مرکز فاقد اندپوینت اختصاصی هستند و متد PATCH /reservation/{reservationId} نیز فیلد status ندارد.
+   * بنابراین از ارسال درخواست نامعتبر با فیلد تعریف‌نشده status در متد PATCH اکیداً خودداری می‌شود.
+   */
   async updateReservationStatus(
     centerId: string,
     reservationId: string,
@@ -417,11 +560,34 @@ export const ownerService = {
       if (target) target.status = status;
       return;
     }
+
+    // Attempt backend transition using dedicated transition routes if implemented or fail with contract gap error
+    // Do NOT send undocumented { status } in PATCH /gamingCenters/{centerId}/reservation/{reservationId}
+    const transitionAction =
+      status === "CONFIRMED"
+        ? "confirm"
+        : status === "CANCELED"
+        ? "cancel"
+        : status === "NO_SHOW"
+        ? "no-show"
+        : null;
+
+    if (!transitionAction) {
+      throw new Error(`انتقال وضعیت رزرو به ${status} پشتیبانی نمی‌شود.`);
+    }
+
     try {
-      await apiClient.patch(ENDPOINTS.owner.reservations(centerId) + `/${reservationId}`, { status });
-    } catch {
-      const target = mockReservationsStore.find((r) => r.id === reservationId);
-      if (target) target.status = status;
+      await apiClient.post(
+        `${ENDPOINTS.owner.reservations(centerId)}/${encodeURIComponent(reservationId)}/${transitionAction}`,
+        {}
+      );
+    } catch (err: any) {
+      if (err?.status === 404 || err?.code === "NOT_FOUND") {
+        throw new Error(
+          "عملیات تایید یا لغو رزرو توسط صاحب مجموعه نیازمند پیاده‌سازی اندپوینت اختصاصی در بک‌اند است (مستند شده در docs/OWNER_RESERVATIONS_API_CONTRACT.md)."
+        );
+      }
+      throw err;
     }
   },
 
