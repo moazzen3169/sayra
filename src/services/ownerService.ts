@@ -401,13 +401,10 @@ export const ownerService = {
   },
 
   async listStations(centerId: string, signal?: AbortSignal): Promise<GameStationInfo[]> {
+    if (!centerId) return [];
     if (USE_MOCK_RESERVATIONS) return [...mockStationsStore];
-    try {
-      const { data } = await apiClient.get<GameStationInfo[]>(ENDPOINTS.owner.stations(centerId), { signal });
-      return asArray<GameStationInfo>(data);
-    } catch {
-      return [...mockStationsStore];
-    }
+    const { data } = await apiClient.get<GameStationInfo[]>(ENDPOINTS.owner.stations(centerId), { signal });
+    return asArray<GameStationInfo>(data);
   },
 
   async updateReservationStatus(
@@ -428,7 +425,7 @@ export const ownerService = {
     }
   },
 
-  async createStation(centerId: string, payload: StationInput): Promise<void> {
+  async createStation(centerId: string, payload: StationInput): Promise<GameStationInfo | void> {
     if (USE_MOCK_RESERVATIONS) {
       const newStation: GameStationInfo = {
         id: `st-mock-${Date.now()}`,
@@ -446,44 +443,96 @@ export const ownerService = {
         maxRentHours: payload.maxRentHours,
       };
       mockStationsStore = [newStation, ...mockStationsStore];
-      return;
+      return newStation;
     }
-    try {
-      await apiClient.post(ENDPOINTS.owner.stations(centerId), payload);
-    } catch {
-      // ignore
-    }
+
+    // Prepare payload. Notice: fields defined in OpenAPI GameStation schema are:
+    // name, stationType, hourlyPrice, minRentHours, maxRentHours, defaultDurationHours, incrementMinutes, isVip, isActive.
+    // Extended fields (quantity, defaultControllers, maxExtraControllers, extraControllerPrice, description)
+    // are included without discarding so when backend confirms them they pass through seamlessly.
+    const body: Record<string, unknown> = {
+      name: payload.name,
+      stationType: payload.stationType,
+      hourlyPrice: payload.hourlyPrice,
+    };
+    if (payload.minRentHours !== undefined) body.minRentHours = payload.minRentHours;
+    if (payload.maxRentHours !== undefined) body.maxRentHours = payload.maxRentHours;
+    if (payload.defaultDurationHours !== undefined) body.defaultDurationHours = payload.defaultDurationHours;
+    if (payload.incrementMinutes !== undefined) body.incrementMinutes = payload.incrementMinutes;
+    if (payload.isVip !== undefined) body.isVip = payload.isVip;
+    body.isActive = true;
+
+    // Extended inventory & controller fields
+    if (payload.quantity !== undefined) body.quantity = payload.quantity;
+    if (payload.defaultControllers !== undefined) body.defaultControllers = payload.defaultControllers;
+    if (payload.maxExtraControllers !== undefined) body.maxExtraControllers = payload.maxExtraControllers;
+    if (payload.extraControllerPrice !== undefined) body.extraControllerPrice = payload.extraControllerPrice;
+    if (payload.description !== undefined) body.description = payload.description;
+
+    const res = await apiClient.post<GameStationInfo>(ENDPOINTS.owner.stations(centerId), body);
+    return res.data;
   },
 
   async listMedia(slug: string, signal?: AbortSignal): Promise<MediaItem[]> {
+    if (!slug) return [];
     if (USE_MOCK_RESERVATIONS) return [...mockMediaStore];
-    try {
-      const { data } = await apiClient.get<MediaItem[]>(ENDPOINTS.gamingCenter.media(slug), { signal });
-      return asArray<MediaItem>(data).filter((m) => !!m?.url);
-    } catch (err) {
-      if (USE_MOCK_RESERVATIONS) return [...mockMediaStore];
-      throw err;
-    }
+    const { data } = await apiClient.get<MediaItem[]>(ENDPOINTS.gamingCenter.media(slug), { signal });
+    return asArray<MediaItem>(data).filter((m) => !!m?.url);
   },
 
-  async uploadGalleryImage(centerId: string, file: File): Promise<void> {
+  async uploadGalleryImage(
+    centerId: string,
+    file: File,
+    options?: { altText?: string; purpose?: "COVER" | "GALLERY" | "STATION" | "LOGO" }
+  ): Promise<MediaItem> {
     if (USE_MOCK_RESERVATIONS) {
       const newMedia: MediaItem = {
         id: `media-${Date.now()}`,
         url: URL.createObjectURL(file),
-        altText: file.name,
+        altText: options?.altText || file.name,
+        purpose: options?.purpose || "GALLERY",
       };
       mockMediaStore = [...mockMediaStore, newMedia];
-      return;
+      return newMedia;
     }
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("purpose", "GALLERY");
-      await apiClient.post(ENDPOINTS.owner.mediaUpload(centerId), form);
-    } catch {
-      // ignore
+
+    const form = new FormData();
+    // Use exact file field defined in OpenAPI ("file")
+    form.append("file", file);
+    // Support purpose
+    form.append("purpose", options?.purpose || "GALLERY");
+    // Support altText where defined
+    if (options?.altText) {
+      form.append("altText", options.altText);
+    } else if (file.name) {
+      form.append("altText", file.name);
     }
+
+    const res = await apiClient.post<MediaItem | { id?: string; url?: string; media?: MediaItem }>(
+      ENDPOINTS.owner.mediaUpload(centerId),
+      form
+    );
+
+    // Read actual server response
+    const data = res.data as any;
+    if (data && typeof data === "object") {
+      if (data.url) {
+        return {
+          id: data.id,
+          url: data.url,
+          altText: data.altText || options?.altText || file.name,
+          purpose: data.purpose || options?.purpose || "GALLERY",
+        };
+      }
+      if (data.media?.url) {
+        return data.media;
+      }
+    }
+
+    return {
+      url: "",
+      altText: options?.altText || file.name,
+    };
   },
 
   async deleteMedia(centerId: string, mediaId: string): Promise<void> {
@@ -491,11 +540,10 @@ export const ownerService = {
       mockMediaStore = mockMediaStore.filter((m) => m.id !== mediaId);
       return;
     }
-    try {
-      await apiClient.delete(ENDPOINTS.owner.mediaUpload(centerId) + `/${mediaId}`);
-    } catch {
-      mockMediaStore = mockMediaStore.filter((m) => m.id !== mediaId);
-    }
+    // CONTRACT GAP: OpenAPI does not define media deletion.
+    // We intentionally do NOT call any guessed DELETE endpoint to avoid 404/405 errors.
+    // Deletion will be implemented when backend defines DELETE /gamingCenters/{id}/media/{mediaId}.
+    throw new Error("حذف تصویر در حال حاضر توسط سرور پشتیبانی نمی‌شود و منتظر پیاده‌سازی اندپوینت اختصاصی بک‌اند است.");
   },
 
   async listRatings(slug: string, signal?: AbortSignal): Promise<OwnerRating[]> {

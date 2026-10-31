@@ -166,11 +166,14 @@ export default function OwnerDashboardPage() {
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       e.target.value = "";
-      if (!file || uploading) return;
+      if (!file || uploading || !centerId) return;
       setUploading(true);
       setGalleryError(null);
       try {
-        await ownerService.uploadGalleryImage(centerId, file);
+        await ownerService.uploadGalleryImage(centerId, file, {
+          altText: file.name,
+          purpose: "GALLERY",
+        });
         setMediaToken((v) => v + 1);
       } catch (err) {
         setGalleryError(getErrorMessage(err));

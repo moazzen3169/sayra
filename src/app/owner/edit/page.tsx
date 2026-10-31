@@ -431,12 +431,17 @@ export default function OwnerEditPage() {
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     e.target.value = "";
-                    if (!file || uploadingImage) return;
+                    if (!file || uploadingImage || !centerId) return;
                     setUploadingImage(true);
+                    setMsg(null);
                     try {
-                      await ownerService.uploadGalleryImage(centerId, file);
+                      await ownerService.uploadGalleryImage(centerId, file, {
+                        altText: file.name,
+                        purpose: "GALLERY",
+                      });
                       const updated = await ownerService.listMedia(center?.slug || centerId);
-                      setMedia(updated);
+                      setMedia(Array.isArray(updated) ? updated : []);
+                      setMsg({ ok: true, text: "تصویر با موفقیت در گالری ثبت شد." });
                     } catch (err) {
                       setMsg({ ok: false, text: getErrorMessage(err) });
                     } finally {
@@ -527,10 +532,12 @@ export default function OwnerEditPage() {
                   try {
                     const targetId = deleteConfirmMedia.id || deleteConfirmMedia.url;
                     await ownerService.deleteMedia(centerId, targetId);
-                    setMedia((prev) => prev.filter((m) => (m.id || m.url) !== targetId));
+                    const updated = await ownerService.listMedia(center?.slug || centerId);
+                    setMedia(Array.isArray(updated) ? updated : []);
                     setDeleteConfirmMedia(null);
                     setMsg({ ok: true, text: "تصویر با موفقیت حذف شد." });
                   } catch (err) {
+                    setDeleteConfirmMedia(null);
                     setMsg({ ok: false, text: getErrorMessage(err) });
                   } finally {
                     setDeletingImage(false);
