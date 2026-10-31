@@ -5,6 +5,8 @@ export const ENDPOINTS = {
   auth: {
     otpRequest: "/auth/customer/otp/request",
     otpVerify: "/auth/customer/otp/verify",
+    refresh: "/auth/refresh",
+    logout: "/auth/logout",
     me: "/customer/me",
   },
   gamingCenter: {

@@ -1,4 +1,5 @@
-import { ACCESS_TOKEN_KEY, API_BASE_URL } from "./config";
+import { API_BASE_URL } from "./config";
+import { getAccessToken, refreshAccessToken, clearTokens } from "../token";
 
 export interface ApiMeta {
   requestId?: string;
@@ -12,11 +13,16 @@ export interface ApiMeta {
   };
 }
 
-interface Envelope<T> {
+export interface ApiEnvelope<T> {
   success?: boolean;
   data?: T;
   meta?: ApiMeta;
-  error?: { code?: string; message?: string; details?: unknown };
+  error?: {
+    code?: string;
+    message?: string;
+    details?: unknown;
+  };
+  message?: string;
 }
 
 export class ApiError extends Error {
@@ -30,63 +36,88 @@ export class ApiError extends Error {
     this.status = status;
     this.code = code;
     this.details = details;
+    Object.setPrototypeOf(this, ApiError.prototype);
   }
 }
 
 export const isAbortError = (e: unknown): boolean =>
-  e instanceof DOMException && e.name === "AbortError";
+  (typeof DOMException !== "undefined" && e instanceof DOMException && e.name === "AbortError") ||
+  (e instanceof Error && e.name === "AbortError");
 
-type Query = Record<string, string | number | boolean | null | undefined>;
+export type QueryValue = string | number | boolean | null | undefined;
+export type Query = Record<string, QueryValue | QueryValue[]>;
 
-interface RequestOptions {
+export interface RequestOptions {
   query?: Query;
   body?: unknown;
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  /** Whether this request should attempt token refresh on 401 */
+  retryOnAuth?: boolean;
 }
 
-function buildUrl(path: string, query?: Query): string {
-  const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
-  if (!query) return url;
+/**
+ * Serialize query parameters supporting strings, numbers, booleans, and arrays.
+ */
+export function buildQueryString(query?: Query): string {
+  if (!query) return "";
   const qs = new URLSearchParams();
   Object.entries(query).forEach(([k, v]) => {
-    if (v !== undefined && v !== null) qs.append(k, String(v));
+    if (v === undefined || v === null) return;
+    if (Array.isArray(v)) {
+      v.forEach((item) => {
+        if (item !== undefined && item !== null) {
+          qs.append(k, String(item));
+        }
+      });
+    } else {
+      qs.append(k, String(v));
+    }
   });
   const s = qs.toString();
-  return s ? `${url}?${s}` : url;
+  return s ? `?${s}` : "";
 }
 
-function getAccessToken(): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return localStorage.getItem(ACCESS_TOKEN_KEY);
-  } catch {
-    return null;
-  }
+/**
+ * Build complete request URL based on API_BASE_URL.
+ */
+export function buildUrl(path: string, query?: Query): string {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const base = API_BASE_URL.replace(/\/+$/, "");
+  const qs = buildQueryString(query);
+  return `${base}${normalizedPath}${qs}`;
 }
 
-async function request<T>(
+/**
+ * Execute raw fetch request against backend API or Proxy
+ */
+async function executeFetch<T>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
-  options: RequestOptions = {}
-): Promise<{ data: T; meta?: ApiMeta }> {
-  // Base URL خالی یعنی درخواست به خود Next.js می‌رود و 404 می‌گیرد
+  options: RequestOptions = {},
+  overrideToken?: string | null
+): Promise<{ data: T; meta?: ApiMeta; message?: string }> {
   if (!API_BASE_URL) {
-    throw new ApiError(
-      0,
-      "API_BASE_URL_MISSING",
-      "ارتباط با سرور برقرار نشد."
-    );
+    throw new ApiError(0, "API_BASE_URL_MISSING", "ارتباط با سرور برقرار نشد.");
   }
 
-  const isForm = typeof FormData !== "undefined" && options.body instanceof FormData;
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
 
-  const headers: Record<string, string> = { Accept: "application/json", ...options.headers };
-  // برای FormData مرورگر خودش Content-Type (با boundary) را می‌گذارد
-  if (options.body !== undefined && !isForm) headers["Content-Type"] = "application/json";
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...options.headers,
+  };
 
-  const token = getAccessToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
+  // Only set Content-Type for non-FormData bodies
+  if (options.body !== undefined && !isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  // Token resolution
+  const token = overrideToken !== undefined ? overrideToken : getAccessToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   let res: Response;
   try {
@@ -96,42 +127,122 @@ async function request<T>(
       body:
         options.body === undefined
           ? undefined
-          : isForm
+          : isFormData
           ? (options.body as FormData)
           : JSON.stringify(options.body),
       signal: options.signal,
     });
   } catch (e) {
-    if (isAbortError(e)) throw e;
+    if (isAbortError(e)) {
+      throw e;
+    }
     throw new ApiError(0, "NETWORK_ERROR", "ارتباط با سرور برقرار نشد.");
   }
 
-  let json: Envelope<T> | null = null;
-  try {
-    json = (await res.json()) as Envelope<T>;
-  } catch {
-    json = null;
+  // Empty response (e.g. 204 No Content)
+  if (res.status === 204) {
+    return { data: undefined as unknown as T };
   }
 
-  // 404 بدون بدنه JSON یعنی آدرس اشتباه است، نه اینکه منبع پیدا نشده باشد
-  if (!json && res.status === 404) {
-    throw new ApiError(
-      404,
-      "ENDPOINT_NOT_FOUND",
-      "مورد درخواستی پیدا نشد."
-    );
+  const responseText = await res.text();
+  let json: ApiEnvelope<T> | null = null;
+
+  if (responseText.trim().length > 0) {
+    try {
+      json = JSON.parse(responseText) as ApiEnvelope<T>;
+    } catch {
+      // Invalid JSON received from server
+      if (!res.ok) {
+        throw new ApiError(
+          res.status,
+          res.status === 404 ? "NOT_FOUND" : "INVALID_RESPONSE",
+          responseText || `سرور پاسخ نامعتبر بازگرداند (${res.status}).`
+        );
+      }
+      throw new ApiError(
+        res.status,
+        "INVALID_JSON",
+        "پاسخ دریافت شده از سرور فرمت نامعتبر دارد."
+      );
+    }
   }
 
+  // Handle HTTP error statuses or envelope success: false
   if (!res.ok || json?.success === false) {
+    const errorCode = json?.error?.code || (res.status === 401 ? "UNAUTHORIZED" : res.status === 403 ? "FORBIDDEN" : res.status === 404 ? "NOT_FOUND" : "HTTP_ERROR");
+    const errorMessage = json?.error?.message || (res.status === 401 ? "نشست کاربری نامعتبر است." : res.status === 403 ? "دسترسی غیرمجاز." : "خطای نامشخص از سمت سرور.");
+
     throw new ApiError(
       res.status,
-      json?.error?.code ?? "UNKNOWN_ERROR",
-      json?.error?.message ?? "خطای نامشخص از سمت سرور.",
+      errorCode,
+      errorMessage,
       json?.error?.details
     );
   }
 
-  return { data: (json?.data ?? null) as T, meta: json?.meta };
+  // Return data envelope
+  return {
+    data: (json?.data !== undefined ? json.data : (json as unknown as T)) as T,
+    meta: json?.meta,
+    message: json?.message,
+  };
+}
+
+/**
+ * Direct call to refresh endpoint conforming to OpenAPI /auth/refresh
+ */
+async function performTokenRefresh(refreshToken: string): Promise<{ accessToken: string } | null> {
+  const base = API_BASE_URL.replace(/\/+$/, "");
+  const res = await fetch(`${base}/auth/refresh`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  if (!res.ok) {
+    return null;
+  }
+
+  const json = (await res.json()) as ApiEnvelope<{ accessToken: string }>;
+  if (json?.success !== false && json?.data?.accessToken) {
+    return { accessToken: json.data.accessToken };
+  }
+  return null;
+}
+
+/**
+ * Top-level request method with token management and single retry on 401
+ */
+async function request<T>(
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+  path: string,
+  options: RequestOptions = {}
+): Promise<{ data: T; meta?: ApiMeta; message?: string }> {
+  const shouldRetry = options.retryOnAuth !== false && path !== "/auth/refresh" && path !== "/auth/login";
+
+  try {
+    return await executeFetch<T>(method, path, options);
+  } catch (error) {
+    // Check if error is 401 and eligible for refresh retry
+    if (error instanceof ApiError && error.status === 401 && shouldRetry) {
+      const newToken = await refreshAccessToken(performTokenRefresh);
+      if (newToken) {
+        // Retry the request exactly once with new token and retryOnAuth: false
+        return await executeFetch<T>(
+          method,
+          path,
+          { ...options, retryOnAuth: false },
+          newToken
+        );
+      } else {
+        clearTokens();
+      }
+    }
+    throw error;
+  }
 }
 
 export const apiClient = {
