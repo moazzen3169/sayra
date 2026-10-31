@@ -47,6 +47,21 @@ export interface OwnerReservation extends Reservation {
   customerPhone?: string;
 }
 
+export interface OwnerReservationListParams {
+  page?: number;
+  pageSize?: number;
+  status?: string;
+  signal?: AbortSignal;
+}
+
+export interface OwnerReservationListResult {
+  items: OwnerReservation[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export interface CenterSettings {
   id?: string;
   gamingCenterId?: string;

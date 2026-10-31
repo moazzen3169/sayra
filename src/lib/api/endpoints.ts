@@ -40,8 +40,12 @@ export const ENDPOINTS = {
     me: "/auth/me",
     centers: "/gamingCenters",
     reservations: (c: string) => `/gamingCenters/${enc(c)}/reservation`,
+    reservationDetail: (c: string, r: string) =>
+      `/gamingCenters/${enc(c)}/reservation/${enc(r)}`,
     proposeTime: (c: string, r: string) =>
       `/gamingCenters/${enc(c)}/reservation/${enc(r)}/propose-time`,
+    proposals: (c: string, r: string) =>
+      `/gamingCenters/${enc(c)}/reservation/${enc(r)}/proposals`,
     /** مطابق OpenAPI: start/stop با reservation (مفرد) و pause/resume با reservations (جمع) */
     session: (c: string, r: string, action: "start" | "stop" | "pause" | "resume") =>
       action === "pause" || action === "resume"

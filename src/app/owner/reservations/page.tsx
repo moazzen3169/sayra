@@ -46,14 +46,20 @@ function Content() {
   const availableDays = useMemo(() => generateDays(10), []);
   const hourlySlots = useMemo(() => generateHourlySlots(), []);
 
+  // Fetch reservations with server-side status filtering and OpenAPI pagination envelope support
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
     ownerService
-      .listReservations(centerId, controller.signal)
+      .listReservationsPaginated(centerId, {
+        page: 1,
+        pageSize: 100,
+        status: filter !== "ALL" ? filter : undefined,
+        signal: controller.signal,
+      })
       .then((data) => {
         if (!active) return;
-        setItems(data);
+        setItems(data.items);
         setError(null);
       })
       .catch((e) => {
@@ -65,7 +71,7 @@ function Content() {
       active = false;
       controller.abort();
     };
-  }, [centerId, reloadToken]);
+  }, [centerId, filter, reloadToken]);
 
   const visible = useMemo(() => {
     const rawQ = query.trim().toLowerCase();
@@ -137,9 +143,31 @@ function Content() {
     [busyId, centerId]
   );
 
+  // Calculate required slot hours count to enforce reservation duration consistency (Part D)
+  const targetDurationHours = useMemo(() => {
+    if (!proposeFor) return 1;
+    if (proposeFor.totalHours && proposeFor.totalHours > 0) {
+      return Math.round(proposeFor.totalHours);
+    }
+    const start = new Date(proposeFor.startTime).getTime();
+    const end = new Date(proposeFor.endTime).getTime();
+    const diff = Math.round((end - start) / 3_600_000);
+    return diff > 0 ? diff : 1;
+  }, [proposeFor]);
+
   const toggleSlotHour = (hour: number) => {
+    // When duration is strictly fixed, selecting a slot sets consecutive hours starting at that hour
+    if (targetDurationHours > 1) {
+      const consecutive: number[] = [];
+      for (let i = 0; i < targetDurationHours; i++) {
+        consecutive.push(hour + i);
+      }
+      setSelectedSlotHours(consecutive);
+      return;
+    }
+
     setSelectedSlotHours((prev) =>
-      prev.includes(hour) ? prev.filter((h) => h !== hour) : [...prev, hour].sort((a, b) => a - b)
+      prev.includes(hour) ? prev.filter((h) => h !== hour) : [hour]
     );
   };
 
@@ -150,8 +178,10 @@ function Content() {
     const minHour = Math.min(...selectedSlotHours);
     const maxHour = Math.max(...selectedSlotHours) + 1;
 
-    const startTime = new Date(`${selectedDay.fullDate}T${String(minHour).padStart(2, "0")}:00:00+03:30`).toISOString();
-    const endTime = new Date(`${selectedDay.fullDate}T${String(maxHour).padStart(2, "0")}:00:00+03:30`).toISOString();
+    // Use exact application timezone (Asia/Tehran +03:30) to avoid timezone shift
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const startTime = new Date(`${selectedDay.fullDate}T${pad(minHour)}:00:00+03:30`).toISOString();
+    const endTime = new Date(`${selectedDay.fullDate}T${pad(maxHour)}:00:00+03:30`).toISOString();
 
     setProposing(true);
     setActionError(null);
