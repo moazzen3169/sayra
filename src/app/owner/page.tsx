@@ -7,7 +7,7 @@ import { useOwner } from "@/context/OwnerContext";
 import { OwnerHeader } from "@/components/owner/OwnerHeader";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
-import { ownerService, pickNumber } from "@/services/ownerService";
+import { ownerService } from "@/services/ownerService";
 import type { MediaItem } from "@/types/owner";
 
 const Icon = ({ d }: { d: string }) => (
@@ -70,51 +70,70 @@ export default function OwnerDashboardPage() {
   const isApproved = verificationStatus === "APPROVED";
   const [withdrawable, setWithdrawable] = useState<number | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [galleryError, setGalleryError] = useState<string | null>(null);
   const [mediaToken, setMediaToken] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // درآمد + تعداد رزروهای در انتظار
+  // واکشی داده‌های زنده: درآمد مستند، تعداد رزروهای در انتظار واقعی و تصاویر گالری
   useEffect(() => {
     if (!centerId) {
       setWithdrawable(null);
       setPendingCount(0);
+      setIsDataLoading(false);
       return;
     }
     let active = true;
+    setIsDataLoading(true);
+    setDashboardError(null);
+
+    const targetSlug = center?.slug || centerId;
+
     Promise.allSettled([
       ownerService.getAnalyticsSummary(centerId),
       ownerService.listReservations(centerId),
-    ]).then(([summary, reservations]) => {
+      ownerService.listMedia(targetSlug),
+    ]).then(([summaryRes, reservationsRes, mediaRes]) => {
       if (!active) return;
-      if (summary.status === "fulfilled") {
-        setWithdrawable(
-          pickNumber(summary.value, ["withdrawableAmount", "withdrawableRevenue", "netRevenue", "totalRevenue", "revenue"])
-        );
+      setIsDataLoading(false);
+
+      if (summaryRes.status === "fulfilled") {
+        const data = summaryRes.value;
+        // استفاده انحصاری از فیلد مالی مستند backend بدون حدس اعداد نامربوط
+        if (typeof data?.withdrawableAmount === "number") {
+          setWithdrawable(data.withdrawableAmount);
+        } else if (typeof data?.withdrawableRevenue === "number") {
+          setWithdrawable(data.withdrawableRevenue);
+        } else if (typeof data?.netRevenue === "number") {
+          setWithdrawable(data.netRevenue);
+        } else if (typeof data?.totalRevenue === "number") {
+          setWithdrawable(data.totalRevenue);
+        } else {
+          setWithdrawable(null);
+        }
+      } else {
+        setDashboardError(getErrorMessage(summaryRes.reason));
       }
-      if (reservations.status === "fulfilled") {
-        setPendingCount(reservations.value.filter((r) => r.status === "PENDING").length);
+
+      if (reservationsRes.status === "fulfilled") {
+        const resList = Array.isArray(reservationsRes.value) ? reservationsRes.value : [];
+        setPendingCount(resList.filter((r) => r?.status === "PENDING").length);
+      } else {
+        setDashboardError((prev) => prev || getErrorMessage(reservationsRes.reason));
+      }
+
+      if (mediaRes.status === "fulfilled") {
+        setMedia(Array.isArray(mediaRes.value) ? mediaRes.value : []);
       }
     });
-    return () => {
-      active = false;
-    };
-  }, [centerId]);
 
-  // گالری
-  useEffect(() => {
-    if (!center?.slug) return;
-    let active = true;
-    ownerService
-      .listMedia(center.slug)
-      .then((items) => active && setMedia(items))
-      .catch(() => active && setMedia([]));
     return () => {
       active = false;
     };
-  }, [center?.slug, mediaToken]);
+  }, [centerId, center?.slug, mediaToken]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,6 +209,12 @@ export default function OwnerDashboardPage() {
         {centerError && (
           <div className="p-3.5 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold leading-relaxed">
             {centerError}
+          </div>
+        )}
+
+        {dashboardError && !centerError && (
+          <div className="p-3.5 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold leading-relaxed">
+            {dashboardError}
           </div>
         )}
 

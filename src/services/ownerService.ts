@@ -291,8 +291,9 @@ export const ownerService = {
         signal,
       });
       return asArray<OwnerReservation>(data);
-    } catch {
-      return [...mockReservationsStore];
+    } catch (err) {
+      if (USE_MOCK_RESERVATIONS) return [...mockReservationsStore];
+      throw err;
     }
   },
 
@@ -340,9 +341,10 @@ export const ownerService = {
     if (USE_MOCK_RESERVATIONS) return { ...mockSettingsStore };
     try {
       const { data } = await apiClient.get<CenterSettings>(ENDPOINTS.owner.settings(centerId), { signal });
-      return data ?? { ...mockSettingsStore };
-    } catch {
-      return { ...mockSettingsStore };
+      return data;
+    } catch (err) {
+      if (USE_MOCK_RESERVATIONS) return { ...mockSettingsStore };
+      throw err;
     }
   },
 
@@ -351,10 +353,23 @@ export const ownerService = {
       mockSettingsStore = { ...mockSettingsStore, ...payload };
       return;
     }
+    // Only send documented Settings properties to avoid validation errors
+    const sanitizedPayload: CenterSettings = {};
+    if (payload.timeZone !== undefined) sanitizedPayload.timeZone = payload.timeZone;
+    if (payload.workStartTime !== undefined) sanitizedPayload.workStartTime = payload.workStartTime;
+    if (payload.workEndTime !== undefined) sanitizedPayload.workEndTime = payload.workEndTime;
+    if (payload.allowOnlineBooking !== undefined) sanitizedPayload.allowOnlineBooking = payload.allowOnlineBooking;
+    if (payload.onlineBookingAutoConfirm !== undefined) sanitizedPayload.onlineBookingAutoConfirm = payload.onlineBookingAutoConfirm;
+    if (payload.preventOverlaps !== undefined) sanitizedPayload.preventOverlaps = payload.preventOverlaps;
+
     try {
-      await apiClient.put(ENDPOINTS.owner.settings(centerId), payload);
-    } catch {
-      mockSettingsStore = { ...mockSettingsStore, ...payload };
+      await apiClient.put(ENDPOINTS.owner.settings(centerId), sanitizedPayload);
+    } catch (err) {
+      if (USE_MOCK_RESERVATIONS) {
+        mockSettingsStore = { ...mockSettingsStore, ...payload };
+        return;
+      }
+      throw err;
     }
   },
 
@@ -444,10 +459,10 @@ export const ownerService = {
     if (USE_MOCK_RESERVATIONS) return [...mockMediaStore];
     try {
       const { data } = await apiClient.get<MediaItem[]>(ENDPOINTS.gamingCenter.media(slug), { signal });
-      const filtered = asArray<MediaItem>(data).filter((m) => !!m?.url);
-      return filtered.length > 0 ? filtered : [...mockMediaStore];
-    } catch {
-      return [...mockMediaStore];
+      return asArray<MediaItem>(data).filter((m) => !!m?.url);
+    } catch (err) {
+      if (USE_MOCK_RESERVATIONS) return [...mockMediaStore];
+      throw err;
     }
   },
 
@@ -538,15 +553,16 @@ export const ownerService = {
     }
   },
 
-  async getAnalyticsSummary(centerId: string, signal?: AbortSignal): Promise<unknown> {
+  async getAnalyticsSummary(centerId: string, signal?: AbortSignal): Promise<any> {
     if (USE_MOCK_RESERVATIONS) {
       return mockAnalyticsStore;
     }
     try {
-      const { data } = await apiClient.get<unknown>(ENDPOINTS.owner.analyticsSummary(centerId), { signal });
-      return data ?? mockAnalyticsStore;
-    } catch {
-      return mockAnalyticsStore;
+      const { data } = await apiClient.get<any>(ENDPOINTS.owner.analyticsSummary(centerId), { signal });
+      return data;
+    } catch (err) {
+      if (USE_MOCK_RESERVATIONS) return mockAnalyticsStore;
+      throw err;
     }
   },
 

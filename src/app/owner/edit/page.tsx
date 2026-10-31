@@ -97,27 +97,14 @@ export default function OwnerEditPage() {
   useEffect(() => {
     let active = true;
 
-    // Set initial values from center prop
     if (center) {
-      setName((prev) => prev || center.name || "");
-      setAddress((prev) => prev || center.description || "");
+      setName(center.name || "");
+      setAddress(center.description || "");
     }
 
-    // Load local stored state if available
-    try {
-      const savedRaw = localStorage.getItem(`sayra_owner_edit_${centerId}`);
-      if (savedRaw) {
-        const saved = JSON.parse(savedRaw);
-        if (saved.name) setName(saved.name);
-        if (saved.address) setAddress(saved.address);
-        if (typeof saved.lat === "number") setLat(saved.lat);
-        if (typeof saved.lng === "number") setLng(saved.lng);
-        if (Array.isArray(saved.games)) setGames(saved.games);
-        if (typeof saved.allowOnline === "boolean") setAllowOnline(saved.allowOnline);
-        if (typeof saved.autoConfirm === "boolean") setAutoConfirm(saved.autoConfirm);
-      }
-    } catch {
-      // ignore
+    if (!centerId) {
+      setLoaded(true);
+      return;
     }
 
     const controller = new AbortController();
@@ -190,33 +177,25 @@ export default function OwnerEditPage() {
     setSaving(true);
     setMsg(null);
     try {
+      // فقط فیلدهای پشتیبانی شده توسط اندپوینت settings ارسال می‌شوند
       const settings: CenterSettings = {
         allowOnlineBooking: allowOnline,
         onlineBookingAutoConfirm: autoConfirm,
       };
-      await ownerService.updateSettings(centerId, settings).catch(() => {
-        // Swallowed if API server is not available; local state persists
-      });
+      await ownerService.updateSettings(centerId, settings);
 
-      // Save locally in localStorage for persistent UI state across refreshes
-      try {
-        localStorage.setItem(
-          `sayra_owner_edit_${centerId}`,
-          JSON.stringify({
-            name,
-            address,
-            lat,
-            lng,
-            games,
-            allowOnline,
-            autoConfirm,
-          })
-        );
-      } catch {
-        // ignore localStorage errors
+      // به‌روزرسانی مجدد تنظیمات از سرور جهت اطمینان از تطابق با بک‌اند
+      const freshSettings = await ownerService.getSettings(centerId).catch(() => null);
+      if (freshSettings) {
+        setAllowOnline(freshSettings.allowOnlineBooking !== false);
+        setAutoConfirm(!!freshSettings.onlineBookingAutoConfirm);
       }
 
-      setMsg({ ok: true, text: "تغییرات با موفقیت ذخیره شد." });
+      // پیام شفاف که به کاربر اعلام می‌کند تنظیمات رزرو در بک‌اند ثبت شد و سایر فیلدها منتظر قرارداد بک‌اند هستند
+      setMsg({
+        ok: true,
+        text: "تنظیمات رزرو آنلاین با موفقیت در سرور ذخیره شد. (تغییر نام، آدرس و بازی‌ها پس از فعال‌سازی اندپوینت مربوطه در بک‌اند اعمال خواهند شد)",
+      });
     } catch (err) {
       setMsg({ ok: false, text: getErrorMessage(err) });
     } finally {

@@ -70,4 +70,99 @@ describe("ownerService.getMe & center resolution", () => {
     const nonExistent = await ownerService.findCenter("gc-999");
     expect(nonExistent).toBeNull();
   });
+
+  it("fetches settings for center and sanitizes updates", async () => {
+    let capturedBody: any = null;
+    let capturedMethod = "";
+
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const urlStr = String(url);
+      if (urlStr.includes("/gamingCenters/gc-100/settings")) {
+        if (init?.method === "PUT") {
+          capturedMethod = "PUT";
+          capturedBody = JSON.parse(String(init.body));
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                id: "set-1",
+                gamingCenterId: "gc-100",
+                ...capturedBody,
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              id: "set-1",
+              gamingCenterId: "gc-100",
+              timeZone: "Asia/Tehran",
+              workStartTime: "09:00",
+              workEndTime: "23:00",
+              allowOnlineBooking: true,
+              onlineBookingAutoConfirm: false,
+              preventOverlaps: true,
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(JSON.stringify({ success: false }), { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const settings = await ownerService.getSettings("gc-100");
+    expect(settings.workStartTime).toBe("09:00");
+    expect(settings.workEndTime).toBe("23:00");
+    expect(settings.preventOverlaps).toBe(true);
+
+    // Ensure updateSettings sanitizes unsupported fields like name, address, games
+    await ownerService.updateSettings("gc-100", {
+      workStartTime: "10:00",
+      workEndTime: "02:00",
+      allowOnlineBooking: true,
+      onlineBookingAutoConfirm: true,
+      preventOverlaps: true,
+      // @ts-ignore - simulate unsupported fields
+      unsupportedField: "hack",
+    });
+
+    expect(capturedMethod).toBe("PUT");
+    expect(capturedBody.workStartTime).toBe("10:00");
+    expect(capturedBody.workEndTime).toBe("02:00");
+    expect(capturedBody.allowOnlineBooking).toBe(true);
+    expect(capturedBody.onlineBookingAutoConfirm).toBe(true);
+    expect(capturedBody.preventOverlaps).toBe(true);
+    expect(capturedBody.unsupportedField).toBeUndefined();
+  });
+
+  it("fetches real reservations and calculates pending counts accurately", async () => {
+    const mockReservations = [
+      { id: "r-1", status: "PENDING", totalPrice: 100000 },
+      { id: "r-2", status: "CONFIRMED", totalPrice: 200000 },
+      { id: "r-3", status: "PENDING", totalPrice: 150000 },
+      { id: "r-4", status: "COMPLETED", totalPrice: 120000 },
+    ];
+
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      const urlStr = String(url);
+      if (urlStr.includes("/gamingCenters/gc-100/reservation")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: mockReservations,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(JSON.stringify({ success: false }), { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const reservations = await ownerService.listReservations("gc-100");
+    expect(reservations.length).toBe(4);
+    const pendingCount = reservations.filter((r) => r.status === "PENDING").length;
+    expect(pendingCount).toBe(2);
+  });
 });

@@ -16,17 +16,31 @@ export default function OwnerHoursPage() {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
-  const [tz, setTz] = useState("");
+  const [tz, setTz] = useState("Asia/Tehran");
+  const [allowOnline, setAllowOnline] = useState<boolean>(true);
+  const [autoConfirm, setAutoConfirm] = useState<boolean>(false);
+  const [preventOverlaps, setPreventOverlaps] = useState<boolean>(true);
 
   useEffect(() => {
     let active = true;
+    setLoaded(false);
+    setMsg(null);
+
+    if (!centerId) {
+      setLoaded(true);
+      return;
+    }
+
     ownerService
       .getSettings(centerId)
       .then((s) => {
         if (!active) return;
-        setStart(s.workStartTime ?? "");
-        setEnd(s.workEndTime ?? "");
-        setTz(s.timeZone ?? "");
+        setStart(s?.workStartTime ?? "");
+        setEnd(s?.workEndTime ?? "");
+        setTz(s?.timeZone ?? "Asia/Tehran");
+        setAllowOnline(s?.allowOnlineBooking !== false);
+        setAutoConfirm(!!s?.onlineBookingAutoConfirm);
+        setPreventOverlaps(s?.preventOverlaps !== false);
       })
       .catch((e) => active && setMsg({ ok: false, text: getErrorMessage(e) }))
       .finally(() => active && setLoaded(true));
@@ -42,11 +56,24 @@ export default function OwnerHoursPage() {
     setMsg(null);
     try {
       await ownerService.updateSettings(centerId, {
-        ...(start ? { workStartTime: start } : {}),
-        ...(end ? { workEndTime: end } : {}),
-        ...(tz ? { timeZone: tz } : {}),
+        workStartTime: start,
+        workEndTime: end,
+        timeZone: tz || "Asia/Tehran",
+        allowOnlineBooking: allowOnline,
+        onlineBookingAutoConfirm: autoConfirm,
+        preventOverlaps: preventOverlaps,
       });
-      setMsg({ ok: true, text: "ساعات کاری ذخیره شد." });
+
+      // Refresh data from backend to verify server state persistence
+      const refreshed = await ownerService.getSettings(centerId);
+      setStart(refreshed?.workStartTime ?? start);
+      setEnd(refreshed?.workEndTime ?? end);
+      setTz(refreshed?.timeZone ?? tz);
+      setAllowOnline(refreshed?.allowOnlineBooking !== false);
+      setAutoConfirm(!!refreshed?.onlineBookingAutoConfirm);
+      setPreventOverlaps(refreshed?.preventOverlaps !== false);
+
+      setMsg({ ok: true, text: "ساعات کاری و تنظیمات با موفقیت در سرور ذخیره شد." });
     } catch (err) {
       setMsg({ ok: false, text: getErrorMessage(err) });
     } finally {
