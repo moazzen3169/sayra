@@ -1,11 +1,16 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
 import { useOwner } from "@/context/OwnerContext";
 import { isAbortError } from "@/lib/api/client";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { ownerService } from "@/services/ownerService";
+import {
+  discountService,
+  type CreateDiscountInput,
+  type Discount,
+} from "@/services/discountService";
 import type { GameStationInfo } from "@/services/gamingCenterService";
 
 // Interface representing a Discount Rule / Code in the system
@@ -24,55 +29,6 @@ export interface DiscountItem {
   createdAt: string;
   expiresAt: string; // e.g. "۳ روز دیگر"
 }
-
-// Initial realistic discount data for owner dashboard
-const INITIAL_DISCOUNTS: DiscountItem[] = [
-  {
-    id: "disc-1",
-    title: "تخفیف جشنواره آخر هفته",
-    code: "WEEKEND20",
-    discountType: "PERCENTAGE",
-    value: 20,
-    targetScope: "ALL",
-    targetDeviceName: "همه دستگاه‌ها",
-    durationDays: 3,
-    maxUsage: 50,
-    usedCount: 18,
-    isActive: true,
-    createdAt: "۱۴۰۳/۱۲/۰۱",
-    expiresAt: "۳ روز دیگر",
-  },
-  {
-    id: "disc-2",
-    title: "پیشنهاد ویژه سیستم‌های PS5",
-    code: "PS5SPECIAL",
-    discountType: "FIXED_AMOUNT",
-    value: 40000,
-    targetScope: "STATION_TYPE",
-    targetDeviceName: "PLAYSTATION",
-    durationDays: 7,
-    maxUsage: 30,
-    usedCount: 12,
-    isActive: true,
-    createdAt: "۱۴۰۳/۱۱/۲۸",
-    expiresAt: "۵ روز دیگر",
-  },
-  {
-    id: "disc-3",
-    title: "تخفیف روزانه روم VIP و VR",
-    code: "VRVIP15",
-    discountType: "PERCENTAGE",
-    value: 15,
-    targetScope: "STATION_TYPE",
-    targetDeviceName: "VR",
-    durationDays: 1,
-    maxUsage: 10,
-    usedCount: 10,
-    isActive: false,
-    createdAt: "۱۴۰۳/۱۱/۱۵",
-    expiresAt: "منقضی شده",
-  },
-];
 
 const PRESETS = [
   {
@@ -110,13 +66,93 @@ const PRESETS = [
 const inputClass =
   "h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none text-[var(--text-white)] placeholder:text-[var(--text-muted)] transition-all";
 
+function formatIsoToPersianDate(isoString?: string): string {
+  if (!isoString) return "—";
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return isoString;
+    return new Intl.DateTimeFormat("fa-IR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+  } catch {
+    return isoString;
+  }
+}
+
+function formatExpiryDisplay(endAtIso?: string): string {
+  if (!endAtIso) return "نامشخص";
+  try {
+    const end = new Date(endAtIso).getTime();
+    const now = Date.now();
+    const diffMs = end - now;
+    if (diffMs <= 0) return "منقضی شده";
+    const diffDays = Math.ceil(diffMs / 86400000);
+    return `${toPersianDigits(diffDays)} روز دیگر`;
+  } catch {
+    return "نامشخص";
+  }
+}
+
+function calculateDurationDays(startAtIso?: string, endAtIso?: string): number {
+  if (!startAtIso || !endAtIso) return 3;
+  try {
+    const s = new Date(startAtIso).getTime();
+    const e = new Date(endAtIso).getTime();
+    const days = Math.round((e - s) / 86400000);
+    return Math.max(1, days);
+  } catch {
+    return 3;
+  }
+}
+
+function mapBackendDiscountToItem(
+  d: Discount,
+  stationMap: Map<string, GameStationInfo>
+): DiscountItem {
+  const isStation = d.targetType === "STATION";
+  const st = isStation ? stationMap.get(d.targetId) : undefined;
+  const targetDeviceName = isStation
+    ? st?.name ?? "دستگاه اختصاصی"
+    : "همه دستگاه‌ها";
+  const targetScope: "ALL" | "STATION_TYPE" | "SPECIFIC_STATION" = isStation
+    ? "SPECIFIC_STATION"
+    : "ALL";
+
+  const durationDays = calculateDurationDays(d.startAt, d.endAt);
+  const title =
+    d.title?.trim() ||
+    (d.valueType === "PERCENTAGE"
+      ? `تخفیف ${toPersianDigits(d.value)}٪`
+      : `تخفیف ${formatPrice(d.value)} تومان`);
+
+  return {
+    id: d.id,
+    title,
+    code: d.code,
+    discountType: d.valueType,
+    value: d.value,
+    targetScope,
+    targetDeviceName,
+    durationDays,
+    maxUsage: d.maxUsage,
+    usedCount: d.usedCount ?? 0,
+    isActive: d.isActive,
+    createdAt: formatIsoToPersianDate(d.createdAt || d.startAt),
+    expiresAt: formatExpiryDisplay(d.endAt),
+  };
+}
+
 export default function OwnerDiscountsPage() {
   const { center, centerId } = useOwner();
 
   // State management
-  const [discounts, setDiscounts] = useState<DiscountItem[]>(INITIAL_DISCOUNTS);
+  const [discounts, setDiscounts] = useState<DiscountItem[]>([]);
   const [stations, setStations] = useState<GameStationInfo[]>([]);
   const [filter, setFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Modal / Form state
   const [openModal, setOpenModal] = useState(false);
@@ -136,6 +172,7 @@ export default function OwnerDiscountsPage() {
 
   // Load stations for center
   useEffect(() => {
+    if (!centerId) return;
     let active = true;
     const controller = new AbortController();
     ownerService
@@ -153,6 +190,50 @@ export default function OwnerDiscountsPage() {
     };
   }, [centerId]);
 
+  // Load discounts from real backend API
+  const fetchDiscounts = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!centerId) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const queryParams: { isActive?: boolean; signal?: AbortSignal } = {
+          signal,
+        };
+        if (filter === "ACTIVE") queryParams.isActive = true;
+        if (filter === "INACTIVE") queryParams.isActive = false;
+
+        const rawDiscounts = await discountService.listDiscounts(
+          centerId,
+          queryParams
+        );
+
+        const stationMap = new Map<string, GameStationInfo>(
+          stations.map((s) => [s.id, s])
+        );
+
+        const mapped = rawDiscounts.map((d) =>
+          mapBackendDiscountToItem(d, stationMap)
+        );
+        setDiscounts(mapped);
+      } catch (err: any) {
+        if (isAbortError(err)) return;
+        setError(err?.message || "خطا در دریافت لیست تخفیف‌ها");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [centerId, filter, stations]
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchDiscounts(controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [fetchDiscounts]);
+
   // Handle Preset Selection
   const applyPreset = (preset: (typeof PRESETS)[0]) => {
     setTitle(preset.title);
@@ -166,8 +247,10 @@ export default function OwnerDiscountsPage() {
   };
 
   // Submit Handler
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+
     const valNum = Number(value);
     if (isNaN(valNum) || valNum <= 0) {
       setMsg({ ok: false, text: "لطفا مقدار تخفیف معتبری وارد کنید." });
@@ -178,33 +261,66 @@ export default function OwnerDiscountsPage() {
       return;
     }
 
+    if (!centerId) {
+      setMsg({ ok: false, text: "شناسه گیم‌نت یافت نشد." });
+      return;
+    }
+
     setSubmitting(true);
     setMsg(null);
 
-    setTimeout(() => {
+    try {
       const days = Number(durationDays) || 3;
-      const newDiscount: DiscountItem = {
-        id: `disc-${Date.now()}`,
-        title: title.trim() || (discountType === "PERCENTAGE" ? `تخفیف ${toPersianDigits(valNum)}٪` : `تخفیف ${formatPrice(valNum)} تومان`),
-        code: code.trim() ? code.trim().toUpperCase() : undefined,
-        discountType,
+      const now = new Date();
+      const startAt = now.toISOString();
+      const endAt = new Date(now.getTime() + days * 86400000).toISOString();
+
+      let targetType: "GAMING_CENTER" | "STATION" = "GAMING_CENTER";
+      let targetId: string = centerId;
+
+      if (targetScope === "SPECIFIC_STATION") {
+        targetType = "STATION";
+        // Find matching station ID by name or fallback to first station
+        const matched = stations.find((s) => s.name === targetDeviceName);
+        if (matched) {
+          targetId = matched.id;
+        } else if (stations.length > 0) {
+          targetId = stations[0].id;
+        }
+      } else {
+        targetType = "GAMING_CENTER";
+        targetId = centerId;
+      }
+
+      const payload: CreateDiscountInput = {
+        targetType,
+        targetId,
+        valueType: discountType,
         value: valNum,
-        targetScope,
-        targetDeviceName,
-        durationDays: days,
-        maxUsage: hasUsageLimit && Number(maxUsage) > 0 ? Number(maxUsage) : undefined,
-        usedCount: 0,
+        startAt,
+        endAt,
         isActive: true,
-        createdAt: "امروز",
-        expiresAt: `${toPersianDigits(days)} روز دیگر`,
       };
 
-      setDiscounts([newDiscount, ...discounts]);
-      setSubmitting(false);
+      await discountService.createDiscount(centerId, payload);
+
       setOpenModal(false);
       resetForm();
-      setMsg({ ok: true, text: "تخفیف جدید با موفقیت ایجاد شد و برای گیمنت شما فعال گردید." });
-    }, 400);
+      setMsg({
+        ok: true,
+        text: "تخفیف جدید با موفقیت ایجاد شد و برای گیمنت شما فعال گردید.",
+      });
+
+      // Refresh list to preserve server state
+      await fetchDiscounts();
+    } catch (err: any) {
+      setMsg({
+        ok: false,
+        text: err?.message || "خطا در ثبت تخفیف در سرور.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const resetForm = () => {
@@ -219,17 +335,50 @@ export default function OwnerDiscountsPage() {
     setHasUsageLimit(true);
   };
 
-  const toggleStatus = (id: string) => {
+  const toggleStatus = async (id: string) => {
+    const target = discounts.find((d) => d.id === id);
+    if (!target || !centerId) return;
+
+    const nextState = !target.isActive;
+    // Optimistic UI update
     setDiscounts((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, isActive: !d.isActive } : d))
+      prev.map((d) => (d.id === id ? { ...d, isActive: nextState } : d))
     );
+
+    try {
+      await discountService.updateDiscountStatus(centerId, id, nextState);
+    } catch (err: any) {
+      // Revert on error
+      setDiscounts((prev) =>
+        prev.map((d) => (d.id === id ? { ...d, isActive: target.isActive } : d))
+      );
+      setMsg({
+        ok: false,
+        text: err?.message || "خطا در تغییر وضعیت تخفیف در سرور.",
+      });
+    }
   };
 
-  const deleteDiscount = (id: string) => {
+  const deleteDiscount = async (id: string) => {
+    if (!centerId) return;
+    const prevList = [...discounts];
+    // Optimistic removal
     setDiscounts((prev) => prev.filter((d) => d.id !== id));
+
+    try {
+      await discountService.deleteDiscount(centerId, id);
+      setMsg({ ok: true, text: "تخفیف با موفقیت حذف گردید." });
+    } catch (err: any) {
+      // Revert on error
+      setDiscounts(prevList);
+      setMsg({
+        ok: false,
+        text: err?.message || "خطا در حذف تخفیف از سرور.",
+      });
+    }
   };
 
-  // Base price sample calculation for live preview
+  // Base price sample calculation for live preview (clearly a visual preview)
   const sampleBasePrice = 120000; // 120,000 Tomans
   const numericVal = Number(value) || 0;
   const calculatedDiscountedPrice =
@@ -278,6 +427,20 @@ export default function OwnerDiscountsPage() {
             <span>{msg.text}</span>
             <button type="button" onClick={() => setMsg(null)} className="text-xs opacity-70 hover:opacity-100 cursor-pointer">
               ✕
+            </button>
+          </div>
+        )}
+
+        {/* Error message */}
+        {error && (
+          <div className="p-3.5 rounded-card text-xs font-bold bg-[var(--accent-red)]/10 text-[var(--accent-red)] border border-[var(--accent-red)]/30 flex items-center justify-between">
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={() => fetchDiscounts()}
+              className="text-xs underline cursor-pointer"
+            >
+              تلاش مجدد
             </button>
           </div>
         )}
@@ -342,7 +505,11 @@ export default function OwnerDiscountsPage() {
         </div>
 
         {/* Discounts List */}
-        {filteredDiscounts.length === 0 ? (
+        {loading ? (
+          <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] py-12 px-4 text-center flex flex-col items-center gap-2">
+            <p className="text-xs text-[var(--text-muted)] font-medium">در حال دریافت تخفیف‌ها...</p>
+          </div>
+        ) : filteredDiscounts.length === 0 ? (
           <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] py-12 px-4 text-center flex flex-col items-center gap-2">
             <p className="text-xs text-[var(--text-muted)] font-medium">هیچ تخفیفی در این بخش یافت نشد.</p>
           </div>
