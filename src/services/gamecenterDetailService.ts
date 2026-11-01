@@ -3,6 +3,7 @@ import { ENDPOINTS } from "@/lib/api/endpoints";
 import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
 import { getMockGamecenterDetail } from "@/lib/mocks/gamecenter.mock";
 import type { GamecenterDetail, GamecenterReview } from "@/types/gamecenter";
+import type { PublicAddress } from "@/types/customerApi";
 
 export interface GamingCenterInfo {
   id: string;
@@ -79,6 +80,13 @@ export const gamingCenterService = {
     const { data } = await apiClient.get(ENDPOINTS.gamingCenter.ratings(slug), { signal });
     return data;
   },
+
+  async getPublicAddresses(slug: string, signal?: AbortSignal): Promise<PublicAddress[]> {
+    const { data } = await apiClient.get<PublicAddress[]>(ENDPOINTS.gamingCenter.addresses(slug), {
+      signal,
+    });
+    return Array.isArray(data) ? data : [];
+  },
 };
 
 export async function loadGamecenterDetail(
@@ -103,11 +111,29 @@ export async function loadGamecenterDetail(
       reviews = [];
     }
 
+    let authoritativeAddress: string | undefined;
+    try {
+      const addresses = await gamingCenterService.getPublicAddresses(slug, signal);
+      if (addresses.length > 0) {
+        // Compose readable address from documented schema
+        const primary = addresses[0];
+        if (primary.city && primary.address) {
+          authoritativeAddress = primary.address.includes(primary.city)
+            ? primary.address
+            : `${primary.city}، ${primary.address}`;
+        } else {
+          authoritativeAddress = primary.address;
+        }
+      }
+    } catch {
+      authoritativeAddress = undefined;
+    }
+
     const mockDetail = getMockGamecenterDetail(slug);
 
     return {
       center,
-      address: center.description || mockDetail.address,
+      address: authoritativeAddress || center.description || mockDetail.address,
       images: mockDetail.images,
       stations: stations.length > 0 ? stations : mockDetail.stations,
       reviews,
