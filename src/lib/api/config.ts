@@ -1,24 +1,59 @@
 /**
  * API & Environment Configuration
- * Central source of truth for API base URL, timezone, mock flags, and token keys.
+ * Central source of truth for API base URL, proxy path, timezone, mock flags, and token keys.
  */
 
 export const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 /**
- * Determine API Base URL:
+ * Check if running in a client-side browser environment.
+ * Evaluated dynamically so test suites or runtime environment shifts are respected.
+ */
+export function isBrowser(): boolean {
+  return typeof window !== "undefined";
+}
+
+/**
+ * Server-side Upstream Backend API URL:
+ * Resolves the destination for the Next.js server proxy (`/api/proxy`).
+ *
  * Priority:
- * 1. NEXT_PUBLIC_API_BASE_URL (explicit override)
- * 2. In browser when a proxy or custom origin is preferred, fallback to /api/v1 (or full URL)
+ * 1. API_BASE_URL (standard server-side environment variable)
+ * 2. NEXT_PUBLIC_API_BASE_URL (fallback for existing deployments)
  * 3. Default demo API URL
  */
 const DEFAULT_DEV_API_URL = "http://87.248.156.152/api/v1";
 const DEFAULT_PROD_API_URL = "http://87.248.156.152/api/v1";
 
-export const API_BASE_URL = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  (IS_PRODUCTION ? DEFAULT_PROD_API_URL : DEFAULT_DEV_API_URL)
-).replace(/\/+$/, "");
+export function getUpstreamApiBaseUrl(): string {
+  const url =
+    process.env.API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    (process.env.NODE_ENV === "production" ? DEFAULT_PROD_API_URL : DEFAULT_DEV_API_URL);
+  return url.replace(/\/+$/, "");
+}
+
+// Deprecated export maintained for backward compatibility with existing code
+export const API_BASE_URL = getUpstreamApiBaseUrl();
+
+/**
+ * Browser Proxy Base Path
+ * In the browser, all API client calls MUST route through the local Next.js proxy (/api/proxy)
+ * to ensure that server-side credentials (x-api-key) are injected and never exposed.
+ */
+export const PROXY_BASE_PATH = "/api/proxy";
+
+/**
+ * Determine the effective client base URL based on runtime environment.
+ * In browser: returns PROXY_BASE_PATH (/api/proxy)
+ * On server / SSR / tests without browser: returns getUpstreamApiBaseUrl()
+ */
+export function getClientApiBaseUrl(): string {
+  if (isBrowser()) {
+    return PROXY_BASE_PATH;
+  }
+  return getUpstreamApiBaseUrl();
+}
 
 /**
  * Application Timezone.

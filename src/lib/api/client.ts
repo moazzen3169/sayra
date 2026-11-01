@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./config";
+import { getClientApiBaseUrl } from "./config";
 import { getAccessToken, refreshAccessToken, clearTokens } from "../token";
 
 export interface ApiMeta {
@@ -79,11 +79,12 @@ export function buildQueryString(query?: Query): string {
 }
 
 /**
- * Build complete request URL based on API_BASE_URL.
+ * Build complete request URL based on effective client base URL.
+ * Automatically uses /api/proxy in the browser.
  */
 export function buildUrl(path: string, query?: Query): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const base = API_BASE_URL.replace(/\/+$/, "");
+  const base = getClientApiBaseUrl().replace(/\/+$/, "");
   const qs = buildQueryString(query);
   return `${base}${normalizedPath}${qs}`;
 }
@@ -97,10 +98,6 @@ async function executeFetch<T>(
   options: RequestOptions = {},
   overrideToken?: string | null
 ): Promise<{ data: T; meta?: ApiMeta; message?: string }> {
-  if (!API_BASE_URL) {
-    throw new ApiError(0, "API_BASE_URL_MISSING", "ارتباط با سرور برقرار نشد.");
-  }
-
   const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
 
   const headers: Record<string, string> = {
@@ -113,7 +110,7 @@ async function executeFetch<T>(
     headers["Content-Type"] = "application/json";
   }
 
-  // Token resolution
+  // Token resolution (Bearer token)
   const token = overrideToken !== undefined ? overrideToken : getAccessToken();
   if (token) {
     headers.Authorization = `Bearer ${token}`;
@@ -169,8 +166,22 @@ async function executeFetch<T>(
 
   // Handle HTTP error statuses or envelope success: false
   if (!res.ok || json?.success === false) {
-    const errorCode = json?.error?.code || (res.status === 401 ? "UNAUTHORIZED" : res.status === 403 ? "FORBIDDEN" : res.status === 404 ? "NOT_FOUND" : "HTTP_ERROR");
-    const errorMessage = json?.error?.message || (res.status === 401 ? "نشست کاربری نامعتبر است." : res.status === 403 ? "دسترسی غیرمجاز." : "خطای نامشخص از سمت سرور.");
+    const errorCode =
+      json?.error?.code ||
+      (res.status === 401
+        ? "UNAUTHORIZED"
+        : res.status === 403
+        ? "FORBIDDEN"
+        : res.status === 404
+        ? "NOT_FOUND"
+        : "HTTP_ERROR");
+    const errorMessage =
+      json?.error?.message ||
+      (res.status === 401
+        ? "نشست کاربری نامعتبر است."
+        : res.status === 403
+        ? "دسترسی غیرمجاز."
+        : "خطای نامشخص از سمت سرور.");
 
     throw new ApiError(
       res.status,
@@ -189,28 +200,33 @@ async function executeFetch<T>(
 }
 
 /**
- * Direct call to refresh endpoint conforming to OpenAPI /auth/refresh
+ * Direct call to refresh endpoint conforming to OpenAPI /auth/refresh.
+ * Routes through buildUrl so in the browser it passes through /api/proxy and receives x-api-key.
  */
 async function performTokenRefresh(refreshToken: string): Promise<{ accessToken: string } | null> {
-  const base = API_BASE_URL.replace(/\/+$/, "");
-  const res = await fetch(`${base}/auth/refresh`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({ refreshToken }),
-  });
+  try {
+    const refreshUrl = buildUrl("/auth/refresh");
+    const res = await fetch(refreshUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
 
-  if (!res.ok) {
+    if (!res.ok) {
+      return null;
+    }
+
+    const json = (await res.json()) as ApiEnvelope<{ accessToken: string }>;
+    if (json?.success !== false && json?.data?.accessToken) {
+      return { accessToken: json.data.accessToken };
+    }
+    return null;
+  } catch {
     return null;
   }
-
-  const json = (await res.json()) as ApiEnvelope<{ accessToken: string }>;
-  if (json?.success !== false && json?.data?.accessToken) {
-    return { accessToken: json.data.accessToken };
-  }
-  return null;
 }
 
 /**

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { apiClient, ApiError, buildQueryString, buildUrl } from "./client";
 import { setTokens } from "../token";
+import { getClientApiBaseUrl, PROXY_BASE_PATH } from "./config";
 
 const storage = new Map<string, string>();
 const localStorageMock = {
@@ -29,9 +30,10 @@ describe("API Client & Request Infrastructure", () => {
     expect(qs).toBe("?search=ps5&page=1&isActive=true&tags=vip&tags=tehran");
   });
 
-  it("builds URL with base URL and normalized paths", () => {
+  it("builds URL with proxy base in browser environment", () => {
+    expect(getClientApiBaseUrl()).toBe(PROXY_BASE_PATH);
     const url = buildUrl("gamingCenters/test/discounts", { page: 1 });
-    expect(url).toContain("/gamingCenters/test/discounts?page=1");
+    expect(url).toBe("/api/proxy/gamingCenters/test/discounts?page=1");
   });
 
   it("preserves structured backend error codes and messages", async () => {
