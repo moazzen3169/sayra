@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { AuthModal } from "@/components/AuthModal";
+import { OwnerAuthModal } from "@/components/owner/OwnerAuthModal";
 import { useAuth } from "@/context/AuthContext";
 import { isAbortError } from "@/lib/api/client";
 import { ownerService } from "@/services/ownerService";
@@ -289,11 +289,18 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }}
     >
       {children}
-      <AuthModal
+      <OwnerAuthModal
         isOpen={authOpen}
         onClose={() => setAuthOpen(false)}
-        onSuccess={(fullName, phone, token) => {
-          login(fullName, phone, token);
+        onSuccess={(fullName, phone, token, refreshToken, chosenCenterId) => {
+          login(fullName, phone, token, refreshToken);
+          if (chosenCenterId) {
+            try {
+              localStorage.setItem(OWNER_CENTER_KEY, chosenCenterId);
+            } catch {
+              // ignore
+            }
+          }
           setAuthOpen(false);
         }}
       />
