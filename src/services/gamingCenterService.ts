@@ -152,4 +152,15 @@ export const gamingCenterService = {
       "GET /gamingCenters does not support filtering by city, category, rating, or discounts in OpenAPI v1.0-LOCKED."
     );
   },
+
+  /**
+   * دریافت فهرست شهرهای سراسری یا مناطق (Provinces, Cities, Regions)
+   * در نسخه v1.0-LOCKED هیچ اندپوینتی برای مدیریت یا دریافت لیست شهرها/مناطق وجود ندارد.
+   */
+  getCitiesUnsupported(): never {
+    throw new ContractGapError(
+      "CustomerCitiesList",
+      "Global cities and regions listing endpoint is not defined in OpenAPI v1.0-LOCKED."
+    );
+  },
 };
