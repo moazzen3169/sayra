@@ -36,10 +36,35 @@ export const gamingCenterService = {
     if (Array.isArray(resData)) {
       return resData as PublicGamingCenter[];
     }
-    if (resData && typeof resData === "object" && Array.isArray((resData as any).data)) {
-      return (resData as any).data as PublicGamingCenter[];
+    if (resData && typeof resData === "object" && "data" in resData && Array.isArray((resData as { data: unknown }).data)) {
+      return (resData as { data: PublicGamingCenter[] }).data;
     }
     return [];
+  },
+
+  /**
+   * دریافت لیست صفحه‌بندی‌شده گیمنت‌ها همراه با اطلاعات Pagination
+   * GET /gamingCenters
+   */
+  async listGamingCentersPaginated(signal?: AbortSignal): Promise<{
+    items: PublicGamingCenter[];
+    meta?: import("@/types/customerApi").ApiMeta;
+  }> {
+    const response = await apiClient.get<unknown>(ENDPOINTS.gamingCenter.list, { signal });
+    const raw = response.data;
+    let items: PublicGamingCenter[] = [];
+    if (Array.isArray(raw)) {
+      items = raw as PublicGamingCenter[];
+    } else if (raw && typeof raw === "object" && "data" in raw && Array.isArray((raw as { data: unknown }).data)) {
+      items = (raw as { data: PublicGamingCenter[] }).data;
+    }
+    const meta = (raw && typeof raw === "object" && "meta" in raw)
+      ? (raw as { meta?: import("@/types/customerApi").ApiMeta }).meta
+      : response.meta;
+    return {
+      items,
+      meta,
+    };
   },
 
   /**
