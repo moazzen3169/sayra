@@ -15,6 +15,7 @@ export const ENDPOINTS = {
     userPasswordLogin: "/auth/login",
   },
   gamingCenter: {
+    list: "/gamingCenters",
     detail: (slug: string) => `/public/gamingCenters/${enc(slug)}`,
     availabilitySlots: (slug: string) => `/public/gamingCenters/${enc(slug)}/availability/slots`,
     ratings: (slug: string) => `/public/gamingCenters/${enc(slug)}/ratings`,
@@ -22,6 +23,8 @@ export const ENDPOINTS = {
     links: (slug: string) => `/public/gamingCenters/${enc(slug)}/links`,
     addresses: (slug: string) => `/public/gamingCenters/${enc(slug)}/addresses`,
     stations: (gamingCenterId: string) => `/gamingCenters/${enc(gamingCenterId)}/stations`,
+    page: (slug: string, pageSlug: string) =>
+      `/public/gamingCenters/${enc(slug)}/pages/${enc(pageSlug)}`,
   },
   reservation: {
     create: (gamingCenterSlug: string) => `/public/gamingCenters/${enc(gamingCenterSlug)}/reservation`,
@@ -38,6 +41,25 @@ export const ENDPOINTS = {
   payment: {
     init: (gamingCenterId: string, reservationId: string) =>
       `/gamingCenters/${enc(gamingCenterId)}/reservation/${enc(reservationId)}/payments/init`,
+  },
+  notifications: {
+    list: "/notifications",
+    unreadCount: "/notifications/unread-count",
+    markRead: (id: string) => `/notifications/${enc(id)}/read`,
+  },
+  tickets: {
+    list: "/tickets",
+    create: "/tickets",
+    detail: (id: string) => `/tickets/${enc(id)}`,
+    messages: (id: string) => `/tickets/${enc(id)}/messages`,
+    attachments: (id: string) => `/tickets/${enc(id)}/attachments`,
+  },
+  waitlist: {
+    list: "/customer/waitlist",
+    create: "/customer/waitlist",
+    offers: "/customer/waitlist/offers",
+    acceptOffer: (offerId: string) => `/customer/waitlist/offers/${enc(offerId)}/accept`,
+    rejectOffer: (offerId: string) => `/customer/waitlist/offers/${enc(offerId)}/reject`,
   },
 
   /* ---------- پنل صاحب گیمنت ---------- */

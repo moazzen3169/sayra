@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { USE_MOCK_DATA } from "@/lib/api/config";
+import { ContractGapError } from "@/types/customerApi";
 
 export interface AuthUser {
   id: string;
@@ -77,11 +78,11 @@ export const authService = {
    * Get current customer profile according to OpenAPI:
    * GET /customer/me
    */
-  async getMe(): Promise<AuthUser> {
+  async getMe(signal?: AbortSignal): Promise<AuthUser> {
     if (USE_MOCK_DATA) {
       return { id: "user-1", phone: "09123456789", fullName: "کاربر سایرا" };
     }
-    const { data } = await apiClient.get<AuthUser>(ENDPOINTS.auth.me);
+    const { data } = await apiClient.get<AuthUser>(ENDPOINTS.auth.me, { signal });
     return data;
   },
 
@@ -108,11 +109,29 @@ export const authService = {
    */
   async logout(): Promise<void> {
     if (USE_MOCK_DATA) return;
-    try {
-      await apiClient.post(ENDPOINTS.auth.logout, undefined, { retryOnAuth: false });
-    } catch {
-      // Ignore network errors on logout
-    }
+    await apiClient.post(ENDPOINTS.auth.logout, undefined, { retryOnAuth: false });
+  },
+
+  /**
+   * ویرایش مشخصات پروفایل مشتری (نام، تلفن، و ...)
+   * در نسخه v1.0-LOCKED هیچ متد PATCH یا PUT برای /customer/me وجود ندارد.
+   */
+  updateProfileUnsupported(): never {
+    throw new ContractGapError(
+      "CustomerProfileUpdate",
+      "PATCH /customer/me is not supported in OpenAPI v1.0-LOCKED."
+    );
+  },
+
+  /**
+   * مدیریت و افزایش موجودی کیف پول کاربر
+   * در نسخه v1.0-LOCKED هیچ اندپوینتی برای کیف پول تعریف نشده است.
+   */
+  walletUnsupported(): never {
+    throw new ContractGapError(
+      "CustomerWallet",
+      "Customer wallet endpoints are not defined in OpenAPI v1.0-LOCKED."
+    );
   },
 
   /* =========================================================================
