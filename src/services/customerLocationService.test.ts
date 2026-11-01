@@ -18,12 +18,12 @@ describe("Phase 3: Customer Location Data (Mocked Network)", () => {
 
   function setupMockFetch(handler: (url: string, init?: RequestInit) => Response | Promise<Response>) {
     requests = [];
-    globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
       const req = new Request(input, init);
       requests.push(req);
       const url = req.url;
       return Promise.resolve(handler(url, init));
-    };
+    }) as unknown as typeof fetch;
   }
 
   afterEach(() => {

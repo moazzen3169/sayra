@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import { BottomBar } from "@/components/BottomBar";
 import { DiscountedGamecenterCard } from "@/components/DiscountedGamecenterCard";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { Icon } from "@/components/ui/Icon";
 import {
   Carousel,
@@ -55,6 +56,38 @@ function GamecentersContent() {
 
   const [searchInput, setSearchInput] = useState(queryParam);
   const [selectedCity, setSelectedCity] = useState(cityParam);
+
+  // Live centers state
+  const [allCenters, setAllCenters] = useState<GamecenterListItem[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch real centers from API
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function fetchCenters() {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await gamecentersPageService.loadAllCenters(controller.signal);
+        setAllCenters(data);
+      } catch (err) {
+        if ((err as Error)?.name !== "AbortError") {
+          setError((err as Error)?.message || "خطا در دریافت لیست گیمنت‌ها");
+          setAllCenters([]);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchCenters();
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
 
   // Sync search input if query param changes in URL
   useEffect(() => {
@@ -114,28 +147,28 @@ function GamecentersContent() {
     );
   }, [queryParam, categoryParam, sortParam]);
 
-  // Data queries
+  // Data queries derived from real data
   const discountedCenters = useMemo(
-    () => gamecentersPageService.getDiscountedCenters(),
-    [],
+    () => gamecentersPageService.getDiscountedCenters(allCenters),
+    [allCenters],
   );
   const newestCenters = useMemo(
-    () => gamecentersPageService.getNewestCenters(),
-    [],
+    () => gamecentersPageService.getNewestCenters(allCenters),
+    [allCenters],
   );
   const popularCenters = useMemo(
-    () => gamecentersPageService.getPopularCenters(),
-    [],
+    () => gamecentersPageService.getPopularCenters(allCenters),
+    [allCenters],
   );
 
   const filteredResults = useMemo(() => {
-    return gamecentersPageService.filterCenters({
+    return gamecentersPageService.filterCenters(allCenters, {
       q: queryParam,
       category: categoryParam,
       sort: sortParam,
       city: selectedCity,
     });
-  }, [queryParam, categoryParam, sortParam, selectedCity]);
+  }, [allCenters, queryParam, categoryParam, sortParam, selectedCity]);
 
   const activeCategoryName = CATEGORIES.find(
     (c) => c.id === categoryParam,
@@ -200,13 +233,13 @@ function GamecentersContent() {
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
-                    stroke-width="1.5"
+                    strokeWidth="1.5"
                     stroke="currentColor"
                     className="size-6"
                   >
                     <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                       d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
                     />
                   </svg>
@@ -282,8 +315,32 @@ function GamecentersContent() {
           </div>
         </section>
 
-        {/* Dynamic View: If filtering is active, show Search Results Grid */}
-        {isFilteringActive ? (
+        {/* Loading / Error States */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 py-6">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="animate-pulse bg-[var(--bg-card)] rounded-card border border-[var(--border-subtle)] h-64"
+              />
+            ))}
+          </div>
+        ) : error ? (
+          <ErrorState
+            title="خطا در دریافت لیست گیمنت‌ها"
+            description={error}
+            onRetry={() => {
+              setIsLoading(true);
+              setError(null);
+              gamecentersPageService
+                .loadAllCenters()
+                .then(setAllCenters)
+                .catch((e) => setError(e?.message || "خطا در برقراری ارتباط"))
+                .finally(() => setIsLoading(false));
+            }}
+          />
+        ) : isFilteringActive ? (
+          /* Dynamic View: If filtering is active, show Search Results Grid */
           <section className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-[var(--text-white)]">
@@ -322,6 +379,11 @@ function GamecentersContent() {
               />
             )}
           </section>
+        ) : allCenters.length === 0 ? (
+          <EmptyState
+            title="هیچ گیمنتی ثبت نشده است"
+            description="در حال حاضر اطلاعات گیمنتی برای نمایش وجود ندارد."
+          />
         ) : (
           /* Default Browse View: Containers 1, 2, and 3 */
           <>
