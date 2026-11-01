@@ -24,15 +24,42 @@ export default function OwnerWithdrawPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.allSettled([ownerService.getAnalyticsSummary(centerId), ownerService.listCommissions(centerId)]).then(
-      ([s, c]) => {
-        if (!active) return;
-        if (s.status === "fulfilled") {
-          setAmount(pickNumber(s.value, ["withdrawableAmount", "withdrawableRevenue", "netRevenue", "totalRevenue", "revenue"]));
-        } else setError(getErrorMessage(s.reason));
-        setEarnings(c.status === "fulfilled" ? c.value : []);
+    setError(null);
+
+    if (!centerId) {
+      setAmount(null);
+      setEarnings([]);
+      return;
+    }
+
+    Promise.allSettled([
+      ownerService.getAnalyticsSummary(centerId),
+      ownerService.listCommissionsPaginated(centerId, { page: 1, pageSize: 50 }),
+    ]).then(([s, c]) => {
+      if (!active) return;
+      if (s.status === "fulfilled") {
+        const val = s.value;
+        const resolvedAmount = pickNumber(val, [
+          "withdrawableAmount",
+          "withdrawableRevenue",
+          "netRevenue",
+          "totalRevenue",
+          "revenue",
+          "totalIncome",
+        ]);
+        setAmount(resolvedAmount);
+      } else {
+        setError(getErrorMessage(s.reason));
       }
-    );
+
+      if (c.status === "fulfilled") {
+        setEarnings(c.value.items);
+      } else {
+        setEarnings([]);
+        setError((prev) => prev || getErrorMessage(c.reason));
+      }
+    });
+
     return () => {
       active = false;
     };
