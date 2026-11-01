@@ -206,7 +206,7 @@ describe("Phase 5: Customer Search, Filtering, and Sorting (Deterministic Tests)
   describe("4. API Contract & Concurrency / Race Handling", () => {
     it("verifies GET /gamingCenters is invoked with zero query parameters", async () => {
       let requestedUrl = "";
-      globalThis.fetch = mock((url: string | URL | Request) => {
+      globalThis.fetch = ((url: string | URL | Request) => {
         requestedUrl = url.toString();
         return Promise.resolve(
           new Response(
@@ -227,7 +227,7 @@ describe("Phase 5: Customer Search, Filtering, and Sorting (Deterministic Tests)
             { status: 200, headers: { "Content-Type": "application/json" } }
           )
         );
-      });
+      }) as unknown as typeof fetch;
 
       const loaded = await gamecentersPageService.loadAllCenters();
       expect(requestedUrl).not.toContain("?");
@@ -281,7 +281,7 @@ describe("Phase 5: Customer Search, Filtering, and Sorting (Deterministic Tests)
     });
 
     it("handles API errors gracefully when server returns 500", async () => {
-      globalThis.fetch = mock(() => {
+      globalThis.fetch = (() => {
         return Promise.resolve(
           new Response(
             JSON.stringify({
@@ -291,7 +291,7 @@ describe("Phase 5: Customer Search, Filtering, and Sorting (Deterministic Tests)
             { status: 500, headers: { "Content-Type": "application/json" } }
           )
         );
-      });
+      }) as unknown as typeof fetch;
 
       await expect(gamecentersPageService.loadAllCenters()).rejects.toThrow();
     });
