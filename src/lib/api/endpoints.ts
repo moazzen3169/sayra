@@ -8,6 +8,11 @@ export const ENDPOINTS = {
     refresh: "/auth/refresh",
     logout: "/auth/logout",
     me: "/customer/me",
+    // Staff / Manager Auth APIs
+    userOtpRequest: "/auth/user/otp/request",
+    userOtpVerify: "/auth/user/otp/verify",
+    userOtpLogin: "/auth/user/login/otp",
+    userPasswordLogin: "/auth/login",
   },
   gamingCenter: {
     detail: (slug: string) => `/public/gamingCenters/${enc(slug)}`,
