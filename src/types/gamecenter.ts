@@ -26,6 +26,7 @@ export interface GamecenterDetail {
   address: string;
   images: GamecenterImage[];
   stations: GameStationInfo[];
+  stationsError?: string | null;
   reviews: GamecenterReview[];
   games: GameItem[];
 }

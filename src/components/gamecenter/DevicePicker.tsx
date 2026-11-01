@@ -16,6 +16,8 @@ import type { CartEntry, DeviceGroup } from "@/lib/devices";
 interface DevicePickerProps {
   groups: DeviceGroup[];
   cart: Record<string, CartEntry>;
+  error?: string | null;
+  onRetry?: () => void;
   onQtyChange: (key: string, qty: number) => void;
   onExtraChange: (key: string, extra: number) => void;
 }
@@ -56,7 +58,14 @@ const Stepper: React.FC<{
   </div>
 );
 
-export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyChange, onExtraChange }) => {
+export const DevicePicker: React.FC<DevicePickerProps> = ({
+  groups,
+  cart,
+  error,
+  onRetry,
+  onQtyChange,
+  onExtraChange,
+}) => {
   const [activeConsoleModal, setActiveConsoleModal] = useState<DeviceGroup | null>(null);
   const [api, setApi] = useState<CarouselApi>();
 
@@ -76,6 +85,28 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({ groups, cart, onQtyC
     },
     [api]
   );
+
+  if (error) {
+    return (
+      <div
+        role="alert"
+        className="rounded-card border border-[var(--accent-red)]/30 bg-[var(--bg-card)] p-6 text-center flex flex-col items-center gap-2"
+      >
+        <p className="text-xs font-bold text-[var(--accent-red)] leading-relaxed">
+          {error}
+        </p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-1 h-8 px-4 rounded-lg bg-[var(--foreground)] hover:bg-[var(--primary)] hover:text-on-primary text-xs font-bold text-[var(--text-white)] transition-colors"
+          >
+            تلاش مجدد
+          </button>
+        )}
+      </div>
+    );
+  }
 
   if (groups.length === 0) {
     return (

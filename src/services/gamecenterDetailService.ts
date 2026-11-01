@@ -239,10 +239,16 @@ export async function loadGamecenterDetail(
     gamingCenterService.getPublicRatings(targetSlug, signal),
   ]);
 
-  const stations: GameStationInfo[] =
-    stationsRes.status === "fulfilled" && Array.isArray(stationsRes.value)
-      ? stationsRes.value
-      : [];
+  let stations: GameStationInfo[] = [];
+  let stationsError: string | null = null;
+
+  if (stationsRes.status === "fulfilled") {
+    stations = Array.isArray(stationsRes.value) ? stationsRes.value : [];
+  } else {
+    // If request failed (network, 500, etc.), record error message so UI can distinguish empty vs failed
+    stationsError =
+      (stationsRes.reason as Error)?.message || "خطا در دریافت لیست دستگاه‌ها";
+  }
 
   const addresses: PublicAddress[] =
     addressesRes.status === "fulfilled" && Array.isArray(addressesRes.value)
@@ -268,6 +274,7 @@ export async function loadGamecenterDetail(
     address: authoritativeAddress || center.description || "",
     images: galleryImages,
     stations,
+    stationsError,
     reviews,
     // لیست بازی‌ها (Games Catalog) در OpenAPI v1.0-LOCKED روی اندپوینت‌های عمومی وجود ندارد
     // مطابق با الزامات فاز ۶، داده‌های ساختگی/موک حذف می‌شوند و آرایه خالی فرستاده می‌شود

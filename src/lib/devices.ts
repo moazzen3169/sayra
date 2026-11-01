@@ -70,7 +70,7 @@ export function groupStations(stations: GameStationInfo[]): DeviceGroup[] {
 
   return Array.from(map.entries()).map(([key, list]) => {
     const prices = list.map((s) => s.hourlyPrice);
-    const meta = META[key] ?? { label: key, image: "/img/pc.webp" };
+    const meta = META[key] ?? { label: key, image: "/img/pc.png" };
     const isConsole = CONSOLE_KEYS.has(key) || CONSOLE_KEYS.has(list[0].stationType.toUpperCase());
     const withExtra = list.find((s) => typeof s.extraControllerPrice === "number");
     return {
