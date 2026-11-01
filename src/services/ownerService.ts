@@ -1,6 +1,5 @@
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
-import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
 import type { GameStationInfo } from "@/services/gamingCenterService";
 import type {
   CenterSettings,
@@ -37,167 +36,6 @@ export function pickNumber(obj: unknown, keys: string[]): number | null {
   return null;
 }
 
-const mockCenter: PublicCenter = {
-  id: "gc-1",
-  name: "گیمنت گرگدن",
-  slug: "gc-1",
-  description: "تبریز، ولیعصر، خیابان قانون، مجتمع گرگدن",
-  isActive: true,
-};
-
-const at = (offsetMinutes: number): string =>
-  new Date(Date.now() + offsetMinutes * 60_000).toISOString();
-
-/* ---- Mock In-Memory Stores ---- */
-let mockReservationsStore: OwnerReservation[] = [
-  {
-    id: "r-owner-1",
-    reservationCode: "879456",
-    gamingCenterId: "gc-1",
-    gamingCenterName: "گیمنت گرگدن",
-    gamingCenterAddress: "تبریز، ولیعصر، خیابان قانون",
-    stationId: "st-ps5-1",
-    stationSnapshot: { name: "پلی‌استیشن ۵ #۱", hourlyPrice: 220000, stationType: "PLAYSTATION" },
-    status: "PENDING",
-    paymentState: "PAID",
-    totalHours: 2,
-    totalPrice: 440000,
-    startTime: at(30),
-    endTime: at(150),
-    customer: { fullName: "علیرضا احمدی", phone: "09123456789" },
-    customerName: "علیرضا احمدی",
-    customerPhone: "09123456789",
-  },
-  {
-    id: "r-owner-2",
-    reservationCode: "879457",
-    gamingCenterId: "gc-1",
-    gamingCenterName: "گیمنت گرگدن",
-    gamingCenterAddress: "تبریز، ولیعصر، خیابان قانون",
-    stationId: "st-pc-3",
-    stationSnapshot: { name: "کامپیوتر گیمینگ VIP", hourlyPrice: 260000, stationType: "PC" },
-    status: "CONFIRMED",
-    paymentState: "PAID",
-    totalHours: 3,
-    totalPrice: 780000,
-    startTime: at(120),
-    endTime: at(300),
-    customer: { fullName: "مهدی رسولی", phone: "09141112233" },
-    customerName: "مهدی رسولی",
-    customerPhone: "09141112233",
-  },
-  {
-    id: "r-owner-3",
-    reservationCode: "879458",
-    gamingCenterId: "gc-1",
-    gamingCenterName: "گیمنت گرگدن",
-    gamingCenterAddress: "تبریز، ولیعصر، خیابان قانون",
-    stationId: "st-vr-1",
-    stationSnapshot: { name: "اتاق واقعیت مجازی VR", hourlyPrice: 280000, stationType: "VR" },
-    status: "IN_PROGRESS",
-    paymentState: "PAID",
-    totalHours: 1,
-    totalPrice: 280000,
-    startTime: at(-20),
-    endTime: at(40),
-    customer: { fullName: "امین صادقی", phone: "09183334455" },
-    customerName: "امین صادقی",
-    customerPhone: "09183334455",
-  },
-  {
-    id: "r-owner-4",
-    reservationCode: "879459",
-    gamingCenterId: "gc-1",
-    gamingCenterName: "گیمنت گرگدن",
-    gamingCenterAddress: "تبریز، ولیعصر، خیابان قانون",
-    stationId: "st-xbox-1",
-    stationSnapshot: { name: "ایکس‌باکس سری ایکس #۱", hourlyPrice: 190000, stationType: "XBOX" },
-    status: "COMPLETED",
-    paymentState: "PAID",
-    totalHours: 2,
-    totalPrice: 380000,
-    startTime: at(-1440),
-    endTime: at(-1320),
-    customer: { fullName: "رضا کریمی", phone: "09129998877" },
-    customerName: "رضا کریمی",
-    customerPhone: "09129998877",
-  },
-  {
-    id: "r-owner-5",
-    reservationCode: "879460",
-    gamingCenterId: "gc-1",
-    gamingCenterName: "گیمنت گرگدن",
-    gamingCenterAddress: "تبریز، ولیعصر، خیابان قانون",
-    stationId: "st-pc-1",
-    stationSnapshot: { name: "کامپیوتر گیمینگ #۱", hourlyPrice: 180000, stationType: "PC" },
-    status: "CANCELED",
-    paymentState: "REFUNDED",
-    totalHours: 2,
-    totalPrice: 360000,
-    startTime: at(-2880),
-    endTime: at(-2760),
-    customer: { fullName: "حسن حسینی", phone: "09351234567" },
-    customerName: "حسن حسینی",
-    customerPhone: "09351234567",
-  },
-];
-
-let mockStationsStore: GameStationInfo[] = [
-  { id: "st-pc-1", gamingCenterId: "gc-1", name: "کامپیوتر گیمینگ #۱", stationType: "PC", hourlyPrice: 180000, quantity: 5, defaultControllers: 0, maxExtraControllers: 0, extraControllerPrice: 0, isActive: true },
-  { id: "st-pc-2", gamingCenterId: "gc-1", name: "کامپیوتر گیمینگ #۲", stationType: "PC", hourlyPrice: 180000, quantity: 5, defaultControllers: 0, maxExtraControllers: 0, extraControllerPrice: 0, isActive: true },
-  { id: "st-pc-3", gamingCenterId: "gc-1", name: "کامپیوتر گیمینگ VIP", stationType: "PC", hourlyPrice: 260000, quantity: 3, isVip: true, defaultControllers: 0, maxExtraControllers: 0, extraControllerPrice: 0, isActive: true },
-  { id: "st-ps5-1", gamingCenterId: "gc-1", name: "پلی‌استیشن ۵ #۱", stationType: "PLAYSTATION", hourlyPrice: 220000, quantity: 4, defaultControllers: 2, maxExtraControllers: 2, extraControllerPrice: 50000, isActive: true },
-  { id: "st-ps5-2", gamingCenterId: "gc-1", name: "پلی‌استیشن ۵ VIP", stationType: "PLAYSTATION", hourlyPrice: 300000, quantity: 2, isVip: true, defaultControllers: 2, maxExtraControllers: 2, extraControllerPrice: 60000, isActive: true },
-  { id: "st-xbox-1", gamingCenterId: "gc-1", name: "ایکس‌باکس سری ایکس #۱", stationType: "XBOX", hourlyPrice: 190000, quantity: 3, defaultControllers: 2, maxExtraControllers: 2, extraControllerPrice: 40000, isActive: true },
-  { id: "st-vr-1", gamingCenterId: "gc-1", name: "اتاق واقعیت مجازی VR", stationType: "VR", hourlyPrice: 280000, quantity: 1, isVip: true, defaultControllers: 0, maxExtraControllers: 0, extraControllerPrice: 0, isActive: true },
-];
-
-let mockSettingsStore: CenterSettings = {
-  timeZone: "Asia/Tehran",
-  workStartTime: "10:00",
-  workEndTime: "23:30",
-  allowOnlineBooking: true,
-  onlineBookingAutoConfirm: true,
-  preventOverlaps: true,
-};
-
-let mockMediaStore: MediaItem[] = [
-  { id: "media-1", url: "/context/sayra-slide-1.jpg", altText: "نمای عمومی سالن" },
-  { id: "media-2", url: "/context/sayra-slide-2.jpg", altText: "سیستم‌های کامپیوتر گیمینگ" },
-  { id: "media-3", url: "/context/sayra-slide-3.jpg", altText: "اتاق پلی‌استیشن ۵ VIP" },
-  { id: "media-4", url: "/img/gamnet-1.webp", altText: "صندلی‌های گیمینگ ارگونومیک" },
-  { id: "media-5", url: "/img/gamnet-2.webp", altText: "تجهیزات VR و واقعیت مجازی" },
-];
-
-let mockRatingsStore: OwnerRating[] = [
-  {
-    id: "rat-1",
-    rating: 5,
-    customerName: "علیرضا احمدی",
-    comment: "عالی بود، سیستم‌ها فوق‌العاده قوی هستن و کیفیت مانیتورهای ۲۴۰ هرتز عالیه.",
-    status: "PUBLISHED",
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-  },
-  {
-    id: "rat-2",
-    rating: 4.5,
-    customerName: "محمد حسینی",
-    comment: "برخورد پرسنل عالی و فضا کاملا تمیز و حرفه‌ای بود. حتما باز هم میام.",
-    status: "PUBLISHED",
-    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
-  },
-  {
-    id: "rat-3",
-    rating: 5,
-    customerName: "پویا کریمی",
-    comment: "رزرو آنلاین خیلی سریع و بدون معطلی انجام شد، کیفیت دسته‌های PS5 خیلی خوب بود.",
-    status: "PUBLISHED",
-    createdAt: new Date(Date.now() - 86400000 * 8).toISOString(),
-  },
-];
-
-
-
 export const ownerService = {
   async getMe(signal?: AbortSignal): Promise<OwnerMe> {
     const { data } = await apiClient.get<OwnerMe>(ENDPOINTS.owner.me, { signal });
@@ -216,7 +54,6 @@ export const ownerService = {
       });
       return asArray<PublicCenter>(data);
     } catch (err) {
-      if (USE_MOCK_RESERVATIONS) return [mockCenter];
       throw err;
     }
   },
@@ -228,9 +65,6 @@ export const ownerService = {
       const centers = await ownerService.listCenters(signal);
       return centers.find((c) => c.id === id || c.slug === id) ?? null;
     } catch (err) {
-      if (USE_MOCK_RESERVATIONS && id === mockCenter.id) {
-        return mockCenter;
-      }
       throw err;
     }
   },
@@ -253,23 +87,6 @@ export const ownerService = {
     const requestedPage = options?.page ?? 1;
     const requestedPageSize = options?.pageSize ?? 50;
     const statusFilter = options?.status && options.status !== "ALL" ? options.status : undefined;
-
-    if (USE_MOCK_RESERVATIONS) {
-      let filtered = [...mockReservationsStore];
-      if (statusFilter) {
-        filtered = filtered.filter((r) => r.status === statusFilter);
-      }
-      const total = filtered.length;
-      const start = (requestedPage - 1) * requestedPageSize;
-      const items = filtered.slice(start, start + requestedPageSize);
-      return {
-        items,
-        total,
-        page: requestedPage,
-        pageSize: requestedPageSize,
-        totalPages: Math.ceil(total / requestedPageSize) || 1,
-      };
-    }
 
     const query: Record<string, string | number> = {
       page: requestedPage,
@@ -334,12 +151,6 @@ export const ownerService = {
    * GET /gamingCenters/{gamingCenterId}/reservation/{reservationId}
    */
   async getReservation(centerId: string, reservationId: string, signal?: AbortSignal): Promise<OwnerReservation> {
-    if (USE_MOCK_RESERVATIONS) {
-      const found = mockReservationsStore.find((r) => r.id === reservationId);
-      if (found) return found;
-      throw new Error("رزرو پیدا نشد.");
-    }
-
     const { data } = await apiClient.get<OwnerReservation | { success?: boolean; data?: OwnerReservation }>(
       ENDPOINTS.owner.reservationDetail(centerId, reservationId),
       { signal }
@@ -363,15 +174,6 @@ export const ownerService = {
     reservationId: string,
     payload: { startTime: string; endTime: string; note?: string }
   ): Promise<void> {
-    if (USE_MOCK_RESERVATIONS) {
-      const target = mockReservationsStore.find((r) => r.id === reservationId);
-      if (target) {
-        target.startTime = payload.startTime;
-        target.endTime = payload.endTime;
-      }
-      return;
-    }
-
     await apiClient.post(ENDPOINTS.owner.proposeTime(centerId, reservationId), {
       startTime: payload.startTime,
       endTime: payload.endTime,
@@ -388,8 +190,6 @@ export const ownerService = {
     reservationId: string,
     signal?: AbortSignal
   ): Promise<unknown[]> {
-    if (USE_MOCK_RESERVATIONS) return [];
-
     const { data } = await apiClient.get<unknown[] | { data?: unknown[] }>(
       ENDPOINTS.owner.proposals(centerId, reservationId),
       { signal }
@@ -413,34 +213,19 @@ export const ownerService = {
     reservationId: string,
     action: "start" | "stop" | "pause" | "resume"
   ): Promise<void> {
-    if (USE_MOCK_RESERVATIONS) {
-      const target = mockReservationsStore.find((r) => r.id === reservationId);
-      if (target) {
-        if (action === "start") target.status = "IN_PROGRESS";
-        if (action === "stop") target.status = "COMPLETED";
-      }
-      return;
-    }
-
     await apiClient.post(ENDPOINTS.owner.session(centerId, reservationId, action));
   },
 
   async getSettings(centerId: string, signal?: AbortSignal): Promise<CenterSettings> {
-    if (USE_MOCK_RESERVATIONS) return { ...mockSettingsStore };
     try {
       const { data } = await apiClient.get<CenterSettings>(ENDPOINTS.owner.settings(centerId), { signal });
       return data;
     } catch (err) {
-      if (USE_MOCK_RESERVATIONS) return { ...mockSettingsStore };
       throw err;
     }
   },
 
   async updateSettings(centerId: string, payload: CenterSettings): Promise<void> {
-    if (USE_MOCK_RESERVATIONS) {
-      mockSettingsStore = { ...mockSettingsStore, ...payload };
-      return;
-    }
     // Only send documented Settings properties to avoid validation errors
     const sanitizedPayload: CenterSettings = {};
     if (payload.timeZone !== undefined) sanitizedPayload.timeZone = payload.timeZone;
@@ -453,44 +238,21 @@ export const ownerService = {
     try {
       await apiClient.put(ENDPOINTS.owner.settings(centerId), sanitizedPayload);
     } catch (err) {
-      if (USE_MOCK_RESERVATIONS) {
-        mockSettingsStore = { ...mockSettingsStore, ...payload };
-        return;
-      }
       throw err;
     }
   },
 
   async getSiteSettings(centerId: string, signal?: AbortSignal): Promise<SiteSettings> {
-    if (USE_MOCK_RESERVATIONS) {
-      return {
-        defaultSeoTitle: "گیمنت اختصاصی گرگدن | رزرو آنلاین گیمنت",
-        defaultSeoDescription: "مجهزترین مرکز بازی‌های ویدئویی و کامپیوتری تبریز",
-      };
-    }
-    try {
-      const { data } = await apiClient.get<SiteSettings>(ENDPOINTS.owner.siteSettings(centerId), { signal });
-      return data ?? {};
-    } catch {
-      return {
-        defaultSeoTitle: "گیمنت اختصاصی گرگدن | رزرو آنلاین گیمنت",
-        defaultSeoDescription: "مجهزترین مرکز بازی‌های ویدئویی و کامپیوتری تبریز",
-      };
-    }
+    const { data } = await apiClient.get<SiteSettings>(ENDPOINTS.owner.siteSettings(centerId), { signal });
+    return data ?? {};
   },
 
   async updateSiteSettings(centerId: string, payload: SiteSettings): Promise<void> {
-    if (USE_MOCK_RESERVATIONS) return;
-    try {
-      await apiClient.patch(ENDPOINTS.owner.siteSettings(centerId), payload);
-    } catch {
-      // ignore
-    }
+    await apiClient.patch(ENDPOINTS.owner.siteSettings(centerId), payload);
   },
 
   async listStations(centerId: string, signal?: AbortSignal): Promise<GameStationInfo[]> {
     if (!centerId) return [];
-    if (USE_MOCK_RESERVATIONS) return [...mockStationsStore];
     const { data } = await apiClient.get<GameStationInfo[]>(ENDPOINTS.owner.stations(centerId), { signal });
     return asArray<GameStationInfo>(data);
   },
@@ -507,12 +269,6 @@ export const ownerService = {
     reservationId: string,
     status: OwnerReservation["status"]
   ): Promise<void> {
-    if (USE_MOCK_RESERVATIONS) {
-      const target = mockReservationsStore.find((r) => r.id === reservationId);
-      if (target) target.status = status;
-      return;
-    }
-
     // Attempt backend transition using dedicated transition routes if implemented or fail with contract gap error
     // Do NOT send undocumented { status } in PATCH /gamingCenters/{centerId}/reservation/{reservationId}
     const transitionAction =
@@ -544,26 +300,6 @@ export const ownerService = {
   },
 
   async createStation(centerId: string, payload: StationInput): Promise<GameStationInfo | void> {
-    if (USE_MOCK_RESERVATIONS) {
-      const newStation: GameStationInfo = {
-        id: `st-mock-${Date.now()}`,
-        gamingCenterId: centerId,
-        name: payload.name,
-        stationType: payload.stationType,
-        hourlyPrice: payload.hourlyPrice,
-        quantity: payload.quantity ?? 1,
-        defaultControllers: payload.defaultControllers ?? 0,
-        maxExtraControllers: payload.maxExtraControllers ?? 0,
-        extraControllerPrice: payload.extraControllerPrice ?? 0,
-        isVip: payload.isVip,
-        isActive: true,
-        minRentHours: payload.minRentHours,
-        maxRentHours: payload.maxRentHours,
-      };
-      mockStationsStore = [newStation, ...mockStationsStore];
-      return newStation;
-    }
-
     // Prepare payload. Notice: fields defined in OpenAPI GameStation schema are:
     // name, stationType, hourlyPrice, minRentHours, maxRentHours, defaultDurationHours, incrementMinutes, isVip, isActive.
     // Extended fields (quantity, defaultControllers, maxExtraControllers, extraControllerPrice, description)
@@ -593,7 +329,6 @@ export const ownerService = {
 
   async listMedia(slug: string, signal?: AbortSignal): Promise<MediaItem[]> {
     if (!slug) return [];
-    if (USE_MOCK_RESERVATIONS) return [...mockMediaStore];
     const { data } = await apiClient.get<MediaItem[]>(ENDPOINTS.gamingCenter.media(slug), { signal });
     return asArray<MediaItem>(data).filter((m) => !!m?.url);
   },
@@ -603,17 +338,6 @@ export const ownerService = {
     file: File,
     options?: { altText?: string; purpose?: "COVER" | "GALLERY" | "STATION" | "LOGO" }
   ): Promise<MediaItem> {
-    if (USE_MOCK_RESERVATIONS) {
-      const newMedia: MediaItem = {
-        id: `media-${Date.now()}`,
-        url: URL.createObjectURL(file),
-        altText: options?.altText || file.name,
-        purpose: options?.purpose || "GALLERY",
-      };
-      mockMediaStore = [...mockMediaStore, newMedia];
-      return newMedia;
-    }
-
     const form = new FormData();
     // Use exact file field defined in OpenAPI ("file")
     form.append("file", file);
@@ -654,10 +378,6 @@ export const ownerService = {
   },
 
   async deleteMedia(centerId: string, mediaId: string): Promise<void> {
-    if (USE_MOCK_RESERVATIONS) {
-      mockMediaStore = mockMediaStore.filter((m) => m.id !== mediaId);
-      return;
-    }
     // CONTRACT GAP: OpenAPI does not define media deletion.
     // We intentionally do NOT call any guessed DELETE endpoint to avoid 404/405 errors.
     // Deletion will be implemented when backend defines DELETE /gamingCenters/{id}/media/{mediaId}.
@@ -671,9 +391,6 @@ export const ownerService = {
    */
   async listRatings(slug: string, signal?: AbortSignal): Promise<OwnerRating[]> {
     if (!slug) return [];
-    if (USE_MOCK_RESERVATIONS) {
-      return mockRatingsStore.filter((r) => r.status !== "DELETED");
-    }
     const response = await apiClient.get<unknown>(ENDPOINTS.gamingCenter.ratings(slug), { signal });
     const resData = response.data;
     if (Array.isArray(resData)) {
@@ -696,15 +413,6 @@ export const ownerService = {
     ratingId: string,
     replyText: string
   ): Promise<void> {
-    if (USE_MOCK_RESERVATIONS) {
-      const target = mockRatingsStore.find((r) => r.id === ratingId);
-      if (target) {
-        target.reply = replyText;
-        target.repliedAt = new Date().toISOString();
-      }
-      return;
-    }
-
     throw new Error(
       "ثبت پاسخ مدیر به نظر در حال حاضر توسط وب‌سرویس سرور پشتیبانی نمی‌شود و نیازمند پیاده‌سازی اندپوینت اختصاصی بک‌اند است (مستند شده در docs/OWNER_REVIEWS_API_CONTRACT.md)."
     );
@@ -719,11 +427,6 @@ export const ownerService = {
     ratingId: string,
     status: "PUBLISHED" | "HIDDEN" | "DELETED"
   ): Promise<void> {
-    if (USE_MOCK_RESERVATIONS) {
-      const target = mockRatingsStore.find((r) => r.id === ratingId);
-      if (target) target.status = status;
-      return;
-    }
     await apiClient.patch(ENDPOINTS.owner.ratingStatus(centerId, ratingId), { status });
   },
 

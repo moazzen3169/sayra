@@ -15,23 +15,12 @@ interface AdCampaign {
   createdAt: string;
 }
 
-const INITIAL_ADS: AdCampaign[] = [
-  {
-    id: "ad-1",
-    title: "بنر صفحه اصلی - تخفیف آخر هفته",
-    description: "نمایش بنر ویژه در اسلایدر اصلی اپلیکیشن برای جذب رزروهای آخر هفته",
-    status: "ACTIVE",
-    daysLeft: 5,
-    createdAt: "۱۴۰۳/۱۲/۰۱",
-  },
-];
-
 const input =
   "h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--accent-red)] text-sm outline-none text-[var(--text-white)] placeholder:text-[var(--text-muted)]";
 
 export default function OwnerAdsPage() {
   const { center } = useOwner();
-  const [ads, setAds] = useState<AdCampaign[]>(INITIAL_ADS);
+  const [ads] = useState<AdCampaign[]>([]);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -49,25 +38,13 @@ export default function OwnerAdsPage() {
     setSubmitting(true);
     setMsg(null);
 
-    setTimeout(() => {
-      const newAd: AdCampaign = {
-        id: `ad-${Date.now()}`,
-        title: title.trim(),
-        description: description.trim(),
-        bannerUrl: bannerUrl.trim() || undefined,
-        status: "PENDING",
-        daysLeft: Number(durationDays) || 7,
-        createdAt: "امروز",
-      };
-      setAds([newAd, ...ads]);
-      setSubmitting(false);
-      setOpen(false);
-      setTitle("");
-      setDescription("");
-      setBannerUrl("");
-      setDurationDays("7");
-      setMsg({ ok: true, text: "درخواست تبلیغ با موفقیت ثبت شد و در انتظار تایید است." });
-    }, 400);
+    // Contract gap: OpenAPI v1.0-LOCKED does not provide owner ad campaign endpoints.
+    // Explicitly reject false simulation and display contract gap notice.
+    setSubmitting(false);
+    setMsg({
+      ok: false,
+      text: "سرویس ثبت و مدیریت تبلیغات نیازمند پیاده‌سازی وب‌سرویس اختصاصی در بک‌اند است (مستند شده در docs/OWNER_ADS_API_CONTRACT.md).",
+    });
   };
 
   return (
