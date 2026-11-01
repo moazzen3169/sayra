@@ -29,6 +29,9 @@ export interface GamecenterFilterParams {
   category?: string;
   city?: string;
   sort?: "default" | "popular" | "newest" | "price_asc" | "price_desc" | "rating";
+  minRating?: number;
+  minPrice?: number;
+  maxPrice?: number;
 }
 
 /**
@@ -67,7 +70,7 @@ export function mapPublicGamingCenterToListItem(
   };
 }
 
-function normalizeText(text: string): string {
+export function normalizeFilterText(text: string): string {
   return text
     .toLowerCase()
     .replace(/[يى]/g, "ی")
@@ -88,16 +91,16 @@ export const gamecentersPageService = {
   },
 
   /**
-   * Filters a list of gaming centers using client-side matching.
+   * Filters a list of gaming centers using client-side matching over the loaded dataset.
    */
   filterCenters(items: GamecenterListItem[], params: GamecenterFilterParams): GamecenterListItem[] {
-    const { q, category, city, sort = "default" } = params;
+    const { q, category, city, sort = "default", minRating, minPrice, maxPrice } = params;
 
     const filtered = items.filter((item) => {
       // City filter (if item has city or location)
       if (city && city !== "همه") {
         const itemCity = item.city || item.location;
-        if (itemCity && !normalizeText(itemCity).includes(normalizeText(city))) {
+        if (itemCity && !normalizeFilterText(itemCity).includes(normalizeFilterText(city))) {
           if (!q) {
             return false;
           }
@@ -113,13 +116,27 @@ export const gamecentersPageService = {
 
       // Query filter
       if (q && q.trim()) {
-        const normQ = normalizeText(q);
-        const searchableText = normalizeText(
+        const normQ = normalizeFilterText(q);
+        const searchableText = normalizeFilterText(
           `${item.name} ${item.location} ${item.city} ${item.categories.join(" ")}`
         );
         if (!searchableText.includes(normQ)) {
           return false;
         }
+      }
+
+      // Price filter (if provided)
+      const effectivePrice = item.discountedHourlyPrice ?? item.hourlyPrice;
+      if (minPrice !== undefined && effectivePrice < minPrice) {
+        return false;
+      }
+      if (maxPrice !== undefined && effectivePrice > maxPrice) {
+        return false;
+      }
+
+      // Rating filter (if provided)
+      if (minRating !== undefined && item.rating < minRating) {
+        return false;
       }
 
       return true;

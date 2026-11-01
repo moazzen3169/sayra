@@ -5,60 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { Icon, IconName } from "@/components/ui/Icon";
+import {
+  gamecentersPageService,
+  GamecenterListItem,
+} from "@/services/gamecentersPageService";
 
 export interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedCity?: string;
 }
-
-const MOCK_GAMING_CENTERS = [
-  {
-    id: "gc-1",
-    name: "گیمنت گرگدن",
-    location: "تبریز، ولیعصر، روبروی کتابخانه",
-    city: "تبریز",
-    rating: 4.8,
-    hourlyPrice: 230000,
-    tags: ["PS5", "PC", "VIP", "بوفه", "فرکانس ۲۴۰"],
-  },
-  {
-    id: "gc-2",
-    name: "گیم‌کلاب سایبرسکی",
-    location: "تبریز، آبرسان، پاساژ نسیم",
-    city: "تبریز",
-    rating: 4.6,
-    hourlyPrice: 190000,
-    tags: ["PS5", "Xbox", "بازی گروهی"],
-  },
-  {
-    id: "gc-3",
-    name: "مجموعه گیمینگ وی‌آر پلاس",
-    location: "تبریز، شاهگلی، فلکه خیام",
-    city: "تبریز",
-    rating: 4.9,
-    hourlyPrice: 280000,
-    tags: ["VR", "واقعیت مجازی", "PS5"],
-  },
-  {
-    id: "gc-4",
-    name: "گیمنت اختصاصی وی‌آی‌پی گرگدن",
-    location: "تبریز، ولیعصر، بعد از میدان معلم",
-    city: "تبریز",
-    rating: 4.9,
-    hourlyPrice: 250000,
-    tags: ["VIP", "اتاق فرمان", "RTX 4090"],
-  },
-  {
-    id: "gc-5",
-    name: "مرکز بازی‌های رایانه‌ای ماتریکس",
-    location: "تبریز، رشدیه، بلوار بهارستان",
-    city: "تبریز",
-    rating: 4.7,
-    hourlyPrice: 210000,
-    tags: ["PC", "فرکانس ۳۶۰", "شبکه‌ای"],
-  },
-];
 
 const DEVICES: {
   id: string;
@@ -131,11 +87,39 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   const [query, setQuery] = useState("");
   const [recentSearches, setRecentSearches] =
     useState<string[]>(INITIAL_RECENTS);
+  const [centers, setCenters] = useState<GamecenterListItem[]>([]);
+  const [isLoadingCenters, setIsLoadingCenters] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
   const normalizedQuery = normalizeText(query);
   const hasQuery = normalizedQuery.length > 0;
+
+  // Load real centers on open using AbortController to prevent races
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const controller = new AbortController();
+    setIsLoadingCenters(true);
+
+    gamecentersPageService
+      .loadAllCenters(controller.signal)
+      .then((data) => {
+        setCenters(data);
+      })
+      .catch((err) => {
+        if ((err as Error)?.name !== "AbortError") {
+          setCenters([]);
+        }
+      })
+      .finally(() => {
+        setIsLoadingCenters(false);
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -165,17 +149,21 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   const filteredCenters = useMemo(() => {
     if (!hasQuery) return [];
 
-    return MOCK_GAMING_CENTERS.filter((center) => {
+    return centers.filter((center) => {
+      const centerCity = center.city || center.location;
       const matchesCity =
-        normalizeText(center.city) === normalizeText(selectedCity);
+        !selectedCity ||
+        selectedCity === "همه" ||
+        !centerCity ||
+        normalizeText(centerCity).includes(normalizeText(selectedCity));
 
       const searchableText = normalizeText(
-        `${center.name} ${center.location} ${center.tags.join(" ")}`,
+        `${center.name} ${center.location} ${center.city} ${(center.categories || []).join(" ")}`,
       );
 
       return matchesCity && searchableText.includes(normalizedQuery);
     });
-  }, [normalizedQuery, hasQuery, selectedCity]);
+  }, [normalizedQuery, hasQuery, centers, selectedCity]);
 
   const filteredDevices = useMemo(() => {
     if (!hasQuery) return [];
@@ -295,18 +283,15 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             aria-label="بستن جست‌وجو"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-card)] hover:text-[var(--text-white)]"
           >
-          <svg
-            className="h-5 w-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              d="m18 6-12 12M6 6l12 12"
-              strokeLinecap="round"
-            />
-          </svg>
+            <svg
+              className="h-5 w-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path d="m18 6-12 12M6 6l12 12" strokeLinecap="round" />
+            </svg>
           </button>
         </form>
       </header>
@@ -314,7 +299,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
       {/* Search content */}
       <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto flex w-full max-w-[var(--max-mini-app-width)] flex-col gap-7 px-4 py-5 sm:px-6 sm:py-7">
-          {/* Initial state: recent and only three suggestions */}
+          {/* Initial state: recent and suggestions */}
           {!hasQuery && (
             <>
               {recentSearches.length > 0 && (
@@ -408,7 +393,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                 </span>
               </div>
 
-              {!hasResults && (
+              {!hasResults && !isLoadingCenters && (
                 <div className="flex flex-col items-center py-14 text-center">
                   <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--bg-card)] text-[var(--text-muted)]">
                     <svg
@@ -474,24 +459,30 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                             {center.name}
                           </h3>
 
-                          <p className="mt-1 truncate text-xs text-[var(--text-muted)]">
-                            {center.location}
-                          </p>
+                          {center.location && (
+                            <p className="mt-1 truncate text-xs text-[var(--text-muted)]">
+                              {center.location}
+                            </p>
+                          )}
                         </div>
 
                         <div className="shrink-0 text-left">
-                          <div className="text-xs font-bold text-[var(--text-white)] flex items-center gap-1 justify-end">
-                            <Icon
-                              name="star"
-                              size={14}
-                              className="text-[var(--accent-star)] fill-[var(--accent-star)]"
-                            />
-                            <span>{toPersianDigits(center.rating)}</span>
-                          </div>
+                          {center.rating > 0 && (
+                            <div className="text-xs font-bold text-[var(--text-white)] flex items-center gap-1 justify-end">
+                              <Icon
+                                name="star"
+                                size={14}
+                                className="text-[var(--accent-star)] fill-[var(--accent-star)]"
+                              />
+                              <span>{toPersianDigits(center.rating)}</span>
+                            </div>
+                          )}
 
-                          <div className="mt-1 text-xs text-[var(--text-muted)]">
-                            {formatPrice(center.hourlyPrice)} تومان
-                          </div>
+                          {center.hourlyPrice > 0 && (
+                            <div className="mt-1 text-xs text-[var(--text-muted)]">
+                              {formatPrice(center.hourlyPrice)} تومان
+                            </div>
+                          )}
                         </div>
                       </Link>
                     ))}
