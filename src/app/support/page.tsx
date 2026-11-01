@@ -125,7 +125,13 @@ export default function SupportPage() {
     try {
       let attachment: string | undefined;
       if (file) {
-        attachment = await ownerService.uploadTicketAttachment(selected.id, file);
+        try {
+          attachment = await ownerService.uploadTicketAttachment(selected.id, file);
+        } catch (uploadErr) {
+          setError(`خطا در آپلود فایل پیوست: ${getErrorMessage(uploadErr)}`);
+          setBusy(false);
+          return;
+        }
       }
       await ownerService.sendTicketMessage(selected.id, {
         text: reply.trim(),
@@ -133,6 +139,10 @@ export default function SupportPage() {
       });
       setReply("");
       setFile(null);
+      if (fileRef.current) {
+        fileRef.current.value = "";
+      }
+      // Refresh ticket detail to show newly sent message
       const updatedTicket = await ownerService.getTicket(selected.id);
       setSelected(updatedTicket);
     } catch (err) {
