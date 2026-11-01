@@ -4,8 +4,11 @@ import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
 import type { GameStationInfo } from "@/services/gamingCenterService";
 import type {
   CenterSettings,
+  CommissionListParams,
+  CommissionListResult,
   Earning,
   MediaItem,
+  OwnerAnalyticsSummary,
   OwnerMe,
   OwnerRating,
   OwnerReservation,
@@ -17,13 +20,19 @@ import type {
 
 const asArray = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
 
-/** ساختار پاسخ analytics/summary در OpenAPI تعریف نشده؛ اولین فیلد عددی موجود خوانده می‌شود */
+/**
+ * استخراج امن مقادیر مالی و عددی دارای اسامی استاندارد
+ */
 export function pickNumber(obj: unknown, keys: string[]): number | null {
   if (!obj || typeof obj !== "object") return null;
   const rec = obj as Record<string, unknown>;
   for (const k of keys) {
     const v = rec[k];
     if (typeof v === "number" && isFinite(v)) return v;
+    if (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v))) {
+      const parsed = Number(v);
+      if (isFinite(parsed)) return parsed;
+    }
   }
   return null;
 }
@@ -187,23 +196,6 @@ let mockRatingsStore: OwnerRating[] = [
   },
 ];
 
-const mockAnalyticsStore = {
-  totalIncome: 12500000,
-  totalReservations: 48,
-  activeStationsCount: 7,
-  withdrawableAmount: 8500000,
-  withdrawableRevenue: 8500000,
-  netRevenue: 8500000,
-  totalRevenue: 12500000,
-};
-
-const mockCommissionsStore: Earning[] = [
-  { id: "earning-1", reservationId: "r-owner-1", status: "ACCRUED", commissionAmount: 120000, currency: "تومان" },
-  { id: "earning-2", reservationId: "r-owner-2", status: "CHARGED", commissionAmount: 95000, currency: "تومان" },
-  { id: "earning-3", reservationId: "r-owner-3", status: "PENDING", commissionAmount: 45000, currency: "تومان" },
-  { id: "earning-4", reservationId: "r-owner-4", status: "CHARGED", commissionAmount: 150000, currency: "تومان" },
-  { id: "earning-5", reservationId: "r-owner-5", status: "REFUNDED", commissionAmount: 0, currency: "تومان" },
-];
 
 
 export const ownerService = {
@@ -735,31 +727,121 @@ export const ownerService = {
     await apiClient.patch(ENDPOINTS.owner.ratingStatus(centerId, ratingId), { status });
   },
 
-  async getAnalyticsSummary(centerId: string, signal?: AbortSignal): Promise<any> {
-    if (USE_MOCK_RESERVATIONS) {
-      return mockAnalyticsStore;
+  /**
+   * دریافت داده‌های تحلیلی و مالی از GET /gamingCenters/{gamingCenterId}/analytics/summary
+   * هیچ‌گونه ماک ذخیره‌شده یا مقادیر مالی ساختگی بازگردانده نمی‌شود و داده‌ها تماماً از سرور خوانده می‌شوند.
+   */
+  async getAnalyticsSummary(
+    centerId: string,
+    options?: { startDate?: string; endDate?: string; signal?: AbortSignal }
+  ): Promise<OwnerAnalyticsSummary> {
+    if (!centerId) {
+      throw new Error("شناسه گیم‌نت مشخص نشده است.");
     }
-    try {
-      const { data } = await apiClient.get<any>(ENDPOINTS.owner.analyticsSummary(centerId), { signal });
-      return data;
-    } catch (err) {
-      if (USE_MOCK_RESERVATIONS) return mockAnalyticsStore;
-      throw err;
+    const query: Record<string, string> = {};
+    if (options?.startDate) query.startDate = options.startDate;
+    if (options?.endDate) query.endDate = options.endDate;
+
+    const response = await apiClient.get<OwnerAnalyticsSummary | { data?: OwnerAnalyticsSummary }>(
+      ENDPOINTS.owner.analyticsSummary(centerId),
+      { query, signal: options?.signal }
+    );
+
+    const resData = response.data;
+    if (resData && typeof resData === "object" && "data" in resData && (resData as any).data) {
+      return (resData as any).data as OwnerAnalyticsSummary;
     }
+    return (resData as OwnerAnalyticsSummary) ?? {};
   },
 
-  async listCommissions(centerId: string, signal?: AbortSignal): Promise<Earning[]> {
-    if (USE_MOCK_RESERVATIONS) return [...mockCommissionsStore];
-    try {
-      const { data } = await apiClient.get<Earning[]>(ENDPOINTS.owner.commissions(centerId), {
-        query: { page: 1, pageSize: 50 },
-        signal,
-      });
-      const arr = asArray<Earning>(data);
-      return arr.length > 0 ? arr : [...mockCommissionsStore];
-    } catch {
-      return [...mockCommissionsStore];
+  /**
+   * دریافت لیست کمیسیون‌های رزرو از GET /gamingCenters/{gamingCenterId}/commissions
+   * به همراه صفحه‌بندی کامل و کنترل فیلتر وضعیت
+   */
+  async listCommissionsPaginated(
+    centerId: string,
+    options?: CommissionListParams
+  ): Promise<CommissionListResult> {
+    if (!centerId) {
+      return { items: [], total: 0, page: 1, pageSize: 20, totalPages: 1 };
     }
+    const requestedPage = options?.page ?? 1;
+    const requestedPageSize = options?.pageSize ?? 20;
+
+    const query: Record<string, string | number> = {
+      page: requestedPage,
+      pageSize: requestedPageSize,
+    };
+    if (options?.status) {
+      query.status = options.status;
+    }
+
+    const response = await apiClient.get<unknown>(ENDPOINTS.owner.commissions(centerId), {
+      query,
+      signal: options?.signal,
+    });
+
+    const resData = response.data;
+    let items: Earning[] = [];
+    let total = 0;
+    let page = requestedPage;
+    let pageSize = requestedPageSize;
+    let totalPages = 1;
+
+    // Response follows Pagination schema:
+    // { success: true, data: Earning[], meta: { pagination: { total, totalItems, page, pageSize, totalPages } } }
+    if (Array.isArray(resData)) {
+      items = resData as Earning[];
+      total = items.length;
+    } else if (resData && typeof resData === "object") {
+      const rec = resData as Record<string, unknown>;
+      if (Array.isArray(rec.data)) {
+        items = rec.data as Earning[];
+      }
+      const pagination = (rec.meta as any)?.pagination ?? response.meta?.pagination;
+      if (pagination) {
+        total = pagination.total ?? pagination.totalItems ?? items.length;
+        page = pagination.page ?? requestedPage;
+        pageSize = pagination.pageSize ?? pagination.limit ?? requestedPageSize;
+        totalPages = pagination.totalPages ?? (Math.ceil(total / (pageSize || 1)) || 1);
+      } else {
+        total = items.length;
+      }
+    }
+
+    if (response.meta?.pagination) {
+      const p = response.meta.pagination;
+      total = p.total ?? p.totalItems ?? total;
+      page = p.page ?? page;
+      pageSize = p.pageSize ?? p.limit ?? pageSize;
+      totalPages = p.totalPages ?? totalPages;
+    }
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    };
+  },
+
+  /**
+   * دریافت کمیسیون‌ها بدون صفحه‌بندی (متد کمکی بازگشت آرایه)
+   */
+  async listCommissions(centerId: string, signal?: AbortSignal): Promise<Earning[]> {
+    const res = await ownerService.listCommissionsPaginated(centerId, { page: 1, pageSize: 50, signal });
+    return res.items;
+  },
+
+  /**
+   * بررسی و گزارش فقدان اندپوینت تسویه و برداشت در قرارداد کنونی OpenAPI:
+   * مطابق الزامات امنیت مالی و Phase 8، هیچ متد کلاینتی برای ارسال برداشت فرضی ایجاد نمی‌شود.
+   */
+  async requestWithdrawal(): Promise<never> {
+    throw new Error(
+      "اندپوینت ثبت درخواست برداشت در مستندات کنونی OpenAPI (v1.0-LOCKED) تعریف نشده است و امکان ثبت درخواست برداشت تا زمان توسعه توسط بک‌اند وجود ندارد (مستند شده در docs/OWNER_WITHDRAWAL_API_CONTRACT.md)."
+    );
   },
 
   /* ---- Support (Fully Backend-Driven) ---- */

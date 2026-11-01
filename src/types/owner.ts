@@ -73,6 +73,10 @@ export interface CenterSettings {
   preventOverlaps?: boolean;
 }
 
+/**
+ * ساختار پاسخ تحلیلی خلاصه وضعیت مرکز بازی از:
+ * GET /gamingCenters/{gamingCenterId}/analytics/summary
+ */
 export interface OwnerAnalyticsSummary {
   totalIncome?: number;
   totalReservations?: number;
@@ -81,6 +85,10 @@ export interface OwnerAnalyticsSummary {
   withdrawableRevenue?: number;
   netRevenue?: number;
   totalRevenue?: number;
+  currency?: string;
+  refundedAmount?: number;
+  commissionPaid?: number;
+  commissionPending?: number;
   [key: string]: unknown;
 }
 
@@ -125,12 +133,37 @@ export interface StationInput {
   isVip?: boolean;
 }
 
+export type EarningStatus = "PENDING" | "ACCRUED" | "CHARGED" | "WAIVED" | "REFUNDED";
+
+/**
+ * مدل موجودی و کمیسیون رزرو مطابق با OpenAPI schema Earning
+ */
 export interface Earning {
   id: string;
   reservationId: string;
-  status: "PENDING" | "ACCRUED" | "CHARGED" | "WAIVED" | "REFUNDED";
+  gamingCenterId?: string;
+  status: EarningStatus;
   commissionAmount: number;
   currency?: string;
+  targetPeriod?: string | null;
+  targetReached?: boolean;
+  targetContribution?: boolean;
+  createdAt?: string;
+}
+
+export interface CommissionListParams {
+  page?: number;
+  pageSize?: number;
+  status?: EarningStatus;
+  signal?: AbortSignal;
+}
+
+export interface CommissionListResult {
+  items: Earning[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export interface TicketMessage {
