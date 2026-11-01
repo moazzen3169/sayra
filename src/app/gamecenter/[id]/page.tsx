@@ -556,6 +556,8 @@ export default function GameCenterDetailPage({
                 <DevicePicker
                   groups={groups}
                   cart={cart}
+                  error={detail.stationsError}
+                  onRetry={() => setReloadToken((t) => t + 1)}
                   onQtyChange={handleQtyChange}
                   onExtraChange={handleExtraChange}
                 />
