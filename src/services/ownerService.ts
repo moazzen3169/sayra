@@ -205,46 +205,6 @@ const mockCommissionsStore: Earning[] = [
   { id: "earning-5", reservationId: "r-owner-5", status: "REFUNDED", commissionAmount: 0, currency: "تومان" },
 ];
 
-let mockTicketsStore: Ticket[] = [
-  {
-    id: "t-101",
-    subject: "سوال درباره نحوه تسویه حساب و برداشت موجودی",
-    category: "FINANCIAL",
-    status: "ANSWERED",
-    priority: "HIGH",
-    createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-    messages: [
-      {
-        id: "tm-1",
-        senderType: "USER",
-        text: "سلام، درخواست‌های برداشت موجودی پس از چند ساعت به حساب واریز می‌شوند؟",
-        createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-      },
-      {
-        id: "tm-2",
-        senderType: "SUPPORT",
-        text: "سلام و احترام. تمام درخواست‌های برداشت حداکثر طی ۲۴ ساعت کاری پایا واریز می‌گردند.",
-        createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-      },
-    ],
-  },
-  {
-    id: "t-102",
-    subject: "درخواست افزودن سیستم VR به لیست دستگاه‌ها",
-    category: "TECHNICAL",
-    status: "OPEN",
-    priority: "MEDIUM",
-    createdAt: new Date(Date.now() - 86400000 * 1).toISOString(),
-    messages: [
-      {
-        id: "tm-3",
-        senderType: "USER",
-        text: "با سلام، دو دستگاه جدید هدست VR به مجموعه اضافه شده، چطور آیکون VR رو فعال کنیم؟",
-        createdAt: new Date(Date.now() - 86400000 * 1).toISOString(),
-      },
-    ],
-  },
-];
 
 export const ownerService = {
   async getMe(signal?: AbortSignal): Promise<OwnerMe> {
@@ -802,138 +762,69 @@ export const ownerService = {
     }
   },
 
-  /* ---- Support ---- */
+  /* ---- Support (Fully Backend-Driven) ---- */
+  /**
+   * دریافت تیکت‌های پشتیبانی کاربر از اندپوینت رسمی GET /tickets
+   * هیچ‌گونه ذخیره‌ساز ماک یا ساخت تیکت‌های ساختگی انجام نمی‌شود و خطاها پروپاگیت می‌شوند.
+   */
   async listTickets(signal?: AbortSignal): Promise<Ticket[]> {
-    if (USE_MOCK_RESERVATIONS) return [...mockTicketsStore];
-    try {
-      const { data } = await apiClient.get<Ticket[]>(ENDPOINTS.owner.tickets, { signal });
-      const arr = asArray<Ticket>(data);
-      return arr.length > 0 ? arr : [...mockTicketsStore];
-    } catch {
-      return [...mockTicketsStore];
+    const response = await apiClient.get<unknown>(ENDPOINTS.owner.tickets, { signal });
+    const resData = response.data;
+    if (Array.isArray(resData)) {
+      return resData as Ticket[];
     }
+    if (resData && typeof resData === "object" && Array.isArray((resData as any).data)) {
+      return (resData as any).data as Ticket[];
+    }
+    return [];
   },
 
+  /**
+   * دریافت جزئیات تیکت و پیام‌های گفتگو از GET /tickets/{id}
+   */
   async getTicket(id: string, signal?: AbortSignal): Promise<Ticket> {
-    if (USE_MOCK_RESERVATIONS) {
-      const found = mockTicketsStore.find((t) => t.id === id);
-      if (found) return found;
-      return {
-        id,
-        subject: "پشتیبانی تست",
-        category: "TECHNICAL",
-        status: "OPEN",
-        createdAt: new Date().toISOString(),
-        messages: [],
-      };
+    const response = await apiClient.get<Ticket | { data?: Ticket }>(ENDPOINTS.owner.ticket(id), { signal });
+    const resData = response.data;
+    if (resData && typeof resData === "object" && "data" in resData && (resData as any).data) {
+      return (resData as any).data as Ticket;
     }
-    try {
-      const { data } = await apiClient.get<Ticket>(ENDPOINTS.owner.ticket(id), { signal });
-      return data;
-    } catch {
-      const found = mockTicketsStore.find((t) => t.id === id);
-      if (found) return found;
-      return {
-        id,
-        subject: "پشتیبانی تست",
-        category: "TECHNICAL",
-        status: "OPEN",
-        createdAt: new Date().toISOString(),
-        messages: [],
-      };
-    }
+    return resData as Ticket;
   },
 
+  /**
+   * ایجاد تیکت پشتیبانی جدید در POST /tickets
+   */
   async createTicket(payload: {
     subject: string;
     message: string;
     category: "TECHNICAL" | "FINANCIAL" | "SALES" | "ACCOUNT";
     priority?: "LOW" | "MEDIUM" | "HIGH";
   }): Promise<void> {
-    if (USE_MOCK_RESERVATIONS) {
-      const newTicket: Ticket = {
-        id: `t-${Date.now()}`,
-        subject: payload.subject,
-        category: payload.category,
-        priority: payload.priority ?? "MEDIUM",
-        status: "OPEN",
-        createdAt: new Date().toISOString(),
-        messages: [
-          {
-            id: `tm-${Date.now()}`,
-            senderType: "USER",
-            text: payload.message,
-            createdAt: new Date().toISOString(),
-          },
-        ],
-      };
-      mockTicketsStore = [newTicket, ...mockTicketsStore];
-      return;
-    }
-    try {
-      await apiClient.post(ENDPOINTS.owner.tickets, payload);
-    } catch {
-      const newTicket: Ticket = {
-        id: `t-${Date.now()}`,
-        subject: payload.subject,
-        category: payload.category,
-        priority: payload.priority ?? "MEDIUM",
-        status: "OPEN",
-        createdAt: new Date().toISOString(),
-        messages: [
-          {
-            id: `tm-${Date.now()}`,
-            senderType: "USER",
-            text: payload.message,
-            createdAt: new Date().toISOString(),
-          },
-        ],
-      };
-      mockTicketsStore = [newTicket, ...mockTicketsStore];
-    }
+    await apiClient.post(ENDPOINTS.owner.tickets, payload);
   },
 
+  /**
+   * ارسال پیام جدید به تیکت در POST /tickets/{id}/messages
+   */
   async sendTicketMessage(id: string, payload: { text: string; attachment?: string }): Promise<void> {
-    if (USE_MOCK_RESERVATIONS) {
-      const target = mockTicketsStore.find((t) => t.id === id);
-      if (target) {
-        if (!target.messages) target.messages = [];
-        target.messages.push({
-          id: `tm-${Date.now()}`,
-          senderType: "USER",
-          text: payload.text,
-          attachment: payload.attachment,
-          createdAt: new Date().toISOString(),
-        });
-      }
-      return;
-    }
-    try {
-      await apiClient.post(ENDPOINTS.owner.ticketMessages(id), payload);
-    } catch {
-      const target = mockTicketsStore.find((t) => t.id === id);
-      if (target) {
-        if (!target.messages) target.messages = [];
-        target.messages.push({
-          id: `tm-${Date.now()}`,
-          senderType: "USER",
-          text: payload.text,
-          attachment: payload.attachment,
-          createdAt: new Date().toISOString(),
-        });
-      }
-    }
+    await apiClient.post(ENDPOINTS.owner.ticketMessages(id), payload);
   },
 
+  /**
+   * آپلود پیوست تیکت در POST /tickets/{id}/attachments با فرمت multipart/form-data
+   * آدرس URL واقعی فایل آپلودشده از پاسخ سرور خوانده می‌شود.
+   */
   async uploadTicketAttachment(id: string, file: File): Promise<string> {
-    if (USE_MOCK_RESERVATIONS) return URL.createObjectURL(file);
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      const { data } = await apiClient.post<{ url: string }>(ENDPOINTS.owner.ticketAttachments(id), form);
-      return data.url;
-    } catch {
-      return URL.createObjectURL(file);
+    const form = new FormData();
+    form.append("file", file);
+    const response = await apiClient.post<unknown>(ENDPOINTS.owner.ticketAttachments(id), form);
+    const resData = response.data as any;
+    if (resData && typeof resData === "object") {
+      if (typeof resData.url === "string") return resData.url;
+      if (resData.data && typeof resData.data.url === "string") return resData.data.url;
+      if (typeof resData.data === "string") return resData.data;
     }
+    if (typeof resData === "string") return resData;
+    throw new Error("آدرس فایل پیوست در پاسخ سرور یافت نشد.");
   },
 };
