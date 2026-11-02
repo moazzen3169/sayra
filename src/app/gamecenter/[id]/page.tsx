@@ -24,7 +24,6 @@ import {
 } from "@/components/gamecenter/BookingSheet";
 import { useAuth } from "@/context/AuthContext";
 import { isAbortError } from "@/lib/api/client";
-import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
 import {
   groupStations,
   type BookingItem,
@@ -374,20 +373,15 @@ export default function GameCenterDetailPage({
       setPendingBooking(null);
       setIsSheetOpen(false);
 
-      if (USE_MOCK_RESERVATIONS) {
-        const single = created.length === 1 ? created[0] : null;
-        setSuccessDetails({
-          ...booking.summary,
-          reservationId: single?.id,
-          trackingCode: single?.reservationCode,
-          grandTotal: created.reduce((a, r) => a + r.totalPrice, 0),
-        });
-        setIsSuccessOpen(true);
-      } else if (created.length === 1) {
-        router.push(`/reservations/${encodeURIComponent(created[0].id)}`);
-      } else {
-        router.push("/reservations");
-      }
+      // Success state is driven strictly by backend response
+      const single = created.length === 1 ? created[0] : null;
+      setSuccessDetails({
+        ...booking.summary,
+        reservationId: single?.id,
+        trackingCode: single?.reservationCode,
+        grandTotal: created.reduce((a, r) => a + r.totalPrice, 0),
+      });
+      setIsSuccessOpen(true);
     } catch (e) {
       const doneCount = booking.items.filter((it) =>
         doneRef.current.has(itemKey(it)),
@@ -685,7 +679,7 @@ export default function GameCenterDetailPage({
         onSuccess={handleAuthSuccess}
       />
 
-      {/* فقط در حالت Mock؛ در حالت واقعی وضعیت پرداخت از Backend خوانده می‌شود */}
+      {/* مدال تایید موفقیت ثبت رزرو */}
       <PaymentSuccessModal
         isOpen={isSuccessOpen}
         onClose={() => {
