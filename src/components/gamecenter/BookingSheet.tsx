@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { isAbortError } from "@/lib/api/client";
-import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
 import { generateDays } from "@/lib/dates";
 import type { DateOption } from "@/lib/dates";
 import {
@@ -15,7 +14,6 @@ import {
 } from "@/lib/devices";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatClock, getErrorMessage } from "@/lib/reservationUi";
-import { generateHourlySlots } from "@/lib/slots";
 import { gamingCenterService } from "@/services/gamingCenterService";
 import type { AvailabilitySlot } from "@/services/gamingCenterService";
 
@@ -60,24 +58,6 @@ function mapSlots(raw: AvailabilitySlot[]): RawSlot[] {
         s.isAvailable !== false &&
         (s.status === undefined || s.status === "AVAILABLE"),
     }));
-}
-
-/** ⚠️ فقط Mock: وقتی USE_MOCK_RESERVATIONS فعال است برای طراحی استفاده می‌شود */
-const MOCK_TZ_OFFSET = "+03:30";
-function buildMockSlots(date: string): RawSlot[] {
-  return generateHourlySlots().map((s) => {
-    const hh = String(s.startHour).padStart(2, "0");
-    const startMs = Date.parse(`${date}T${hh}:00:00${MOCK_TZ_OFFSET}`);
-    const start = new Date(startMs).toISOString();
-    const end = new Date(startMs + 3_600_000).toISOString();
-    return {
-      key: start,
-      startTime: start,
-      startLabel: formatClock(start, true),
-      endLabel: formatClock(end, true),
-      available: startMs > Date.now(),
-    };
-  });
 }
 
 export const BookingSheet: React.FC<BookingSheetProps> = ({
@@ -148,7 +128,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
               );
               return { id: s.id, list: mapSlots(raw) };
             } catch (e) {
-              if (isAbortError(e) || !USE_MOCK_RESERVATIONS) throw e;
+              if (isAbortError(e)) throw e;
               return { id: s.id, list: [] as RawSlot[] };
             }
           }),
@@ -160,12 +140,8 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
         const meta = new Map<string, SlotView>();
 
         for (const e of entries) {
-          const list =
-            e.list.length === 0 && USE_MOCK_RESERVATIONS
-              ? buildMockSlots(date.fullDate)
-              : e.list;
           nextAvail[e.id] = {};
-          for (const s of list) {
+          for (const s of e.list) {
             nextAvail[e.id][s.key] = s.available;
             if (!meta.has(s.key)) {
               meta.set(s.key, {

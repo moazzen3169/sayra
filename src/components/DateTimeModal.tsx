@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { generateTenDays, DateOption } from "@/lib/dates";
-import { generateHourlySlots, TimeSlotOption } from "@/lib/slots";
+import { TimeSlotOption } from "@/lib/slots";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatClock } from "@/lib/reservationUi";
 import { gamingCenterService } from "@/services/gamingCenterService";
@@ -34,9 +34,10 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
   const [dateOptions] = useState<DateOption[]>(() => generateTenDays());
   const [selectedDateId, setSelectedDateId] = useState<string>("day-0");
 
-  const [defaultTimeSlots] = useState<TimeSlotOption[]>(() => generateHourlySlots());
-  const [apiSlots, setApiSlots] = useState<TimeSlotOption[] | null>(null);
-  const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>(["slot-14", "slot-15"]);
+  const [apiSlots, setApiSlots] = useState<TimeSlotOption[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState<boolean>(false);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
 
   const dateListRef = useRef<HTMLDivElement>(null);
 
@@ -44,39 +45,61 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
   const stationId = cartItems[0]?.device.id;
 
   useEffect(() => {
-    let isCancelled = false;
-    if (isOpen && gamingCenterSlug && selectedDateObj?.fullDate) {
-      gamingCenterService
-        .getAvailabilitySlots(gamingCenterSlug, selectedDateObj.fullDate, stationId)
-        .then((rawSlots) => {
-          if (isCancelled) return;
-          if (rawSlots && rawSlots.length > 0) {
-            const mapped: TimeSlotOption[] = rawSlots.map((s, idx) => {
-              const startH = s.startTime ? new Date(s.startTime).getHours() : idx;
-              const endH = s.endTime ? new Date(s.endTime).getHours() : startH + 1;
+    if (!isOpen || !gamingCenterSlug || !selectedDateObj?.fullDate) {
+      setApiSlots([]);
+      setSelectedSlotIds([]);
+      setIsLoadingSlots(false);
+      setSlotsError(null);
+      return;
+    }
+
+    const abortController = new AbortController();
+    setIsLoadingSlots(true);
+    setSlotsError(null);
+    setSelectedSlotIds([]); // Clear selection when date or center changes to avoid stale selections
+
+    gamingCenterService
+      .getAvailabilitySlots(gamingCenterSlug, selectedDateObj.fullDate, stationId, abortController.signal)
+      .then((rawSlots) => {
+        if (abortController.signal.aborted) return;
+        if (Array.isArray(rawSlots)) {
+          const mapped: TimeSlotOption[] = rawSlots
+            .filter((s) => Boolean(s?.startTime))
+            .map((s, idx) => {
               const label =
                 s.startTime && s.endTime
                   ? `${formatClock(s.startTime, true)} تا ${formatClock(s.endTime, true)}`
-                  : `ساعت ${toPersianDigits(startH)} تا ${toPersianDigits(endH)}`;
-              const isAvail = s.isAvailable !== false && s.status !== "UNAVAILABLE";
+                  : formatClock(s.startTime, true);
+              const isAvail = s.isAvailable !== false && (s.status === undefined || s.status === "AVAILABLE");
               return {
-                id: `slot-${startH}`,
+                id: s.startTime || `slot-${idx}`,
                 timeLabel: label,
-                startHour: startH,
+                startHour: idx,
                 isAvailable: isAvail,
               };
             });
-            setApiSlots(mapped);
-          }
-        })
-        .catch(() => {});
-    }
+          setApiSlots(mapped);
+        } else {
+          setApiSlots([]);
+        }
+      })
+      .catch((err) => {
+        if (abortController.signal.aborted) return;
+        setSlotsError(err instanceof Error ? err.message : "خطا در دریافت اسلات‌های زمانی");
+        setApiSlots([]);
+      })
+      .finally(() => {
+        if (!abortController.signal.aborted) {
+          setIsLoadingSlots(false);
+        }
+      });
+
     return () => {
-      isCancelled = true;
+      abortController.abort();
     };
   }, [isOpen, gamingCenterSlug, selectedDateObj?.fullDate, stationId]);
 
-  const timeSlots = apiSlots || defaultTimeSlots;
+  const timeSlots = apiSlots;
 
   if (!isOpen) return null;
 
@@ -88,9 +111,11 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
   };
 
   const handleToggleSlot = (slotId: string) => {
+    const targetSlot = timeSlots.find((s) => s.id === slotId);
+    if (!targetSlot || targetSlot.isAvailable === false) return;
+
     setSelectedSlotIds((prev) => {
       if (prev.includes(slotId)) {
-        if (prev.length === 1) return prev; // keep at least 1
         return prev.filter((id) => id !== slotId);
       } else {
         return [...prev, slotId];
@@ -229,37 +254,63 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-bold text-[var(--text-white)]">
-                ۲. انتخاب ساعات بازی (۱ ساعته)
+                ۲. انتخاب ساعات بازی
               </h4>
               <span className="text-xs text-[var(--text-muted)]">
                 امکان انتخاب چند ساعت
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-              {timeSlots.map((slot) => {
-                const isSelected = selectedSlotIds.includes(slot.id);
-                return (
-                  <button
-                    key={slot.id}
-                    type="button"
-                    onClick={() => handleToggleSlot(slot.id)}
-                    className={`h-11 rounded-card flex items-center justify-between px-3 text-xs font-bold border transition-all cursor-pointer ${
-                      isSelected
-                        ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-bold shadow-md"
-                        : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
-                    }`}
-                  >
-                    <span>{slot.timeLabel}</span>
-                    {isSelected && (
-                      <span className="w-4 h-4 rounded-full bg-[#101014] text-[var(--primary)] text-xs flex items-center justify-center font-bold">
-                        <Icon name="check" size={12} />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            {isLoadingSlots && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2" aria-busy="true">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="h-11 rounded-card bg-[var(--foreground)]/40 animate-pulse" />
+                ))}
+              </div>
+            )}
+
+            {!isLoadingSlots && slotsError && (
+              <div className="rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-4 flex flex-col items-center gap-2 text-center">
+                <p className="text-xs font-bold text-[var(--accent-red)]">{slotsError}</p>
+              </div>
+            )}
+
+            {!isLoadingSlots && !slotsError && timeSlots.length === 0 && (
+              <div className="rounded-card border border-dashed border-[var(--border-color)] p-6 text-center text-xs text-[var(--text-muted)]">
+                برای این روز ساعت خالی وجود ندارد. روز دیگری را انتخاب کنید.
+              </div>
+            )}
+
+            {!isLoadingSlots && !slotsError && timeSlots.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                {timeSlots.map((slot) => {
+                  const isSelected = selectedSlotIds.includes(slot.id);
+                  const isAvailable = slot.isAvailable !== false;
+                  return (
+                    <button
+                      key={slot.id}
+                      type="button"
+                      disabled={!isAvailable}
+                      onClick={() => handleToggleSlot(slot.id)}
+                      className={`h-11 rounded-card flex items-center justify-between px-3 text-xs font-bold border transition-all ${
+                        !isAvailable
+                          ? "bg-[var(--foreground)]/20 border-transparent text-[var(--text-subtle)] line-through cursor-not-allowed opacity-50"
+                          : isSelected
+                            ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-bold shadow-md cursor-pointer"
+                            : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)] cursor-pointer"
+                      }`}
+                    >
+                      <span>{slot.timeLabel}</span>
+                      {isSelected && (
+                        <span className="w-4 h-4 rounded-full bg-[#101014] text-[var(--primary)] text-xs flex items-center justify-center font-bold">
+                          <Icon name="check" size={12} />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -281,10 +332,11 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
 
             <button
               type="button"
+              disabled={totalHours === 0 || isLoadingSlots}
               onClick={handleFinalConfirm}
-              className="h-12 px-6 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+              className="h-12 px-6 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:bg-[var(--foreground)] disabled:text-[var(--text-muted)] text-on-primary font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
             >
-              <span>تکمیل و ثبت رزرو</span>
+              <span>{totalHours > 0 ? "تکمیل و ثبت رزرو" : "ابتدا ساعت را انتخاب کنید"}</span>
               <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
