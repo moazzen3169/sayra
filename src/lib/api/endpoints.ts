@@ -16,7 +16,7 @@ export const ENDPOINTS = {
   },
   gamingCenter: {
     list: "/gamingCenters",
-    detail: (slug: string) => `/public/gamingCenters/${enc(slug)}`,
+    detail: (slug: string) => `/gamingCenters/${enc(slug)}`,
     availabilitySlots: (slug: string) => `/public/gamingCenters/${enc(slug)}/availability/slots`,
     ratings: (slug: string) => `/public/gamingCenters/${enc(slug)}/ratings`,
     media: (slug: string) => `/public/gamingCenters/${enc(slug)}/media`,
