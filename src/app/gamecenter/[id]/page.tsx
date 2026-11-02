@@ -482,24 +482,34 @@ export default function GameCenterDetailPage({
 
         {/* Error */}
         {loadError && (
-          <div className="mx-4 desk:mx-6 lg:mx-8 mt-6 p-6 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 flex flex-col items-center gap-3 text-center">
-            <p className="text-sm font-bold text-[var(--accent-red)]">
-              {loadError}
-            </p>
-            <div className="flex gap-2">
+          <div className="mx-4 desk:mx-6 lg:mx-8 mt-6 p-8 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col items-center gap-4 text-center max-w-lg mx-auto shadow-lg">
+            <div className="w-14 h-14 rounded-full bg-[var(--accent-red)]/15 flex items-center justify-center text-[var(--accent-red)]">
+              <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div className="flex flex-col gap-1">
+              <h3 className="text-base font-bold text-[var(--text-white)]">
+                عدم برقراری ارتباط با سرور
+              </h3>
+              <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                {loadError}
+              </p>
+            </div>
+            <div className="flex items-center gap-3 mt-2">
               <button
                 type="button"
                 onClick={() => setReloadToken((v) => v + 1)}
-                className="h-10 px-5 rounded-card bg-[var(--primary)] text-on-primary text-xs font-bold"
+                className="h-11 px-6 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
               >
-                تلاش دوباره
+                تلاش مجدد
               </button>
               <button
                 type="button"
-                onClick={() => router.push("/")}
-                className="h-10 px-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-color)] text-xs font-bold"
+                onClick={() => router.push("/gamecenters")}
+                className="h-11 px-6 rounded-card bg-[var(--foreground)] hover:bg-[var(--border-color)] border border-[var(--border-color)] text-xs font-bold text-[var(--text-white)] transition-all cursor-pointer"
               >
-                بازگشت به خانه
+                مشاهده سایر گیمنت‌ها
               </button>
             </div>
           </div>

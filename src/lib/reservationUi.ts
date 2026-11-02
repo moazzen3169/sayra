@@ -136,9 +136,11 @@ export const mapsUrl = (address: string) =>
 
 const ERROR_MESSAGES: Record<string, string> = {
   NETWORK_ERROR: "ارتباط با سرور برقرار نشد. اینترنت خود را بررسی کنید.",
+  PROXY_NETWORK_ERROR: "پاسخی از سرور دریافت نشد (خطای اتصال یا ۵۰۲). لطفاً چند لحظه بعد تلاش کنید.",
+  INVALID_RESPONSE: "پاسخی از سرور دریافت نشد (خطای ۵۰۲ سرور). لطفاً کمی بعد مجدداً تلاش نمایید.",
   UNAUTHORIZED: "برای مشاهده این بخش ابتدا وارد حساب کاربری شوید.",
   FORBIDDEN: "شما به این بخش دسترسی ندارید.",
-  NOT_FOUND: "مورد درخواستی پیدا نشد.",
+  NOT_FOUND: "گیمنت یا مورد درخواستی یافت نشد.",
   INVALID_TRANSITION: "در وضعیت فعلی رزرو، این عملیات امکان‌پذیر نیست.",
   VALIDATION_ERROR: "اطلاعات ارسال‌شده معتبر نیست.",
   CONFLICT: "تداخلی در درخواست شما وجود دارد.",
@@ -155,7 +157,18 @@ const ERROR_MESSAGES: Record<string, string> = {
 };
 
 export function getErrorMessage(e: unknown): string {
-  if (e instanceof ApiError) return ERROR_MESSAGES[e.code] ?? e.message;
+  if (e instanceof ApiError) {
+    if (e.status === 502) {
+      return "خطای ارتباط با سرور (502 Bad Gateway). سرور در دسترس نیست یا در حال بروزرسانی است.";
+    }
+    if (e.status === 503 || e.status === 504) {
+      return "سرور در حال حاضر پاسخگو نیست. لطفاً دقایقی دیگر دوباره تلاش کنید.";
+    }
+    if (e.status === 404) {
+      return "اطلاعات گیمنت در سامانه پیدا نشد.";
+    }
+    return ERROR_MESSAGES[e.code] ?? e.message;
+  }
   if (e instanceof Error && e.message) return e.message;
   return "مشکلی پیش آمد. لطفاً دوباره تلاش کنید.";
 }

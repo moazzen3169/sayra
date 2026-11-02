@@ -23,6 +23,8 @@ export const ENDPOINTS = {
     links: (slug: string) => `/public/gamingCenters/${enc(slug)}/links`,
     addresses: (slug: string) => `/public/gamingCenters/${enc(slug)}/addresses`,
     stations: (gamingCenterId: string) => `/gamingCenters/${enc(gamingCenterId)}/stations`,
+    publicStations: (slug: string) => `/public/gamingCenters/${enc(slug)}/stations`,
+    byId: (id: string) => `/gamingCenters/${enc(id)}`,
     page: (slug: string, pageSlug: string) =>
       `/public/gamingCenters/${enc(slug)}/pages/${enc(pageSlug)}`,
   },
