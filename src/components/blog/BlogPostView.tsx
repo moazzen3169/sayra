@@ -144,7 +144,7 @@ export const BlogPostView: React.FC<{ slug: string }> = ({ slug }) => {
     <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-12 text-[var(--text-white)]">
       {/* دسکتاپ: هدر اصلی ؛ موبایل: هدر صفحه‌ی داخلی */}
       <div className="hidden lg:block">
-        <Header unreadNotificationsCount={0} />
+        <Header />
       </div>
       <PageHeader title="وبلاگ" onBack={goBack} className="lg:hidden" />
 

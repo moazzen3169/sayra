@@ -116,7 +116,6 @@ export default function HomePage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
       <Header
         locationName={selectedCity}
-        unreadNotificationsCount={2}
         onCityChange={(city) => setSelectedCity(city)}
       />
 
