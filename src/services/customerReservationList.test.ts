@@ -450,13 +450,13 @@ describe("Phase 12: Customer Reservation List", () => {
       });
 
       const listA = await reservationService.list();
-      expect(calledToken).toBe("Bearer token-customer-A");
+      expect(calledToken as string | null).toBe("Bearer token-customer-A");
       expect(listA[0].id).toBe("res-A-1");
 
       // Customer B
       setTokens({ accessToken: "token-customer-B" });
       const listB = await reservationService.list();
-      expect(calledToken).toBe("Bearer token-customer-B");
+      expect(calledToken as string | null).toBe("Bearer token-customer-B");
       expect(listB[0].id).toBe("res-B-1");
 
       // Cross-read attempt: fetching reservation of B with customer A's token returns 403

@@ -33,6 +33,7 @@ export const ENDPOINTS = {
     list: "/customer/reservation",
     detail: (reservationId: string) => `/customer/reservation/${enc(reservationId)}`,
     cancel: (reservationId: string) => `/customer/reservation/${enc(reservationId)}/cancel`,
+    reschedule: (reservationId: string) => `/customer/reservation/${enc(reservationId)}/reschedule`,
     rate: (reservationId: string) => `/customer/reservation/${enc(reservationId)}/ratings`,
     proposals: (reservationId: string) => `/customer/reservation/${enc(reservationId)}/proposals`,
     acceptProposal: (reservationId: string, proposalId: string) =>
