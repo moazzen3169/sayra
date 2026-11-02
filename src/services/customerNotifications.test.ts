@@ -36,7 +36,7 @@ describe("Phase 19: Customer Notifications and Messages", () => {
         body,
       });
       return responder(url, init);
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
   }
 
   beforeEach(() => {
@@ -232,7 +232,6 @@ describe("Phase 19: Customer Notifications and Messages", () => {
 
     it("validates notification ID before dispatching request", async () => {
       setTokens({ accessToken: "customer-valid-jwt" });
-      // @ts-expect-error test invalid ID
       expect(customerNotificationService.markAsRead("")).rejects.toThrow("شناسه اعلان نامعتبر است.");
     });
   });
@@ -318,7 +317,7 @@ describe("Phase 19: Customer Notifications and Messages", () => {
 
     it("propagates network failures cleanly", async () => {
       setTokens({ accessToken: "customer-valid-jwt" });
-      globalThis.fetch = (() => Promise.reject(new TypeError("Failed to fetch"))) as typeof fetch;
+      globalThis.fetch = (() => Promise.reject(new TypeError("Failed to fetch"))) as unknown as typeof fetch;
 
       expect(customerNotificationService.listNotifications()).rejects.toThrow();
     });

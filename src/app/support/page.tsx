@@ -11,6 +11,7 @@ import { isAbortError } from "@/lib/api/client";
 import { formatClock, formatDayLabel, getErrorMessage } from "@/lib/reservationUi";
 import { toPersianDigits } from "@/lib/format";
 import { ownerService } from "@/services/ownerService";
+import { customerMediaService } from "@/services/customerMediaService";
 import type { Ticket } from "@/types/owner";
 
 const CATEGORIES: { id: "TECHNICAL" | "FINANCIAL" | "SALES" | "ACCOUNT"; label: string }[] = [
@@ -126,7 +127,7 @@ export default function SupportPage() {
       let attachment: string | undefined;
       if (file) {
         try {
-          attachment = await ownerService.uploadTicketAttachment(selected.id, file);
+          attachment = await customerMediaService.uploadTicketAttachment(selected.id, file);
         } catch (uploadErr) {
           setError(`خطا در آپلود فایل پیوست: ${getErrorMessage(uploadErr)}`);
           setBusy(false);
