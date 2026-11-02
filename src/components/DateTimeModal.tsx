@@ -29,7 +29,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
   cartItems,
   gamingCenterSlug,
   onConfirmReservation,
-  extraControllerPricePerHour = 30000,
+  extraControllerPricePerHour = 0,
 }) => {
   const [dateOptions] = useState<DateOption[]>(() => generateTenDays());
   const [selectedDateId, setSelectedDateId] = useState<string>("day-0");

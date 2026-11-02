@@ -39,11 +39,11 @@ export const CartModal: React.FC<CartModalProps> = ({
   onRemoveItem,
   onUpdateExtraControllers,
   onProceedToDateTime,
-  extraControllerPricePerHour = 30000,
+  extraControllerPricePerHour = 0,
 }) => {
   if (!isOpen) return null;
 
-  // Calculate totals per hour
+  // Calculate totals per hour strictly from documented fields
   const totalDeviceCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
   const totalPricePerHour = cartItems.reduce((acc, item) => {

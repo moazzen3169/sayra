@@ -150,8 +150,7 @@ describe("Phase 6: Gaming-Center Detail Data (Mocked Network)", () => {
     it("filters out empty or invalid media items", () => {
       const mediaList = [
         { id: "m-1", url: "" },
-        // @ts-expect-error test invalid object
-        null,
+        null as unknown as { id: string; url: string },
       ];
       const images = mapMediaToGalleryImages(mediaList);
       expect(images.length).toBe(0);
