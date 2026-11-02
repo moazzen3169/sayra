@@ -1,7 +1,7 @@
 import { apiClient } from "@/lib/api/client";
 import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
 import { ENDPOINTS } from "@/lib/api/endpoints";
-import { addMockReservation, getMockReservations } from "@/lib/reservations.mock";
+import { addMockReservation } from "@/lib/reservations.mock";
 import type { Reservation, ReservationTimeProposal } from "@/types/reservation";
 import { ContractGapError, PaymentInitResponse } from "@/types/customerApi";
 
