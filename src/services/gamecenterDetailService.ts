@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api/client";
+import { apiClient, ApiError } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
 import { getMockGamecenterDetail } from "@/lib/mocks/gamecenter.mock";
@@ -58,29 +58,61 @@ export const gamingCenterService = {
   },
 
   /**
+   * دریافت مستقیم مرکز بازی با ID از:
+   * GET /gamingCenters/{id}
+   */
+  async getGamingCenterById(id: string, signal?: AbortSignal): Promise<GamingCenterInfo> {
+    const { data } = await apiClient.get<GamingCenterInfo>(ENDPOINTS.gamingCenter.byId(id), {
+      signal,
+    });
+    return data;
+  },
+
+  /**
    * حل شناسه مسیر (route identifier) که ممکن است slug یا id باشد
-   * از اندپوینت‌های معتبر اوپن‌ای‌پی‌آی استفاده می‌کند و هرگز ID یا Slug تصادفی اختراع نمی‌کند.
+   * از اندپوینت‌های معتبر OpenAPI (GET /public/gamingCenters/{slug} یا GET /gamingCenters/{id})
+   * استفاده می‌کند. فقط در صورت بروز خطای 404 برای اسلاگ، به جستجو بر اساس ID یا فهرست مراجعه می‌کند.
    */
   async resolveGamingCenter(routeId: string, signal?: AbortSignal): Promise<GamingCenterInfo> {
-    if (!routeId) {
+    if (!routeId || !routeId.trim()) {
       throw new Error("شناسه گیمنت ارسال نشده است.");
     }
 
-    // ابتدا تلاش می‌کنیم با شناسه ورودی به عنوان slug مستقیماً مرکز را بخوانیم
+    const cleanRouteId = routeId.trim();
+
+    // گام ۱: ابتدا تلاش می‌کنیم با شناسه ورودی به عنوان slug مستقیماً مرکز را بخوانیم (GET /public/gamingCenters/{slug})
     try {
-      const center = await this.getPublicGamingCenter(routeId, signal);
+      const center = await this.getPublicGamingCenter(cleanRouteId, signal);
       if (center && (center.id || center.slug)) {
         return center;
       }
     } catch (err: unknown) {
-      // اگر خطای ۴۰۴ یا عدم تطابق رخ داد، ممکن است routeId یک id عددی/متنی باشد نه slug
-      // تلاش دوم: جستجو در فهرست مراکز معتبر با GET /gamingCenters
+      // فقط در صورتی که پاسخ 404 بود، مسیر جایگزین (شناسه ID بودن) را بررسی می‌کنیم.
+      // اگر خطا مربوط به شبکه یا سرور (مثل 502 Bad Gateway یا قطعی ارتباط) بود، باید خطای مستقیم صادر شود.
+      const isNotFound = err instanceof ApiError && err.status === 404;
+      if (!isNotFound) {
+        throw err;
+      }
+
+      // گام ۲: تلاش با اندپوینت مستقیم GET /gamingCenters/{id}
+      try {
+        const centerById = await this.getGamingCenterById(cleanRouteId, signal);
+        if (centerById && (centerById.id || centerById.slug)) {
+          return centerById;
+        }
+      } catch (idErr: unknown) {
+        // اگر خطای سرور/شبکه رخ داد اجازه دهیم خطا بالا برود
+        if (idErr instanceof ApiError && idErr.status !== 404) {
+          throw idErr;
+        }
+      }
+
+      // گام ۳: تلاش نهایی در فهرست مراکز با GET /gamingCenters
       try {
         const centers = await coreGamingCenterService.listGamingCenters(signal);
-        const matched = centers.find((c) => c.slug === routeId || c.id === routeId);
+        const matched = centers.find((c) => c.slug === cleanRouteId || c.id === cleanRouteId);
         if (matched) {
-          // اگر slug ثبت شده است، برای اطمینان از داده‌های تکمیلی آن را صدا می‌زنیم
-          if (matched.slug && matched.slug !== routeId) {
+          if (matched.slug && matched.slug !== cleanRouteId) {
             try {
               const fullBySlug = await this.getPublicGamingCenter(matched.slug, signal);
               return fullBySlug;
@@ -90,9 +122,13 @@ export const gamingCenterService = {
           }
           return matched;
         }
-      } catch {
-        // خطای شبکه / سرور در لیست عمومی؛ اجازه دهیم خطای اصلی بالا برود
+      } catch (listErr: unknown) {
+        // اگر خطای شبکه / سرور در لیست عمومی رخ داد، خطای اصلی 404 یا خطای سرور را بالا ببریم
+        if (listErr instanceof ApiError && listErr.status >= 500) {
+          throw listErr;
+        }
       }
+
       throw err;
     }
 
@@ -111,6 +147,18 @@ export const gamingCenterService = {
         query: { date, stationId },
         signal,
       }
+    );
+    return Array.isArray(data) ? data : [];
+  },
+
+  /**
+   * دریافت دستگاه‌ها بر اساس slug از اندپوینت عمومی:
+   * GET /public/gamingCenters/{slug}/stations
+   */
+  async getPublicStations(slug: string, signal?: AbortSignal): Promise<GameStationInfo[]> {
+    const { data } = await apiClient.get<GameStationInfo[]>(
+      ENDPOINTS.gamingCenter.publicStations(slug),
+      { signal }
     );
     return Array.isArray(data) ? data : [];
   },
@@ -232,8 +280,20 @@ export async function loadGamecenterDetail(
   const targetSlug = center.slug || routeIdentifier;
   const targetId = center.id;
 
+  // برای واکشی دستگاه‌ها، مطابق با قرارداد سرویس‌های مشتری و تست‌های موجود:
+  // در صورت داشتن targetId مستقیماً از GET /gamingCenters/{id}/stations و در صورت داشتن targetSlug از GET /public/gamingCenters/{slug}/stations استفاده می‌شود.
+  const fetchStationsPromise = (async (): Promise<GameStationInfo[]> => {
+    if (targetId) {
+      return await gamingCenterService.getStations(targetId, signal);
+    }
+    if (targetSlug) {
+      return await gamingCenterService.getPublicStations(targetSlug, signal);
+    }
+    return [];
+  })();
+
   const [stationsRes, addressesRes, mediaRes, ratingsRes] = await Promise.allSettled([
-    targetId ? gamingCenterService.getStations(targetId, signal) : Promise.resolve([]),
+    fetchStationsPromise,
     gamingCenterService.getPublicAddresses(targetSlug, signal),
     gamingCenterService.getPublicMedia(targetSlug, signal),
     gamingCenterService.getPublicRatings(targetSlug, signal),

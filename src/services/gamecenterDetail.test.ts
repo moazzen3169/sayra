@@ -309,5 +309,47 @@ describe("Phase 6: Gaming-Center Detail Data (Mocked Network)", () => {
 
       await expect(loadGamecenterDetail("error-center")).rejects.toThrow();
     });
+
+    it("does not trigger second fallback request to GET /gamingCenters on 502 Bad Gateway", async () => {
+      setupMockFetch((url) => {
+        if (url.includes("/public/gamingCenters/western-game-net")) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: { code: "BAD_GATEWAY", message: "Bad Gateway" },
+            }),
+            { status: 502 }
+          );
+        }
+        return new Response(JSON.stringify({ success: true, data: [] }), { status: 200 });
+      });
+
+      await expect(loadGamecenterDetail("western-game-net")).rejects.toThrow();
+      const listingRequests = requests.filter((r) => r.url.endsWith("/gamingCenters"));
+      expect(listingRequests.length).toBe(0);
+    });
+
+    it("fetches stations via getPublicStations for slug without gamingCenterId", async () => {
+      setupMockFetch((url) => {
+        if (url.includes("/public/gamingCenters/test-slug/stations")) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: [
+                { id: "st-pub-1", gamingCenterId: "gc-1", name: "PC VIP", stationType: "PC", hourlyPrice: 150000 },
+              ],
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response(JSON.stringify({ success: true, data: [] }), { status: 200 });
+      });
+
+      const stations = await gamingCenterService.getPublicStations("test-slug");
+      expect(stations.length).toBe(1);
+      expect(stations[0].id).toBe("st-pub-1");
+      const pubStationReq = requests.find((r) => r.url.includes("/public/gamingCenters/test-slug/stations"));
+      expect(pubStationReq).toBeDefined();
+    });
   });
 });
