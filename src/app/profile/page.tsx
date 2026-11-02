@@ -30,17 +30,21 @@ export default function ProfilePage() {
   // Edit Profile Form States
   const [editFullName, setEditFullName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
   const [editSuccess, setEditSuccess] = useState(false);
 
   // Wallet State
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletChargeAmount, setWalletChargeAmount] = useState<number | null>(null);
   const [walletSuccess, setWalletSuccess] = useState("");
+  const [walletError, setWalletError] = useState("");
 
   // Open Edit Profile Modal and prefill data
   const handleOpenEditModal = () => {
     setEditFullName(user?.fullName || "");
     setEditPhone(user?.phone || "");
+    setEditError("");
     setEditSuccess(false);
     setIsEditModalOpen(true);
   };
@@ -173,26 +177,52 @@ export default function ProfilePage() {
   };
 
   /* --- Edit Profile Handler --- */
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editFullName.trim()) return;
+    setEditError("");
+    setEditSuccess(false);
 
-    login(editFullName.trim(), editPhone.trim() || user?.phone || "", user?.token);
-    setEditSuccess(true);
-    setTimeout(() => {
-      setEditSuccess(false);
-      setIsEditModalOpen(false);
-    }, 1200);
+    if (!editFullName.trim()) {
+      setEditError("لطفاً نام و نام خانوادگی خود را وارد کنید.");
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      await authService.updateProfile({
+        fullName: editFullName.trim(),
+        phone: editPhone.trim(),
+      });
+      setEditSuccess(true);
+      setTimeout(() => {
+        setEditSuccess(false);
+        setIsEditModalOpen(false);
+      }, 1200);
+    } catch (err: any) {
+      // In OpenAPI v1.0-LOCKED, customer profile editing is not supported on the backend.
+      // We inform the user transparently without fabricating false backend persistence.
+      const msg =
+        err?.message?.includes("CustomerProfileUpdate") || err?.name === "ContractGapError"
+          ? "امکان ویرایش اطلاعات حساب کاربری در حال حاضر در سرویس فعال نیست."
+          : getErrorMessage(err);
+      setEditError(msg);
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   /* --- Wallet Charge Handler --- */
   const handleChargeWallet = (amount: number) => {
-    setWalletBalance((prev) => prev + amount);
-    setWalletSuccess(`مبلغ ${formatPrice(amount)} تومان با موفقیت به کیف پول افزوده شد.`);
-    setWalletChargeAmount(null);
-    setTimeout(() => {
-      setWalletSuccess("");
-    }, 3000);
+    setWalletError("");
+    try {
+      authService.walletUnsupported();
+    } catch (err: any) {
+      setWalletError("درگاه و افزایش موجودی کیف پول در حال حاضر در دسترس نیست.");
+      setWalletChargeAmount(null);
+      setTimeout(() => {
+        setWalletError("");
+      }, 4000);
+    }
   };
 
   const formatTimer = (seconds: number) => {
@@ -492,7 +522,7 @@ export default function ProfilePage() {
 
       {/* Support Modal */}
       {isSupportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm animate-fadeIn p-0 sm:p-4" onClick={() => setIsSupportModalOpen(false)}>
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm animate-fadeIn p-0 sm:p-4" onClick={() => setIsSupportModalOpen(false)}>
           <div className="w-full max-w-[440px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-2">
@@ -551,7 +581,7 @@ export default function ProfilePage() {
 
       {/* Edit Profile Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm animate-fadeIn p-0 sm:p-4" onClick={() => setIsEditModalOpen(false)}>
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm animate-fadeIn p-0 sm:p-4" onClick={() => setIsEditModalOpen(false)}>
           <div className="w-full max-w-[440px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-2">
@@ -568,6 +598,12 @@ export default function ProfilePage() {
             {editSuccess && (
               <div className="p-3 rounded-card bg-[var(--accent-green)]/15 border border-[var(--accent-green)]/30 text-[var(--accent-green)] text-xs font-bold text-center">
                 اطلاعات حساب با موفقیت بروزرسانی شد.
+              </div>
+            )}
+
+            {editError && (
+              <div className="p-3 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold text-center">
+                {editError}
               </div>
             )}
 
@@ -603,9 +639,10 @@ export default function ProfilePage() {
                 </button>
                 <button
                   type="submit"
-                  className="h-11 flex-1 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs shadow-md"
+                  disabled={editLoading}
+                  className="h-11 flex-1 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs shadow-md disabled:opacity-60"
                 >
-                  ذخیره تغییرات
+                  {editLoading ? "در حال ذخیره..." : "ذخیره تغییرات"}
                 </button>
               </div>
             </form>
@@ -615,7 +652,7 @@ export default function ProfilePage() {
 
       {/* Wallet Modal */}
       {isWalletModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm animate-fadeIn p-0 sm:p-4" onClick={() => setIsWalletModalOpen(false)}>
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm animate-fadeIn p-0 sm:p-4" onClick={() => setIsWalletModalOpen(false)}>
           <div className="w-full max-w-[440px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-2">
@@ -632,6 +669,12 @@ export default function ProfilePage() {
             {walletSuccess && (
               <div className="p-3 rounded-card bg-[var(--accent-green)]/15 border border-[var(--accent-green)]/30 text-[var(--accent-green)] text-xs font-bold text-center">
                 {walletSuccess}
+              </div>
+            )}
+
+            {walletError && (
+              <div className="p-3 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold text-center">
+                {walletError}
               </div>
             )}
 
