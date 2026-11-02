@@ -83,33 +83,104 @@ export const reservationService = {
   },
 
   /**
-   * لیست رزروهای من
+   * لیست رزروهای مشتری لاگین‌شده
    * GET /customer/reservation
+   * احراز هویت: فقط از طریق هدر Authorization: Bearer <accessToken>
+   * هیچ customerId به صورت کلاینتی به درخواست پاس داده نمی‌شود.
    */
-  async list(signal?: AbortSignal): Promise<Reservation[]> {
-    if (USE_MOCK_RESERVATIONS) return getMockReservations();
-    const response = await apiClient.get<unknown>(ENDPOINTS.reservation.list, { signal });
-    const resData = response.data;
-    if (Array.isArray(resData)) {
-      return resData as Reservation[];
-    }
-    if (resData && typeof resData === "object" && Array.isArray((resData as any).data)) {
-      return (resData as any).data as Reservation[];
-    }
-    return [];
+  async list(
+    options?: { page?: number; pageSize?: number; signal?: AbortSignal } | AbortSignal
+  ): Promise<Reservation[]> {
+    const paginated = await reservationService.listPaginated(
+      options instanceof AbortSignal ? { signal: options } : options
+    );
+    return paginated.items;
   },
 
   /**
-   * دریافت جزئیات یک رزرو
+   * لیست رزروهای مشتری لاگین‌شده با پشتیبانی از Pagination Envelope
+   * GET /customer/reservation
+   */
+  async listPaginated(
+    options?: { page?: number; pageSize?: number; signal?: AbortSignal }
+  ): Promise<{
+    items: Reservation[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
+    const requestedPage = options?.page ?? 1;
+    const requestedPageSize = options?.pageSize ?? 50;
+
+    const query: Record<string, number> = {};
+    if (options?.page) query.page = options.page;
+    if (options?.pageSize) query.pageSize = options.pageSize;
+
+    const response = await apiClient.get<unknown>(ENDPOINTS.reservation.list, {
+      query: Object.keys(query).length > 0 ? query : undefined,
+      signal: options?.signal,
+    });
+
+    const resData = response.data;
+    let items: Reservation[] = [];
+    let total = 0;
+    let page = requestedPage;
+    let pageSize = requestedPageSize;
+    let totalPages = 1;
+
+    // OpenAPI schema for /customer/reservation is Pagination schema:
+    // { success: true, data: Array, meta: { pagination: { total, totalItems, page, pageSize, totalPages } } }
+    if (Array.isArray(resData)) {
+      items = resData as Reservation[];
+      total = items.length;
+    } else if (resData && typeof resData === "object") {
+      const rec = resData as Record<string, unknown>;
+      if (Array.isArray(rec.data)) {
+        items = rec.data as Reservation[];
+      }
+      const pagination = (rec.meta as any)?.pagination ?? response.meta?.pagination;
+      if (pagination) {
+        total = pagination.total ?? pagination.totalItems ?? items.length;
+        page = pagination.page ?? requestedPage;
+        pageSize = pagination.pageSize ?? pagination.limit ?? requestedPageSize;
+        totalPages = pagination.totalPages ?? (Math.ceil(total / (pageSize || 1)) || 1);
+      } else {
+        total = items.length;
+      }
+    }
+
+    if (response.meta?.pagination) {
+      const p = response.meta.pagination;
+      total = p.total ?? p.totalItems ?? total;
+      page = p.page ?? page;
+      pageSize = p.pageSize ?? p.limit ?? pageSize;
+      totalPages = p.totalPages ?? totalPages;
+    }
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    };
+  },
+
+  /**
+   * دریافت جزئیات یک رزرو متعلق به مشتری
    * GET /customer/reservation/{reservationId}
    */
   async get(reservationId: string, signal?: AbortSignal): Promise<Reservation> {
-    if (USE_MOCK_RESERVATIONS) {
-      const found = getMockReservations().find((r) => r.id === reservationId);
-      return found ?? getMockReservations()[0];
+    const response = await apiClient.get<Reservation | { data?: Reservation }>(
+      ENDPOINTS.reservation.detail(reservationId),
+      { signal }
+    );
+    const resData = response.data;
+    if (resData && typeof resData === "object" && "data" in resData && (resData as any).data) {
+      return (resData as any).data as Reservation;
     }
-    const { data } = await apiClient.get<Reservation>(ENDPOINTS.reservation.detail(reservationId), { signal });
-    return data;
+    return resData as Reservation;
   },
 
   /**
