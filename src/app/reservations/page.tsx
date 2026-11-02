@@ -54,8 +54,8 @@ export default function ReservationsHistoryPage() {
     setReloadToken((v) => v + 1);
   };
 
-  const handleAuthSuccess = (fullName: string, phone: string, token?: string) => {
-    login(fullName, phone, token);
+  const handleAuthSuccess = (fullName: string, phone: string, token?: string, refreshToken?: string) => {
+    login(fullName, phone, token, refreshToken);
     setIsAuthModalOpen(false);
   };
 

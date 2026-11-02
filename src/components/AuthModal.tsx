@@ -9,7 +9,7 @@ import { authService } from "@/services/authService";
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (fullName: string, phone: string, token?: string) => void;
+  onSuccess: (fullName: string, phone: string, token?: string, refreshToken?: string) => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -136,7 +136,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
       }
 
-      onSuccess(finalFullName || "کاربر سایرا", cleanPhone, token);
+      const refreshToken = res?.refreshToken;
+      onSuccess(finalFullName || "کاربر سایرا", cleanPhone, token, refreshToken);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
