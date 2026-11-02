@@ -225,6 +225,22 @@ export interface ReservationTimeProposal {
 }
 
 // ---------------------------------------------------------------------------
+// Customer Favorites & Saved Centers (Contract Gap in OpenAPI v1.0-LOCKED)
+// ---------------------------------------------------------------------------
+
+export interface CustomerFavoriteItem {
+  id: string;
+  gamingCenterId: string;
+  gamingCenter?: PublicGamingCenter;
+  createdAt: string;
+}
+
+export interface CustomerFavoriteStatus {
+  isFavorite: boolean;
+  favoritedAt?: string;
+}
+
+// ---------------------------------------------------------------------------
 // Customer Notifications (/notifications/*)
 // ---------------------------------------------------------------------------
 
