@@ -151,7 +151,6 @@ export const BlogListView: React.FC = () => {
     <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-10 text-[var(--text-white)]">
       <Header
         locationName={city}
-        unreadNotificationsCount={0}
         onCityChange={setCity}
       />
 

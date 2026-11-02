@@ -1,6 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { customerNotificationService } from "@/services/customerNotificationService";
+import { formatRelativeNotificationTime } from "@/lib/dates";
+import { toPersianDigits } from "@/lib/format";
 
 export interface NotificationItem {
   id: string;
@@ -18,64 +22,105 @@ export interface NotificationModalProps {
   notifications?: NotificationItem[];
   onMarkAllAsRead?: () => void;
   onNotificationClick?: (notification: NotificationItem) => void;
+  onUnreadCountChange?: (count: number) => void;
 }
 
-const DEFAULT_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "notif-1",
-    title: "تخفیف ویژه آخر هفته",
-    message: "تا ۳۰٪ تخفیف برای رزرو صندلی‌های VIP گیمنت گرگدن فعال شد. کد تخفیف: WEEKEND30",
-    timestamp: "۱۰ دقیقه پیش",
-    isUnread: true,
-    type: "discount",
-  },
-  {
-    id: "notif-2",
-    title: "تأیید رزرو نوبت رزرو شده",
-    message: "رزرو شما در گیمنت سایبرسکی برای امروز ساعت ۱۸:۰۰ با موفقیت ثبت شد.",
-    timestamp: "۲ ساعت پیش",
-    isUnread: true,
-    type: "reservation",
-  },
-  {
-    id: "notif-3",
-    title: "دستگاه‌های جدید اضافه شد",
-    message: "کنسول‌های جدید PS5 Slim با جدیدترین بازی‌های روز در سایرا آماده رزرو هستند.",
-    timestamp: "دیروز",
-    isUnread: false,
-    type: "system",
-  },
-  {
-    id: "notif-4",
-    title: "یادآوری زمان رزرو",
-    message: "زمان بازی شما نیم ساعت دیگر در مجموعه وی‌آر پلاس آغاز می‌شود.",
-    timestamp: "۲ روز پیش",
-    isUnread: false,
-    type: "reservation",
-  },
-];
+function mapBackendType(type?: string): "system" | "discount" | "reservation" {
+  if (!type) return "system";
+  if (type.startsWith("RESERVATION_")) return "reservation";
+  if (type.includes("DISCOUNT") || type.includes("PROMO")) return "discount";
+  return "system";
+}
 
 export const NotificationModal: React.FC<NotificationModalProps> = ({
   isOpen,
   onClose,
-  notifications: initialNotifications = DEFAULT_NOTIFICATIONS,
+  notifications: propsNotifications,
   onMarkAllAsRead,
   onNotificationClick,
+  onUnreadCountChange,
 }) => {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
+  const { isLoggedIn } = useAuth();
+
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [activeFilter, setActiveFilter] = useState<"all" | "unread">("all");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!isLoggedIn) {
+      setNotifications([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await customerNotificationService.listNotifications();
+      const mapped: NotificationItem[] = data.map((item) => ({
+        id: item.id,
+        title: item.title,
+        message: item.message,
+        timestamp: formatRelativeNotificationTime(item.createdAt),
+        isUnread: !item.isRead,
+        type: mapBackendType(item.type),
+      }));
+      setNotifications(mapped);
+
+      const unread = mapped.filter((n) => n.isUnread).length;
+      onUnreadCountChange?.(unread);
+    } catch (err: any) {
+      setError(err?.message || "خطا در دریافت اعلانات.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isLoggedIn, onUnreadCountChange]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (propsNotifications !== undefined) {
+      setNotifications(propsNotifications);
+      setIsLoading(false);
+      setError(null);
+    } else {
+      fetchNotifications();
+    }
+  }, [isOpen, propsNotifications, fetchNotifications]);
 
   if (!isOpen) return null;
 
-  const handleMarkAll = () => {
+  const handleMarkAll = async () => {
+    const unreadItems = notifications.filter((n) => n.isUnread);
     setNotifications((prev) => prev.map((n) => ({ ...n, isUnread: false })));
-    if (onMarkAllAsRead) onMarkAllAsRead();
+    onUnreadCountChange?.(0);
+    onMarkAllAsRead?.();
+
+    // Mark items as read on backend
+    try {
+      await Promise.allSettled(
+        unreadItems.map((item) => customerNotificationService.markAsRead(item.id))
+      );
+    } catch {
+      // Best-effort sequential sync
+    }
   };
 
-  const handleItemClick = (item: NotificationItem) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === item.id ? { ...n, isUnread: false } : n))
-    );
+  const handleItemClick = async (item: NotificationItem) => {
+    if (item.isUnread) {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, isUnread: false } : n))
+      );
+      const remainingUnread = notifications.filter((n) => n.id !== item.id && n.isUnread).length;
+      onUnreadCountChange?.(remainingUnread);
+
+      try {
+        await customerNotificationService.markAsRead(item.id);
+      } catch {
+        // Handled silently to preserve responsive UI
+      }
+    }
     if (onNotificationClick) onNotificationClick(item);
   };
 
@@ -105,7 +150,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
             <h2 className="text-base font-bold text-[var(--text-white)]">اعلانات سایرا</h2>
             {unreadCount > 0 && (
               <span className="px-2 py-0.5 rounded-full bg-[var(--primary)] text-on-primary text-xs font-bold">
-                {unreadCount} جدید
+                {toPersianDigits(unreadCount)} جدید
               </span>
             )}
           </div>
@@ -135,7 +180,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
                 : "bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-white)] border border-[var(--border-subtle)]"
             }`}
           >
-            همه اعلانات ({notifications.length})
+            همه اعلانات ({toPersianDigits(notifications.length)})
           </button>
           <button
             type="button"
@@ -146,22 +191,51 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
                 : "bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-white)] border border-[var(--border-subtle)]"
             }`}
           >
-            خوانده‌نشده ({unreadCount})
+            خوانده‌نشده ({toPersianDigits(unreadCount)})
           </button>
         </div>
 
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex flex-col gap-3 py-4">
+            <div className="h-20 bg-[var(--bg-card)] rounded-card animate-pulse" />
+            <div className="h-20 bg-[var(--bg-card)] rounded-card animate-pulse" />
+            <div className="h-20 bg-[var(--bg-card)] rounded-card animate-pulse" />
+          </div>
+        )}
+
+        {/* Error State */}
+        {!isLoading && error && (
+          <div className="p-4 rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 text-right flex flex-col gap-2">
+            <p className="text-xs font-bold text-[var(--accent-red)]">{error}</p>
+            <button
+              type="button"
+              onClick={fetchNotifications}
+              className="self-end text-xs font-bold text-[var(--primary)] hover:underline"
+            >
+              تلاش مجدد
+            </button>
+          </div>
+        )}
+
         {/* Notifications List */}
-        {filteredNotifications.length === 0 ? (
+        {!isLoading && !error && filteredNotifications.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 py-16 text-center">
             <div className="w-16 h-16 rounded-full bg-[var(--bg-card)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-subtle)]">
               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.4-1.4a2 2 0 01-.6-1.4V11a6 6 0 00-4-5.66V5a2 2 0 10-4 0v.34C7.67 6.17 6 8.39 6 11v3.2c0 .54-.21 1.05-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
             </div>
-            <p className="text-sm font-bold text-[var(--text-white)]">هیچ اعلانی یافت نشد</p>
-            <p className="text-xs text-[var(--text-muted)]">پیام‌ها و اطلاعیه‌های سایرا در این بخش نمایش داده می‌شوند.</p>
+            <p className="text-sm font-bold text-[var(--text-white)]">
+              {!isLoggedIn ? "برای مشاهده اعلانات وارد حساب شوید" : "هیچ اعلانی یافت نشد"}
+            </p>
+            <p className="text-xs text-[var(--text-muted)]">
+              {!isLoggedIn
+                ? "جهت دریافت پیام‌ها و اطلاعیه‌های رزرو، ابتدا وارد حساب کاربری خود شوید."
+                : "پیام‌ها و اطلاعیه‌های سایرا در این بخش نمایش داده می‌شوند."}
+            </p>
           </div>
-        ) : (
+        ) : !isLoading && !error ? (
           <div className="flex flex-col gap-3">
             {filteredNotifications.map((item) => (
               <div
@@ -197,7 +271,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
               </div>
             ))}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { toPersianDigits } from "@/lib/format";
+import { customerNotificationService } from "@/services/customerNotificationService";
 import { CityModal } from "./CityModal";
 import { NotificationModal } from "./NotificationModal";
 import { SearchModal } from "./SearchModal";
@@ -18,12 +19,9 @@ interface HeaderProps {
   onCityChange?: (city: string) => void;
 }
 
-// موجودی نمایشی؛ بعداً به API کیف پول متصل شود.
-const walletBalance = 1250000;
-
 export const Header: React.FC<HeaderProps> = ({
   locationName = "تبریز",
-  unreadNotificationsCount = 2,
+  unreadNotificationsCount,
   onLocationClick,
   onNotificationClick,
   onSearchClick,
@@ -32,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { isLoggedIn } = useAuth();
 
   const [currentCity, setCurrentCity] = useState(locationName);
-  const [unreadCount, setUnreadCount] = useState(unreadNotificationsCount);
+  const [unreadCount, setUnreadCount] = useState<number>(unreadNotificationsCount ?? 0);
 
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
@@ -41,6 +39,28 @@ export const Header: React.FC<HeaderProps> = ({
 
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const accountButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Fetch real unread notification count for authenticated customers
+  const fetchUnreadCount = useCallback(async () => {
+    if (!isLoggedIn) {
+      setUnreadCount(0);
+      return;
+    }
+    try {
+      const count = await customerNotificationService.getUnreadCount();
+      setUnreadCount(count);
+    } catch {
+      // Retain existing count on network errors without fabricating values
+    }
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (unreadNotificationsCount !== undefined) {
+      setUnreadCount(unreadNotificationsCount);
+    } else {
+      fetchUnreadCount();
+    }
+  }, [unreadNotificationsCount, fetchUnreadCount]);
 
   useEffect(() => {
     if (!isAccountMenuOpen) return;
@@ -516,6 +536,7 @@ export const Header: React.FC<HeaderProps> = ({
         isOpen={isNotificationModalOpen}
         onClose={() => setIsNotificationModalOpen(false)}
         onMarkAllAsRead={() => setUnreadCount(0)}
+        onUnreadCountChange={(count) => setUnreadCount(count)}
       />
 
       {/* Search Modal */}

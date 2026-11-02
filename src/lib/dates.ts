@@ -1,4 +1,5 @@
 import { APP_TIME_ZONE } from "./api/config";
+import { toPersianDigits } from "./format";
 
 export interface DateOption {
   id: string;
@@ -50,3 +51,37 @@ export function generateDays(count = 10): DateOption[] {
 
 /** برای سازگاری با کدهای قبلی */
 export const generateTenDays = (): DateOption[] => generateDays(10);
+
+/**
+ * تبدیل زمان ISO به نمایش نسبی یا تاریخ به فارسی
+ */
+export function formatRelativeNotificationTime(isoString?: string): string {
+  if (!isoString) return "";
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return "";
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffSec < 60) {
+    return "هم‌اکنون";
+  }
+  if (diffMin < 60) {
+    return `${toPersianDigits(diffMin)} دقیقه پیش`;
+  }
+  if (diffHour < 24) {
+    return `${toPersianDigits(diffHour)} ساعت پیش`;
+  }
+  if (diffDay === 1) {
+    return "دیروز";
+  }
+  if (diffDay < 7) {
+    return `${toPersianDigits(diffDay)} روز پیش`;
+  }
+
+  return dayMonthFmt.format(date);
+}
