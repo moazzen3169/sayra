@@ -324,6 +324,19 @@ export interface PaymentInitResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Customer Media & Attachments (/tickets/{ticketId}/attachments, /public/gamingCenters/{slug}/media)
+// ---------------------------------------------------------------------------
+
+export interface CustomerTicketAttachmentResponse {
+  url: string;
+}
+
+export interface CustomerFileUploadOptions {
+  maxSizeBytes?: number;
+  allowedTypes?: string[];
+}
+
+// ---------------------------------------------------------------------------
 // Explicit Contract Gap Errors
 // ---------------------------------------------------------------------------
 

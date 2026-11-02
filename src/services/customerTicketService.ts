@@ -62,9 +62,15 @@ export const customerTicketService = {
   async uploadAttachment(id: string, file: File): Promise<string> {
     const form = new FormData();
     form.append("file", file);
-    const response = await apiClient.post<any>(ENDPOINTS.tickets.attachments(id), form);
-    const resData = response.data;
-    const url = resData?.url || resData?.attachment || resData?.data?.url;
-    return typeof url === "string" ? url : "";
+    const response = await apiClient.post<unknown>(ENDPOINTS.tickets.attachments(id), form);
+    const resData = response.data as any;
+    if (resData && typeof resData === "object") {
+      if (typeof resData.url === "string") return resData.url;
+      if (resData.data && typeof resData.data.url === "string") return resData.data.url;
+      if (typeof resData.attachment === "string") return resData.attachment;
+      if (typeof resData.data === "string") return resData.data;
+    }
+    if (typeof resData === "string") return resData;
+    throw new Error("آدرس فایل پیوست در پاسخ سرور یافت نشد.");
   },
 };
