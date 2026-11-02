@@ -30,16 +30,88 @@ export const gamingCenterService = {
    * دریافت لیست عمومی گیمنت‌ها
    * GET /gamingCenters
    */
-  async listGamingCenters(signal?: AbortSignal): Promise<PublicGamingCenter[]> {
-    const response = await apiClient.get<unknown>(ENDPOINTS.gamingCenter.list, { signal });
+  /**
+   * دریافت لیست عمومی گیمنت‌ها
+   * GET /gamingCenters
+   */
+  async listGamingCenters(
+    params?: {
+      page?: number;
+      pageSize?: number;
+      limit?: number;
+    },
+    signal?: AbortSignal
+  ): Promise<{
+    data: PublicGamingCenter[];
+    meta?: {
+      total?: number;
+      page?: number;
+      pageSize?: number;
+      totalPages?: number;
+    };
+  }> {
+    const query: Record<string, string | number> = {};
+    if (params?.page) query.page = params.page;
+    if (params?.pageSize) query.pageSize = params.pageSize;
+    if (params?.limit) query.limit = params.limit;
+
+    const response = await apiClient.get<unknown>(ENDPOINTS.gamingCenter.list, {
+      query: Object.keys(query).length > 0 ? query : undefined,
+      signal,
+    });
     const resData = response.data;
+    const responseMeta = response.meta;
+
     if (Array.isArray(resData)) {
-      return resData as PublicGamingCenter[];
+      return {
+        data: resData as PublicGamingCenter[],
+        meta: responseMeta?.pagination ? {
+          total: responseMeta.pagination.total ?? responseMeta.pagination.totalItems,
+          page: responseMeta.pagination.page,
+          pageSize: responseMeta.pagination.pageSize ?? responseMeta.pagination.limit,
+          totalPages: responseMeta.pagination.totalPages,
+        } : undefined,
+      };
     }
-    if (resData && typeof resData === "object" && Array.isArray((resData as any).data)) {
-      return (resData as any).data as PublicGamingCenter[];
+
+    if (resData && typeof resData === "object") {
+      const envelope = resData as {
+        success?: boolean;
+        data?: PublicGamingCenter[];
+        meta?: {
+          pagination?: {
+            total?: number;
+            totalItems?: number;
+            page?: number;
+            pageSize?: number;
+            totalPages?: number;
+          };
+          total?: number;
+          page?: number;
+          pageSize?: number;
+        };
+      };
+
+      const items = Array.isArray(envelope.data) ? envelope.data : [];
+      const combinedMeta = envelope.meta?.pagination || (envelope.meta ? {
+        total: envelope.meta.total,
+        page: envelope.meta.page,
+        pageSize: envelope.meta.pageSize,
+        totalPages: undefined,
+      } : undefined) || (responseMeta?.pagination ? {
+        total: responseMeta.pagination.total ?? responseMeta.pagination.totalItems,
+        page: responseMeta.pagination.page,
+        pageSize: responseMeta.pagination.pageSize ?? responseMeta.pagination.limit,
+        totalPages: responseMeta.pagination.totalPages,
+      } : undefined);
+
+      return {
+        data: items,
+        meta: combinedMeta,
+      };
     }
-    return [];
+
+    return { data: [] };
   },
 
   /**

@@ -1,64 +1,18 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { Icon, IconName } from "@/components/ui/Icon";
+import { gamingCenterService } from "@/services/gamingCenterService";
+import { PublicGamingCenter } from "@/types/customerApi";
 
 export interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedCity?: string;
 }
-
-const MOCK_GAMING_CENTERS = [
-  {
-    id: "gc-1",
-    name: "گیمنت گرگدن",
-    location: "تبریز، ولیعصر، روبروی کتابخانه",
-    city: "تبریز",
-    rating: 4.8,
-    hourlyPrice: 230000,
-    tags: ["PS5", "PC", "VIP", "بوفه", "فرکانس ۲۴۰"],
-  },
-  {
-    id: "gc-2",
-    name: "گیم‌کلاب سایبرسکی",
-    location: "تبریز، آبرسان، پاساژ نسیم",
-    city: "تبریز",
-    rating: 4.6,
-    hourlyPrice: 190000,
-    tags: ["PS5", "Xbox", "بازی گروهی"],
-  },
-  {
-    id: "gc-3",
-    name: "مجموعه گیمینگ وی‌آر پلاس",
-    location: "تبریز، شاهگلی، فلکه خیام",
-    city: "تبریز",
-    rating: 4.9,
-    hourlyPrice: 280000,
-    tags: ["VR", "واقعیت مجازی", "PS5"],
-  },
-  {
-    id: "gc-4",
-    name: "گیمنت اختصاصی وی‌آی‌پی گرگدن",
-    location: "تبریز، ولیعصر، بعد از میدان معلم",
-    city: "تبریز",
-    rating: 4.9,
-    hourlyPrice: 250000,
-    tags: ["VIP", "اتاق فرمان", "RTX 4090"],
-  },
-  {
-    id: "gc-5",
-    name: "مرکز بازی‌های رایانه‌ای ماتریکس",
-    location: "تبریز، رشدیه، بلوار بهارستان",
-    city: "تبریز",
-    rating: 4.7,
-    hourlyPrice: 210000,
-    tags: ["PC", "فرکانس ۳۶۰", "شبکه‌ای"],
-  },
-];
 
 const DEVICES: {
   id: string;
@@ -131,6 +85,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   const [query, setQuery] = useState("");
   const [recentSearches, setRecentSearches] =
     useState<string[]>(INITIAL_RECENTS);
+  const [centers, setCenters] = useState<PublicGamingCenter[]>([]);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -139,6 +94,18 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
+
+    const controller = new AbortController();
+    gamingCenterService
+      .listGamingCenters(undefined, controller.signal)
+      .then((res) => {
+        setCenters(res.data);
+      })
+      .catch((err) => {
+        if ((err as Error)?.name !== "AbortError") {
+          setCenters([]);
+        }
+      });
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -156,6 +123,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
+      controller.abort();
       window.clearTimeout(timer);
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
@@ -165,17 +133,13 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   const filteredCenters = useMemo(() => {
     if (!hasQuery) return [];
 
-    return MOCK_GAMING_CENTERS.filter((center) => {
-      const matchesCity =
-        normalizeText(center.city) === normalizeText(selectedCity);
-
+    return centers.filter((center) => {
       const searchableText = normalizeText(
-        `${center.name} ${center.location} ${center.tags.join(" ")}`,
+        `${center.name} ${center.description || ""}`
       );
-
-      return matchesCity && searchableText.includes(normalizedQuery);
+      return searchableText.includes(normalizedQuery);
     });
-  }, [normalizedQuery, hasQuery, selectedCity]);
+  }, [centers, normalizedQuery, hasQuery]);
 
   const filteredDevices = useMemo(() => {
     if (!hasQuery) return [];
@@ -295,18 +259,18 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             aria-label="بستن جست‌وجو"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-card)] hover:text-[var(--text-white)]"
           >
-          <svg
-            className="h-5 w-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              d="m18 6-12 12M6 6l12 12"
-              strokeLinecap="round"
-            />
-          </svg>
+            <svg
+              className="h-5 w-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                d="m18 6-12 12M6 6l12 12"
+                strokeLinecap="round"
+              />
+            </svg>
           </button>
         </form>
       </header>
@@ -445,7 +409,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                     {filteredCenters.map((center) => (
                       <Link
                         key={center.id}
-                        href={`/gamecenter/${center.id}`}
+                        href={`/gamecenter/${center.slug || center.id}`}
                         onClick={() => {
                           saveRecentSearch(query);
                           onClose();
@@ -474,24 +438,17 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                             {center.name}
                           </h3>
 
-                          <p className="mt-1 truncate text-xs text-[var(--text-muted)]">
-                            {center.location}
-                          </p>
+                          {center.description && (
+                            <p className="mt-1 truncate text-xs text-[var(--text-muted)]">
+                              {center.description}
+                            </p>
+                          )}
                         </div>
 
                         <div className="shrink-0 text-left">
-                          <div className="text-xs font-bold text-[var(--text-white)] flex items-center gap-1 justify-end">
-                            <Icon
-                              name="star"
-                              size={14}
-                              className="text-[var(--accent-star)] fill-[var(--accent-star)]"
-                            />
-                            <span>{toPersianDigits(center.rating)}</span>
-                          </div>
-
-                          <div className="mt-1 text-xs text-[var(--text-muted)]">
-                            {formatPrice(center.hourlyPrice)} تومان
-                          </div>
+                          <span className="text-xs text-[var(--primary)] font-bold">
+                            مشاهده
+                          </span>
                         </div>
                       </Link>
                     ))}

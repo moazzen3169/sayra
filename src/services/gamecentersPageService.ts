@@ -1,14 +1,22 @@
 import { DiscountedCenter } from "@/types/home";
+import { PublicGamingCenter, ContractGapError } from "@/types/customerApi";
+import { gamingCenterService } from "./gamingCenterService";
 
+/**
+ * Interface representing a gaming center in listing views.
+ * Undocumented fields in OpenAPI v1.0-LOCKED (GET /gamingCenters) are made optional
+ * so that no fabricated numbers or fake strings are injected.
+ */
 export interface GamecenterListItem {
   id: string;
   name: string;
-  imageUrl: string;
-  location: string;
-  city: string;
-  rating: number;
+  slug?: string;
+  imageUrl?: string;
+  location?: string;
+  city?: string;
+  rating?: number;
   reviewsCount?: number;
-  hourlyPrice: number;
+  hourlyPrice?: number;
   discountedHourlyPrice?: number;
   discountPercent?: number;
   discount?: {
@@ -16,7 +24,7 @@ export interface GamecenterListItem {
     value: number;
     endAt?: string;
   };
-  categories: string[];
+  categories?: string[];
   isNew?: boolean;
   isPopular?: boolean;
   isDiscounted?: boolean;
@@ -30,165 +38,13 @@ export interface GamecenterFilterParams {
   sort?: "default" | "popular" | "newest" | "price_asc" | "price_desc" | "rating";
 }
 
-export const MOCK_ALL_GAMECENTERS: GamecenterListItem[] = [
-  {
-    id: "gc-1",
-    name: "گیمنت گرگدن (شعبه ولیعصر)",
-    imageUrl: "/img/gamnet-1.webp",
-    location: "تبریز، ولیعصر، خیابان مخابرات",
-    city: "تبریز",
-    rating: 4.8,
-    reviewsCount: 744,
-    hourlyPrice: 240000,
-    discountedHourlyPrice: 180000,
-    discountPercent: 25,
-    discount: {
-      valueType: "PERCENTAGE",
-      value: 25,
-    },
-    categories: ["ps5", "pc", "xbox", "steering"],
-    isDiscounted: true,
-    isPopular: true,
-    createdAt: "2024-01-10T10:00:00Z",
-  },
-  {
-    id: "gc-2",
-    name: "گیم کلاب سایبرسکی",
-    imageUrl: "/img/gamnet-2.webp",
-    location: "تبریز، آبرسان، پاساژ نسیم",
-    city: "تبریز",
-    rating: 4.6,
-    reviewsCount: 312,
-    hourlyPrice: 200000,
-    discountedHourlyPrice: 150000,
-    discountPercent: 25,
-    discount: {
-      valueType: "PERCENTAGE",
-      value: 25,
-    },
-    categories: ["ps5", "ps4", "xbox"],
-    isDiscounted: true,
-    isPopular: true,
-    createdAt: "2024-02-15T12:00:00Z",
-  },
-  {
-    id: "gc-3",
-    name: "مجموعه گیمینگ وی‌آر پلاس",
-    imageUrl: "/img/gamnet-3.webp",
-    location: "تبریز، شاهگلی، فلکه خیام",
-    city: "تبریز",
-    rating: 4.9,
-    reviewsCount: 520,
-    hourlyPrice: 280000,
-    discountPercent: 20,
-    discount: {
-      valueType: "FIXED_AMOUNT",
-      value: 50000,
-    },
-    categories: ["vr", "ps5"],
-    isDiscounted: true,
-    isPopular: true,
-    createdAt: "2024-03-01T08:00:00Z",
-  },
-  {
-    id: "gc-4",
-    name: "گیمنت اختصاصی VIP گرگدن",
-    imageUrl: "/img/gamnet-4.webp",
-    location: "تبریز، ولیعصر، روبروی کتابخانه",
-    city: "تبریز",
-    rating: 4.9,
-    reviewsCount: 980,
-    hourlyPrice: 250000,
-    discountPercent: 30,
-    discount: {
-      valueType: "PERCENTAGE",
-      value: 30,
-    },
-    categories: ["ps5", "pc", "steering"],
-    isDiscounted: true,
-    isPopular: true,
-    createdAt: "2024-04-12T14:30:00Z",
-  },
-  {
-    id: "gc-5",
-    name: "مرکز بازی‌های رایانه‌ای ماتریکس",
-    imageUrl: "/img/gamnet-5.webp",
-    location: "تبریز، رشدیه، بلوار بهارستان",
-    city: "تبریز",
-    rating: 4.7,
-    reviewsCount: 410,
-    hourlyPrice: 210000,
-    discountPercent: 20,
-    discount: {
-      valueType: "PERCENTAGE",
-      value: 20,
-    },
-    categories: ["pc", "billiards"],
-    isDiscounted: true,
-    isNew: true,
-    createdAt: "2024-05-20T11:00:00Z",
-  },
-  {
-    id: "gc-6",
-    name: "گیم سنتر اپکس",
-    imageUrl: "/img/gamnet-1.webp",
-    location: "تبریز، شهناز، کوچه ارک",
-    city: "تبریز",
-    rating: 4.5,
-    reviewsCount: 185,
-    hourlyPrice: 190000,
-    discount: {
-      valueType: "FIXED_AMOUNT",
-      value: 30000,
-    },
-    categories: ["ps4", "xbox"],
-    isDiscounted: true,
-    isNew: true,
-    createdAt: "2024-06-05T16:00:00Z",
-  },
-  {
-    id: "gc-7",
-    name: "مجموعه گیمینگ پرشین پلیر",
-    imageUrl: "/img/gamnet-2.webp",
-    location: "تهران، سعادت‌آباد، خیابان سرو",
-    city: "تهران",
-    rating: 4.8,
-    reviewsCount: 620,
-    hourlyPrice: 300000,
-    discountedHourlyPrice: 240000,
-    discountPercent: 20,
-    categories: ["ps5", "pc", "vr", "billiards"],
-    isDiscounted: true,
-    isPopular: true,
-    createdAt: "2024-06-18T09:00:00Z",
-  },
-  {
-    id: "gc-8",
-    name: "گیم کلاب نکسوس",
-    imageUrl: "/img/gamnet-3.webp",
-    location: "تهران، صادقیه، بلوار فردوس",
-    city: "تهران",
-    rating: 4.6,
-    reviewsCount: 290,
-    hourlyPrice: 220000,
-    categories: ["ps5", "xbox", "steering"],
-    isNew: true,
-    createdAt: "2024-06-25T13:00:00Z",
-  },
-  {
-    id: "gc-9",
-    name: "باشگاه بازی آلفا",
-    imageUrl: "/img/gamnet-4.webp",
-    location: "اصفهان، چهارباغ عباسی",
-    city: "اصفهان",
-    rating: 4.7,
-    reviewsCount: 340,
-    hourlyPrice: 180000,
-    categories: ["ps4", "pc", "billiards"],
-    isNew: true,
-    createdAt: "2024-06-28T10:00:00Z",
-  },
-];
+export interface GamecentersListResult {
+  items: GamecenterListItem[];
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  totalPages?: number;
+}
 
 function normalizeText(text: string): string {
   return text
@@ -200,46 +56,112 @@ function normalizeText(text: string): string {
     .trim();
 }
 
+/**
+ * Maps a PublicGamingCenter entity from the API (GET /gamingCenters)
+ * to GamecenterListItem strictly using documented fields.
+ * No fabricated ratings, prices, or locations are introduced.
+ */
+export function mapPublicGamingCenterToListItem(center: PublicGamingCenter): GamecenterListItem {
+  return {
+    id: center.id,
+    name: center.name,
+    slug: center.slug,
+    // imageUrl, location, city, rating, reviewsCount, hourlyPrice, discount, and categories
+    // are not present on GamingCenter in OpenAPI v1.0-LOCKED.
+    imageUrl: undefined,
+    location: undefined,
+    city: undefined,
+    rating: undefined,
+    reviewsCount: undefined,
+    hourlyPrice: undefined,
+    discountedHourlyPrice: undefined,
+    discountPercent: undefined,
+    discount: undefined,
+    categories: [],
+    isDiscounted: false,
+    createdAt: center.createdAt || new Date().toISOString(),
+  };
+}
+
 export const gamecentersPageService = {
-  getDiscountedCenters(): GamecenterListItem[] {
-    return MOCK_ALL_GAMECENTERS.filter((item) => item.isDiscounted || item.discount);
+  /**
+   * Fetches all centers from the API endpoint GET /gamingCenters
+   * and maps them strictly according to documented fields.
+   */
+  async getAllCenters(
+    params?: { page?: number; pageSize?: number },
+    signal?: AbortSignal
+  ): Promise<GamecentersListResult> {
+    const response = await gamingCenterService.listGamingCenters(params, signal);
+    const items = response.data.map(mapPublicGamingCenterToListItem);
+    return {
+      items,
+      total: response.meta?.total ?? items.length,
+      page: response.meta?.page ?? 1,
+      pageSize: response.meta?.pageSize ?? items.length,
+      totalPages: response.meta?.totalPages,
+    };
   },
 
-  getNewestCenters(): GamecenterListItem[] {
-    return [...MOCK_ALL_GAMECENTERS]
+  /**
+   * Returns centers that have active discounts.
+   * Contract Gap Note: GET /gamingCenters does not provide discount information in v1.0-LOCKED.
+   * Returns empty array if none of the API centers have discounts, without mock fallbacks.
+   */
+  async getDiscountedCenters(signal?: AbortSignal): Promise<GamecenterListItem[]> {
+    const { items } = await this.getAllCenters(undefined, signal);
+    return items.filter((item) => item.isDiscounted || (item.discount && item.discount.value > 0));
+  },
+
+  /**
+   * Returns newest gaming centers sorted by createdAt.
+   */
+  async getNewestCenters(limit = 6, signal?: AbortSignal): Promise<GamecenterListItem[]> {
+    const { items } = await this.getAllCenters(undefined, signal);
+    return [...items]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 6);
+      .slice(0, limit);
   },
 
-  getPopularCenters(): GamecenterListItem[] {
-    return [...MOCK_ALL_GAMECENTERS]
+  /**
+   * Returns popular gaming centers.
+   * Contract Gap Note: In OpenAPI v1.0-LOCKED, rating and reviewsCount are not present in GET /gamingCenters.
+   * Falls back gracefully to the centers list without fabricating numbers.
+   */
+  async getPopularCenters(limit = 6, signal?: AbortSignal): Promise<GamecenterListItem[]> {
+    const { items } = await this.getAllCenters(undefined, signal);
+    return [...items]
       .sort((a, b) => (b.reviewsCount ?? 0) - (a.reviewsCount ?? 0))
-      .slice(0, 6);
+      .slice(0, limit);
   },
 
-  filterCenters(params: GamecenterFilterParams): GamecenterListItem[] {
+  /**
+   * In-memory filtering and sorting over the fetched centers.
+   * Only filters against documented fields (e.g. name, description).
+   */
+  filterCenters(items: GamecenterListItem[], params: GamecenterFilterParams): GamecenterListItem[] {
     const { q, category, city, sort = "default" } = params;
 
-    let filtered = MOCK_ALL_GAMECENTERS.filter((item) => {
-      // City filter
-      if (city && normalizeText(item.city) !== normalizeText(city)) {
-        if (!q && city !== "همه") {
+    let filtered = items.filter((item) => {
+      // City filter (documented gap: city is not on GamingCenter)
+      if (city && city !== "همه" && item.city) {
+        if (normalizeText(item.city) !== normalizeText(city)) {
           return false;
         }
       }
 
-      // Category filter
-      if (category && category !== "all") {
+      // Category filter (documented gap: categories are not on GamingCenter in GET /gamingCenters)
+      if (category && category !== "all" && item.categories && item.categories.length > 0) {
         if (!item.categories.includes(category.toLowerCase())) {
           return false;
         }
       }
 
-      // Query filter
+      // Query filter over available text fields (name, location if present)
       if (q && q.trim()) {
         const normQ = normalizeText(q);
         const searchableText = normalizeText(
-          `${item.name} ${item.location} ${item.city} ${item.categories.join(" ")}`
+          `${item.name} ${item.location || ""} ${item.city || ""} ${(item.categories || []).join(" ")}`
         );
         if (!searchableText.includes(normQ)) {
           return false;
@@ -258,13 +180,17 @@ export const gamecentersPageService = {
         filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         break;
       case "price_asc":
-        filtered.sort((a, b) => (a.discountedHourlyPrice ?? a.hourlyPrice) - (b.discountedHourlyPrice ?? b.hourlyPrice));
+        filtered.sort(
+          (a, b) => (a.discountedHourlyPrice ?? a.hourlyPrice ?? 0) - (b.discountedHourlyPrice ?? b.hourlyPrice ?? 0)
+        );
         break;
       case "price_desc":
-        filtered.sort((a, b) => (b.discountedHourlyPrice ?? b.hourlyPrice) - (a.discountedHourlyPrice ?? a.hourlyPrice));
+        filtered.sort(
+          (a, b) => (b.discountedHourlyPrice ?? b.hourlyPrice ?? 0) - (a.discountedHourlyPrice ?? a.hourlyPrice ?? 0)
+        );
         break;
       case "rating":
-        filtered.sort((a, b) => b.rating - a.rating);
+        filtered.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
         break;
       default:
         break;

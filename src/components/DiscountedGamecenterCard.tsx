@@ -1,6 +1,5 @@
 import React from "react";
 import Link from "next/link";
-import { DiscountedCenter } from "@/types/home";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatDiscountBadge } from "@/lib/discount";
 import { formatDayLabel } from "@/lib/reservationUi";
@@ -9,11 +8,12 @@ import { Icon } from "@/components/ui/Icon";
 export interface GamecenterCardData {
   id: string;
   name: string;
-  imageUrl: string;
-  location: string;
-  rating: number;
+  slug?: string;
+  imageUrl?: string;
+  location?: string;
+  rating?: number;
   reviewsCount?: number;
-  hourlyPrice: number;
+  hourlyPrice?: number;
   discountedHourlyPrice?: number;
   discountPercent?: number;
   discount?: {
@@ -35,7 +35,8 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
   const {
     id,
     name,
-    imageUrl,
+    slug,
+    imageUrl = "/img/gamnet-1.webp",
     location,
     rating,
     reviewsCount = 0,
@@ -45,6 +46,7 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
     discount,
   } = center;
 
+  const targetIdentifier = slug || id;
   const effectiveDiscountedPrice = discountedHourlyPrice;
 
   const discountBadgeText = discount
@@ -57,8 +59,8 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
 
   return (
     <Link
-      href={`/gamecenter/${id}`}
-      onClick={() => onClick?.(id)}
+      href={`/gamecenter/${targetIdentifier}`}
+      onClick={() => onClick?.(targetIdentifier)}
       className="w-full h-full flex flex-col pb-3 bg-[var(--bg-card)] rounded-card overflow-hidden border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white select-none shadow-sm hover:shadow-md"
     >
       {/* Image Container */}
@@ -89,37 +91,45 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
 
       {/* Body Info */}
       <div className="p-3 flex flex-col gap-1 flex-1">
-        <div className="flex items-center gap-1 text-xs text-[var(--primary)] font-bold">
-          <Icon name="star" size={14} className="text-[var(--accent-star)] fill-[var(--accent-star)]" />
-          <span>{toPersianDigits(rating.toFixed(1))}</span>
-          <span className="text-[var(--text-muted)] font-normal">
-            ({toPersianDigits(reviewsCount)})
-          </span>
-        </div>
+        {rating !== undefined ? (
+          <div className="flex items-center gap-1 text-xs text-[var(--primary)] font-bold">
+            <Icon name="star" size={14} className="text-[var(--accent-star)] fill-[var(--accent-star)]" />
+            <span>{toPersianDigits(rating.toFixed(1))}</span>
+            <span className="text-[var(--text-muted)] font-normal">
+              ({toPersianDigits(reviewsCount)})
+            </span>
+          </div>
+        ) : null}
 
         <h4 className="text-sm font-bold text-[var(--text-white)] line-clamp-1 group-hover:text-[var(--primary)] transition-colors">
           {name}
         </h4>
 
-        <p className="text-xs text-[var(--text-muted)] line-clamp-1">{location}</p>
+        {location ? (
+          <p className="text-xs text-[var(--text-muted)] line-clamp-1">{location}</p>
+        ) : null}
       </div>
 
       {/* Price Pill */}
       <div className="mx-3 mt-auto h-9 rounded-full bg-[var(--foreground)]/50 px-3 flex items-center justify-between text-xs">
-        {effectiveDiscountedPrice !== undefined ? (
-          <div className="flex items-center gap-1.5">
-            <span className="font-bold text-[var(--primary)]">
-              {formatPrice(effectiveDiscountedPrice)} تومان
-            </span>
-            <span className="text-xs line-through text-[var(--text-subtle)] font-medium">
-              {formatPrice(hourlyPrice)}
-            </span>
-          </div>
+        {hourlyPrice !== undefined ? (
+          effectiveDiscountedPrice !== undefined ? (
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-[var(--primary)]">
+                {formatPrice(effectiveDiscountedPrice)} تومان
+              </span>
+              <span className="text-xs line-through text-[var(--text-subtle)] font-medium">
+                {formatPrice(hourlyPrice)}
+              </span>
+            </div>
+          ) : (
+            <div className="font-bold text-[var(--text-white)]">
+              <span className="text-[var(--text-muted)] font-normal ml-1">از</span>
+              {formatPrice(hourlyPrice)} تومان
+            </div>
+          )
         ) : (
-          <div className="font-bold text-[var(--text-white)]">
-            <span className="text-[var(--text-muted)] font-normal ml-1">از</span>
-            {formatPrice(hourlyPrice)} تومان
-          </div>
+          <span className="font-medium text-[var(--text-muted)]">مشاهده جزییات و تعرفه‌ها</span>
         )}
         <span className="text-[var(--text-muted)]">/ ۱ساعته</span>
       </div>

@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Header } from "@/components/Header";
 import { BottomBar } from "@/components/BottomBar";
 import { DiscountedGamecenterCard } from "@/components/DiscountedGamecenterCard";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { Icon } from "@/components/ui/Icon";
 import {
   Carousel,
@@ -55,6 +56,34 @@ function GamecentersContent() {
 
   const [searchInput, setSearchInput] = useState(queryParam);
   const [selectedCity, setSelectedCity] = useState(cityParam);
+
+  const [allCenters, setAllCenters] = useState<GamecenterListItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const fetchCenters = useCallback(async (signal?: AbortSignal) => {
+    try {
+      setIsLoading(true);
+      setLoadError(null);
+      const res = await gamecentersPageService.getAllCenters(undefined, signal);
+      setAllCenters(res.items);
+    } catch (err) {
+      if ((err as Error)?.name === "AbortError") {
+        return;
+      }
+      setLoadError((err as Error)?.message || "خطا در برقراری ارتباط با سرور");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchCenters(controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [fetchCenters]);
 
   // Sync search input if query param changes in URL
   useEffect(() => {
@@ -114,28 +143,34 @@ function GamecentersContent() {
     );
   }, [queryParam, categoryParam, sortParam]);
 
-  // Data queries
-  const discountedCenters = useMemo(
-    () => gamecentersPageService.getDiscountedCenters(),
-    [],
-  );
-  const newestCenters = useMemo(
-    () => gamecentersPageService.getNewestCenters(),
-    [],
-  );
-  const popularCenters = useMemo(
-    () => gamecentersPageService.getPopularCenters(),
-    [],
-  );
-
+  // Derived filtered results using documented API fields
   const filteredResults = useMemo(() => {
-    return gamecentersPageService.filterCenters({
+    return gamecentersPageService.filterCenters(allCenters, {
       q: queryParam,
       category: categoryParam,
       sort: sortParam,
       city: selectedCity,
     });
-  }, [queryParam, categoryParam, sortParam, selectedCity]);
+  }, [allCenters, queryParam, categoryParam, sortParam, selectedCity]);
+
+  // Discovery sections derived from live fetched centers
+  const discountedCenters = useMemo(() => {
+    return allCenters.filter(
+      (item) => item.isDiscounted || (item.discount && item.discount.value > 0)
+    );
+  }, [allCenters]);
+
+  const newestCenters = useMemo(() => {
+    return [...allCenters]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 6);
+  }, [allCenters]);
+
+  const popularCenters = useMemo(() => {
+    return [...allCenters]
+      .sort((a, b) => (b.reviewsCount ?? 0) - (a.reviewsCount ?? 0))
+      .slice(0, 6);
+  }, [allCenters]);
 
   const activeCategoryName = CATEGORIES.find(
     (c) => c.id === categoryParam,
@@ -173,7 +208,7 @@ function GamecentersContent() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="جست‌وجوی نام گیمنت، آدرس یا امکانات..."
-                className="p-4 pr-10  w-full rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)]  text-xs text-[var(--text-white)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]"
+                className="p-4 pr-10 w-full rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-xs text-[var(--text-white)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]"
               />
               <span className="absolute right-3 text-[var(--primary)] pointer-events-none">
                 <Icon name="search" size={18} />
@@ -194,19 +229,19 @@ function GamecentersContent() {
                 )}
                 <button
                   type="submit"
-                  className="h-8 w-8  flex items-center justify-center rounded bg-[var(--primary)] text-on-primary text-xs font-bold hover:bg-[var(--primary-hover)] transition-colors"
+                  className="h-8 w-8 flex items-center justify-center rounded bg-[var(--primary)] text-on-primary text-xs font-bold hover:bg-[var(--primary-hover)] transition-colors"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
-                    stroke-width="1.5"
+                    strokeWidth="1.5"
                     stroke="currentColor"
                     className="size-6"
                   >
                     <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                       d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
                     />
                   </svg>
@@ -282,147 +317,180 @@ function GamecentersContent() {
           </div>
         </section>
 
-        {/* Dynamic View: If filtering is active, show Search Results Grid */}
-        {isFilteringActive ? (
-          <section className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-[var(--text-white)]">
-                نتایج جست‌وجو{" "}
-                <span className="text-xs font-normal text-[var(--text-muted)] mr-1">
-                  ({toPersianDigits(filteredResults.length)} گیمنت)
-                </span>
-              </h2>
-
-              <div className="flex flex-wrap gap-1.5">
-                {queryParam && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--foreground)] text-xs text-[var(--text-white)]">
-                    عبارت: «{queryParam}»
-                  </span>
-                )}
-                {categoryParam && categoryParam !== "all" && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--foreground)] text-xs text-[var(--primary)] font-bold">
-                    دستگاه: {activeCategoryName}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {filteredResults.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {filteredResults.map((item) => (
-                  <DiscountedGamecenterCard key={item.id} center={item} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                title="هیچ گیمنتی با این مشخصات پیدا نشد"
-                description="پیشنهاد می‌کنیم فیلترها را تغییر دهید یا عبارت دیگری را جست‌وجو کنید."
-                actionLabel="پاک کردن فیلترها"
-                onAction={handleClearFilters}
+        {/* Loading & Error States */}
+        {isLoading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 py-6">
+            {[1, 2, 3, 4, 5, 6].map((idx) => (
+              <div
+                key={idx}
+                className="h-64 rounded-card bg-[var(--bg-card)] animate-pulse border border-[var(--border-subtle)]"
               />
-            )}
-          </section>
-        ) : (
-          /* Default Browse View: Containers 1, 2, and 3 */
-          <>
-            {/* Container 1: Discounted Gamecenters Carousel */}
-            {discountedCenters.length > 0 && (
-              <section className="flex flex-col gap-3 rounded-card p-4 bg-primary text-[var(--text-black)] shadow-lg">
-                <Carousel
-                  opts={{
-                    direction: "rtl",
-                    align: "start",
-                    containScroll: "trimSnaps",
-                  }}
-                  className="w-full flex flex-col gap-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-2">
-                        <Icon
-                          name="info"
-                          size={20}
-                          className="text-[var(--text-black)]"
-                        />
-                        <h2 className="font-bold text-base text-[var(--text-black)]">
-                          گیمنت‌های تخفیف‌دار
-                        </h2>
+            ))}
+          </div>
+        )}
+
+        {loadError && !isLoading && (
+          <ErrorState
+            title="خطا در دریافت لیست گیمنت‌ها"
+            description={loadError}
+            onRetry={() => fetchCenters()}
+          />
+        )}
+
+        {/* Dynamic View: If filtering is active, show Search Results Grid */}
+        {!isLoading && !loadError && (
+          isFilteringActive ? (
+            <section className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-[var(--text-white)]">
+                  نتایج جست‌وجو{" "}
+                  <span className="text-xs font-normal text-[var(--text-muted)] mr-1">
+                    ({toPersianDigits(filteredResults.length)} گیمنت)
+                  </span>
+                </h2>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {queryParam && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--foreground)] text-xs text-[var(--text-white)]">
+                      عبارت: «{queryParam}»
+                    </span>
+                  )}
+                  {categoryParam && categoryParam !== "all" && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--foreground)] text-xs text-[var(--primary)] font-bold">
+                      دستگاه: {activeCategoryName}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {filteredResults.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {filteredResults.map((item) => (
+                    <DiscountedGamecenterCard key={item.id} center={item} />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="هیچ گیمنتی با این مشخصات پیدا نشد"
+                  description="پیشنهاد می‌کنیم فیلترها را تغییر دهید یا عبارت دیگری را جست‌وجو کنید."
+                  actionLabel="پاک کردن فیلترها"
+                  onAction={handleClearFilters}
+                />
+              )}
+            </section>
+          ) : (
+            /* Default Browse View: Containers 1, 2, and 3 */
+            <>
+              {/* Container 1: Discounted Gamecenters Carousel */}
+              {discountedCenters.length > 0 && (
+                <section className="flex flex-col gap-3 rounded-card p-4 bg-primary text-[var(--text-black)] shadow-lg">
+                  <Carousel
+                    opts={{
+                      direction: "rtl",
+                      align: "start",
+                      containScroll: "trimSnaps",
+                    }}
+                    className="w-full flex flex-col gap-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-2">
+                          <Icon
+                            name="info"
+                            size={20}
+                            className="text-[var(--text-black)]"
+                          />
+                          <h2 className="font-bold text-base text-[var(--text-black)]">
+                            گیمنت‌های تخفیف‌دار
+                          </h2>
+                        </div>
+                        <p className="text-xs text-[var(--text-black)] pr-7">
+                          رزرو با قیمت ویژه و محدود
+                        </p>
                       </div>
-                      <p className="text-xs text-[var(--text-black)] pr-7">
-                        رزرو با قیمت ویژه و محدود
-                      </p>
+
+                      <div className="flex items-center gap-1 relative h-8 bg-[var(--bg-card)] rounded-lg p-0.5 border border-[var(--border-subtle)]">
+                        <CarouselPrevious
+                          className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                          title="قبلی"
+                        />
+                        <CarouselNext
+                          className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                          title="بعدی"
+                        />
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-1 relative h-8 bg-[var(--bg-card)] rounded-lg p-0.5 border border-[var(--border-subtle)]">
-                      <CarouselPrevious
-                        className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                        title="قبلی"
-                      />
-                      <CarouselNext
-                        className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                        title="بعدی"
-                      />
+                    <div className="-mx-4 px-4 pb-2 select-none">
+                      <CarouselContent className="gap-2 -mr-2">
+                        {discountedCenters.map((item) => (
+                          <CarouselItem
+                            key={item.id}
+                            className="pr-2 basis-[220px] sm:basis-[240px] lg:basis-[260px] flex flex-col min-w-[220px] sm:min-w-[240px]"
+                          >
+                            <DiscountedGamecenterCard center={item} />
+                          </CarouselItem>
+                        ))}
+                      </CarouselContent>
                     </div>
+                  </Carousel>
+                </section>
+              )}
+
+              {/* Container 2: Newest Gamecenters */}
+              {newestCenters.length > 0 && (
+                <section className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="h-5 w-1 rounded-full bg-[var(--primary)]" />
+                      <h2 className="font-bold text-base text-[var(--text-white)]">
+                        جدیدترین گیمنت‌ها
+                      </h2>
+                    </div>
+                    <span className="text-xs text-[var(--text-muted)]">
+                      تازه‌ترین‌های افزوده شده
+                    </span>
                   </div>
 
-                  <div className="-mx-4 px-4 pb-2 select-none">
-                    <CarouselContent className="gap-2 -mr-2">
-                      {discountedCenters.map((item) => (
-                        <CarouselItem
-                          key={item.id}
-                          className="pr-2 basis-[220px] sm:basis-[240px] lg:basis-[260px] flex flex-col min-w-[220px] sm:min-w-[240px]"
-                        >
-                          <DiscountedGamecenterCard center={item} />
-                        </CarouselItem>
-                      ))}
-                    </CarouselContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {newestCenters.map((item) => (
+                      <DiscountedGamecenterCard key={item.id} center={item} />
+                    ))}
                   </div>
-                </Carousel>
-              </section>
-            )}
+                </section>
+              )}
 
-            {/* Container 2: Newest Gamecenters */}
-            <section className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="h-5 w-1 rounded-full bg-[var(--primary)]" />
-                  <h2 className="font-bold text-base text-[var(--text-white)]">
-                    جدیدترین گیمنت‌ها
-                  </h2>
-                </div>
-                <span className="text-xs text-[var(--text-muted)]">
-                  تازه‌ترین‌های افزوده شده
-                </span>
-              </div>
+              {/* Container 3: Most Popular Gamecenters */}
+              {popularCenters.length > 0 && (
+                <section className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="h-5 w-1 rounded-full bg-[var(--primary)]" />
+                      <h2 className="font-bold text-base text-[var(--text-white)]">
+                        محبوب‌ترین گیمنت‌ها
+                      </h2>
+                    </div>
+                    <span className="text-xs text-[var(--text-muted)]">
+                      بیشترین رضایت و رزرو
+                    </span>
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {newestCenters.map((item) => (
-                  <DiscountedGamecenterCard key={item.id} center={item} />
-                ))}
-              </div>
-            </section>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {popularCenters.map((item) => (
+                      <DiscountedGamecenterCard key={item.id} center={item} />
+                    ))}
+                  </div>
+                </section>
+              )}
 
-            {/* Container 3: Most Popular Gamecenters */}
-            <section className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="h-5 w-1 rounded-full bg-[var(--primary)]" />
-                  <h2 className="font-bold text-base text-[var(--text-white)]">
-                    محبوب‌ترین گیمنت‌ها
-                  </h2>
-                </div>
-                <span className="text-xs text-[var(--text-muted)]">
-                  بیشترین رضایت و رزرو
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {popularCenters.map((item) => (
-                  <DiscountedGamecenterCard key={item.id} center={item} />
-                ))}
-              </div>
-            </section>
-          </>
+              {allCenters.length === 0 && (
+                <EmptyState
+                  title="هیچ گیمنتی یافت نشد"
+                  description="در حال حاضر اطلاعات هیچ مرکز بازی ثبت نشده است."
+                />
+              )}
+            </>
+          )
         )}
       </main>
 

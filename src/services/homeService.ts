@@ -1,8 +1,6 @@
 import { BannerItem, DiscountedCenter } from "@/types/home";
-import { mockBanners, mockDiscountedCenters } from "@/lib/mocks/home.mock";
-
-// TODO: Endpoint بنرهای تبلیغاتی باید پس از اضافه شدن به OpenAPI مشخص شود
-// و بدنه‌ی این تابع با فراخوانی واقعی API به apiClient.get(...) جایگزین گردد.
+import { mockBanners } from "@/lib/mocks/home.mock";
+import { gamingCenterService } from "./gamingCenterService";
 
 /**
  * نیازمند Clarification با بک‌اند:
@@ -22,10 +20,14 @@ export const homeService = {
     if (signal?.aborted) {
       throw new DOMException("Aborted", "AbortError");
     }
-    // شبیه‌سازی لود سریع داده از Mock
     return Promise.resolve(mockBanners);
   },
 
+  /**
+   * دریافت گیمنت‌های تخفیف‌دار.
+   * با توجه به قرارداد OpenAPI v1.0-LOCKED فیلدهای تخفیف در لیست گیمنت‌ها وجود ندارند.
+   * از API گیمنت‌ها فراخوانی شده و در صورت نبود فیلد تخفیف، آرایه خالی برمی‌گرداند.
+   */
   async getDiscountedCenters(params?: {
     city?: string;
     signal?: AbortSignal;
@@ -33,7 +35,31 @@ export const homeService = {
     if (params?.signal?.aborted) {
       throw new DOMException("Aborted", "AbortError");
     }
-    // شبیه‌سازی لود داده از Mock
-    return Promise.resolve(mockDiscountedCenters);
+
+    try {
+      const response = await gamingCenterService.listGamingCenters(undefined, params?.signal);
+      // PublicGamingCenter in v1.0-LOCKED lacks discount, rating, hourlyPrice
+      const discounted = (response.data as any[]).filter(
+        (c) => Boolean(c.discount) || Boolean(c.isDiscounted) || Boolean(c.discountPercent)
+      );
+
+      return discounted.map((c) => ({
+        id: c.id,
+        name: c.name,
+        imageUrl: c.imageUrl || "/img/gamnet-1.webp",
+        location: c.location || "",
+        rating: c.rating ?? 0,
+        reviewsCount: c.reviewsCount ?? 0,
+        hourlyPrice: c.hourlyPrice ?? 0,
+        discountedHourlyPrice: c.discountedHourlyPrice,
+        discountPercent: c.discountPercent,
+        discount: c.discount,
+      }));
+    } catch (err) {
+      if ((err as Error)?.name === "AbortError") {
+        throw err;
+      }
+      return [];
+    }
   },
 };
