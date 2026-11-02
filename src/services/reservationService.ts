@@ -193,6 +193,19 @@ export const reservationService = {
   },
 
   /**
+   * درخواست تغییر زمان رزرو توسط مشتری
+   * POST /customer/reservation/{reservationId}/reschedule
+   * فیلدهای ورودی: newStartTime و newEndTime به فرمت date-time
+   */
+  async reschedule(
+    reservationId: string,
+    payload: { newStartTime: string; newEndTime: string }
+  ): Promise<void> {
+    if (USE_MOCK_RESERVATIONS) return;
+    await apiClient.post(ENDPOINTS.reservation.reschedule(reservationId), payload);
+  },
+
+  /**
    * ثبت امتیاز و نظر برای رزرو تکمیل شده
    * POST /customer/reservation/{reservationId}/ratings
    */
@@ -265,6 +278,24 @@ export const reservationService = {
     throw new ContractGapError(
       "PaymentVerification",
       "POST /payments/verify or callback endpoints are not defined in OpenAPI v1.0-LOCKED."
+    );
+  },
+
+  /**
+   * حذف یا ویرایش مستقیم مشخصات رزرو توسط مشتری
+   * طبق مشخصات OpenAPI v1.0-LOCKED، هیچ متد DELETE یا PUT/PATCH برای مشتری تحت /customer/reservation/{id} وجود ندارد.
+   */
+  deleteUnsupported(): never {
+    throw new ContractGapError(
+      "CustomerReservationDelete",
+      "DELETE /customer/reservation/{reservationId} is not defined in OpenAPI v1.0-LOCKED. Only POST /cancel is supported."
+    );
+  },
+
+  updateUnsupported(): never {
+    throw new ContractGapError(
+      "CustomerReservationUpdate",
+      "PATCH or PUT /customer/reservation/{reservationId} is not defined for customers in OpenAPI v1.0-LOCKED. Only POST /reschedule is supported."
     );
   },
 };

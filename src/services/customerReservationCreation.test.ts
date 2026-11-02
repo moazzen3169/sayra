@@ -79,6 +79,7 @@ describe("Phase 10: Customer Reservation Creation", () => {
   };
 
   const sampleBookingItem: BookingItem = {
+    groupLabel: "سیستم گیمینگ ۱",
     station: sampleStation,
     startTime: "2026-11-10T14:00:00.000Z",
     extraControllers: 0,
@@ -352,12 +353,14 @@ describe("Phase 10: Customer Reservation Creation", () => {
 
     it("skips previously completed items on partial retry without submitting duplicates", async () => {
       const item1: BookingItem = {
+        groupLabel: "سیستم گیمینگ ۱",
         station: sampleStation,
         startTime: "2026-11-10T14:00:00.000Z",
         extraControllers: 0,
         extraUnitPrice: 0,
       };
       const item2: BookingItem = {
+        groupLabel: "سیستم گیمینگ ۱",
         station: sampleStation,
         startTime: "2026-11-10T15:00:00.000Z",
         extraControllers: 0,
