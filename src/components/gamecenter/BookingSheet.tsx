@@ -5,8 +5,6 @@ import { isAbortError } from "@/lib/api/client";
 import { generateDays } from "@/lib/dates";
 import type { DateOption } from "@/lib/dates";
 import {
-  allocateItems,
-  estimateItemsTotal,
   isSlotBookable,
   type AvailabilityMap,
   type BookingItem,
@@ -14,6 +12,10 @@ import {
 } from "@/lib/devices";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatClock, getErrorMessage } from "@/lib/reservationUi";
+import {
+  bookingPreparationService,
+  type BookingPriceBreakdown,
+} from "@/services/bookingPreparationService";
 import { gamingCenterService } from "@/services/gamingCenterService";
 import type { AvailabilitySlot } from "@/services/gamingCenterService";
 
@@ -184,21 +186,23 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
     [slots, selectedKeys],
   );
 
-  const items = useMemo(
+  const prepared = useMemo(
     () =>
       selectedSlots.length > 0
-        ? allocateItems(
+        ? bookingPreparationService.prepareBooking({
+            gamingCenterSlug,
             lines,
-            selectedSlots.map((s) => s.startTime),
-            avail,
-          )
-        : [],
-    [lines, selectedSlots, avail],
+            startTimes: selectedSlots.map((s) => s.startTime),
+            availability: avail,
+          })
+        : null,
+    [gamingCenterSlug, lines, selectedSlots, avail],
   );
 
-  const estimate = items ? estimateItemsTotal(items) : 0;
+  const items = prepared?.items ?? [];
+  const estimate = prepared?.breakdown.grandTotal ?? 0;
   const canSubmit =
-    selectedSlots.length > 0 && !!items && items.length > 0 && !isSubmitting;
+    selectedSlots.length > 0 && !!prepared?.isValid && !isSubmitting;
 
   const scrollDates = (dir: "next" | "prev") => {
     dateListRef.current?.scrollBy({

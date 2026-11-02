@@ -4,6 +4,7 @@ export interface TimeSlotOption {
   id: string;
   timeLabel: string; // e.g. "۱۳:۰۰ - ۱۴:۰۰"
   startHour: number;
+  isAvailable?: boolean;
 }
 
 export function generateHourlySlots(): TimeSlotOption[] {

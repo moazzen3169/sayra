@@ -15,7 +15,7 @@ describe("Phase 8: Customer Booking Calendar and Availability", () => {
   });
 
   const setupMockFetch = (handler: (url: string, init?: RequestInit) => Response | Promise<Response>) => {
-    globalThis.fetch = mock(handler as typeof fetch);
+    globalThis.fetch = mock(handler) as unknown as typeof fetch;
   };
 
   describe("1. Documented Availability API Operation", () => {
