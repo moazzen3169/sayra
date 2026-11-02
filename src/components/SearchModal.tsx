@@ -7,6 +7,7 @@ import { formatPrice, toPersianDigits } from "@/lib/format";
 import { Icon, IconName } from "@/components/ui/Icon";
 import {
   gamecentersPageService,
+  buildCenterSearchText,
   GamecenterListItem,
 } from "@/services/gamecentersPageService";
 
@@ -157,9 +158,8 @@ export const SearchModal: React.FC<SearchModalProps> = ({
         !centerCity ||
         normalizeText(centerCity).includes(normalizeText(selectedCity));
 
-      const searchableText = normalizeText(
-        `${center.name} ${center.location} ${center.city} ${(center.categories || []).join(" ")}`,
-      );
+      // نام، آدرس، شهر و دستگاه‌ها (ps4 / ps5 / pc / xbox)
+      const searchableText = buildCenterSearchText(center);
 
       return matchesCity && searchableText.includes(normalizedQuery);
     });

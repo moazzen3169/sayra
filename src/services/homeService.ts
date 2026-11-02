@@ -1,28 +1,38 @@
 import { BannerItem, DiscountedCenter } from "@/types/home";
-import { mockBanners, mockDiscountedCenters } from "@/lib/mocks/home.mock";
+import { mockBanners } from "@/lib/mocks/home.mock";
+import {
+  gamecentersPageService,
+  type GamecenterListItem,
+} from "@/services/gamecentersPageService";
 
 // TODO: Endpoint بنرهای تبلیغاتی باید پس از اضافه شدن به OpenAPI مشخص شود
-// و بدنه‌ی این تابع با فراخوانی واقعی API به apiClient.get(...) جایگزین گردد.
+// و بدنه‌ی getBanners با فراخوانی واقعی API به apiClient.get(...) جایگزین گردد.
 
 /**
- * نیازمند Clarification با بک‌اند:
- * در OpenAPI نسخه v1.0-LOCKED، هیچ endpoint عمومی برای دریافت «لیست گیمنت‌های تخفیف‌دار» وجود ندارد.
- * - Endpoint موجود `GET /gamingCenters` فاقد فیلدهای تخفیف، تصویر، امتیاز و قیمت ساعتی است.
- * - Endpoint موجود `/gamingCenters/{id}/discounts` مخصوص مالکین است و نیاز به توکن کاربر/مالک دارد.
- *
- * پیشنهاد برای تیم بک‌اند:
- * یکی از دو راهکار زیر در OpenAPI اضافه شود:
- * ۱) اضافه کردن پارامتر `hasDiscount=true` به `GET /gamingCenters`
- * ۲) ایجاد یک endpoint عمومی اختصاصی مانند `GET /gamingCenters/discounted`
- * همراه با ارسال فیلدهای کامل: imageUrl, rating, hourlyPrice, discountedHourlyPrice و discount.
+ * گیمنت‌های تخفیف‌دار از همان GET /gamingCenters خوانده می‌شوند.
+ * تا وقتی پاسخ بک‌اند فیلد تخفیف (discount) نداشته باشد، لیست خالی برمی‌گردد
+ * و بخش تخفیف‌دار در صفحه اصلی نمایش داده نمی‌شود (هیچ داده‌ی ساختگی استفاده نمی‌شود).
  */
+function toDiscountedCenter(item: GamecenterListItem): DiscountedCenter | null {
+  if (!item.discount) return null;
+  return {
+    id: item.id,
+    name: item.name,
+    imageUrl: item.imageUrl,
+    location: item.location,
+    rating: item.rating,
+    reviewsCount: item.reviewsCount,
+    hourlyPrice: item.hourlyPrice,
+    discountedHourlyPrice: item.discountedHourlyPrice,
+    discount: item.discount,
+  };
+}
 
 export const homeService = {
   async getBanners(signal?: AbortSignal): Promise<BannerItem[]> {
     if (signal?.aborted) {
       throw new DOMException("Aborted", "AbortError");
     }
-    // شبیه‌سازی لود سریع داده از Mock
     return Promise.resolve(mockBanners);
   },
 
@@ -33,7 +43,14 @@ export const homeService = {
     if (params?.signal?.aborted) {
       throw new DOMException("Aborted", "AbortError");
     }
-    // شبیه‌سازی لود داده از Mock
-    return Promise.resolve(mockDiscountedCenters);
+    const all = await gamecentersPageService.loadAllCenters(params?.signal);
+    const inCity = params?.city
+      ? gamecentersPageService.filterCenters(all, { city: params.city })
+      : all;
+
+    return gamecentersPageService
+      .getDiscountedCenters(inCity)
+      .map(toDiscountedCenter)
+      .filter((c): c is DiscountedCenter => c !== null);
   },
 };

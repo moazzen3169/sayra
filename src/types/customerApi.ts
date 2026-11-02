@@ -67,6 +67,23 @@ export interface CustomerAuthRefreshResponse {
 // Public Gaming Center (/public/gamingCenters/* & /gamingCenters/{id}/stations)
 // ---------------------------------------------------------------------------
 
+/** آدرس تعبیه‌شده در پاسخ مرکز بازی (فیلد addresses) */
+export interface GamingCenterAddress {
+  id?: string;
+  gamingCenterId?: string;
+  title?: string | null;
+  province?: string | null;
+  city?: string | null;
+  district?: string | null;
+  addressLine?: string | null;
+  postalCode?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  isPrimary?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface PublicGamingCenter {
   id: string;
   name: string;
@@ -74,6 +91,21 @@ export interface PublicGamingCenter {
   isActive?: boolean;
   description?: string;
   createdAt?: string;
+  updatedAt?: string;
+
+  // فیلدهای کارت گیمنت (پاسخ جدید API)
+  pcCount?: number;
+  consoleCount?: number;
+  ps4?: boolean;
+  ps5?: boolean;
+  pc?: boolean;
+  xbox?: boolean;
+  is_open?: boolean;
+  hourlyRate?: number;
+  /** املای فیلد در API همین است */
+  raiting?: number;
+  comment_count?: number;
+  addresses?: GamingCenterAddress[];
 }
 
 export type StationType = "PC" | "PLAYSTATION" | "XBOX" | "SWITCH" | "VR";

@@ -1,4 +1,8 @@
-import { PublicGamingCenter, ContractGapError } from "@/types/customerApi";
+import {
+  PublicGamingCenter,
+  GamingCenterAddress,
+  ContractGapError,
+} from "@/types/customerApi";
 import { gamingCenterService } from "./gamingCenterService";
 
 export interface GamecenterListItem {
@@ -21,6 +25,10 @@ export interface GamecenterListItem {
   isNew?: boolean;
   isPopular?: boolean;
   isDiscounted?: boolean;
+  /** از فیلد is_open پاسخ API */
+  isOpen?: boolean;
+  pcCount?: number;
+  consoleCount?: number;
   createdAt: string;
 }
 
@@ -32,40 +40,85 @@ export interface GamecenterFilterParams {
   minRating?: number;
   minPrice?: number;
   maxPrice?: number;
+  /** فقط گیمنت‌های باز (is_open) */
+  openOnly?: boolean;
+  /** حداقل تعداد سیستم (pcCount) */
+  minPcCount?: number;
+  /** حداقل تعداد کنسول (consoleCount) */
+  minConsoleCount?: number;
+}
+
+/** برچسب‌های فارسی/انگلیسی هر دسته برای جستجوی متنی */
+export const CATEGORY_SEARCH_KEYWORDS: Record<string, string> = {
+  ps5: "پلی استیشن ۵ پلی استیشن 5 ps5 playstation",
+  ps4: "پلی استیشن ۴ پلی استیشن 4 ps4 playstation",
+  pc: "کامپیوتر گیمینگ سیستم pc",
+  xbox: "ایکس باکس xbox",
+};
+
+const DEFAULT_CENTER_IMAGE = "/img/gamnet-1.webp";
+
+function toNumber(value: unknown, fallback = 0): number {
+  const n = typeof value === "string" ? Number(value) : (value as number);
+  return typeof n === "number" && isFinite(n) ? n : fallback;
+}
+
+function pickPrimaryAddress(
+  addresses?: GamingCenterAddress[]
+): GamingCenterAddress | undefined {
+  if (!Array.isArray(addresses) || addresses.length === 0) return undefined;
+  return addresses.find((a) => a?.isPrimary) ?? addresses[0];
+}
+
+function deriveCategories(center: PublicGamingCenter): string[] {
+  const list: string[] = [];
+  if (center.ps5) list.push("ps5");
+  if (center.ps4) list.push("ps4");
+  if (center.pc) list.push("pc");
+  if (center.xbox) list.push("xbox");
+  return list;
 }
 
 /**
  * Mapping helper: Maps an OpenAPI PublicGamingCenter schema item to GamecenterListItem
- * Strictly bound to documented fields without fabricating arbitrary fake values.
+ * - آدرس: addressLine آدرس اصلی (در نبود آدرس، description)
+ * - قیمت: hourlyRate
+ * - امتیاز و تعداد نظر: raiting و comment_count
+ * - دسته‌ها: ps4 / ps5 / pc / xbox
  */
 export function mapPublicGamingCenterToListItem(
   center: PublicGamingCenter,
   overrides?: Partial<GamecenterListItem>
 ): GamecenterListItem {
-  // Use documented slug or id
   const id = center.slug || center.id;
   const name = center.name || "گیم‌نت";
-  const location = center.description || "";
+  const primary = pickPrimaryAddress(center.addresses);
+  const addressLine = primary?.addressLine?.trim() || "";
+  const location = addressLine || center.description || "";
+  const city = primary?.city?.trim() || "";
   const createdAt = center.createdAt || new Date().toISOString();
 
-  // In OpenAPI v1.0-LOCKED, image, city, rating, price, discounts, and categories are not
-  // returned in GET /gamingCenters. Fallbacks preserve card visual structure cleanly.
   return {
     id,
     name,
-    imageUrl: overrides?.imageUrl || "/img/gamnet-1.webp",
+    imageUrl: overrides?.imageUrl || DEFAULT_CENTER_IMAGE,
     location: overrides?.location !== undefined ? overrides.location : location,
-    city: overrides?.city || "",
-    rating: overrides?.rating ?? 0,
-    reviewsCount: overrides?.reviewsCount ?? 0,
-    hourlyPrice: overrides?.hourlyPrice ?? 0,
+    city: overrides?.city || city,
+    rating: overrides?.rating ?? toNumber(center.raiting),
+    reviewsCount: overrides?.reviewsCount ?? toNumber(center.comment_count),
+    hourlyPrice: overrides?.hourlyPrice ?? toNumber(center.hourlyRate),
     discountedHourlyPrice: overrides?.discountedHourlyPrice,
     discountPercent: overrides?.discountPercent,
     discount: overrides?.discount,
-    categories: overrides?.categories || [],
+    categories: overrides?.categories || deriveCategories(center),
     isNew: overrides?.isNew,
     isPopular: overrides?.isPopular,
     isDiscounted: overrides?.isDiscounted,
+    isOpen: overrides?.isOpen ?? (typeof center.is_open === "boolean" ? center.is_open : undefined),
+    pcCount: overrides?.pcCount ?? (typeof center.pcCount === "number" ? center.pcCount : undefined),
+    consoleCount:
+      overrides?.consoleCount ??
+      (typeof center.consoleCount === "number" ? center.consoleCount : undefined),
     createdAt,
   };
 }
@@ -80,6 +133,16 @@ export function normalizeFilterText(text: string): string {
     .trim();
 }
 
+/** متن قابل جستجوی یک گیمنت: نام، آدرس، شهر و دستگاه‌ها (با برچسب فارسی) */
+export function buildCenterSearchText(item: GamecenterListItem): string {
+  const keywords = item.categories
+    .map((c) => CATEGORY_SEARCH_KEYWORDS[c.toLowerCase()] ?? "")
+    .join(" ");
+  return normalizeFilterText(
+    `${item.name} ${item.location} ${item.city} ${item.categories.join(" ")} ${keywords}`
+  );
+}
+
 export const gamecentersPageService = {
   /**
    * Fetches real gaming centers from GET /gamingCenters and maps to list items.
@@ -87,14 +150,27 @@ export const gamecentersPageService = {
    */
   async loadAllCenters(signal?: AbortSignal): Promise<GamecenterListItem[]> {
     const centers = await gamingCenterService.listGamingCenters(signal);
-    return centers.map((c) => mapPublicGamingCenterToListItem(c));
+    return centers
+      .filter((c) => c.isActive !== false)
+      .map((c) => mapPublicGamingCenterToListItem(c));
   },
 
   /**
    * Filters a list of gaming centers using client-side matching over the loaded dataset.
    */
   filterCenters(items: GamecenterListItem[], params: GamecenterFilterParams): GamecenterListItem[] {
-    const { q, category, city, sort = "default", minRating, minPrice, maxPrice } = params;
+    const {
+      q,
+      category,
+      city,
+      sort = "default",
+      minRating,
+      minPrice,
+      maxPrice,
+      openOnly,
+      minPcCount,
+      minConsoleCount,
+    } = params;
 
     const filtered = items.filter((item) => {
       // City filter (if item has city or location)
@@ -107,20 +183,30 @@ export const gamecentersPageService = {
         }
       }
 
-      // Category filter
+      // Category filter (ps4 / ps5 / pc / xbox ...)
       if (category && category !== "all") {
         if (!item.categories.map((c) => c.toLowerCase()).includes(category.toLowerCase())) {
           return false;
         }
       }
 
+      // Open now filter (is_open)
+      if (openOnly && item.isOpen !== true) {
+        return false;
+      }
+
+      // Device counts
+      if (minPcCount !== undefined && (item.pcCount ?? 0) < minPcCount) {
+        return false;
+      }
+      if (minConsoleCount !== undefined && (item.consoleCount ?? 0) < minConsoleCount) {
+        return false;
+      }
+
       // Query filter
       if (q && q.trim()) {
         const normQ = normalizeFilterText(q);
-        const searchableText = normalizeFilterText(
-          `${item.name} ${item.location} ${item.city} ${item.categories.join(" ")}`
-        );
-        if (!searchableText.includes(normQ)) {
+        if (!buildCenterSearchText(item).includes(normQ)) {
           return false;
         }
       }
@@ -188,6 +274,11 @@ export const gamecentersPageService = {
     return [...items]
       .sort((a, b) => (b.reviewsCount ?? 0) - (a.reviewsCount ?? 0))
       .slice(0, 6);
+  },
+
+  /** برترین‌ها بر اساس امتیاز (برای بخش «پیشنهاد ویژه») */
+  getFeaturedCenters(items: GamecenterListItem[]): GamecenterListItem[] {
+    return [...items].sort((a, b) => b.rating - a.rating).slice(0, 3);
   },
 
   /**
