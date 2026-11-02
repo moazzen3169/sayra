@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { reservationService } from "@/services/reservationService";
+import { customerReviewService } from "@/services/customerReviewService";
 import { getErrorMessage } from "@/lib/reservationUi";
 
 interface RatingModalProps {
@@ -28,7 +28,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({ isOpen, reservationId,
     setSubmitting(true);
     setError("");
     try {
-      await reservationService.rate(reservationId, {
+      await customerReviewService.submitCustomerReview(reservationId, {
         rating,
         comment: comment.trim() || undefined,
       });

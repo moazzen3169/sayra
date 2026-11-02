@@ -208,10 +208,17 @@ export const reservationService = {
   /**
    * ثبت امتیاز و نظر برای رزرو تکمیل شده
    * POST /customer/reservation/{reservationId}/ratings
+   * ارجاع به customerReviewService برای هماهنگی یکپارچه
    */
   async rate(reservationId: string, payload: { rating: number; comment?: string }): Promise<void> {
     if (USE_MOCK_RESERVATIONS) return;
-    await apiClient.post(ENDPOINTS.reservation.rate(reservationId), payload);
+    if (typeof payload.rating !== "number" || !Number.isInteger(payload.rating) || payload.rating < 1 || payload.rating > 5) {
+      throw new Error("امتیاز باید یک عدد صحیح بین ۱ تا ۵ باشد.");
+    }
+    await apiClient.post(ENDPOINTS.reservation.rate(reservationId), {
+      rating: payload.rating,
+      comment: payload.comment?.trim() ? payload.comment.trim() : undefined,
+    });
   },
 
   /**
