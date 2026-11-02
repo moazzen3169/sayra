@@ -49,7 +49,6 @@ export const authService = {
    * Body: { phone: string }
    */
   async requestOtp(phone: string): Promise<void> {
-    if (USE_MOCK_DATA) return;
     await apiClient.post(ENDPOINTS.auth.otpRequest, { phone });
   },
 
@@ -60,13 +59,6 @@ export const authService = {
    * Response Envelope: { success: true, data: { accessToken, refreshToken?, user? } }
    */
   async verifyOtp(phone: string, code: string): Promise<AuthVerifyResponse> {
-    if (USE_MOCK_DATA) {
-      return {
-        accessToken: "mock-access-token",
-        refreshToken: "mock-refresh-token",
-        user: { id: "user-1", phone, fullName: "کاربر تست" },
-      };
-    }
     const { data } = await apiClient.post<AuthVerifyResponse>(ENDPOINTS.auth.otpVerify, {
       phone,
       code,
@@ -79,9 +71,6 @@ export const authService = {
    * GET /customer/me
    */
   async getMe(signal?: AbortSignal): Promise<AuthUser> {
-    if (USE_MOCK_DATA) {
-      return { id: "user-1", phone: "09123456789", fullName: "کاربر سایرا" };
-    }
     const { data } = await apiClient.get<AuthUser>(ENDPOINTS.auth.me, { signal });
     return data;
   },
@@ -92,9 +81,6 @@ export const authService = {
    * Body: { refreshToken: string }
    */
   async refresh(refreshToken: string): Promise<AuthRefreshResponse> {
-    if (USE_MOCK_DATA) {
-      return { accessToken: "mock-new-access-token" };
-    }
     const { data } = await apiClient.post<AuthRefreshResponse>(
       ENDPOINTS.auth.refresh,
       { refreshToken },
@@ -108,7 +94,6 @@ export const authService = {
    * POST /auth/logout
    */
   async logout(): Promise<void> {
-    if (USE_MOCK_DATA) return;
     await apiClient.post(ENDPOINTS.auth.logout, undefined, { retryOnAuth: false });
   },
 
@@ -141,6 +126,49 @@ export const authService = {
     throw new ContractGapError(
       "CustomerWallet",
       "Customer wallet endpoints are not defined in OpenAPI v1.0-LOCKED."
+    );
+  },
+
+  /**
+   * ورود با کلمه عبور برای مشتریان عادی
+   * در نسخه v1.0-LOCKED تنها ورود با OTP برای مشتریان تعریف شده است.
+   */
+  customerPasswordLoginUnsupported(): never {
+    throw new ContractGapError(
+      "CustomerPasswordLogin",
+      "Customer password login is not supported in OpenAPI v1.0-LOCKED. Only passwordless OTP is supported."
+    );
+  },
+
+  /**
+   * ثبت‌نام مجزا برای مشتریان
+   * در OpenAPI فرآیند ثبت‌نام و ورود از طریق ورود با شماره تلفن و OTP انجام می‌شود.
+   */
+  customerRegistrationUnsupported(): never {
+    throw new ContractGapError(
+      "CustomerRegistration",
+      "Dedicated customer registration endpoint does not exist; authentication is handled via OTP request and verify."
+    );
+  },
+
+  /**
+   * بازیابی رمز عبور مشتریان
+   * از آنجا که مشتریان سیستم کلمه عبور ندارند، بازیابی رمز عبور پشتیبانی نمی‌شود.
+   */
+  customerPasswordResetUnsupported(): never {
+    throw new ContractGapError(
+      "CustomerPasswordReset",
+      "Password reset is not supported for customers as authentication is strictly passwordless OTP."
+    );
+  },
+
+  /**
+   * ورود با شبکه‌های اجتماعی (Social Login)
+   */
+  socialLoginUnsupported(): never {
+    throw new ContractGapError(
+      "SocialLogin",
+      "Social login (Google, Apple, etc.) is not defined in OpenAPI v1.0-LOCKED."
     );
   },
 

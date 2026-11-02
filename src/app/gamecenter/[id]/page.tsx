@@ -438,8 +438,9 @@ export default function GameCenterDetailPage({
     fullName: string,
     phone: string,
     token?: string,
+    refreshToken?: string,
   ) => {
-    login(fullName, phone, token);
+    login(fullName, phone, token, refreshToken);
     setIsAuthModalOpen(false);
     if (pendingBooking) finalizeBooking(pendingBooking, { fullName, phone });
   };
