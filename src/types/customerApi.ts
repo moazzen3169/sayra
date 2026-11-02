@@ -297,13 +297,44 @@ export interface SendCustomerTicketMessagePayload {
 }
 
 // ---------------------------------------------------------------------------
-// Payments (/gamingCenters/{id}/reservation/{id}/payments/init)
+// Payments (/gamingCenters/{id}/reservation/{id}/payments/*)
 // ---------------------------------------------------------------------------
 
 export interface PaymentInitResponse {
   paymentUrl?: string;
   transactionId?: string;
   trackingCode?: string;
+  authority?: string;
+  [key: string]: unknown;
+}
+
+export interface PaymentVerifyRedirectParams {
+  Authority?: string;
+  Status?: string;
+}
+
+export interface PaymentVerifyManualPayload {
+  authority?: string;
+  paymentId?: string;
+}
+
+export interface PaymentVerifyResponse {
+  success?: boolean;
+  reservation?: Reservation;
+  paymentState?: PaymentState;
+  status?: string;
+  transactionId?: string;
+  trackingCode?: string;
+  [key: string]: unknown;
+}
+
+export interface PaymentStatusResponse {
+  paymentState?: PaymentState;
+  status?: string;
+  amount?: number;
+  currency?: string;
+  reservationId?: string;
+  gamingCenterId?: string;
   [key: string]: unknown;
 }
 

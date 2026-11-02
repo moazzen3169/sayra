@@ -176,24 +176,17 @@ export const reservationService = {
   async initPayment(
     gamingCenterId: string,
     reservationId: string,
-    idempotencyKey: string
+    idempotencyKey: string,
+    signal?: AbortSignal
   ): Promise<PaymentInitResponse> {
     const { data } = await apiClient.post<PaymentInitResponse>(
       ENDPOINTS.payment.init(gamingCenterId, reservationId),
       undefined,
-      { headers: { "idempotency-key": idempotencyKey } }
+      {
+        headers: { "idempotency-key": idempotencyKey },
+        signal,
+      }
     );
     return data;
-  },
-
-  /**
-   * تأیید بازگشت درگاه پرداخت (Payment Callback / Verify)
-   * در نسخه v1.0-LOCKED اندپوینتی برای این کار وجود ندارد.
-   */
-  verifyPaymentUnsupported(): never {
-    throw new ContractGapError(
-      "PaymentVerification",
-      "POST /payments/verify or callback endpoints are not defined in OpenAPI v1.0-LOCKED."
-    );
   },
 };

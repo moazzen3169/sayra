@@ -43,6 +43,12 @@ export const ENDPOINTS = {
   payment: {
     init: (gamingCenterId: string, reservationId: string) =>
       `/gamingCenters/${enc(gamingCenterId)}/reservation/${enc(reservationId)}/payments/init`,
+    verifyRedirect: (gamingCenterId: string, reservationId: string) =>
+      `/gamingCenters/${enc(gamingCenterId)}/reservation/${enc(reservationId)}/payments/verify`,
+    verifyManual: (gamingCenterId: string, reservationId: string) =>
+      `/gamingCenters/${enc(gamingCenterId)}/reservation/${enc(reservationId)}/payments/verify`,
+    status: (gamingCenterId: string, reservationId: string) =>
+      `/gamingCenters/${enc(gamingCenterId)}/reservation/${enc(reservationId)}/payments/status`,
   },
   notifications: {
     list: "/notifications",
