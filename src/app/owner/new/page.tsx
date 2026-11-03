@@ -579,26 +579,7 @@ export default function NewGamingCenterPage() {
 
       <main className="flex-1 mt-16 px-4 py-6 max-w-3xl mx-auto w-full">
         {/* Banner / Intro */}
-        <div className="mb-6 p-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold text-[var(--text-white)]">
-              ثبت و راه‌اندازی مرکز بازی در سایرا
-            </h2>
-            <p className="text-xs text-[var(--text-subtle)] mt-1">
-              تمامی کاربران می‌توانند اطلاعات مجموعه خود را ثبت کرده و پس از احراز هویت، مدیریت کامل رزروها را در دست بگیرند.
-            </p>
-          </div>
 
-          {!isLoggedIn && (
-            <button
-              type="button"
-              onClick={() => setAuthModalOpen(true)}
-              className="px-4 py-2 rounded-card text-xs font-bold bg-[var(--primary)] text-black shrink-0 hover:brightness-105 active:scale-95 transition-transform"
-            >
-              ورود به حساب کاربری
-            </button>
-          )}
-        </div>
 
         {/* Stepper Wizard Indicator */}
         <div className="mb-6 p-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] overflow-x-auto">
