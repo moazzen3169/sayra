@@ -429,6 +429,25 @@ export default function ProfilePage() {
 
             {/* Menu Options Group */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card overflow-hidden divide-y divide-[var(--border-subtle)] shadow-lg">
+              {/* ۰. ثبت و راه‌اندازی گیم‌نت */}
+              <Link
+                href="/owner/new"
+                className="w-full p-4 flex items-center justify-between hover:bg-[var(--foreground)]/30 transition-colors text-right group bg-[var(--primary)]/5"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-card bg-[var(--primary)] text-black flex items-center justify-center transition-colors group-hover:scale-105 font-black text-sm">
+                    +
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-[var(--primary)]">ثبت و ایجاد گیم‌نت جدید</span>
+                    <span className="text-xs text-[var(--text-muted)]">معرفی مجموعه و راه‌اندازی سامانه رزرو آنلاین</span>
+                  </div>
+                </div>
+                <svg className="w-5 h-5 text-[var(--primary)] transform rotate-180 group-hover:translate-x-[-2px] transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+
               {/* 1. پشتیبانی */}
               <Link
                 href="/support"

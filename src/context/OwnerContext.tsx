@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { OwnerAuthModal } from "@/components/owner/OwnerAuthModal";
 import { useAuth } from "@/context/AuthContext";
 import { isAbortError } from "@/lib/api/client";
@@ -38,6 +39,8 @@ const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const pathname = usePathname();
+  const isPublicOwnerRoute = pathname === "/owner/new";
   const { isLoggedIn, isLoading: authLoading, login, logout, user } = useAuth();
 
   const [me, setMe] = useState<OwnerMe | null>(null);
@@ -118,7 +121,9 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCenter(null);
       setCenterId("");
       setCenterError("برای دسترسی به پنل مدیریت باید وارد حساب کاربری خود شوید.");
-      setAuthOpen(true);
+      if (!isPublicOwnerRoute) {
+        setAuthOpen(true);
+      }
       return;
     }
 

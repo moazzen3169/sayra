@@ -183,3 +183,20 @@ export interface Ticket {
   createdAt: string;
   messages?: TicketMessage[];
 }
+export interface CreateGamingCenterPayload {
+  name: string;
+  slug: string;
+  ownerId: string;
+  games?: string[];
+}
+
+export interface CreateBranchAddressPayload {
+  address: string;
+  city?: string;
+  phone?: string;
+}
+
+export interface CreateLinkPayload {
+  platform: string;
+  url: string;
+}

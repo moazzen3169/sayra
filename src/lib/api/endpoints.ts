@@ -12,11 +12,11 @@ export const ENDPOINTS = {
     userOtpRequest: "/auth/user/otp/request",
     userOtpVerify: "/auth/user/otp/verify",
     userOtpLogin: "/auth/user/login/otp",
-    userPasswordLogin: "/auth/platform-admin/login",
+    userPasswordLogin: "/auth/login",
   },
   gamingCenter: {
     list: "/gamingCenters",
-    detail: (slug: string) => `/gamingCenters/${enc(slug)}`,
+    detail: (slug: string) => `/public/gamingCenters/${enc(slug)}`,
     availabilitySlots: (slug: string) => `/public/gamingCenters/${enc(slug)}/availability/slots`,
     ratings: (slug: string) => `/public/gamingCenters/${enc(slug)}/ratings`,
     media: (slug: string) => `/public/gamingCenters/${enc(slug)}/media`,
@@ -85,6 +85,8 @@ export const ENDPOINTS = {
     siteSettings: (c: string) => `/gamingCenters/${enc(c)}/site-settings`,
     stations: (c: string) => `/gamingCenters/${enc(c)}/stations`,
     mediaUpload: (c: string) => `/gamingCenters/${enc(c)}/media/upload`,
+    addresses: (c: string) => `/gamingCenters/${enc(c)}/addresses`,
+    links: (c: string) => `/gamingCenters/${enc(c)}/links`,
     ratingStatus: (c: string, ratingId: string) =>
       `/gamingCenters/${enc(c)}/ratings/${enc(ratingId)}/status`,
     analyticsSummary: (c: string) => `/gamingCenters/${enc(c)}/analytics/summary`,
