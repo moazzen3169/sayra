@@ -12,11 +12,13 @@ export const ENDPOINTS = {
     userOtpRequest: "/auth/user/otp/request",
     userOtpVerify: "/auth/user/otp/verify",
     userOtpLogin: "/auth/user/login/otp",
-    userPasswordLogin: "/auth/platform-admin/login",
+    userPasswordLogin: "/auth/login",
+    platformAdminLogin: "/auth/platform-admin/login",
   },
   gamingCenter: {
     list: "/gamingCenters",
-    detail: (slug: string) => `/gamingCenters/${enc(slug)}`,
+    detail: (slug: string) => `/public/gamingCenters/${enc(slug)}`,
+    byId: (id: string) => `/gamingCenters/${enc(id)}`,
     availabilitySlots: (slug: string) => `/public/gamingCenters/${enc(slug)}/availability/slots`,
     ratings: (slug: string) => `/public/gamingCenters/${enc(slug)}/ratings`,
     media: (slug: string) => `/public/gamingCenters/${enc(slug)}/media`,
@@ -24,7 +26,6 @@ export const ENDPOINTS = {
     addresses: (slug: string) => `/public/gamingCenters/${enc(slug)}/addresses`,
     stations: (gamingCenterId: string) => `/gamingCenters/${enc(gamingCenterId)}/stations`,
     publicStations: (slug: string) => `/public/gamingCenters/${enc(slug)}/stations`,
-    byId: (id: string) => `/gamingCenters/${enc(id)}`,
     page: (slug: string, pageSlug: string) =>
       `/public/gamingCenters/${enc(slug)}/pages/${enc(pageSlug)}`,
   },
@@ -84,6 +85,8 @@ export const ENDPOINTS = {
     settings: (c: string) => `/gamingCenters/${enc(c)}/settings`,
     siteSettings: (c: string) => `/gamingCenters/${enc(c)}/site-settings`,
     stations: (c: string) => `/gamingCenters/${enc(c)}/stations`,
+    addresses: (c: string) => `/gamingCenters/${enc(c)}/addresses`,
+    links: (c: string) => `/gamingCenters/${enc(c)}/links`,
     mediaUpload: (c: string) => `/gamingCenters/${enc(c)}/media/upload`,
     ratingStatus: (c: string, ratingId: string) =>
       `/gamingCenters/${enc(c)}/ratings/${enc(ratingId)}/status`,
