@@ -5,6 +5,9 @@ import type {
   CenterSettings,
   CommissionListParams,
   CommissionListResult,
+  CreateBranchAddressPayload,
+  CreateGamingCenterPayload,
+  CreateLinkPayload,
   Earning,
   MediaItem,
   OwnerAnalyticsSummary,
@@ -46,6 +49,88 @@ export const ownerService = {
    * دریافت گیم‌نت‌های در دسترس برای کاربر
    * در صورت ارائه پارامترهای صفحه‌بندی، لیست مراکز بازی واکشی می‌شود
    */
+  /**
+   * ایجاد گیم‌نت جدید مطابق OpenAPI:
+   * POST /gamingCenters
+   * فیلدهای الزامی: name, slug, ownerId
+   * فیلد اختیاری: games (آرایه‌ای از رشته‌ها)
+   */
+  async createGamingCenter(
+    payload: CreateGamingCenterPayload,
+    signal?: AbortSignal
+  ): Promise<{ id: string; name: string; slug: string }> {
+    const body: Record<string, unknown> = {
+      name: payload.name.trim(),
+      slug: payload.slug.trim(),
+      ownerId: payload.ownerId.trim(),
+    };
+    if (Array.isArray(payload.games) && payload.games.length > 0) {
+      body.games = payload.games.filter(Boolean);
+    }
+
+    const response = await apiClient.post<any>(ENDPOINTS.owner.centers, body, { signal });
+    const resData = response.data;
+
+    let createdId = "";
+    let createdName = payload.name;
+    let createdSlug = payload.slug;
+
+    if (resData && typeof resData === "object") {
+      if (resData.id) createdId = String(resData.id);
+      else if (resData.data?.id) createdId = String(resData.data.id);
+      else if (resData.gamingCenter?.id) createdId = String(resData.gamingCenter.id);
+
+      if (resData.name) createdName = String(resData.name);
+      else if (resData.data?.name) createdName = String(resData.data.name);
+
+      if (resData.slug) createdSlug = String(resData.slug);
+      else if (resData.data?.slug) createdSlug = String(resData.data.slug);
+    }
+
+    return {
+      id: createdId || createdSlug,
+      name: createdName,
+      slug: createdSlug,
+    };
+  },
+
+  /**
+   * ثبت آدرس شعبه برای گیم‌نت:
+   * POST /gamingCenters/{gamingCenterId}/addresses
+   * فیلد الزامی: address
+   * فیلدهای اختیاری: city, phone
+   */
+  async createAddress(
+    gamingCenterId: string,
+    payload: CreateBranchAddressPayload,
+    signal?: AbortSignal
+  ): Promise<void> {
+    const body: Record<string, unknown> = {
+      address: payload.address.trim(),
+    };
+    if (payload.city?.trim()) body.city = payload.city.trim();
+    if (payload.phone?.trim()) body.phone = payload.phone.trim();
+
+    await apiClient.post(ENDPOINTS.owner.addresses(gamingCenterId), body, { signal });
+  },
+
+  /**
+   * ثبت لینک وبسایت یا شبکه‌های اجتماعی برای گیم‌نت:
+   * POST /gamingCenters/{gamingCenterId}/links
+   * فیلدهای الزامی: platform, url
+   */
+  async createLink(
+    gamingCenterId: string,
+    payload: CreateLinkPayload,
+    signal?: AbortSignal
+  ): Promise<void> {
+    const body = {
+      platform: payload.platform.trim(),
+      url: payload.url.trim(),
+    };
+    await apiClient.post(ENDPOINTS.owner.links(gamingCenterId), body, { signal });
+  },
+
   async listCenters(signal?: AbortSignal): Promise<PublicCenter[]> {
     try {
       const { data } = await apiClient.get<PublicCenter[]>(ENDPOINTS.owner.centers, {

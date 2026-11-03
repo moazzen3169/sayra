@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
 import { useOwner } from "@/context/OwnerContext";
 import { isAbortError } from "@/lib/api/client";
@@ -208,6 +209,15 @@ export default function OwnerEditPage() {
       <OwnerPageHeader title="ویرایش گیمنت" />
 
       <main className="flex-1 mt-16 px-4 py-4 lg:max-w-[var(--max-mini-app-width)] lg:mx-auto lg:w-full lg:px-0">
+        <div className="mb-4 flex items-center justify-between p-3 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)]">
+          <span className="text-xs text-[var(--text-subtle)]">گیم‌نت دیگری دارید یا می‌خواهید شعبه جدید اضافه کنید؟</span>
+          <Link
+            href="/owner/new"
+            className="px-3 py-1.5 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--primary)] hover:border-[var(--primary)] active:scale-95 transition-all shrink-0"
+          >
+            + ثبت گیم‌نت جدید
+          </Link>
+        </div>
         {!loaded ? (
           <div className="h-60 rounded-card bg-[var(--bg-card)] animate-pulse" />
         ) : (

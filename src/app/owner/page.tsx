@@ -210,8 +210,16 @@ export default function OwnerDashboardPage() {
 
       <main className="flex-1 px-4 pt-20 flex flex-col gap-5 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0">
         {centerError && (
-          <div className="p-3.5 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold leading-relaxed">
-            {centerError}
+          <div className="p-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="text-[var(--accent-red)] text-xs font-bold leading-relaxed">
+              {centerError}
+            </div>
+            <Link
+              href="/owner/new"
+              className="px-4 py-2 rounded-card bg-[var(--primary)] text-black text-xs font-bold text-center shrink-0 hover:brightness-105 active:scale-95 transition-transform"
+            >
+              + ثبت گیم‌نت جدید
+            </Link>
           </div>
         )}
 
@@ -221,23 +229,36 @@ export default function OwnerDashboardPage() {
           </div>
         )}
 
-        {/* Center Switcher if owner has multiple centers */}
-        {centers.length > 1 && (
-          <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3 flex items-center justify-between gap-3">
-            <span className="text-xs font-bold text-[var(--text-muted)]">انتخاب گیم‌نت:</span>
-            <select
-              value={centerId}
-              onChange={(e) => selectCenter(e.target.value)}
-              className="bg-[var(--foreground)]/50 border border-[var(--border-subtle)] rounded-card px-3 py-1.5 text-xs text-[var(--text-white)] focus:outline-none focus:border-[var(--primary)]"
-            >
-              {centers.map((c) => (
-                <option key={c.id} value={c.id} className="bg-[var(--bg-card)] text-[var(--text-white)]">
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        {/* Center Switcher & New Center Action */}
+        <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3 flex items-center justify-between gap-3">
+          {centers.length > 1 ? (
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-xs font-bold text-[var(--text-muted)] shrink-0">انتخاب گیم‌نت:</span>
+              <select
+                value={centerId}
+                onChange={(e) => selectCenter(e.target.value)}
+                className="bg-[var(--foreground)]/50 border border-[var(--border-subtle)] rounded-card px-3 py-1.5 text-xs text-[var(--text-white)] focus:outline-none focus:border-[var(--primary)] max-w-[200px]"
+              >
+                {centers.map((c) => (
+                  <option key={c.id} value={c.id} className="bg-[var(--bg-card)] text-[var(--text-white)]">
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <span className="text-xs font-bold text-[var(--text-white)] truncate">
+              {center?.name || "مرکز بازی"}
+            </span>
+          )}
+
+          <Link
+            href="/owner/new"
+            className="px-3 py-1.5 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--primary)] hover:border-[var(--primary)] active:scale-95 transition-all shrink-0"
+          >
+            + ثبت گیم‌نت جدید
+          </Link>
+        </div>
 
         {/* Verification Form / Notice section if not approved */}
         {!isApproved && (
