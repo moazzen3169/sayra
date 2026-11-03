@@ -276,6 +276,9 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     user?.fullName ||
     "";
 
+  // Hide the entire Owner UI on protected routes if unauthenticated
+  const shouldRenderChildren = isPublicOwnerRoute || isLoggedIn;
+
   return (
     <OwnerContext.Provider
       value={{
@@ -293,7 +296,45 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setVerificationStatus,
       }}
     >
-      {children}
+      {shouldRenderChildren ? (
+        children
+      ) : (
+        <Shell>
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+            <div className="max-w-md w-full p-6 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col items-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center text-2xl font-black">
+                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-[var(--text-white)]">
+                  ورود به پنل مدیریت گیم‌نت
+                </h2>
+                <p className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
+                  برای دسترسی و مشاهده بخش‌های پنل مدیریت گیم‌نت، ابتدا باید وارد حساب کاربری خود شوید.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 w-full mt-2">
+                <button
+                  type="button"
+                  onClick={() => setAuthOpen(true)}
+                  className="flex-1 h-11 rounded-card bg-[var(--primary)] text-on-primary text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center justify-center"
+                >
+                  ورود به حساب کاربری
+                </button>
+                <a
+                  href="/owner/new"
+                  className="flex-1 h-11 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-white)] hover:bg-[var(--foreground)]/80 active:scale-95 transition-transform flex items-center justify-center"
+                >
+                  ثبت گیم‌نت جدید
+                </a>
+              </div>
+            </div>
+          </div>
+        </Shell>
+      )}
+
       <OwnerAuthModal
         isOpen={authOpen}
         onClose={() => setAuthOpen(false)}

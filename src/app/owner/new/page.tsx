@@ -7,7 +7,9 @@ import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
 import { OwnerAuthModal } from "@/components/owner/OwnerAuthModal";
 import { useAuth } from "@/context/AuthContext";
 import { useOwner } from "@/context/OwnerContext";
+import { toPersianDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
+import { authService } from "@/services/authService";
 import { ownerService } from "@/services/ownerService";
 import type { CenterSettings, StationInput } from "@/types/owner";
 
@@ -67,6 +69,18 @@ export default function NewGamingCenterPage() {
 
   // Auth modal state for unauthenticated users
   const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  // Modal / Verification Step before creation if unauthenticated
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyMode, setVerifyMode] = useState<"otp" | "password">("otp");
+  const [otpStep, setOtpStep] = useState<"request" | "verify">("request");
+  const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
+  const [otpTimer, setOtpTimer] = useState(120);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  // Password fallback state
+  const [passwordValue, setPasswordValue] = useState("");
 
   // Current Step: 1 = Basic Info, 2 = Location & Contact, 3 = Hours & Booking, 4 = Media & Photos, 5 = Stations & Final
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
@@ -234,6 +248,11 @@ export default function NewGamingCenterPage() {
         setErrorMsg("لطفاً آدرس دقیق گیم‌نت را وارد کنید.");
         return false;
       }
+      const cleanPhone = phone.trim().replace(/[^\d]/g, "");
+      if (!cleanPhone || cleanPhone.length < 10) {
+        setErrorMsg("لطفاً شماره تماس معتبر (مثال: ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
+        return false;
+      }
       return true;
     }
     if (s === 3) {
@@ -259,20 +278,54 @@ export default function NewGamingCenterPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Final Submission to API
-  const handleSubmitAll = async () => {
-    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
+  // Countdown timer for OTP
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (showVerifyModal && verifyMode === "otp" && otpStep === "verify" && otpTimer > 0) {
+      interval = setInterval(() => {
+        setOtpTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [showVerifyModal, verifyMode, otpStep, otpTimer]);
+
+  const handleOtpInput = (index: number, value: string) => {
+    if (value.length > 1) {
+      const digits = value.replace(/[^\d]/g, "").slice(0, 6).split("");
+      const newOtp = [...otpCode];
+      digits.forEach((d, i) => {
+        if (i < 6) newOtp[i] = d;
+      });
+      setOtpCode(newOtp);
       return;
     }
 
-    // Must have ownerId from logged-in user or me profile
-    const ownerId = me?.id || user?.id;
-    if (!ownerId) {
-      setErrorMsg("برای ثبت نهایی گیم‌نت، ابتدا باید وارد حساب کاربری خود شوید.");
-      setAuthModalOpen(true);
-      return;
-    }
+    const clean = value.replace(/[^\d]/g, "");
+    const newOtp = [...otpCode];
+    newOtp[index] = clean;
+    setOtpCode(newOtp);
 
+    if (clean && index < 5) {
+      const nextInput = document.getElementById(`create-otp-${index + 1}`);
+      nextInput?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otpCode[index] && index > 0) {
+      const prevInput = document.getElementById(`create-otp-${index - 1}`);
+      prevInput?.focus();
+    }
+  };
+
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${toPersianDigits(mins)}:${secs < 10 ? "۰" : ""}${toPersianDigits(secs)}`;
+  };
+
+  // Perform Creation of Center with specific resolved ownerId
+  const executeCenterCreation = async (resolvedOwnerId: string) => {
     setIsSubmitting(true);
     setErrorMsg(null);
 
@@ -282,7 +335,7 @@ export default function NewGamingCenterPage() {
       const createdCenter = await ownerService.createGamingCenter({
         name: name.trim(),
         slug: slug.trim(),
-        ownerId: ownerId,
+        ownerId: resolvedOwnerId,
         games: selectedGames,
       });
 
@@ -394,6 +447,120 @@ export default function NewGamingCenterPage() {
     } finally {
       setIsSubmitting(false);
       setSubmitProgressText("");
+    }
+  };
+
+  // Trigger submission: if authenticated, proceed; if not, initiate verification
+  const handleSubmitAll = async () => {
+    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
+      return;
+    }
+
+    const currentOwnerId = me?.id || user?.id;
+    if (isLoggedIn && currentOwnerId) {
+      await executeCenterCreation(currentOwnerId);
+      return;
+    }
+
+    // Unauthenticated: initiate OTP send to the entered phone number
+    setVerifyError(null);
+    setVerifyMode("otp");
+    setPasswordValue("");
+    setShowVerifyModal(true);
+    await sendOtpToPhone();
+  };
+
+  const sendOtpToPhone = async () => {
+    const cleanPhone = phone.trim().replace(/[^\d]/g, "");
+    if (!cleanPhone || cleanPhone.length < 10) {
+      setVerifyError("شماره تماس گیم‌نت نامعتبر است. لطفاً در مرحله ۲ شماره موبایل معتبر وارد کنید.");
+      return;
+    }
+
+    setIsVerifying(true);
+    setVerifyError(null);
+    try {
+      await authService.requestOtp(cleanPhone);
+      setOtpStep("verify");
+      setOtpTimer(120);
+      setOtpCode(["", "", "", "", "", ""]);
+    } catch (err) {
+      setVerifyError(getErrorMessage(err));
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleVerifyOtpAndCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setVerifyError(null);
+
+    const fullCode = otpCode.join("");
+    if (fullCode.length < 6) {
+      setVerifyError("لطفاً کد تایید ۶ رقمی را به طور کامل وارد کنید.");
+      return;
+    }
+
+    const cleanPhone = phone.trim().replace(/[^\d]/g, "");
+    setIsVerifying(true);
+
+    try {
+      const authRes = await authService.verifyOtp(cleanPhone, fullCode);
+      const token = authRes.accessToken;
+      if (!token) {
+        throw new Error("توکن ورود دریافت نشد.");
+      }
+
+      const userName = authRes.user?.fullName || name || "مالک گیم‌نت";
+      login(userName, cleanPhone, token, authRes.refreshToken);
+
+      const resolvedOwnerId = authRes.user?.id || `owner-${cleanPhone}`;
+      setShowVerifyModal(false);
+
+      // Now create the gaming center
+      await executeCenterCreation(resolvedOwnerId);
+    } catch (err) {
+      setVerifyError(getErrorMessage(err));
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handlePasswordLoginAndCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setVerifyError(null);
+
+    const cleanPhone = phone.trim().replace(/[^\d]/g, "");
+    if (!cleanPhone || cleanPhone.length < 10) {
+      setVerifyError("لطفاً شماره تماس معتبر وارد کنید.");
+      return;
+    }
+
+    if (!passwordValue) {
+      setVerifyError("لطفاً رمز عبور را وارد کنید.");
+      return;
+    }
+
+    setIsVerifying(true);
+    try {
+      const res = await authService.loginUserWithPassword(cleanPhone, passwordValue);
+      const token = res.accessToken;
+      if (!token) {
+        throw new Error("توکن ورود دریافت نشد.");
+      }
+
+      const userName = res.user?.fullName || res.user?.name || name || "مدیر گیم‌نت";
+      login(userName, cleanPhone, token, res.refreshToken);
+
+      const resolvedOwnerId = res.user?.id || `owner-${cleanPhone}`;
+      setShowVerifyModal(false);
+
+      // Create gaming center under this account
+      await executeCenterCreation(resolvedOwnerId);
+    } catch (err) {
+      setVerifyError(getErrorMessage(err));
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -698,15 +865,23 @@ export default function NewGamingCenterPage() {
 
                 {/* Phone */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-[var(--text-white)]">شماره تلفن گیم‌نت</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-[var(--text-white)]">
+                      شماره تماس گیم‌نت (شماره موبایل جهت احراز هویت مالک) <span className="text-[var(--accent-red)]">*</span>
+                    </label>
+                  </div>
                   <input
                     type="tel"
                     dir="ltr"
                     className={`${inputClass} text-left`}
-                    placeholder="۰۲۱xxxxxxxx یا ۰۹xxxxxxxxx"
+                    placeholder="۰۹۱۲۳۴۵۶۷۸۹"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                    required
                   />
+                  <span className="text-[10px] text-[var(--text-subtle)]">
+                    کد تایید پیامکی (OTP) در مرحله نهایی به این شماره ارسال خواهد شد.
+                  </span>
                 </div>
 
                 {/* Social Links (OpenAPI /links) */}
@@ -1163,7 +1338,175 @@ export default function NewGamingCenterPage() {
         )}
       </main>
 
-      {/* Owner Auth Modal for unauthenticated user */}
+      {/* Phone OTP & Password Verification Modal for Center Creation */}
+      {showVerifyModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm animate-fadeIn p-0 sm:p-4"
+          onClick={() => setShowVerifyModal(false)}
+        >
+          <div
+            className="w-full max-w-[460px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card p-5 flex flex-col gap-4 shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+              <div>
+                <h3 className="text-base font-bold text-[var(--text-white)]">
+                  احراز هویت و تأیید نهایی ثبت گیم‌نت
+                </h3>
+                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  جهت انتساب مالکیت گیم‌نت و ورود خودکار به حساب
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVerifyModal(false)}
+                className="w-8 h-8 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-white)] flex items-center justify-center text-lg transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Toggle Mode: OTP vs Password */}
+            <div className="flex bg-[var(--foreground)]/50 p-1 rounded-card border border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={() => {
+                  setVerifyMode("otp");
+                  setVerifyError(null);
+                }}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-card transition-all ${
+                  verifyMode === "otp"
+                    ? "bg-[var(--primary)] text-black shadow-sm"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-white)]"
+                }`}
+              >
+                ارسال کد پیامکی (OTP)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setVerifyMode("password");
+                  setVerifyError(null);
+                }}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-card transition-all ${
+                  verifyMode === "password"
+                    ? "bg-[var(--primary)] text-black shadow-sm"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-white)]"
+                }`}
+              >
+                ورود با رمز عبور
+              </button>
+            </div>
+
+            {/* Error banner */}
+            {verifyError && (
+              <div className="p-3 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold">
+                {verifyError}
+              </div>
+            )}
+
+            {/* Mode 1: OTP Flow */}
+            {verifyMode === "otp" && (
+              <form onSubmit={handleVerifyOtpAndCreate} className="flex flex-col gap-4">
+                <div className="text-xs text-[var(--text-muted)] leading-relaxed">
+                  کد تایید ۶ رقمی به شماره{" "}
+                  <strong className="text-[var(--primary)] font-bold font-mono">
+                    {toPersianDigits(phone)}
+                  </strong>{" "}
+                  ارسال شده است. با وارد کردن کد، گیم‌نت ایجاد شده و به طور خودکار وارد حساب می‌شوید.
+                </div>
+
+                {/* 6-Digit OTP inputs */}
+                <div className="flex items-center justify-center gap-2 dir-ltr my-2">
+                  {otpCode.map((digit, idx) => (
+                    <input
+                      key={idx}
+                      id={`create-otp-${idx}`}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleOtpInput(idx, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                      className="w-10 sm:w-11 h-14 text-center text-xl font-black rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] focus:border-[var(--primary)] text-[var(--primary)] outline-none transition-colors shadow-inner"
+                      autoFocus={idx === 0}
+                    />
+                  ))}
+                </div>
+
+                {/* Resend timer */}
+                <div className="flex items-center justify-between text-xs pt-1">
+                  {otpTimer > 0 ? (
+                    <span className="text-[var(--text-muted)] flex items-center gap-1">
+                      <span>ارسال مجدد کد تا:</span>
+                      <strong className="text-[var(--primary)] font-mono">{formatTimer(otpTimer)}</strong>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={sendOtpToPhone}
+                      className="text-[var(--primary)] font-bold hover:underline"
+                    >
+                      ارسال مجدد کد تایید
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isVerifying}
+                  className="h-11 mt-1 w-full rounded-card bg-[var(--primary)] hover:brightness-105 text-black font-black text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
+                >
+                  {isVerifying ? "در حال تایید و ثبت گیم‌نت..." : "تایید کد و ایجاد نهایی گیم‌نت"}
+                </button>
+              </form>
+            )}
+
+            {/* Mode 2: Password Flow */}
+            {verifyMode === "password" && (
+              <form onSubmit={handlePasswordLoginAndCreate} className="flex flex-col gap-4">
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                  در صورت داشتن حساب کاربری قبلی، با وارد کردن رمز عبور وارد شوید تا این گیم‌نت به حساب کاربری شما متصل شود:
+                </p>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-[var(--text-white)]">شماره تماس</label>
+                  <input
+                    type="tel"
+                    dir="ltr"
+                    disabled
+                    value={phone}
+                    className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] text-sm text-[var(--text-muted)] outline-none text-right"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-[var(--text-white)]">رمز عبور حساب</label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    value={passwordValue}
+                    onChange={(e) => setPasswordValue(e.target.value)}
+                    className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm text-[var(--text-white)] outline-none transition-colors text-left"
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isVerifying}
+                  className="h-11 mt-1 w-full rounded-card bg-[var(--primary)] hover:brightness-105 text-black font-black text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
+                >
+                  {isVerifying ? "در حال ورود و ثبت گیم‌نت..." : "ورود با رمز عبور و ثبت گیم‌نت"}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Owner Auth Modal for unauthenticated user header login button */}
       <OwnerAuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
