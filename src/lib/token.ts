@@ -2,6 +2,8 @@ import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, AUTH_USER_KEY } from "./api/config
 
 /**
  * Token manager for client-side storage and session lifecycle.
+ * Persists tokens in localStorage as well as persistent Cookies (30 days)
+ * to ensure auth survives page refreshes and long sessions.
  */
 
 export interface TokenPair {
@@ -9,35 +11,105 @@ export interface TokenPair {
   refreshToken?: string;
 }
 
-export function getAccessToken(): string | null {
-  if (typeof window === "undefined") return null;
+const COOKIE_MAX_AGE_DAYS = 30;
+
+function setCookie(name: string, value: string, days: number = COOKIE_MAX_AGE_DAYS): void {
+  if (typeof document === "undefined") return;
   try {
-    return localStorage.getItem(ACCESS_TOKEN_KEY);
+    const expires = new Date(Date.now() + days * 864e5).toUTCString();
+    document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+  } catch {
+    // Ignore cookie errors
+  }
+}
+
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  try {
+    const prefix = `${encodeURIComponent(name)}=`;
+    const match = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith(prefix));
+    return match ? decodeURIComponent(match.slice(prefix.length)) : null;
   } catch {
     return null;
   }
+}
+
+function removeCookie(name: string): void {
+  if (typeof document === "undefined") return;
+  try {
+    document.cookie = `${encodeURIComponent(name)}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+  } catch {
+    // Ignore
+  }
+}
+
+export function getAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const fromStorage = localStorage.getItem(ACCESS_TOKEN_KEY);
+    if (fromStorage) return fromStorage;
+    const fromCookie = getCookie(ACCESS_TOKEN_KEY);
+    if (fromCookie) {
+      localStorage.setItem(ACCESS_TOKEN_KEY, fromCookie);
+      return fromCookie;
+    }
+  } catch {
+    return getCookie(ACCESS_TOKEN_KEY);
+  }
+  return null;
 }
 
 export function getRefreshToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    return localStorage.getItem(REFRESH_TOKEN_KEY);
+    const fromStorage = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (fromStorage) return fromStorage;
+    const fromCookie = getCookie(REFRESH_TOKEN_KEY);
+    if (fromCookie) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, fromCookie);
+      return fromCookie;
+    }
   } catch {
-    return null;
+    return getCookie(REFRESH_TOKEN_KEY);
   }
+  return null;
 }
 
-export function setTokens(tokens: { accessToken: string; refreshToken?: string | null }): void {
+export type SetTokensParam =
+  | { accessToken: string; refreshToken?: string | null }
+  | string;
+
+export function setTokens(
+  tokensOrAccessToken: SetTokensParam,
+  optionalRefreshToken?: string | null
+): void {
   if (typeof window === "undefined") return;
+
+  let accessToken = "";
+  let refreshToken: string | null | undefined = undefined;
+
+  if (typeof tokensOrAccessToken === "string") {
+    accessToken = tokensOrAccessToken;
+    refreshToken = optionalRefreshToken;
+  } else if (tokensOrAccessToken && typeof tokensOrAccessToken === "object") {
+    accessToken = tokensOrAccessToken.accessToken;
+    refreshToken = tokensOrAccessToken.refreshToken;
+  }
+
   try {
-    if (tokens.accessToken) {
-      localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
+    if (accessToken) {
+      localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+      setCookie(ACCESS_TOKEN_KEY, accessToken, COOKIE_MAX_AGE_DAYS);
     }
-    if (tokens.refreshToken) {
-      localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
+    if (refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      setCookie(REFRESH_TOKEN_KEY, refreshToken, COOKIE_MAX_AGE_DAYS);
     }
   } catch {
-    // Ignore storage errors in restricted contexts
+    if (accessToken) setCookie(ACCESS_TOKEN_KEY, accessToken, COOKIE_MAX_AGE_DAYS);
+    if (refreshToken) setCookie(REFRESH_TOKEN_KEY, refreshToken, COOKIE_MAX_AGE_DAYS);
   }
 }
 
@@ -50,6 +122,9 @@ export function clearTokens(): void {
   } catch {
     // Ignore
   }
+  removeCookie(ACCESS_TOKEN_KEY);
+  removeCookie(REFRESH_TOKEN_KEY);
+  removeCookie(AUTH_USER_KEY);
 }
 
 let refreshPromise: Promise<string | null> | null = null;

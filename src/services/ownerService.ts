@@ -251,6 +251,86 @@ export const ownerService = {
   },
 
   /**
+   * تایید رزرو در انتظار:
+   * POST /gamingCenters/{gamingCenterId}/reservation/{reservationId}/confirm
+   */
+  async confirmReservation(centerId: string, reservationId: string): Promise<OwnerReservation> {
+    const { data } = await apiClient.post<OwnerReservation>(
+      ENDPOINTS.owner.confirmReservation(centerId, reservationId),
+      {}
+    );
+    return data;
+  },
+
+  /**
+   * لغو رزرو به همراه دلیل:
+   * POST /gamingCenters/{gamingCenterId}/reservation/{reservationId}/cancel
+   */
+  async cancelReservation(
+    centerId: string,
+    reservationId: string,
+    reason?: string
+  ): Promise<OwnerReservation> {
+    const { data } = await apiClient.post<OwnerReservation>(
+      ENDPOINTS.owner.cancelReservation(centerId, reservationId),
+      reason ? { reason } : {}
+    );
+    return data;
+  },
+
+  /**
+   * تغییر زمان رزرو:
+   * POST /gamingCenters/{gamingCenterId}/reservation/{reservationId}/reschedule
+   */
+  async rescheduleReservation(
+    centerId: string,
+    reservationId: string,
+    payload: { startTime: string; endTime: string }
+  ): Promise<OwnerReservation> {
+    const { data } = await apiClient.post<OwnerReservation>(
+      ENDPOINTS.owner.rescheduleReservation(centerId, reservationId),
+      payload
+    );
+    return data;
+  },
+
+  /**
+   * شروع رزرو فعال:
+   * POST /gamingCenters/{gamingCenterId}/reservation/{reservationId}/start
+   */
+  async startReservation(centerId: string, reservationId: string): Promise<OwnerReservation> {
+    const { data } = await apiClient.post<OwnerReservation>(
+      ENDPOINTS.owner.startReservation(centerId, reservationId),
+      {}
+    );
+    return data;
+  },
+
+  /**
+   * تکمیل رزرو:
+   * POST /gamingCenters/{gamingCenterId}/reservation/{reservationId}/complete
+   */
+  async completeReservation(centerId: string, reservationId: string): Promise<OwnerReservation> {
+    const { data } = await apiClient.post<OwnerReservation>(
+      ENDPOINTS.owner.completeReservation(centerId, reservationId),
+      {}
+    );
+    return data;
+  },
+
+  /**
+   * ثبت عدم مراجعه مشتری (No-Show):
+   * POST /gamingCenters/{gamingCenterId}/reservation/{reservationId}/no-show
+   */
+  async noShowReservation(centerId: string, reservationId: string): Promise<OwnerReservation> {
+    const { data } = await apiClient.post<OwnerReservation>(
+      ENDPOINTS.owner.noShowReservation(centerId, reservationId),
+      {}
+    );
+    return data;
+  },
+
+  /**
    * ارسال پیشنهاد زمان جدید
    * POST /gamingCenters/{gamingCenterId}/reservation/{reservationId}/propose-time
    */
@@ -290,8 +370,8 @@ export const ownerService = {
    * مدیریت سشن‌های بازی با مسیرهای دقیق مشخص‌شده در اوپن‌ای‌پی‌آی:
    * start: POST /gamingCenters/{gamingCenterId}/reservation/{reservationId}/sessions/start
    * stop:  POST /gamingCenters/{gamingCenterId}/reservation/{reservationId}/sessions/stop
-   * pause: POST /gamingCenters/{gamingCenterId}/reservations/{reservationId}/sessions/pause
-   * resume: POST /gamingCenters/{gamingCenterId}/reservations/{reservationId}/sessions/resume
+   * pause: POST /gamingCenters/{gamingCenterId}/reservation/{reservationId}/sessions/pause
+   * resume: POST /gamingCenters/{gamingCenterId}/reservation/{reservationId}/sessions/resume
    */
   async session(
     centerId: string,
@@ -342,46 +422,73 @@ export const ownerService = {
     return asArray<GameStationInfo>(data);
   },
 
+  async getStation(centerId: string, stationId: string, signal?: AbortSignal): Promise<GameStationInfo> {
+    const { data } = await apiClient.get<GameStationInfo>(
+      ENDPOINTS.owner.stationDetail(centerId, stationId),
+      { signal }
+    );
+    return data;
+  },
+
+  async updateStation(
+    centerId: string,
+    stationId: string,
+    payload: {
+      name?: string;
+      type?: "PC" | "CONSOLE" | "VR";
+      hourlyRate?: number;
+      hardwareSpecs?: Record<string, unknown>;
+      isActive?: boolean;
+    }
+  ): Promise<GameStationInfo> {
+    const { data } = await apiClient.patch<GameStationInfo>(
+      ENDPOINTS.owner.stationDetail(centerId, stationId),
+      payload
+    );
+    return data;
+  },
+
+  async deleteStation(centerId: string, stationId: string): Promise<void> {
+    await apiClient.delete(ENDPOINTS.owner.stationDetail(centerId, stationId));
+  },
+
   /**
    * عملیات تغییر وضعیت رزرو در پنل صاحب گیم‌نت:
-   * مطابق با گزارش CONTRACT GAP در docs/OWNER_RESERVATIONS_API_CONTRACT.md،
-   * اسکیما و مسیرهای رسمی OpenAPI (v1.0-LOCKED) برای عملیات‌های تایید رزرو (Confirm) و لغو/رد رزرو (Cancel/Reject)
-   * توسط صاحب مرکز فاقد اندپوینت اختصاصی هستند و متد PATCH /reservation/{reservationId} نیز فیلد status ندارد.
-   * بنابراین از ارسال درخواست نامعتبر با فیلد تعریف‌نشده status در متد PATCH اکیداً خودداری می‌شود.
+   * با استفاده از اندپوینت‌های رسمی OpenAPI:
+   * - CONFIRMED: POST /gamingCenters/{centerId}/reservation/{reservationId}/confirm
+   * - CANCELED: POST /gamingCenters/{centerId}/reservation/{reservationId}/cancel
+   * - NO_SHOW: POST /gamingCenters/{centerId}/reservation/{reservationId}/no-show
+   * - IN_PROGRESS: POST /gamingCenters/{centerId}/reservation/{reservationId}/start
+   * - COMPLETED: POST /gamingCenters/{centerId}/reservation/{reservationId}/complete
    */
   async updateReservationStatus(
     centerId: string,
     reservationId: string,
-    status: OwnerReservation["status"]
+    status: OwnerReservation["status"],
+    reason?: string
   ): Promise<void> {
-    // Attempt backend transition using dedicated transition routes if implemented or fail with contract gap error
-    // Do NOT send undocumented { status } in PATCH /gamingCenters/{centerId}/reservation/{reservationId}
-    const transitionAction =
-      status === "CONFIRMED"
-        ? "confirm"
-        : status === "CANCELED"
-        ? "cancel"
-        : status === "NO_SHOW"
-        ? "no-show"
-        : null;
-
-    if (!transitionAction) {
-      throw new Error(`انتقال وضعیت رزرو به ${status} پشتیبانی نمی‌شود.`);
+    if (status === "CONFIRMED") {
+      await ownerService.confirmReservation(centerId, reservationId);
+      return;
+    }
+    if (status === "CANCELED") {
+      await ownerService.cancelReservation(centerId, reservationId, reason);
+      return;
+    }
+    if (status === "NO_SHOW") {
+      await ownerService.noShowReservation(centerId, reservationId);
+      return;
+    }
+    if (status === "IN_PROGRESS") {
+      await ownerService.startReservation(centerId, reservationId);
+      return;
+    }
+    if (status === "COMPLETED") {
+      await ownerService.completeReservation(centerId, reservationId);
+      return;
     }
 
-    try {
-      await apiClient.post(
-        `${ENDPOINTS.owner.reservations(centerId)}/${encodeURIComponent(reservationId)}/${transitionAction}`,
-        {}
-      );
-    } catch (err: any) {
-      if (err?.status === 404 || err?.code === "NOT_FOUND") {
-        throw new Error(
-          "عملیات تایید یا لغو رزرو توسط صاحب مجموعه نیازمند پیاده‌سازی اندپوینت اختصاصی در بک‌اند است (مستند شده در docs/OWNER_RESERVATIONS_API_CONTRACT.md)."
-        );
-      }
-      throw err;
-    }
+    throw new Error(`انتقال وضعیت رزرو به ${status} پشتیبانی نمی‌شود.`);
   },
 
   async createStation(centerId: string, payload: StationInput): Promise<GameStationInfo | void> {
