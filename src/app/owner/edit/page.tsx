@@ -98,11 +98,6 @@ export default function OwnerEditPage() {
   useEffect(() => {
     let active = true;
 
-    if (center) {
-      setName(center.name || "");
-      setAddress(center.description || "");
-    }
-
     if (!centerId) {
       setLoaded(true);
       return;
@@ -111,14 +106,37 @@ export default function OwnerEditPage() {
     const controller = new AbortController();
 
     Promise.allSettled([
+      ownerService.findCenter(centerId, controller.signal),
+      ownerService.listAddresses(centerId, controller.signal),
       ownerService.getSettings(centerId, controller.signal),
       ownerService.listMedia(center?.slug || centerId, controller.signal),
-    ]).then(([settingsRes, mediaRes]) => {
+    ]).then(([centerRes, addressesRes, settingsRes, mediaRes]) => {
       if (!active) return;
+
+      if (centerRes.status === "fulfilled" && centerRes.value) {
+        setName(centerRes.value.name || "");
+        if (centerRes.value.description && !address) {
+          setAddress(centerRes.value.description);
+        }
+      } else if (center) {
+        setName(center.name || "");
+        if (center.description && !address) {
+          setAddress(center.description);
+        }
+      }
+
+      if (addressesRes.status === "fulfilled" && Array.isArray(addressesRes.value) && addressesRes.value.length > 0) {
+        const primaryAddr = addressesRes.value[0];
+        if (primaryAddr?.address) {
+          setAddress(primaryAddr.address);
+        }
+      }
+
       if (settingsRes.status === "fulfilled" && settingsRes.value) {
         setAllowOnline(settingsRes.value.allowOnlineBooking !== false);
         setAutoConfirm(!!settingsRes.value.onlineBookingAutoConfirm);
       }
+
       if (mediaRes.status === "fulfilled" && Array.isArray(mediaRes.value)) {
         setMedia(mediaRes.value);
       }

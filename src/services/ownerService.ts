@@ -147,10 +147,31 @@ export const ownerService = {
   async findCenter(id: string, signal?: AbortSignal): Promise<PublicCenter | null> {
     if (!id) return null;
     try {
+      // ابتدا تلاش مستقیم برای واکشی مرکز با شناسه
+      try {
+        const direct = await apiClient.get<PublicCenter>(ENDPOINTS.owner.center(id), { signal });
+        if (direct.data && (direct.data.id || direct.data.name)) {
+          return direct.data;
+        }
+      } catch {
+        // Fallback to listCenters
+      }
+
       const centers = await ownerService.listCenters(signal);
       return centers.find((c) => c.id === id || c.slug === id) ?? null;
     } catch (err) {
       throw err;
+    }
+  },
+
+  /** دریافت آدرس‌های ثبت شده مرکز */
+  async listAddresses(centerId: string, signal?: AbortSignal): Promise<Array<{ id?: string; address: string; city?: string; phone?: string }>> {
+    if (!centerId) return [];
+    try {
+      const res = await apiClient.get<unknown>(ENDPOINTS.owner.addresses(centerId), { signal });
+      return asArray<any>(res.data);
+    } catch {
+      return [];
     }
   },
 
