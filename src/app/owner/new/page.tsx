@@ -31,7 +31,7 @@ const inputClass =
 export default function NewGamingCenterPage() {
   const router = useRouter();
   const { isLoggedIn, user, login } = useAuth();
-  const { me } = useOwner();
+  const { me, refreshCenters } = useOwner();
 
   // 6 Steps Wizard State
   // 1: اطلاعات اولیه & احراز هویت مدیر
@@ -453,6 +453,13 @@ export default function NewGamingCenterPage() {
       } catch {
         // ignore
       }
+
+      // Refresh OwnerContext so the newly created gaming center is reflected immediately in memory
+      try {
+        await refreshCenters();
+      } catch {
+        // ignore
+      }
     } catch (err) {
       // Keep all entered state untouched so user can retry
       setErrorMsg(getErrorMessage(err));
@@ -549,12 +556,20 @@ export default function NewGamingCenterPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 mt-4 w-full sm:w-auto">
-              <Link
-                href="/owner"
-                className="px-6 py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform text-center"
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await refreshCenters();
+                  } catch {
+                    // ignore
+                  }
+                  router.push("/owner");
+                }}
+                className="px-6 py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform text-center cursor-pointer"
               >
                 ورود به پنل Manager
-              </Link>
+              </button>
               <Link
                 href={`/gamecenter/${encodeURIComponent(createdResult.slug)}`}
                 className="px-6 py-2.5 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-[var(--text-white)] text-xs font-bold hover:bg-[var(--foreground)]/80 active:scale-95 transition-transform text-center"
