@@ -3,7 +3,8 @@ import { ENDPOINTS } from "@/lib/api/endpoints";
 import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
 import { getMockGamecenterDetail } from "@/lib/mocks/gamecenter.mock";
 import { gamingCenterService as coreGamingCenterService } from "@/services/gamingCenterService";
-import type { GamecenterDetail, GamecenterImage, GamecenterReview } from "@/types/gamecenter";
+import { catalogService } from "@/services/catalogService";
+import type { GamecenterDetail, GamecenterImage, GamecenterReview, GameItem } from "@/types/gamecenter";
 import type {
   PublicAddress,
   PublicGamingCenter,
@@ -19,6 +20,8 @@ export interface GameStationInfo {
   gamingCenterId: string;
   name: string;
   stationType: "PC" | "PLAYSTATION" | "XBOX" | "SWITCH" | "VR" | string;
+  catalogDeviceId?: string | null;
+  coverImageUrl?: string | null;
   isVip?: boolean;
   hourlyPrice: number;
   minRentHours?: number;
@@ -27,7 +30,6 @@ export interface GameStationInfo {
   incrementMinutes?: number;
   isActive?: boolean;
 
-  // ⚠️ فیلدهای زیر در OpenAPI فعلی (v1.0-LOCKED) وجود ندارند و نیازمند تأیید بک‌اند هستند.
   /** مدل دستگاه برای تفکیک PS5 / PS4 / BILLIARD؛ اگر نبود stationType استفاده می‌شود */
   deviceModel?: string;
   /** قیمت هر دسته‌ی اضافه (به ازای هر ساعت) که گیمنت تعیین می‌کند */
@@ -292,11 +294,12 @@ export async function loadGamecenterDetail(
     return [];
   })();
 
-  const [stationsRes, addressesRes, mediaRes, ratingsRes] = await Promise.allSettled([
+  const [stationsRes, addressesRes, mediaRes, ratingsRes, gamesCatalogRes] = await Promise.allSettled([
     fetchStationsPromise,
     gamingCenterService.getPublicAddresses(targetSlug, signal),
     gamingCenterService.getPublicMedia(targetSlug, signal),
     gamingCenterService.getPublicRatings(targetSlug, signal),
+    catalogService.listGames({ isActive: true, limit: 50 }, signal),
   ]);
 
   let stations: GameStationInfo[] = [];
@@ -329,6 +332,16 @@ export async function loadGamecenterDetail(
   const galleryImages = mapMediaToGalleryImages(mediaList);
   const reviews = mapRatingsToReviews(ratings);
 
+  // واکشی بازی‌ها از /catalog/games
+  let games: GameItem[] = [];
+  if (gamesCatalogRes.status === "fulfilled" && Array.isArray(gamesCatalogRes.value)) {
+    games = gamesCatalogRes.value.map((g) => ({
+      id: g.id,
+      name: g.title,
+      logo: g.coverImageUrl || "",
+    }));
+  }
+
   return {
     center,
     address: authoritativeAddress || center.description || "",
@@ -336,8 +349,6 @@ export async function loadGamecenterDetail(
     stations,
     stationsError,
     reviews,
-    // لیست بازی‌ها (Games Catalog) در OpenAPI v1.0-LOCKED روی اندپوینت‌های عمومی وجود ندارد
-    // مطابق با الزامات فاز ۶، داده‌های ساختگی/موک حذف می‌شوند و آرایه خالی فرستاده می‌شود
-    games: [],
+    games,
   };
 }

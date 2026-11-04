@@ -71,12 +71,14 @@ export function groupStations(stations: GameStationInfo[]): DeviceGroup[] {
   return Array.from(map.entries()).map(([key, list]) => {
     const prices = list.map((s) => s.hourlyPrice);
     const meta = META[key] ?? { label: key, image: "/img/pc.png" };
+    const stationWithCover = list.find((s) => Boolean(s.coverImageUrl));
+    const coverImage = stationWithCover?.coverImageUrl || meta.image;
     const isConsole = CONSOLE_KEYS.has(key) || CONSOLE_KEYS.has(list[0].stationType.toUpperCase());
     const withExtra = list.find((s) => typeof s.extraControllerPrice === "number");
     return {
       key,
       label: meta.label,
-      image: meta.image,
+      image: coverImage,
       isConsole,
       stations: list,
       capacity: list.length,
