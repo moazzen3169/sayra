@@ -55,10 +55,21 @@ export default function OwnerDashboardPage() {
     setVerificationStatus,
   } = useOwner();
 
-  // اگر احراز هویت شده ولی هیچ گیم‌نتی از قبل ثبت نشده، کاربر را به ساخت گیم‌نت جدید هدایت کن
+  // اگر احراز هویت شده ولی هیچ گیم‌نتی در کانتکست و همچنین در localStorage وجود ندارد، به ساخت گیم‌نت هدایت کن
   useEffect(() => {
     if (!isCenterLoading && centers.length === 0 && !centerId) {
-      router.push("/owner/new");
+      // بررسی وجود شناسه در حافظه قبل از ریدایرکت نهایی
+      let storedCenterId: string | null = null;
+      try {
+        storedCenterId = localStorage.getItem("sayra_owner_center_id");
+      } catch {
+        storedCenterId = null;
+      }
+
+      // اگر شناسه در localStorage هنوز وجود دارد، اجازه بده تلاش واکشی کامل شود یا تنها در صورتی ریدایرکت کن که هیچ شناسه‌ای نیست
+      if (!storedCenterId) {
+        router.push("/owner/new");
+      }
     }
   }, [isCenterLoading, centers.length, centerId, router]);
 

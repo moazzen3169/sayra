@@ -17,6 +17,7 @@ interface OwnerContextType {
   center: PublicCenter | null;
   centers: PublicCenter[];
   selectCenter: (centerId: string) => void;
+  refreshCenters: () => Promise<void>;
   isCenterLoading: boolean;
   centerError: string | null;
   ownerName: string;
@@ -111,6 +112,12 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const [reloadToken, setReloadToken] = useState<number>(0);
+
+  const refreshCenters = async () => {
+    setReloadToken((t) => t + 1);
+  };
+
   useEffect(() => {
     if (authLoading) return;
 
@@ -152,6 +159,14 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setVerificationStatusState(profile.verificationStatus);
         }
 
+        // Check if there is a center ID saved in localStorage (e.g., newly created center)
+        let storedCenterId: string | null = null;
+        try {
+          storedCenterId = localStorage.getItem(OWNER_CENTER_KEY);
+        } catch {
+          storedCenterId = null;
+        }
+
         // Resolve accessible centers
         let accessibleCenters: PublicCenter[] = [];
 
@@ -180,8 +195,46 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } else {
           // Fetch centers list from backend
           const allCenters = await ownerService.listCenters(controller.signal).catch(() => []);
-          // If profile has ownerId or center relationships
           accessibleCenters = allCenters;
+        }
+
+        // 2. If storedCenterId exists but is not yet in accessibleCenters (e.g. freshly created or profile lag),
+        // attempt to fetch this specific center via GET /gamingCenters/{id} before giving up or clearing it!
+        if (storedCenterId && !accessibleCenters.some((c) => c.id === storedCenterId)) {
+          try {
+            const fetchedStored = await ownerService.findCenter(storedCenterId, controller.signal);
+            if (fetchedStored && (fetchedStored.id || fetchedStored.name)) {
+              accessibleCenters = [
+                ...accessibleCenters,
+                {
+                  id: fetchedStored.id || storedCenterId,
+                  name: fetchedStored.name || "گیم‌نت",
+                  slug: fetchedStored.slug || storedCenterId,
+                  description: fetchedStored.description,
+                  isActive: fetchedStored.isActive ?? true,
+                },
+              ];
+            } else {
+              // Center truly doesn't exist or not found
+              try {
+                localStorage.removeItem(OWNER_CENTER_KEY);
+              } catch {
+                // ignore
+              }
+              storedCenterId = null;
+            }
+          } catch (err: any) {
+            const errStatus = err?.status;
+            // Only clear storedCenterId if explicitly rejected (404/403)
+            if (errStatus === 404 || errStatus === 403) {
+              try {
+                localStorage.removeItem(OWNER_CENTER_KEY);
+              } catch {
+                // ignore
+              }
+              storedCenterId = null;
+            }
+          }
         }
 
         if (!active) return;
@@ -197,13 +250,6 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         // Validate localStorage center ID against accessible centers
         let chosenCenter: PublicCenter | null = null;
-        let storedCenterId: string | null = null;
-        try {
-          storedCenterId = localStorage.getItem(OWNER_CENTER_KEY);
-        } catch {
-          storedCenterId = null;
-        }
-
         if (storedCenterId) {
           chosenCenter = accessibleCenters.find((c) => c.id === storedCenterId) ?? null;
           if (!chosenCenter) {
@@ -255,7 +301,7 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       active = false;
       controller.abort();
     };
-  }, [authLoading, isLoggedIn, logout]);
+  }, [authLoading, isLoggedIn, logout, reloadToken]);
 
   if (authLoading) {
     return (
@@ -289,6 +335,7 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         selectCenter,
         isCenterLoading,
         centerError,
+        refreshCenters,
         ownerName: resolvedOwnerName,
         verificationStatus,
         verificationData,
