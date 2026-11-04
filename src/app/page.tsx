@@ -6,7 +6,11 @@ import { Header } from "@/components/Header";
 import { BottomBar, TabType } from "@/components/BottomBar";
 import { DiscountedGamecenterCard } from "@/components/DiscountedGamecenterCard";
 import { BannerSlider } from "@/components/BannerSlider";
-import { DeviceCategories } from "@/components/DeviceCategories";
+import {
+  DeviceCategories,
+  type DeviceCategory,
+  mapCatalogDeviceToCategory,
+} from "@/components/DeviceCategories";
 import { DiscountedCentersSection } from "@/components/DiscountedCentersSection";
 import { HomeBlogSection } from "@/components/blog/HomeBlogSection";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -18,6 +22,7 @@ import {
   CarouselNext,
 } from "@/components/ui/carousel";
 import { homeService } from "@/services/homeService";
+import { catalogService } from "@/services/catalogService";
 import {
   gamecentersPageService,
   type GamecenterListItem,
@@ -33,6 +38,10 @@ export default function HomePage() {
   const [selectedCity, setSelectedCity] = useState("تبریز");
   const [banners, setBanners] = useState<BannerItem[]>([]);
   const [bannersLoading, setBannersLoading] = useState(true);
+
+  // دستگاه‌ها و دسته‌بندی‌ها: واکشی از API /catalog/devices
+  const [categories, setCategories] = useState<DeviceCategory[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   // گیمنت‌ها: فقط از API
   const [centers, setCenters] = useState<GamecenterListItem[]>([]);
@@ -58,7 +67,25 @@ export default function HomePage() {
       }
     }
 
+    async function loadCatalogDevices() {
+      try {
+        setCategoriesLoading(true);
+        const devices = await catalogService.listDevices({ isActive: true }, controller.signal);
+        if (Array.isArray(devices) && devices.length > 0) {
+          const mapped = devices.map(mapCatalogDeviceToCategory);
+          setCategories(mapped);
+        }
+      } catch (err) {
+        if ((err as Error)?.name !== "AbortError") {
+          // If catalog devices API fails or is empty, DeviceCategories defaults safely
+        }
+      } finally {
+        setCategoriesLoading(false);
+      }
+    }
+
     loadBanners();
+    loadCatalogDevices();
 
     return () => {
       controller.abort();
@@ -135,9 +162,11 @@ export default function HomePage() {
           <BannerSlider banners={banners} isLoading={bannersLoading} />
         </section>
 
-        {/* ۲. بخش انواع دستگاه‌ها و پلتفرم‌های بازی */}
+        {/* ۲. بخش انواع دستگاه‌ها و پلتفرم‌های بازی (از API) */}
         <section>
           <DeviceCategories
+            categories={categories.length > 0 ? categories : undefined}
+            isLoading={categoriesLoading}
             selectedCategoryId={selectedCategory}
             onSelectCategory={handleCategorySelect}
           />

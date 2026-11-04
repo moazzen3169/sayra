@@ -65,6 +65,12 @@ export const ENDPOINTS = {
     acceptOffer: (offerId: string) => `/customer/waitlist/offers/${enc(offerId)}/accept`,
     rejectOffer: (offerId: string) => `/customer/waitlist/offers/${enc(offerId)}/reject`,
   },
+  catalog: {
+    devices: "/catalog/devices",
+    deviceById: (id: string) => `/catalog/devices/${enc(id)}`,
+    games: "/catalog/games",
+    gameById: (id: string) => `/catalog/games/${enc(id)}`,
+  },
 
   /* ---------- پنل صاحب گیمنت ---------- */
   owner: {

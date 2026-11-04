@@ -115,6 +115,8 @@ export interface GameStation {
   gamingCenterId: string;
   name: string;
   stationType: StationType | string;
+  catalogDeviceId?: string | null;
+  coverImageUrl?: string | null;
   isVip?: boolean;
   hourlyPrice: number;
   minRentHours?: number;
