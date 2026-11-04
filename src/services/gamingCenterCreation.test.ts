@@ -54,7 +54,7 @@ describe("Gaming Center Creation & Mutation Services (Phase OpenAPI v1.0-LOCKED)
         );
       }
 
-      if (url.includes("/settings") && method === "PUT") {
+      if (url.includes("/settings") && method === "POST") {
         return new Response(
           JSON.stringify({
             success: true,
