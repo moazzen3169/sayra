@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { AUTH_USER_KEY } from "@/lib/api/config";
 import { authService, AuthUser } from "@/services/authService";
-import { getAccessToken, setTokens, clearTokens } from "@/lib/token";
+import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "@/lib/token";
+import { isAbortError } from "@/lib/api/client";
 
 export interface UserProfile {
   id?: string;
@@ -113,10 +114,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return updated;
         });
       }
-    } catch {
-      // Missing or invalid token should clear invalid user
-      clearTokens();
-      setUser(null);
+    } catch (err: any) {
+      if (isAbortError(err)) return;
+      // Only clear if confirmed 401 Unauthorized and refresh is not possible
+      const status = err?.status;
+      if (status === 401 && !getRefreshToken()) {
+        clearTokens();
+        setUser(null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -154,11 +159,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return updated;
           });
         }
-      } catch {
-        if (active) {
-          clearTokens();
-          setUser(null);
+      } catch (err: any) {
+        if (!active || isAbortError(err)) return;
+        // Check if error is 401 Unauthorized
+        const status = err?.status;
+        const refreshToken = getRefreshToken();
+
+        if (status === 401) {
+          if (refreshToken) {
+            // Attempt to refresh token rather than immediately purging session
+            try {
+              const refreshed = await authService.refresh(refreshToken);
+              if (refreshed?.accessToken) {
+                setTokens({ accessToken: refreshed.accessToken, refreshToken });
+                const freshMe = await authService.getMe();
+                if (freshMe && active) {
+                  setUser((prev) => {
+                    const updated: UserProfile = {
+                      id: freshMe.id,
+                      fullName: freshMe.fullName || prev?.fullName || "",
+                      phone: freshMe.phone || prev?.phone || "",
+                      token: refreshed.accessToken,
+                    };
+                    try {
+                      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(updated));
+                    } catch {}
+                    return updated;
+                  });
+                  return;
+                }
+              }
+            } catch {
+              // Refresh failed
+              clearTokens();
+              setUser(null);
+            }
+          } else {
+            clearTokens();
+            setUser(null);
+          }
         }
+        // If it's a network error or other 5xx error, do NOT wipe tokens!
+        // User retains their stored auth state and can retry when back online.
       } finally {
         if (active) {
           setIsLoading(false);

@@ -12,7 +12,7 @@ export const ENDPOINTS = {
     userOtpRequest: "/auth/user/otp/request",
     userOtpVerify: "/auth/user/otp/verify",
     userOtpLogin: "/auth/user/login/otp",
-    userPasswordLogin: "/auth/platform-admin/login",
+    userPasswordLogin: "/auth/login",
     platformAdminLogin: "/auth/platform-admin/login",
   },
   gamingCenter: {
@@ -70,24 +70,39 @@ export const ENDPOINTS = {
   owner: {
     me: "/auth/me",
     centers: "/gamingCenters",
+    center: (c: string) => `/gamingCenters/${enc(c)}`,
     reservations: (c: string) => `/gamingCenters/${enc(c)}/reservation`,
     reservationDetail: (c: string, r: string) =>
       `/gamingCenters/${enc(c)}/reservation/${enc(r)}`,
+    confirmReservation: (c: string, r: string) =>
+      `/gamingCenters/${enc(c)}/reservation/${enc(r)}/confirm`,
+    cancelReservation: (c: string, r: string) =>
+      `/gamingCenters/${enc(c)}/reservation/${enc(r)}/cancel`,
+    rescheduleReservation: (c: string, r: string) =>
+      `/gamingCenters/${enc(c)}/reservation/${enc(r)}/reschedule`,
+    startReservation: (c: string, r: string) =>
+      `/gamingCenters/${enc(c)}/reservation/${enc(r)}/start`,
+    completeReservation: (c: string, r: string) =>
+      `/gamingCenters/${enc(c)}/reservation/${enc(r)}/complete`,
+    noShowReservation: (c: string, r: string) =>
+      `/gamingCenters/${enc(c)}/reservation/${enc(r)}/no-show`,
     proposeTime: (c: string, r: string) =>
       `/gamingCenters/${enc(c)}/reservation/${enc(r)}/propose-time`,
     proposals: (c: string, r: string) =>
       `/gamingCenters/${enc(c)}/reservation/${enc(r)}/proposals`,
-    /** مطابق OpenAPI: start/stop با reservation (مفرد) و pause/resume با reservations (جمع) */
+    /** مطابق OpenAPI: تمامی مسیرهای سشن با ساختار مفرد /reservation/{r}/sessions/{action} هستند */
     session: (c: string, r: string, action: "start" | "stop" | "pause" | "resume") =>
-      action === "pause" || action === "resume"
-        ? `/gamingCenters/${enc(c)}/reservations/${enc(r)}/sessions/${action}`
-        : `/gamingCenters/${enc(c)}/reservation/${enc(r)}/sessions/${action}`,
+      `/gamingCenters/${enc(c)}/reservation/${enc(r)}/sessions/${action}`,
     settings: (c: string) => `/gamingCenters/${enc(c)}/settings`,
     siteSettings: (c: string) => `/gamingCenters/${enc(c)}/site-settings`,
-    stations: (c: string) => `/gamingCenters/${enc(c)}stations`,
+    stations: (c: string) => `/gamingCenters/${enc(c)}/stations`,
+    stationDetail: (c: string, s: string) => `/gamingCenters/${enc(c)}/stations/${enc(s)}`,
     addresses: (c: string) => `/gamingCenters/${enc(c)}/addresses`,
+    addressDetail: (c: string, a: string) => `/gamingCenters/${enc(c)}/addresses/${enc(a)}`,
     links: (c: string) => `/gamingCenters/${enc(c)}/links`,
+    linkDetail: (c: string, l: string) => `/gamingCenters/${enc(c)}/links/${enc(l)}`,
     mediaUpload: (c: string) => `/gamingCenters/${enc(c)}/media/upload`,
+    mediaPatch: (c: string, mediaId: string) => `/gamingCenters/${enc(c)}/media/${enc(mediaId)}`,
     ratingStatus: (c: string, ratingId: string) =>
       `/gamingCenters/${enc(c)}/ratings/${enc(ratingId)}/status`,
     analyticsSummary: (c: string) => `/gamingCenters/${enc(c)}/analytics/summary`,

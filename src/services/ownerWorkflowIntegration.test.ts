@@ -189,17 +189,24 @@ describe("Phase 9 Task 3: Owner Workflow Tests", () => {
     expect(detail.reservationCode).toBe("123456");
   });
 
-  it("6. reports reservation confirm/reject as contract gap", async () => {
-    globalThis.fetch = (async () => {
+  it("6. executes reservation status transitions (confirm and cancel)", async () => {
+    let capturedUrl = "";
+    let capturedBody: any = null;
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      capturedUrl = String(url);
+      capturedBody = init?.body ? JSON.parse(String(init.body)) : null;
       return new Response(
-        JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Route Not Found" } }),
-        { status: 404, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({ success: true, data: { id: "res-1", status: "CONFIRMED" } }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }) as unknown as typeof fetch;
 
-    await expect(ownerService.updateReservationStatus("gc-10", "res-1", "CONFIRMED")).rejects.toThrow(
-      "docs/OWNER_RESERVATIONS_API_CONTRACT.md"
-    );
+    await ownerService.updateReservationStatus("gc-10", "res-1", "CONFIRMED");
+    expect(capturedUrl).toContain("/gamingCenters/gc-10/reservation/res-1/confirm");
+
+    await ownerService.updateReservationStatus("gc-10", "res-1", "CANCELED", "لغو به دلیل تعمیرات");
+    expect(capturedUrl).toContain("/gamingCenters/gc-10/reservation/res-1/cancel");
+    expect(capturedBody?.reason).toBe("لغو به دلیل تعمیرات");
   });
 
   it("7. proposes a new reservation time via verified endpoint", async () => {
@@ -239,8 +246,8 @@ describe("Phase 9 Task 3: Owner Workflow Tests", () => {
 
     expect(urls[0]).toContain("/gamingCenters/gc-10/reservation/res-1/sessions/start");
     expect(urls[1]).toContain("/gamingCenters/gc-10/reservation/res-1/sessions/stop");
-    expect(urls[2]).toContain("/gamingCenters/gc-10/reservations/res-1/sessions/pause");
-    expect(urls[3]).toContain("/gamingCenters/gc-10/reservations/res-1/sessions/resume");
+    expect(urls[2]).toContain("/gamingCenters/gc-10/reservation/res-1/sessions/pause");
+    expect(urls[3]).toContain("/gamingCenters/gc-10/reservation/res-1/sessions/resume");
   });
 
   it("9. creates, toggles, lists, and deletes discounts", async () => {
