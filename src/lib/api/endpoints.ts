@@ -12,7 +12,7 @@ export const ENDPOINTS = {
     userOtpRequest: "/auth/user/otp/request",
     userOtpVerify: "/auth/user/otp/verify",
     userOtpLogin: "/auth/user/login/otp",
-    userPasswordLogin: "/auth/login",
+    userPasswordLogin: "/auth/platform-admin/login",
     platformAdminLogin: "/auth/platform-admin/login",
   },
   gamingCenter: {
@@ -84,7 +84,7 @@ export const ENDPOINTS = {
         : `/gamingCenters/${enc(c)}/reservation/${enc(r)}/sessions/${action}`,
     settings: (c: string) => `/gamingCenters/${enc(c)}/settings`,
     siteSettings: (c: string) => `/gamingCenters/${enc(c)}/site-settings`,
-    stations: (c: string) => `/gamingCenters/${enc(c)}/stations`,
+    stations: (c: string) => `/gamingCenters/${enc(c)}stations`,
     addresses: (c: string) => `/gamingCenters/${enc(c)}/addresses`,
     links: (c: string) => `/gamingCenters/${enc(c)}/links`,
     mediaUpload: (c: string) => `/gamingCenters/${enc(c)}/media/upload`,
