@@ -20,7 +20,7 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
   showBadge = true,
 }) => {
   const router = useRouter();
-  const { ownerName } = useOwner();
+  const { ownerName, center } = useOwner();
 
   const displayName = ownerName || "مدیر گیم‌نت";
 
@@ -60,12 +60,19 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
             </svg>
           </button>
 
-          <div className="flex flex-col gap-1 min-w-0">
-
-            <div className="flex items-center justify-start min-w-0 text-center">
-              <h1 className="text-xs sm:text-sm md:text-base font-medium text-[var(--text-white)] truncate">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="text-xs sm:text-sm md:text-base font-bold text-[var(--text-white)] truncate">
                 {title}
               </h1>
+              {center?.name && (
+                <span className="text-xs font-medium text-[var(--primary)] bg-[var(--primary)]/10 px-2 py-0.5 rounded-full truncate hidden sm:inline-block">
+                  {center.name}
+                </span>
+              )}
+            </div>
+            <div className="text-[11px] text-[var(--text-muted)] truncate">
+              {displayName} {center?.name ? `• ${center.name}` : ""}
             </div>
           </div>
         </div>

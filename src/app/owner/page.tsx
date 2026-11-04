@@ -55,6 +55,13 @@ export default function OwnerDashboardPage() {
     setVerificationStatus,
   } = useOwner();
 
+  // اگر احراز هویت شده ولی هیچ گیم‌نتی از قبل ثبت نشده، کاربر را به ساخت گیم‌نت جدید هدایت کن
+  useEffect(() => {
+    if (!isCenterLoading && centers.length === 0 && !centerId) {
+      router.push("/owner/new");
+    }
+  }, [isCenterLoading, centers.length, centerId, router]);
+
   const [query, setQuery] = useState("");
 
   // Verification Form State
@@ -247,9 +254,12 @@ export default function OwnerDashboardPage() {
               </select>
             </div>
           ) : (
-            <span className="text-xs font-bold text-[var(--text-white)] truncate">
-              {center?.name || "مرکز بازی"}
-            </span>
+            <div className="flex items-center gap-2 truncate">
+              <span className="w-2 h-2 rounded-full bg-[var(--primary)] shrink-0 animate-pulse" />
+              <span className="text-sm font-bold text-[var(--text-white)] truncate">
+                {center?.name || "مرکز بازی"}
+              </span>
+            </div>
           )}
 
           <Link

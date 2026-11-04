@@ -93,9 +93,9 @@ export const ENDPOINTS = {
     /** مطابق OpenAPI: تمامی مسیرهای سشن با ساختار مفرد /reservation/{r}/sessions/{action} هستند */
     session: (c: string, r: string, action: "start" | "stop" | "pause" | "resume") =>
       `/gamingCenters/${enc(c)}/reservation/${enc(r)}/sessions/${action}`,
-    settings: (c: string) => `//platform-admin${enc(c)}/settings`,
+    settings: (c: string) => `/gamingCenters/${enc(c)}/settings`,
     siteSettings: (c: string) => `/gamingCenters/${enc(c)}/site-settings`,
-    stations: (c: string) => `/gamingCenters${enc(c)}/stations`,
+    stations: (c: string) => `/gamingCenters/${enc(c)}/stations`,
     stationDetail: (c: string, s: string) => `/gamingCenters/${enc(c)}/stations/${enc(s)}`,
     addresses: (c: string) => `/gamingCenters/${enc(c)}/addresses`,
     addressDetail: (c: string, a: string) => `/gamingCenters/${enc(c)}/addresses/${enc(a)}`,
