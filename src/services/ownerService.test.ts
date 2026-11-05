@@ -37,6 +37,75 @@ describe("ownerService.getMe & center resolution", () => {
     expect(me.gamingCenters?.[0].id).toBe("gc-100");
   });
 
+  it("extracts gamingCenterId and actor fields from backend envelope in getMe", async () => {
+    globalThis.fetch = (async () => {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            id: "cm1234567890user",
+            actorId: "cm1234567890user",
+            role: "MANAGER",
+            gamingCenterId: "cm0987654321center",
+            actorType: "USER",
+            sessionId: "cm_session_xyz",
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }) as unknown as typeof fetch;
+
+    const me = await ownerService.getMe();
+    expect(me.id).toBe("cm1234567890user");
+    expect(me.actorId).toBe("cm1234567890user");
+    expect(me.actorType).toBe("USER");
+    expect(me.role).toBe("MANAGER");
+    expect(me.gamingCenterId).toBe("cm0987654321center");
+  });
+
+  it("finds center by id with backend data envelope and custom fields", async () => {
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      const urlStr = String(url);
+      if (urlStr.includes("/gamingCenters/cm0987654321center")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              id: "cm0987654321center",
+              name: "گیم‌نت نمونه",
+              slug: "sample-gaming",
+              description: "توضیحات گیم‌نت",
+              pcCount: 15,
+              consoleCount: 8,
+              is_open: true,
+              hourlyRate: 60000,
+              raiting: 4.8,
+              comment_count: 12,
+              addresses: [
+                {
+                  id: "cm_addr_1",
+                  province: "تهران",
+                  city: "تهران",
+                  addressLine: "خیابان ولیعصر...",
+                },
+              ],
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(JSON.stringify({ success: false }), { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const center = await ownerService.findCenter("cm0987654321center");
+    expect(center).not.toBeNull();
+    expect(center?.id).toBe("cm0987654321center");
+    expect(center?.name).toBe("گیم‌نت نمونه");
+    expect(center?.pcCount).toBe(15);
+    expect(center?.hourlyRate).toBe(60000);
+    expect(center?.addresses?.[0].province).toBe("تهران");
+  });
+
   it("finds center by id without falling back to gc-1", async () => {
     globalThis.fetch = (async () => {
       return new Response(

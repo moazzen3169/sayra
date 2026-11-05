@@ -42,6 +42,7 @@ const MENU = [
 export default function OwnerDashboardPage() {
   const router = useRouter();
   const {
+    me,
     centerId,
     center,
     centers,
@@ -55,9 +56,9 @@ export default function OwnerDashboardPage() {
     setVerificationStatus,
   } = useOwner();
 
-  // اگر احراز هویت شده ولی هیچ گیم‌نتی در کانتکست و همچنین در localStorage وجود ندارد، به ساخت گیم‌نت هدایت کن
+  // اگر احراز هویت شده ولی هیچ گیم‌نتی در کانتکست و پروفایل و همچنین در localStorage وجود ندارد، به ساخت گیم‌نت هدایت کن
   useEffect(() => {
-    if (!isCenterLoading && centers.length === 0 && !centerId) {
+    if (!isCenterLoading && centers.length === 0 && !centerId && !me?.gamingCenterId) {
       // بررسی وجود شناسه در حافظه قبل از ریدایرکت نهایی
       let storedCenterId: string | null = null;
       try {
@@ -71,7 +72,7 @@ export default function OwnerDashboardPage() {
         router.push("/owner/new");
       }
     }
-  }, [isCenterLoading, centers.length, centerId, router]);
+  }, [isCenterLoading, centers.length, centerId, me?.gamingCenterId, router]);
 
   const [query, setQuery] = useState("");
 
