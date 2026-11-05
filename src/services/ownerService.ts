@@ -111,19 +111,34 @@ export const ownerService = {
   /**
    * ثبت آدرس شعبه برای گیم‌نت:
    * POST /gamingCenters/{gamingCenterId}/addresses
-   * فیلد الزامی: address
-   * فیلدهای اختیاری: city, phone
+   * فیلدهای الزامی سرور: city, addressLine (و address برای سازگاری با OpenAPI)
    */
   async createAddress(
     gamingCenterId: string,
     payload: CreateBranchAddressPayload,
     signal?: AbortSignal
   ): Promise<void> {
+    const rawAddress = payload.addressLine?.trim() || payload.address?.trim() || "";
+    if (!rawAddress) {
+      throw new Error("آدرس وارد نشده است.");
+    }
+    const rawCity = payload.city?.trim() || "";
+    if (!rawCity) {
+      throw new Error("شهر وارد نشده است.");
+    }
+
     const body: Record<string, unknown> = {
-      address: payload.address.trim(),
+      // سرور فیلدهای city و addressLine را الزامی می‌داند، در حالی که در برخی نسخه‌های OpenAPI نام فیلد address آمده است.
+      // برای سازگاری کامل دوطرفه، هر دو فیلد addressLine و address ارسال می‌شوند.
+      city: rawCity,
+      addressLine: rawAddress,
+      address: payload.address?.trim() || rawAddress,
     };
-    if (payload.city?.trim()) body.city = payload.city.trim();
+    if (payload.province?.trim()) body.province = payload.province.trim();
     if (payload.phone?.trim()) body.phone = payload.phone.trim();
+    if (payload.postalCode?.trim()) body.postalCode = payload.postalCode.trim();
+    if (typeof payload.lat === "number" && !isNaN(payload.lat)) body.lat = payload.lat;
+    if (typeof payload.lng === "number" && !isNaN(payload.lng)) body.lng = payload.lng;
 
     await apiClient.post(ENDPOINTS.owner.addresses(gamingCenterId), body, { signal });
   },

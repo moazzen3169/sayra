@@ -397,13 +397,16 @@ export default function NewGamingCenterPage() {
 
       // 2. POST /gamingCenters/{id}/addresses & PATCH /gamingCenters/{id}
       setSubmitProgressText("در حال ثبت آدرس و موقعیت مکانی...");
-      const fullAddressString = `${province}، ${city}، ${address.trim()} (مختصات: ${latitude.toFixed(5)}, ${longitude.toFixed(5)})`;
+      const userEnteredAddress = address.trim();
+      const fullAddressString = `${province}، ${city.trim()}، ${userEnteredAddress} (مختصات: ${latitude.toFixed(5)}, ${longitude.toFixed(5)})`;
       await ownerService.createAddress(centerId, {
+        addressLine: userEnteredAddress,
         address: fullAddressString,
         city: city.trim(),
+        province: province.trim() || undefined,
         phone: managerPhone.trim() || undefined,
-      }).catch((err) => {
-        console.warn("Address submission warning:", err);
+        lat: latitude,
+        lng: longitude,
       });
       await ownerService.patchCenter(centerId, {
         address: fullAddressString,
