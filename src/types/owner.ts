@@ -21,6 +21,9 @@ export interface OwnerGamingCenterRef {
 
 export interface OwnerMe {
   id: string;
+  actorId?: string;
+  actorType?: string;
+  sessionId?: string;
   phone?: string;
   fullName?: string;
   role?: string;
@@ -38,6 +41,20 @@ export interface PublicCenter {
   slug: string;
   description?: string;
   isActive?: boolean;
+  pcCount?: number;
+  consoleCount?: number;
+  is_open?: boolean;
+  hourlyRate?: number;
+  raiting?: number;
+  comment_count?: number;
+  addresses?: Array<{
+    id?: string;
+    province?: string;
+    city?: string;
+    addressLine?: string;
+    address?: string;
+    phone?: string;
+  }>;
 }
 
 /** فیلدهای مشتری در OpenAPI برای Reservation تعریف نشده‌اند؛ اختیاری */

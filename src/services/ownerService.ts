@@ -41,14 +41,27 @@ export function pickNumber(obj: unknown, keys: string[]): number | null {
 
 export const ownerService = {
   async getMe(signal?: AbortSignal): Promise<OwnerMe> {
-    const { data } = await apiClient.get<OwnerMe>(ENDPOINTS.owner.me, { signal });
-    return data;
+    const response = await apiClient.get<any>(ENDPOINTS.owner.me, { signal });
+    const raw = response.data;
+    // Resilient parsing: data might be directly in raw or raw.data
+    const profile: any = raw?.data && typeof raw.data === "object" ? raw.data : raw;
+
+    // Normalize user identity and gamingCenterId
+    const resolvedId = profile?.id || profile?.actorId || "";
+    const resolvedGamingCenterId = profile?.gamingCenterId || profile?.centerId || "";
+
+    return {
+      ...profile,
+      id: resolvedId,
+      actorId: profile?.actorId || resolvedId,
+      actorType: profile?.actorType,
+      sessionId: profile?.sessionId,
+      role: profile?.role || "MANAGER",
+      gamingCenterId: resolvedGamingCenterId || undefined,
+      gamingCenters: Array.isArray(profile?.gamingCenters) ? profile.gamingCenters : undefined,
+    };
   },
 
-  /**
-   * دریافت گیم‌نت‌های در دسترس برای کاربر
-   * در صورت ارائه پارامترهای صفحه‌بندی، لیست مراکز بازی واکشی می‌شود
-   */
   /**
    * ایجاد گیم‌نت جدید مطابق OpenAPI:
    * POST /gamingCenters
@@ -133,11 +146,27 @@ export const ownerService = {
 
   async listCenters(signal?: AbortSignal): Promise<PublicCenter[]> {
     try {
-      const { data } = await apiClient.get<PublicCenter[]>(ENDPOINTS.owner.centers, {
+      const response = await apiClient.get<any>(ENDPOINTS.owner.centers, {
         query: { page: 1, pageSize: 200, limit: 200 },
         signal,
       });
-      return asArray<PublicCenter>(data);
+      const resData = response.data;
+
+      // Handle raw array
+      if (Array.isArray(resData)) {
+        return resData as PublicCenter[];
+      }
+      // Handle { data: [...] } or { data: { data: [...] } }
+      if (resData && typeof resData === "object") {
+        if (Array.isArray(resData.data)) {
+          return resData.data as PublicCenter[];
+        }
+        if (resData.data && typeof resData.data === "object" && Array.isArray(resData.data.data)) {
+          return resData.data.data as PublicCenter[];
+        }
+      }
+
+      return asArray<PublicCenter>(resData);
     } catch (err) {
       throw err;
     }
@@ -149,9 +178,27 @@ export const ownerService = {
     try {
       // ابتدا تلاش مستقیم برای واکشی مرکز با شناسه
       try {
-        const direct = await apiClient.get<PublicCenter>(ENDPOINTS.owner.center(id), { signal });
-        if (direct.data && (direct.data.id || direct.data.name)) {
-          return direct.data;
+        const direct = await apiClient.get<any>(ENDPOINTS.owner.center(id), { signal });
+        const resData = direct.data;
+        const centerObj: any = resData?.data && typeof resData.data === "object" && !Array.isArray(resData.data)
+          ? resData.data
+          : resData;
+
+        if (centerObj && (centerObj.id || centerObj.name)) {
+          return {
+            id: centerObj.id || id,
+            name: centerObj.name || "گیم‌نت",
+            slug: centerObj.slug || id,
+            description: centerObj.description,
+            isActive: centerObj.isActive ?? true,
+            pcCount: centerObj.pcCount,
+            consoleCount: centerObj.consoleCount,
+            is_open: centerObj.is_open,
+            hourlyRate: centerObj.hourlyRate,
+            raiting: centerObj.raiting,
+            comment_count: centerObj.comment_count,
+            addresses: centerObj.addresses,
+          };
         }
       } catch {
         // Fallback to listCenters

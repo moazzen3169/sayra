@@ -170,17 +170,8 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // Resolve accessible centers
         let accessibleCenters: PublicCenter[] = [];
 
-        // 1. Direct centers on profile
-        if (profile.gamingCenters && profile.gamingCenters.length > 0) {
-          accessibleCenters = profile.gamingCenters.map((gc) => ({
-            id: gc.id,
-            name: gc.name || "گیم‌نت",
-            slug: gc.slug || gc.id,
-            description: gc.description,
-            isActive: gc.isActive ?? true,
-          }));
-        } else if (profile.gamingCenterId) {
-          // Profile has single center ID
+        // 1. Primary path: User is linked to a gamingCenter via gamingCenterId foreign key
+        if (profile.gamingCenterId) {
           const fetchedCenter = await ownerService.findCenter(profile.gamingCenterId, controller.signal).catch(() => null);
           if (fetchedCenter) {
             accessibleCenters = [fetchedCenter];
@@ -192,8 +183,17 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               isActive: true,
             }];
           }
+        } else if (profile.gamingCenters && profile.gamingCenters.length > 0) {
+          // Multi-center ref list if present
+          accessibleCenters = profile.gamingCenters.map((gc) => ({
+            id: gc.id,
+            name: gc.name || "گیم‌نت",
+            slug: gc.slug || gc.id,
+            description: gc.description,
+            isActive: gc.isActive ?? true,
+          }));
         } else {
-          // Fetch centers list from backend
+          // Fallback only if no direct center ID exists on User model
           const allCenters = await ownerService.listCenters(controller.signal).catch(() => []);
           accessibleCenters = allCenters;
         }
@@ -252,18 +252,11 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         let chosenCenter: PublicCenter | null = null;
         if (storedCenterId) {
           chosenCenter = accessibleCenters.find((c) => c.id === storedCenterId) ?? null;
-          if (!chosenCenter) {
-            // Stored center is not accessible/valid for this user! Clear it.
-            try {
-              localStorage.removeItem(OWNER_CENTER_KEY);
-            } catch {
-              // ignore
-            }
-          }
         }
 
+        // If stored center is not valid or not matching, default to the user's primary center
         if (!chosenCenter) {
-          chosenCenter = accessibleCenters[0];
+          chosenCenter = (profile.gamingCenterId && accessibleCenters.find((c) => c.id === profile.gamingCenterId)) || accessibleCenters[0];
           try {
             localStorage.setItem(OWNER_CENTER_KEY, chosenCenter.id);
           } catch {
