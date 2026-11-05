@@ -129,6 +129,18 @@ export const ownerService = {
   },
 
   /**
+   * همگام‌سازی آدرس و تلفن در موجودیت گیم‌نت (در صورت نیاز):
+   * PATCH /gamingCenters/{id}
+   */
+  async patchCenter(
+    gamingCenterId: string,
+    payload: { name?: string; address?: string; phone?: string },
+    signal?: AbortSignal
+  ): Promise<void> {
+    await apiClient.patch(ENDPOINTS.owner.center(gamingCenterId), payload, { signal });
+  },
+
+  /**
    * ثبت لینک وبسایت یا شبکه‌های اجتماعی برای گیم‌نت:
    * POST /gamingCenters/{gamingCenterId}/links
    * فیلدهای الزامی: platform, url
@@ -148,7 +160,7 @@ export const ownerService = {
   async listCenters(signal?: AbortSignal): Promise<PublicCenter[]> {
     try {
       const response = await apiClient.get<any>(ENDPOINTS.owner.centers, {
-        query: { page: 1, pageSize: 200, limit: 200 },
+        query: { page: 1, pageSize: 100, limit: 100 },
         signal,
       });
       const resData = response.data;
@@ -471,7 +483,19 @@ export const ownerService = {
 
     try {
       await apiClient.put(ENDPOINTS.owner.settings(centerId), sanitizedPayload);
-    } catch (err) {
+    } catch (err: any) {
+      // If PUT returns 501 Not Implemented on the backend, fallback to PATCH /settings with compatible fields
+      if (err?.status === 501) {
+        const patchPayload: Record<string, unknown> = {};
+        if (sanitizedPayload.timeZone) patchPayload.timeZone = sanitizedPayload.timeZone;
+        try {
+          await apiClient.patch(ENDPOINTS.owner.settings(centerId), patchPayload);
+          return;
+        } catch {
+          // If PATCH is also unsupported or rejected, gracefully return without breaking center setup
+          return;
+        }
+      }
       throw err;
     }
   },
