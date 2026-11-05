@@ -38,18 +38,19 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
   const [categories, setCategories] = useState<BlogCategory[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
 
   // Form Fields initialized lazily without useEffect setState
   const [title, setTitle] = useState(() => initialData?.title || "");
   const [slug, setSlug] = useState(() => initialData?.slug || "");
-  const [category, setCategory] = useState(() => initialData?.category || "guides");
+  const [category, setCategory] = useState(() => initialData?.category || "1");
   const [authorName, setAuthorName] = useState(() => initialData?.authorName || "تحریریه‌ی سایرا");
   const [readingMinutes, setReadingMinutes] = useState(() => initialData?.readingMinutes || 5);
   const [featured, setFeatured] = useState(() => Boolean(initialData?.featured));
   const [excerpt, setExcerpt] = useState(() => initialData?.excerpt || "");
   const [coverUrl, setCoverUrl] = useState(() => initialData?.coverUrl || "/img/gamnet-1.webp");
   const [tagsInput, setTagsInput] = useState(() => (initialData?.tags ? initialData.tags.join(", ") : ""));
-  const [status, setStatus] = useState<BlogPostStatus>(() => initialData?.status || "PUBLISHED");
+  const [status, setStatus] = useState<BlogPostStatus>(() => initialData?.status || "DRAFT");
   const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
     initialData?.content && initialData.content.length > 0
       ? [...initialData.content]
@@ -58,6 +59,30 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
 
   // Preview State
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  // Load fresh article details from server when editing an existing post
+  useEffect(() => {
+    let isMounted = true;
+    if (initialData?.slug) {
+      adminService.getBlogPostById(initialData.slug).then((fresh) => {
+        if (!isMounted || !fresh) return;
+        if (fresh.title) setTitle(fresh.title);
+        if (fresh.slug) setSlug(fresh.slug);
+        if (fresh.category) setCategory(fresh.category);
+        if (fresh.authorName) setAuthorName(fresh.authorName);
+        if (fresh.readingMinutes) setReadingMinutes(fresh.readingMinutes);
+        if (fresh.featured !== undefined) setFeatured(fresh.featured);
+        if (fresh.excerpt) setExcerpt(fresh.excerpt);
+        if (fresh.coverUrl) setCoverUrl(fresh.coverUrl);
+        if (fresh.tags?.length) setTagsInput(fresh.tags.join(", "));
+        if (fresh.status) setStatus(fresh.status);
+        if (fresh.content?.length) setContentBlocks(fresh.content);
+      }).catch(console.warn);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [initialData?.slug]);
 
   useEffect(() => {
     adminService.getBlogCategories().then(setCategories).catch(console.warn);
@@ -160,17 +185,25 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
 
   const handleSave = async (submitStatus: BlogPostStatus) => {
     setError(null);
+    setFieldErrors({});
+
+    const newFieldErrors: { [key: string]: string } = {};
 
     if (!title.trim()) {
-      setError("لطفاً عنوان مقاله را وارد کنید.");
-      return;
+      newFieldErrors.title = "لطفاً عنوان مقاله را وارد کنید.";
     }
     if (!slug.trim()) {
-      setError("لطفاً شناسه (Slug) مقاله را وارد کنید.");
-      return;
+      newFieldErrors.slug = "لطفاً شناسه (Slug) مقاله را وارد کنید.";
+    } else if (!/^[-a-zA-Z0-9_]+$/.test(slug.trim())) {
+      newFieldErrors.slug = "شناسه مقاله فقط می‌تواند شامل حروف انگلیسی، اعداد، خط فاصله (-) و زیرخط (_) باشد.";
     }
     if (!excerpt.trim()) {
-      setError("لطفاً خلاصه / چکیده مقاله را وارد کنید.");
+      newFieldErrors.excerpt = "لطفاً خلاصه / چکیده مقاله را وارد کنید.";
+    }
+
+    if (Object.keys(newFieldErrors).length > 0) {
+      setFieldErrors(newFieldErrors);
+      setError("لطفاً خطاهای مشخص‌شده در فرم را بررسی نمایید.");
       return;
     }
 
@@ -194,15 +227,29 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
     try {
       let result: BlogPostDetail;
       if (initialData) {
-        result = await adminService.updateBlogPost(initialData.id, payload);
+        result = await adminService.updateBlogPost(initialData.slug || initialData.id, payload);
       } else {
         result = await adminService.createBlogPost(payload);
       }
       onSuccess(result);
       onClose();
     } catch (err: unknown) {
-      const e = err as Error;
-      setError(e.message || "خطا در ثبت مقاله.");
+      const e = err as Error & { details?: Record<string, unknown>; status?: number };
+      if (e.status === 403) {
+        setError("شما دسترسی لازم برای ویرایش یا ایجاد مقاله را ندارید (403 Forbidden).");
+      } else if (e.status === 401) {
+        setError("نشست کاربری شما منقضی شده است. لطفاً مجدداً وارد شوید.");
+      } else if (e.details && typeof e.details === "object") {
+        const detailsObj = e.details as Record<string, string[] | string>;
+        const mappedErrors: { [key: string]: string } = {};
+        for (const [k, v] of Object.entries(detailsObj)) {
+          mappedErrors[k] = Array.isArray(v) ? v.join(" ") : String(v);
+        }
+        setFieldErrors(mappedErrors);
+        setError(e.message || "خطای اعتبارسنجی فیلدهای ارسالی.");
+      } else {
+        setError(e.message || "خطا در برقراری ارتباط با سرور. اطلاعات فرم حفظ شده است.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -319,7 +366,13 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="عنوان کامل مقاله را وارد کنید..."
+                  error={fieldErrors.title}
                 />
+                {fieldErrors.title && (
+                  <span className="text-[11px] text-[var(--accent-red)] font-bold mt-1 block">
+                    {fieldErrors.title}
+                  </span>
+                )}
               </div>
 
               <div>
@@ -340,7 +393,13 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
                   onChange={(e) => setSlug(e.target.value)}
                   placeholder="choose-the-right-device"
                   className="dir-ltr text-right"
+                  error={fieldErrors.slug}
                 />
+                {fieldErrors.slug && (
+                  <span className="text-[11px] text-[var(--accent-red)] font-bold mt-1 block">
+                    {fieldErrors.slug}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -516,8 +575,17 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
                   onChange={(e) => setExcerpt(e.target.value)}
                   placeholder="خلاصه کوتاهی از مقاله برای نمایش در کارت‌ها و نتایج..."
                   rows={2}
-                  className="w-full p-3 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] resize-y leading-relaxed"
+                  className={`w-full p-3 rounded-card bg-[var(--foreground)]/30 border text-xs text-[var(--text-white)] outline-none resize-y leading-relaxed ${
+                    fieldErrors.excerpt
+                      ? "border-[var(--accent-red)] focus:border-[var(--accent-red)]"
+                      : "border-[var(--border-subtle)] focus:border-[var(--primary)]"
+                  }`}
                 />
+                {fieldErrors.excerpt && (
+                  <span className="text-[11px] text-[var(--accent-red)] font-bold mt-1 block">
+                    {fieldErrors.excerpt}
+                  </span>
+                )}
               </div>
 
               <div>

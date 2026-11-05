@@ -100,9 +100,20 @@ export default function BlogAdminPage() {
 
   const handleDeleteConfirm = async () => {
     if (!deletingPost) return;
-    await adminService.deleteBlogPost(deletingPost.id);
-    showFeedback("success", `مقاله «${deletingPost.title}» با موفقیت حذف گردید.`);
-    loadPosts();
+    try {
+      await adminService.deleteBlogPost(deletingPost.slug || deletingPost.id);
+      showFeedback("success", `مقاله «${deletingPost.title}» با موفقیت حذف گردید.`);
+      // If current page now exceeds total items after deletion, gracefully adjust
+      if (data.length === 1 && page > 1) {
+        setPage((p) => p - 1);
+      } else {
+        loadPosts();
+      }
+    } catch (err: unknown) {
+      const e = err as Error;
+      showFeedback("danger", e.message || "خطا در حذف مقاله.");
+      throw err;
+    }
   };
 
   const getStatusBadge = (status?: BlogPostStatus) => {
