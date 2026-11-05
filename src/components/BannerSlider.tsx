@@ -25,6 +25,8 @@ export interface BannerSliderProps {
   /** کلاس‌های aspect-ratio اسلاید؛ برای گالری صفحه جزئیات کوتاه‌تر می‌شود */
   aspectClassName?: string;
   ariaLabel?: string;
+  /** آدرس تصویر پیش‌فرض زمانی که تصویر بارگذاری نمی‌شود یا خالی است */
+  fallbackSrc?: string;
   /** نمایش دکمه بزرگنمایی */
   enableZoom?: boolean;
 }
@@ -40,8 +42,8 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
   className = "",
   aspectClassName = DEFAULT_ASPECT,
   ariaLabel = "بنرهای تبلیغاتی",
+  fallbackSrc = PLACEHOLDERS.banner,
 }) => {
-  const [failedBannerIds, setFailedBannerIds] = useState<string[]>([]);
   const [api, setApi] = useState<CarouselApi>();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -49,16 +51,9 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
   const [fullscreenApi, setFullscreenApi] = useState<CarouselApi>();
   const [fullscreenIndex, setFullscreenIndex] = useState(0);
 
-  // Filter out failed banners
-  const validBanners = useMemo(() => {
-    return banners.filter((b) => !failedBannerIds.includes(b.id));
-  }, [banners, failedBannerIds]);
-
+  // Keep all banners intact so a single broken image does not remove slides or stop the carousel
+  const validBanners = banners;
   const slidesCount = validBanners.length;
-
-  const handleImageError = useCallback((id: string) => {
-    setFailedBannerIds((prev) => [...prev, id]);
-  }, []);
 
   const autoplayPlugin = useMemo(() => {
     return Autoplay({
@@ -232,9 +227,9 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
   viewBox="0 0 24 24"
   fill="none"
   stroke="white"
-  stroke-width="1"
-  stroke-linecap="round"
-  stroke-linejoin="round"
+  strokeWidth={1}
+  strokeLinecap="round"
+  strokeLinejoin="round"
 >
   <path d="M4 8v-2a2 2 0 0 1 2 -2h2" />
   <path d="M4 16v2a2 2 0 0 0 2 2h2" />
@@ -260,10 +255,9 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
               const slideContent = (
                 <SafeImage
                   src={item.imageUrl}
-                  alt={item.alt}
+                  alt={item.alt || `تصویر ${toPersianDigits(index + 1)}`}
                   draggable={false}
-                  fallbackSrc={PLACEHOLDERS.banner}
-                  onError={() => handleImageError(item.id)}
+                  fallbackSrc={fallbackSrc}
                   loading={index === 0 ? "eager" : "lazy"}
                   {...(index === 0 ? ({ fetchPriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>) : { decoding: "async" })}
                   className="w-full h-full object-cover select-none pointer-events-none"
@@ -403,13 +397,13 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
               className="w-full h-full flex items-center justify-center"
             >
               <CarouselContent className="h-full flex items-center">
-                {validBanners.map((item) => (
+                {validBanners.map((item, index) => (
                   <CarouselItem key={item.id} className="basis-full h-full flex items-center justify-center p-2">
                     <SafeImage
                       src={item.imageUrl}
-                      alt={item.alt}
+                      alt={item.alt || `تصویر ${toPersianDigits(index + 1)}`}
                       draggable={false}
-                      fallbackSrc={PLACEHOLDERS.banner}
+                      fallbackSrc={fallbackSrc}
                       className="h-[95vh] w-full max-w-[1100px] object-contain select-none rounded-card"
                     />
                   </CarouselItem>

@@ -12,6 +12,8 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import type { CartEntry, DeviceGroup } from "@/lib/devices";
+import { SafeImage } from "@/components/ui/SafeImage";
+import { PLACEHOLDERS } from "@/lib/media";
 
 interface DevicePickerProps {
   groups: DeviceGroup[];
@@ -158,9 +160,10 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({
                   >
                     {/* تصویر */}
                     <div className="relative h-46 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] flex items-center justify-center p-3 overflow-hidden">
-                      <img
+                      <SafeImage
                         src={g.image}
-                        alt=""
+                        alt={g.label}
+                        fallbackSrc={PLACEHOLDERS.center}
                         loading="lazy"
                         draggable={false}
                         className="w-full h-full object-cover drop-shadow-xl"
