@@ -5,6 +5,8 @@ import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatDiscountBadge } from "@/lib/discount";
 import { formatDayLabel } from "@/lib/reservationUi";
 import { Icon } from "@/components/ui/Icon";
+import { SafeImage } from "@/components/ui/SafeImage";
+import { PLACEHOLDERS } from "@/lib/media";
 
 export interface GamecenterCardData {
   id: string;
@@ -63,11 +65,11 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
     >
       {/* Image Container */}
       <div className="relative w-full aspect-[16/11] bg-[var(--foreground)] overflow-hidden shrink-0">
-        <img
+        <SafeImage
           src={imageUrl}
           alt={name}
           loading="lazy"
-          decoding="async"
+          fallbackSrc={PLACEHOLDERS.center}
           draggable={false}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />

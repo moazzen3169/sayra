@@ -9,6 +9,8 @@ import { formatPrice, toPersianDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService } from "@/services/ownerService";
 import { BannerSlider } from "@/components/BannerSlider";
+import { SafeImage } from "@/components/ui/SafeImage";
+import { PLACEHOLDERS } from "@/lib/media";
 import type { MediaItem } from "@/types/owner";
 
 const Icon = ({ d }: { d: string }) => (
@@ -286,9 +288,10 @@ export default function OwnerDashboardPage() {
           ) : (
             <div className="flex items-center gap-2.5 truncate">
               {logoMedia?.url ? (
-                <img
+                <SafeImage
                   src={logoMedia.url}
                   alt={center?.name || "لوگو"}
+                  fallbackSrc={PLACEHOLDERS.avatar}
                   className="w-8 h-8 rounded-full object-cover border border-[var(--border-subtle)] shrink-0"
                 />
               ) : (
@@ -548,7 +551,12 @@ export default function OwnerDashboardPage() {
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
                 {galleryBanners.map((m, i) => (
                   <div key={m.id ?? `${m.imageUrl}-${i}`} className="relative aspect-square rounded-card overflow-hidden bg-[var(--foreground)] border border-[var(--border-subtle)]">
-                    <img src={m.imageUrl} alt={m.alt ?? "تصویر گیمنت"} className="w-full h-full object-cover" />
+                    <SafeImage
+                      src={m.imageUrl}
+                      alt={m.alt ?? "تصویر گیمنت"}
+                      fallbackSrc={PLACEHOLDERS.gallery}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 ))}
                 <button

@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
+import { SafeImage } from "@/components/ui/SafeImage";
+import { PLACEHOLDERS } from "@/lib/media";
 
 export interface BlogPromoBannerProps {
   /** نوع نمایش بنر */
@@ -84,9 +86,10 @@ export const BlogPromoBanner: React.FC<BlogPromoBannerProps> = ({
       {variant !== "mobile" && (
         <aside className="hidden w-full flex-col gap-3.5 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 shadow-lg lg:flex">
           <div className="relative aspect-[16/9] w-full overflow-hidden rounded-child border border-[var(--border-subtle)] bg-[var(--foreground)]">
-            <img
+            <SafeImage
               src={imageUrl}
               alt={title}
+              fallbackSrc={PLACEHOLDERS.banner}
               className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
             />
             <div className="absolute top-2.5 right-2.5">

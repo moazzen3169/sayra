@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { AdminAdRequest } from "@/types/admin";
+import { SafeImage } from "@/components/ui/SafeImage";
+import { PLACEHOLDERS } from "@/lib/media";
 import { adminService } from "@/services/adminService";
 
 interface AdRequestDetailModalProps {
@@ -167,10 +169,10 @@ export const AdRequestDetailModal: React.FC<AdRequestDetailModalProps> = ({
                 <div className="space-y-1.5 pt-1">
                   <span className="text-[var(--text-muted)] block">بنر تبلیغاتی پیوست:</span>
                   <div className="relative aspect-video bg-black/50 border border-[var(--border-subtle)] rounded-card overflow-hidden flex items-center justify-center p-2">
-                    {/* eslint-disable-next-html-element-for-jsx */}
-                    <img
+                    <SafeImage
                       src={adRequest.bannerUrl}
                       alt={adRequest.title}
+                      fallbackSrc={PLACEHOLDERS.banner}
                       className="max-h-full max-w-full object-contain rounded"
                     />
                   </div>
