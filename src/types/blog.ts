@@ -36,10 +36,12 @@ export interface AdminBlogPostInput {
   title: string;
   excerpt: string;
   coverUrl: string;
+  coverImageId?: string | number | null;
   category: string;
   authorName: string;
   readingMinutes: number;
   tags: string[];
+  tagIds?: number[];
   featured?: boolean;
   status: BlogPostStatus;
   publishedAt?: string;

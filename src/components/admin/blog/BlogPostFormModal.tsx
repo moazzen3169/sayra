@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +13,7 @@ import type {
   BlogContentBlock,
   AdminBlogPostInput,
 } from "@/types/blog";
+import type { TagDto, AuthorProfileDto } from "@/types/blogApi";
 import { adminService } from "@/services/adminService";
 
 interface BlogPostFormModalProps {
@@ -49,13 +50,24 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
   const [featured, setFeatured] = useState(() => Boolean(initialData?.featured));
   const [excerpt, setExcerpt] = useState(() => initialData?.excerpt || "");
   const [coverUrl, setCoverUrl] = useState(() => initialData?.coverUrl || "/img/gamnet-1.webp");
-  const [tagsInput, setTagsInput] = useState(() => (initialData?.tags ? initialData.tags.join(", ") : ""));
+  const [coverImageId, setCoverImageId] = useState<string | number | null>(() => null);
   const [status, setStatus] = useState<BlogPostStatus>(() => initialData?.status || "DRAFT");
   const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
     initialData?.content && initialData.content.length > 0
       ? [...initialData.content]
       : [{ type: "paragraph", text: "" }]
   );
+
+  // Tags & Authors real integration state
+  const [allAvailableTags, setAllAvailableTags] = useState<TagDto[]>([]);
+  const [selectedTagNames, setSelectedTagNames] = useState<string[]>(() => initialData?.tags || []);
+  const [newTagInput, setNewTagInput] = useState("");
+  const [authors, setAuthors] = useState<AuthorProfileDto[]>([]);
+
+  // Media upload state
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [mediaUploadError, setMediaUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Preview State
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -74,7 +86,7 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
         if (fresh.featured !== undefined) setFeatured(fresh.featured);
         if (fresh.excerpt) setExcerpt(fresh.excerpt);
         if (fresh.coverUrl) setCoverUrl(fresh.coverUrl);
-        if (fresh.tags?.length) setTagsInput(fresh.tags.join(", "));
+        if (fresh.tags?.length) setSelectedTagNames(fresh.tags);
         if (fresh.status) setStatus(fresh.status);
         if (fresh.content?.length) setContentBlocks(fresh.content);
       }).catch(console.warn);
@@ -86,6 +98,8 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
 
   useEffect(() => {
     adminService.getBlogCategories().then(setCategories).catch(console.warn);
+    adminService.getTagsList().then(setAllAvailableTags).catch(console.warn);
+    adminService.getAuthorsList().then(setAuthors).catch(console.warn);
   }, []);
 
   // Convert title to a slug automatically
@@ -176,11 +190,103 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
     });
   };
 
-  const parseTags = (): string[] => {
-    return tagsInput
-      .split(/[,،]/)
-      .map((t) => t.trim())
-      .filter(Boolean);
+  // Tag management handlers
+  const handleToggleTag = (tagName: string) => {
+    const trimmed = tagName.trim();
+    if (!trimmed) return;
+    setSelectedTagNames((prev) =>
+      prev.includes(trimmed)
+        ? prev.filter((t) => t !== trimmed)
+        : [...prev, trimmed]
+    );
+  };
+
+  const handleAddNewTag = async () => {
+    const trimmed = newTagInput.trim();
+    if (!trimmed) return;
+
+    // Check if already selected
+    if (selectedTagNames.some((t) => t.toLowerCase() === trimmed.toLowerCase())) {
+      setNewTagInput("");
+      return;
+    }
+
+    // Check if exists in allAvailableTags
+    const existing = allAvailableTags.find(
+      (t) =>
+        t.name.trim().toLowerCase() === trimmed.toLowerCase() ||
+        t.slug.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+
+    if (existing) {
+      setSelectedTagNames((prev) => [...prev, existing.name]);
+    } else {
+      // Create new tag via backend API
+      try {
+        const rawSlug = trimmed
+          .toLowerCase()
+          .replace(/[^\w\s-]/g, "")
+          .replace(/\s+/g, "-")
+          .replace(/-+/g, "-")
+          .trim();
+        const slug = rawSlug.length > 0 ? rawSlug : `tag-${Date.now().toString(36)}`;
+        const created = await adminService.createTag({ name: trimmed, slug });
+        setAllAvailableTags((prev) => [...prev, created]);
+        setSelectedTagNames((prev) => [...prev, created.name]);
+      } catch {
+        // Fallback: still add to selected tags so ensureTagsExist will try to resolve it
+        setSelectedTagNames((prev) => [...prev, trimmed]);
+      }
+    }
+    setNewTagInput("");
+  };
+
+  const handleRemoveSelectedTag = (tagName: string) => {
+    setSelectedTagNames((prev) => prev.filter((t) => t !== tagName));
+  };
+
+  // Media upload handler
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setMediaUploadError(null);
+
+    // Validate type (image only)
+    if (!file.type.startsWith("image/")) {
+      setMediaUploadError("فقط فایل‌های تصویری مجاز هستند (PNG, JPEG, WebP, etc.).");
+      return;
+    }
+
+    // Validate size (max 10MB)
+    const MAX_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      setMediaUploadError("حجم تصویر نمی‌تواند بیشتر از ۱۰ مگابایت باشد.");
+      return;
+    }
+
+    setIsUploadingMedia(true);
+    try {
+      const media = await adminService.uploadMedia({
+        file,
+        title: title || file.name,
+        alt_text: title || "تصویر شاخص مقاله",
+      });
+      if (media.url) {
+        setCoverUrl(media.url);
+      }
+      if (media.id != null) {
+        setCoverImageId(media.id);
+      }
+    } catch (err: unknown) {
+      const e = err as Error;
+      setMediaUploadError(e.message || "خطا در آپلود تصویر در سرور.");
+    } finally {
+      setIsUploadingMedia(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   const handleSave = async (submitStatus: BlogPostStatus) => {
@@ -209,7 +315,7 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
 
     setIsSubmitting(true);
 
-    const tags = parseTags();
+    const tags = selectedTagNames;
     const payload: AdminBlogPostInput = {
       title: title.trim(),
       slug: slug.trim(),
@@ -219,6 +325,7 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
       featured,
       excerpt: excerpt.trim(),
       coverUrl: coverUrl.trim() || "/img/gamnet-1.webp",
+      coverImageId: coverImageId != null ? coverImageId : undefined,
       tags,
       status: submitStatus,
       content: contentBlocks,
@@ -266,7 +373,7 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
     publishedAt: initialData?.publishedAt || new Date().toISOString(),
     excerpt: excerpt || "خلاصه و چکیده مقاله برای پیش‌نمایش...",
     coverUrl: coverUrl || "/img/gamnet-1.webp",
-    tags: parseTags(),
+    tags: selectedTagNames,
     featured,
     status,
     content: contentBlocks,
@@ -315,11 +422,30 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
                 <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
                   نویسنده مقاله
                 </label>
-                <Input
-                  value={authorName}
-                  onChange={(e) => setAuthorName(e.target.value)}
-                  placeholder="مثلاً: تحریریه‌ی سایرا"
-                />
+                {authors.length > 0 ? (
+                  <select
+                    value={authorName}
+                    onChange={(e) => setAuthorName(e.target.value)}
+                    className="w-full h-11 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)]"
+                  >
+                    {authors.map((a) => (
+                      <option key={a.user} value={a.display_name} className="bg-[var(--bg-card)]">
+                        {a.display_name}
+                      </option>
+                    ))}
+                    {!authors.some((a) => a.display_name === authorName) && (
+                      <option value={authorName} className="bg-[var(--bg-card)]">
+                        {authorName}
+                      </option>
+                    )}
+                  </select>
+                ) : (
+                  <Input
+                    value={authorName}
+                    onChange={(e) => setAuthorName(e.target.value)}
+                    placeholder="مثلاً: تحریریه‌ی سایرا"
+                  />
+                )}
               </div>
 
               <div>
@@ -588,38 +714,160 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
                 )}
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
-                  برچسب‌ها (با کاما جدا کنید)
+              <div className="flex flex-col gap-2">
+                <label className="block text-xs font-bold text-[var(--text-muted)]">
+                  برچسب‌ها (انتخاب و ایجاد تگ واقعی)
                 </label>
-                <Input
-                  value={tagsInput}
-                  onChange={(e) => setTagsInput(e.target.value)}
-                  placeholder="راهنمای رزرو، انتخاب دستگاه، کنسول"
-                />
+
+                {/* Selected Tags Pills */}
+                <div className="flex flex-wrap items-center gap-1.5 min-h-[36px] p-2 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)]">
+                  {selectedTagNames.length === 0 ? (
+                    <span className="text-xs text-[var(--text-subtle)]">
+                      هیچ برچسبی انتخاب نشده است.
+                    </span>
+                  ) : (
+                    selectedTagNames.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--primary)]/15 border border-[var(--primary)]/30 text-xs text-[var(--primary)] font-bold"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSelectedTag(tag)}
+                          className="hover:text-[var(--accent-red)] transition-colors cursor-pointer"
+                          title="حذف برچسب"
+                        >
+                          <Icon name="close" size={12} />
+                        </button>
+                      </span>
+                    ))
+                  )}
+                </div>
+
+                {/* Tag Input & Add Button */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <Input
+                      value={newTagInput}
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddNewTag();
+                        }
+                      }}
+                      placeholder="نام برچسب جدید یا جستجو در تگ‌ها..."
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleAddNewTag}
+                    disabled={!newTagInput.trim()}
+                    className="shrink-0"
+                  >
+                    + افزودن برچسب
+                  </Button>
+                </div>
+
+                {/* Available Suggested Tags from Backend */}
+                {allAvailableTags.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[11px] text-[var(--text-muted)] font-medium">
+                      برچسب‌های موجود در سرور:
+                    </span>
+                    {allAvailableTags.map((tag) => {
+                      const isSelected = selectedTagNames.includes(tag.name);
+                      return (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => handleToggleTag(tag.name)}
+                          className={`text-xs px-2 py-0.5 rounded-lg border transition-colors cursor-pointer ${
+                            isSelected
+                              ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-bold"
+                              : "bg-[var(--foreground)]/30 text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-white"
+                          }`}
+                        >
+                          {tag.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           {/* Section 5: Cover Image */}
           <div className="flex flex-col gap-3 p-4 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
-            <span className="text-xs font-bold text-[var(--primary)]">
-              ۵. تصویر شاخص
-            </span>
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="flex-1 w-full">
-                <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
-                  آدرس تصویر شاخص (URL)
-                </label>
-                <Input
-                  value={coverUrl}
-                  onChange={(e) => setCoverUrl(e.target.value)}
-                  placeholder="/img/gamnet-1.webp"
-                  className="dir-ltr text-right"
-                />
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-[var(--primary)]">
+                ۵. تصویر شاخص (آپلود مستقیم یا آدرس اینترنتی)
+              </span>
+              {coverImageId != null && (
+                <span className="text-[11px] text-[var(--accent-green)] font-bold">
+                  شناسه رسانه در سرور: {coverImageId}
+                </span>
+              )}
+            </div>
+
+            {mediaUploadError && (
+              <div className="p-2.5 rounded-card bg-[var(--accent-red)]/15 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold flex items-center gap-2">
+                <Icon name="alert" size={16} />
+                <span>{mediaUploadError}</span>
               </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="flex-1 w-full flex flex-col gap-3">
+                {/* Upload Button & Status */}
+                <div className="flex items-center gap-3">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept="image/*"
+                    className="hidden"
+                    disabled={isUploadingMedia}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingMedia}
+                    className="flex items-center gap-2 shrink-0"
+                  >
+                    <Icon name="arrow-up" size={16} />
+                    <span>{isUploadingMedia ? "در حال آپلود فایل..." : "انتخاب و آپلود تصویر"}</span>
+                  </Button>
+                  <span className="text-xs text-[var(--text-muted)]">
+                    حداکثر ۱۰ مگابایت (JPG, PNG, WebP)
+                  </span>
+                </div>
+
+                {/* Direct URL Input */}
+                <div>
+                  <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
+                    یا آدرس تصویر شاخص (URL)
+                  </label>
+                  <Input
+                    value={coverUrl}
+                    onChange={(e) => {
+                      setCoverUrl(e.target.value);
+                      setCoverImageId(null);
+                    }}
+                    placeholder="/img/gamnet-1.webp"
+                    className="dir-ltr text-right"
+                  />
+                </div>
+              </div>
+
               {coverUrl && (
-                <div className="w-24 h-16 rounded-card overflow-hidden bg-[var(--foreground)] border border-[var(--border-subtle)] shrink-0">
+                <div className="w-28 h-20 rounded-card overflow-hidden bg-[var(--foreground)] border border-[var(--border-subtle)] shrink-0 relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={coverUrl}
