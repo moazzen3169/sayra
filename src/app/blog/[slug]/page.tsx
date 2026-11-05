@@ -1,17 +1,33 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { BlogPostView } from "@/components/blog/BlogPostView";
-import { findMockPost } from "@/lib/mocks/blog.mock";
+import { blogService } from "@/services/blogService";
 
 type Props = { params: Promise<{ slug: string }> };
 
+/**
+ * Deduplicated article fetcher using React cache for Server Component & Metadata
+ */
+const getArticleCached = cache(async (slug: string) => {
+  try {
+    return await blogService.getBySlug(slug);
+  } catch {
+    return null;
+  }
+});
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  // TODO: بعد از آماده شدن API، از سرویس واقعی خوانده شود
-  const post = findMockPost(slug);
+  const post = await getArticleCached(slug);
 
   if (!post) {
-    return { title: "مقاله پیدا نشد | وبلاگ سایرا" };
+    return {
+      title: "مقاله پیدا نشد | وبلاگ سایرا",
+      description: "مقاله‌ی مورد نظر یافت نشد.",
+    };
   }
+
+  const images = post.coverUrl ? [post.coverUrl] : [];
 
   return {
     title: `${post.title} | وبلاگ سایرا`,
@@ -19,8 +35,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: post.title,
       description: post.excerpt,
-      images: [post.coverUrl],
+      images,
       type: "article",
+      publishedTime: post.publishedAt || undefined,
+      authors: post.authorName ? [post.authorName] : undefined,
+      tags: post.tags,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.excerpt,
+      images,
     },
   };
 }
