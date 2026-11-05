@@ -7,6 +7,7 @@ import { useOwner } from "@/context/OwnerContext";
 import { isAbortError } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService } from "@/services/ownerService";
+import { BannerSlider } from "@/components/BannerSlider";
 import type { CenterSettings, MediaItem } from "@/types/owner";
 
 const inputClass =
@@ -88,12 +89,15 @@ export default function OwnerEditPage() {
   const [allowOnline, setAllowOnline] = useState(true);
   const [autoConfirm, setAutoConfirm] = useState(false);
 
-  // تصاویر گالری
+  // تصاویر لوگو و گالری
   const [media, setMedia] = useState<MediaItem[]>([]);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [deleteConfirmMedia, setDeleteConfirmMedia] = useState<MediaItem | null>(null);
   const [deletingImage, setDeletingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -139,6 +143,10 @@ export default function OwnerEditPage() {
 
       if (mediaRes.status === "fulfilled" && Array.isArray(mediaRes.value)) {
         setMedia(mediaRes.value);
+        const existingLogo = mediaRes.value.find((m) => m.purpose === "LOGO" || m.purpose === "COVER");
+        if (existingLogo?.url) {
+          setLogoPreview(existingLogo.url);
+        }
       }
       setLoaded(true);
     });
@@ -439,17 +447,79 @@ export default function OwnerEditPage() {
               <Toggle label="تایید خودکار رزروهای آنلاین" checked={autoConfirm} onChange={setAutoConfirm} />
             </div>
 
-            {/* ۷. گالری تصاویر و حذف با دکمه X */}
+            {/* ۷. لوگو و پروفایل گیم‌نت */}
             <div className="flex flex-col gap-3 mt-2 border-t border-[var(--border-subtle)] pt-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xs font-bold text-[var(--text-white)]">تصاویر موجود در گیمنت</h2>
+                <h2 className="text-xs font-bold text-[var(--text-white)]">تصویر پروفایل / لوگوی گیمنت</h2>
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={uploadingLogo}
+                  className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                >
+                  {uploadingLogo ? "در حال آپلود..." : logoPreview ? "تغییر تصویر لوگو" : "+ افزودن لوگو"}
+                </button>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!file || uploadingLogo || !centerId) return;
+                    setUploadingLogo(true);
+                    setMsg(null);
+                    try {
+                      const uploaded = await ownerService.uploadGalleryImage(centerId, file, {
+                        altText: `لوگوی ${name || "گیم‌نت"}`,
+                        purpose: "LOGO",
+                      });
+                      if (uploaded.url) {
+                        setLogoPreview(uploaded.url);
+                        setMedia((prev) => [uploaded, ...prev.filter((m) => m.url !== uploaded.url)]);
+                      }
+                      setMsg({ ok: true, text: "تصویر لوگو/پروفایل با موفقیت ثبت شد." });
+                    } catch (err) {
+                      setMsg({ ok: false, text: getErrorMessage(err) });
+                    } finally {
+                      setUploadingLogo(false);
+                    }
+                  }}
+                />
+              </div>
+
+              {logoPreview ? (
+                <div className="flex items-center gap-4 p-3 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
+                  <div className="w-16 h-16 rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[var(--foreground)] shrink-0">
+                    <img src={logoPreview} alt="لوگوی گیمنت" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-bold text-[var(--text-white)]">لوگوی فعال مجموعه</span>
+                    <span className="text-[11px] text-[var(--text-subtle)]">این تصویر در بالای پنل و صفحه عمومی گیمنت نمایش داده می‌شود.</span>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => logoInputRef.current?.click()}
+                  className="p-4 rounded-card border-2 border-dashed border-[var(--border-subtle)] hover:border-[var(--primary)] transition-colors text-center text-xs text-[var(--text-muted)] cursor-pointer"
+                >
+                  لوگویی برای این مجموعه تنظیم نشده است. جهت بارگذاری کلیک کنید.
+                </div>
+              )}
+            </div>
+
+            {/* ۸. گالری تصاویر و اسلایدر */}
+            <div className="flex flex-col gap-3 mt-2 border-t border-[var(--border-subtle)] pt-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-bold text-[var(--text-white)]">گالری تصاویر گیمنت</h2>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingImage}
                   className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
                 >
-                  + افزودن عکس جدید
+                  {uploadingImage ? "در حال آپلود..." : "+ افزودن عکس به گالری"}
                 </button>
                 <input
                   ref={fileInputRef}
@@ -463,12 +533,17 @@ export default function OwnerEditPage() {
                     setUploadingImage(true);
                     setMsg(null);
                     try {
-                      await ownerService.uploadGalleryImage(centerId, file, {
+                      const uploaded = await ownerService.uploadGalleryImage(centerId, file, {
                         altText: file.name,
                         purpose: "GALLERY",
                       });
+                      if (uploaded?.url) {
+                        setMedia((prev) => [uploaded, ...prev.filter((m) => m.url !== uploaded.url)]);
+                      }
                       const updated = await ownerService.listMedia(center?.slug || centerId);
-                      setMedia(Array.isArray(updated) ? updated : []);
+                      if (Array.isArray(updated) && updated.length > 0) {
+                        setMedia(updated);
+                      }
                       setMsg({ ok: true, text: "تصویر با موفقیت در گالری ثبت شد." });
                     } catch (err) {
                       setMsg({ ok: false, text: getErrorMessage(err) });
@@ -479,36 +554,56 @@ export default function OwnerEditPage() {
                 />
               </div>
 
-              {media.length === 0 ? (
+              {media.filter((m) => m.purpose !== "LOGO" && Boolean(m.url)).length === 0 ? (
                 <div className="p-4 rounded-card border border-dashed border-[var(--border-subtle)] text-center text-xs text-[var(--text-muted)]">
-                  هیچ تصویری برای این گیمنت آپلود نشده است.
+                  هیچ تصویری در گالری این گیمنت آپلود نشده است.
                 </div>
               ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {media.map((img, idx) => {
-                    const imgId = img.id || `${img.url}-${idx}`;
-                    return (
-                      <div
-                        key={imgId}
-                        className="relative aspect-square rounded-card border border-[var(--border-subtle)] overflow-hidden group bg-[var(--foreground)]/30"
-                      >
-                        <img
-                          src={img.url}
-                          alt={img.altText || "تصویر گیمنت"}
-                          className="w-full h-full object-cover"
-                        />
-                        {/* Delete X Button on top right */}
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirmMedia(img)}
-                          aria-label="حذف عکس"
-                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/80 hover:bg-[var(--accent-red)] text-white font-black text-xs flex items-center justify-center transition-colors shadow-md cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    );
-                  })}
+                <div className="flex flex-col gap-4">
+                  {/* Slider view of gallery */}
+                  <div className="w-full">
+                    <BannerSlider
+                      banners={media
+                        .filter((m) => m.purpose !== "LOGO" && Boolean(m.url))
+                        .map((img, idx) => ({
+                          id: img.id || `gallery-slider-${idx}`,
+                          imageUrl: img.url,
+                          alt: img.altText || "تصویر گالری گیمنت",
+                        }))}
+                      aspectClassName="aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[3/1]"
+                      ariaLabel="اسلایدر تصاویر گیمنت"
+                    />
+                  </div>
+
+                  {/* Thumbnail management grid */}
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                    {media
+                      .filter((m) => m.purpose !== "LOGO" && Boolean(m.url))
+                      .map((img, idx) => {
+                        const imgId = img.id || `${img.url}-${idx}`;
+                        return (
+                          <div
+                            key={imgId}
+                            className="relative aspect-square rounded-card border border-[var(--border-subtle)] overflow-hidden group bg-[var(--foreground)]/30"
+                          >
+                            <img
+                              src={img.url}
+                              alt={img.altText || "تصویر گیمنت"}
+                              className="w-full h-full object-cover"
+                            />
+                            {/* Delete X Button on top right */}
+                            <button
+                              type="button"
+                              onClick={() => setDeleteConfirmMedia(img)}
+                              aria-label="حذف عکس"
+                              className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/80 hover:bg-[var(--accent-red)] text-white font-black text-xs flex items-center justify-center transition-colors shadow-md cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        );
+                      })}
+                  </div>
                 </div>
               )}
             </div>

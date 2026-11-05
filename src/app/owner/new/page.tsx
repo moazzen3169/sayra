@@ -13,6 +13,7 @@ import { ownerService } from "@/services/ownerService";
 import { Icon } from "@/components/ui/Icon";
 import { IRAN_PROVINCES, type ProvinceInfo } from "@/data/iranLocations";
 import { LocationMapPicker } from "@/components/owner/LocationMapPicker";
+import { BannerSlider } from "@/components/BannerSlider";
 import type { CenterSettings } from "@/types/owner";
 
 const DAYS_OF_WEEK = [
@@ -247,7 +248,7 @@ export default function NewGamingCenterPage() {
       }
 
       const userName = managerFullName.trim() || resUser?.fullName || "مدیر گیم‌نت";
-      login(userName, cleanPhone, accessToken, refreshToken);
+      login(userName, cleanPhone, accessToken, refreshToken, "MANAGER");
       setOtpVerified(true);
       setOtpError(null);
     } catch (err) {
@@ -1208,21 +1209,36 @@ export default function NewGamingCenterPage() {
                       ویرایش
                     </button>
                   </div>
-                  <div className="flex items-center gap-4 text-xs">
-                    <div>
-                      <span className="text-[var(--text-subtle)] block mb-1">لوگو:</span>
-                      {logoPreview ? (
-                        <img src={logoPreview} alt="Logo" className="w-12 h-12 rounded object-cover border" />
-                      ) : (
-                        <span className="text-[var(--text-subtle)]">بارگذاری نشده</span>
-                      )}
+                  <div className="flex flex-col gap-3 text-xs">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <span className="text-[var(--text-subtle)] block mb-1">لوگو:</span>
+                        {logoPreview ? (
+                          <img src={logoPreview} alt="Logo" className="w-12 h-12 rounded object-cover border" />
+                        ) : (
+                          <span className="text-[var(--text-subtle)]">بارگذاری نشده</span>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-[var(--text-subtle)] block mb-1">تصاویر گالری:</span>
+                        <span className="font-bold text-[var(--text-white)]">
+                          {toPersianDigits(galleryFiles.length)} تصویر انتخاب شده
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[var(--text-subtle)] block mb-1">تصاویر گالری:</span>
-                      <span className="font-bold text-[var(--text-white)]">
-                        {toPersianDigits(galleryFiles.length)} تصویر انتخاب شده
-                      </span>
-                    </div>
+                    {galleryPreviews.length > 0 && (
+                      <div className="w-full mt-2">
+                        <BannerSlider
+                          banners={galleryPreviews.map((p, idx) => ({
+                            id: `preview-${idx}`,
+                            imageUrl: p,
+                            alt: `پیش‌نمایش گالری ${idx + 1}`,
+                          }))}
+                          aspectClassName="aspect-[2.2/1] sm:aspect-[2.8/1] lg:aspect-[3.2/1]"
+                          ariaLabel="پیش‌نمایش گالری تصاویر"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 

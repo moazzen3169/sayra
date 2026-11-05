@@ -10,12 +10,14 @@ import { toEnglishDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { setTokens } from "@/lib/token";
 import { authService } from "@/services/authService";
+import { useAuth } from "@/context/AuthContext";
 
 /** نقش‌هایی که اجازه‌ی ورود به پنل مدیریت دارند. با مقدار واقعی OpenAPI تطبیق دهید. */
 const ADMIN_ROLES = new Set(["ADMIN", "SUPER_ADMIN"]);
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const submittingRef = useRef(false);
 
   const [phone, setPhone] = useState("");
@@ -68,8 +70,15 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // هر دو توکن در localStorage؛ تمدید خودکار با apiClient انجام می‌شود
+      // هر دو توکن در localStorage و هماهنگ‌سازی با AuthContext
       setTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
+      login(
+        res.user?.fullName || res.user?.name || "مدیر سامانه",
+        cleanPhone,
+        res.accessToken,
+        res.refreshToken,
+        "ADMIN"
+      );
       router.replace("/admin");
     } catch (err) {
       if (err instanceof ApiError && (err.status === 400 || err.status === 401)) {

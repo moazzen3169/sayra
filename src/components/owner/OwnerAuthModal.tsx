@@ -8,7 +8,7 @@ import { authService, UserGamingCenterOption } from "@/services/authService";
 interface OwnerAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (fullName: string, phone: string, token: string, refreshToken?: string, gamingCenterId?: string) => void;
+  onSuccess: (fullName: string, phone: string, token: string, refreshToken?: string, gamingCenterId?: string, role?: string) => void;
 }
 
 type AuthMode = "otp" | "password";
@@ -178,7 +178,8 @@ export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
       }
 
       const userName = loginRes.user?.fullName || loginRes.user?.name || "مدیر گیم‌نت";
-      onSuccess(userName, targetPhone, token, loginRes.refreshToken, centerIdToUse || loginRes.user?.gamingCenterId);
+      const userRole = loginRes.user?.role || "MANAGER";
+      onSuccess(userName, targetPhone, token, loginRes.refreshToken, centerIdToUse || loginRes.user?.gamingCenterId, userRole);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -241,7 +242,8 @@ export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
       }
 
       const userName = res.user?.fullName || res.user?.name || "مدیر گیم‌نت";
-      onSuccess(userName, cleanPhone, token, res.refreshToken, passwordCenterId.trim() || res.user?.gamingCenterId);
+      const userRole = res.user?.role || "MANAGER";
+      onSuccess(userName, cleanPhone, token, res.refreshToken, passwordCenterId.trim() || res.user?.gamingCenterId, userRole);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {

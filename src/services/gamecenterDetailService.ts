@@ -4,6 +4,7 @@ import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
 import { getMockGamecenterDetail } from "@/lib/mocks/gamecenter.mock";
 import { gamingCenterService as coreGamingCenterService } from "@/services/gamingCenterService";
 import { catalogService } from "@/services/catalogService";
+import { extractMediaItems, normalizeMediaUrl } from "@/lib/media";
 import type { GamecenterDetail, GamecenterImage, GamecenterReview, GameItem } from "@/types/gamecenter";
 import type {
   PublicAddress,
@@ -198,15 +199,15 @@ export const gamingCenterService = {
   },
 
   async getPublicMedia(slug: string, signal?: AbortSignal): Promise<PublicMediaItem[]> {
-    const { data } = await apiClient.get<PublicMediaItem[] | { data?: PublicMediaItem[] }>(
-      ENDPOINTS.gamingCenter.media(slug),
-      { signal }
-    );
-    if (Array.isArray(data)) return data;
-    if (data && typeof data === "object" && "data" in data && Array.isArray((data as { data: PublicMediaItem[] }).data)) {
-      return (data as { data: PublicMediaItem[] }).data;
+    try {
+      const { data } = await apiClient.get<unknown>(
+        ENDPOINTS.gamingCenter.media(slug),
+        { signal }
+      );
+      return extractMediaItems<PublicMediaItem>(data, "GALLERY");
+    } catch {
+      return [];
     }
-    return [];
   },
 
   async getPublicLinks(slug: string, signal?: AbortSignal): Promise<PublicSocialLink[]> {
@@ -228,12 +229,16 @@ export const gamingCenterService = {
 export function mapMediaToGalleryImages(mediaList: PublicMediaItem[]): GamecenterImage[] {
   if (!Array.isArray(mediaList)) return [];
   return mediaList
-    .filter((m) => m && Boolean(m.url))
-    .map((m, idx) => ({
-      id: m.id || `img-${idx + 1}`,
-      url: m.url,
-      alt: m.altText || `تصویر ${idx + 1}`,
-    }));
+    .map((m, idx) => {
+      const normalizedUrl = normalizeMediaUrl(m?.url);
+      if (!normalizedUrl) return null;
+      return {
+        id: m.id || `img-${idx + 1}`,
+        url: normalizedUrl,
+        alt: m.altText || `تصویر ${idx + 1}`,
+      };
+    })
+    .filter((img): img is GamecenterImage => img !== null);
 }
 
 /**
