@@ -208,9 +208,14 @@ export interface CreateGamingCenterPayload {
 }
 
 export interface CreateBranchAddressPayload {
-  address: string;
+  address?: string;
+  addressLine?: string;
   city?: string;
+  province?: string;
   phone?: string;
+  postalCode?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface CreateLinkPayload {

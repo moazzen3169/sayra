@@ -104,10 +104,51 @@ describe("Gaming Center Creation & Mutation Services (Phase OpenAPI v1.0-LOCKED)
     expect(req.method).toBe("POST");
     expect(req.url).toContain("/gamingCenters/gc-created-101/addresses");
     expect(req.body).toEqual({
-      address: "تهران، میدان ونک، خیابان ولیعصر",
       city: "تهران",
+      addressLine: "تهران، میدان ونک، خیابان ولیعصر",
+      address: "تهران، میدان ونک، خیابان ولیعصر",
       phone: "02188888888",
     });
+  });
+
+  it("2b. creates branch address with addressLine, city, and coordinates", async () => {
+    await ownerService.createAddress("gc-created-101", {
+      addressLine: "خیابان ولیعصر، نرسیده به میدان ونک",
+      address: "تهران، تهران، خیابان ولیعصر، نرسیده به میدان ونک",
+      city: "تهران",
+      province: "تهران",
+      phone: "09123456789",
+      lat: 35.6892,
+      lng: 51.3890,
+    });
+
+    expect(interceptedRequests.length).toBe(1);
+    const req = interceptedRequests[0];
+    expect(req.method).toBe("POST");
+    expect(req.url).toContain("/gamingCenters/gc-created-101/addresses");
+    expect(req.body.city).toBe("تهران");
+    expect(req.body.addressLine).toBe("خیابان ولیعصر، نرسیده به میدان ونک");
+    expect(req.body.address).toBe("تهران، تهران، خیابان ولیعصر، نرسیده به میدان ونک");
+    expect(req.body.phone).toBe("09123456789");
+    expect(req.body.province).toBe("تهران");
+    expect(req.body.lat).toBe(35.6892);
+    expect(req.body.lng).toBe(51.3890);
+  });
+
+  it("2c. validates required city and address fields before sending request", async () => {
+    await expect(
+      ownerService.createAddress("gc-created-101", {
+        city: "",
+        address: "خیابان آزادی",
+      })
+    ).rejects.toThrow("شهر وارد نشده است.");
+
+    await expect(
+      ownerService.createAddress("gc-created-101", {
+        city: "تهران",
+        address: "",
+      })
+    ).rejects.toThrow("آدرس وارد نشده است.");
   });
 
   it("3. creates social and website links with POST /gamingCenters/{id}/links", async () => {
