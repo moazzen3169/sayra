@@ -841,7 +841,7 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
                     disabled={isUploadingMedia}
                     className="flex items-center gap-2 shrink-0"
                   >
-                    <Icon name="arrow-up" size={16} />
+                    <Icon name="upload" size={16} />
                     <span>{isUploadingMedia ? "در حال آپلود فایل..." : "انتخاب و آپلود تصویر"}</span>
                   </Button>
                   <span className="text-xs text-[var(--text-muted)]">

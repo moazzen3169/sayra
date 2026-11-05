@@ -78,8 +78,40 @@ export default function BlogAdminPage() {
   }, [search, statusFilter, categoryFilter, sortBy, sortOrder, page]);
 
   useEffect(() => {
-    loadPosts();
-  }, [loadPosts]);
+    let isCancelled = false;
+    (async () => {
+      setIsLoading(true);
+      setIsError(false);
+      try {
+        const res = await adminService.getBlogPosts({
+          search,
+          status: statusFilter,
+          category: categoryFilter,
+          sortBy,
+          sortOrder,
+          page,
+          pageSize: 10,
+        });
+        if (!isCancelled) {
+          setData(res.items);
+          setTotal(res.total);
+          setTotalPages(res.totalPages);
+        }
+      } catch {
+        if (!isCancelled) {
+          setIsError(true);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [search, statusFilter, categoryFilter, sortBy, sortOrder, page]);
 
   const handleUpdateStatus = async (post: BlogPostDetail, newStatus: BlogPostStatus) => {
     try {
