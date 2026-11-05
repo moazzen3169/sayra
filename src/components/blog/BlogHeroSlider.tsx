@@ -17,6 +17,8 @@ import { isAbortError } from "@/lib/api/client";
 import { formatBlogDate, formatReadingMinutes } from "@/lib/blog";
 import { toPersianDigits } from "@/lib/format";
 import { blogService } from "@/services/blogService";
+import { SafeImage } from "@/components/ui/SafeImage";
+import { PLACEHOLDERS } from "@/lib/media";
 import type { BlogPostSummary } from "@/types/blog";
 
 const ASPECT = "aspect-[4/3] sm:aspect-[2/1] lg:aspect-[3/1]";
@@ -108,11 +110,12 @@ export const BlogHeroSlider: React.FC = () => {
                     href={`/blog/${post.slug}`}
                     className="group absolute inset-0 block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                   >
-                    <img
+                    <SafeImage
                       src={post.coverUrl}
-                      alt=""
+                      alt={post.title || ""}
                       draggable={false}
                       loading={index === 0 ? "eager" : "lazy"}
+                      fallbackSrc={PLACEHOLDERS.banner}
                       className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover"
                     />
                     <div className="absolute inset-0 bg-linear-to-t from-[var(--bg-body)] via-[var(--bg-body)]/60 to-transparent" />

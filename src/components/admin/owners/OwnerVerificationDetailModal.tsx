@@ -9,6 +9,8 @@ import {
   AdminVerificationDocument,
 } from "@/types/admin";
 import { adminService } from "@/services/adminService";
+import { SafeImage } from "@/components/ui/SafeImage";
+import { PLACEHOLDERS } from "@/lib/media";
 
 interface OwnerVerificationDetailModalProps {
   isOpen: boolean;
@@ -275,10 +277,10 @@ export const OwnerVerificationDetailModal: React.FC<OwnerVerificationDetailModal
                         {doc.type === "image" ? (
                           <div className="relative w-full h-full flex items-center justify-center p-2">
                             {/* Preserve Aspect Ratio Display */}
-                            {/* eslint-disable-next-html-element-for-jsx */}
-                            <img
+                            <SafeImage
                               src={doc.url}
                               alt={doc.name}
+                              fallbackSrc={PLACEHOLDERS.gallery}
                               className="max-h-full max-w-full object-contain rounded transition-transform group-hover:scale-105"
                             />
                             <button
@@ -512,10 +514,10 @@ export const OwnerVerificationDetailModal: React.FC<OwnerVerificationDetailModal
             </div>
             <div className="flex-1 overflow-auto flex items-center justify-center bg-black/50 p-2 rounded">
               {previewDocument.type === "image" ? (
-                /* eslint-disable-next-html-element-for-jsx */
-                <img
+                <SafeImage
                   src={previewDocument.url}
                   alt={previewDocument.name}
+                  fallbackSrc={PLACEHOLDERS.gallery}
                   className="max-h-[70vh] object-contain rounded"
                 />
               ) : (

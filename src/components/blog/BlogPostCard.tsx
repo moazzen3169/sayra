@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { formatBlogDate, formatReadingMinutes } from "@/lib/blog";
+import { SafeImage } from "@/components/ui/SafeImage";
+import { PLACEHOLDERS } from "@/lib/media";
 import type { BlogPostSummary } from "@/types/blog";
 
 export const BlogPostCard: React.FC<{ post: BlogPostSummary }> = ({ post }) => (
@@ -12,11 +14,11 @@ export const BlogPostCard: React.FC<{ post: BlogPostSummary }> = ({ post }) => (
     className="group flex h-full flex-col overflow-hidden rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] transition-colors hover:border-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
   >
     <div className="relative aspect-[16/10] shrink-0 overflow-hidden bg-[var(--foreground)]">
-      <img
+      <SafeImage
         src={post.coverUrl}
-        alt=""
+        alt={post.title || ""}
         loading="lazy"
-        decoding="async"
+        fallbackSrc={PLACEHOLDERS.banner}
         draggable={false}
         className="h-full w-full object-cover"
       />

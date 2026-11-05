@@ -14,6 +14,8 @@ import { Icon } from "@/components/ui/Icon";
 import { IRAN_PROVINCES, type ProvinceInfo } from "@/data/iranLocations";
 import { LocationMapPicker } from "@/components/owner/LocationMapPicker";
 import { BannerSlider } from "@/components/BannerSlider";
+import { SafeImage } from "@/components/ui/SafeImage";
+import { PLACEHOLDERS } from "@/lib/media";
 import type { CenterSettings } from "@/types/owner";
 
 const DAYS_OF_WEEK = [
@@ -994,9 +996,10 @@ export default function NewGamingCenterPage() {
                   </label>
                   {logoPreview ? (
                     <div className="relative w-28 h-28 rounded-card overflow-hidden border border-[var(--border-subtle)]">
-                      <img
+                      <SafeImage
                         src={logoPreview}
                         alt="Logo Preview"
+                        fallbackSrc={PLACEHOLDERS.avatar}
                         className="w-full h-full object-cover"
                       />
                       <button
@@ -1032,9 +1035,10 @@ export default function NewGamingCenterPage() {
                         key={idx}
                         className="relative h-24 rounded-card overflow-hidden border border-[var(--border-subtle)] group"
                       >
-                        <img
+                        <SafeImage
                           src={previewUrl}
                           alt={`Gallery ${idx + 1}`}
+                          fallbackSrc={PLACEHOLDERS.gallery}
                           className="w-full h-full object-cover"
                         />
                         <button
@@ -1223,7 +1227,12 @@ export default function NewGamingCenterPage() {
                       <div>
                         <span className="text-[var(--text-subtle)] block mb-1">لوگو:</span>
                         {logoPreview ? (
-                          <img src={logoPreview} alt="Logo" className="w-12 h-12 rounded object-cover border" />
+                          <SafeImage
+                            src={logoPreview}
+                            alt="Logo"
+                            fallbackSrc={PLACEHOLDERS.avatar}
+                            className="w-12 h-12 rounded object-cover border"
+                          />
                         ) : (
                           <span className="text-[var(--text-subtle)]">بارگذاری نشده</span>
                         )}

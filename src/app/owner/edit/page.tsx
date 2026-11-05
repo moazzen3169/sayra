@@ -8,6 +8,8 @@ import { isAbortError } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService } from "@/services/ownerService";
 import { BannerSlider } from "@/components/BannerSlider";
+import { SafeImage } from "@/components/ui/SafeImage";
+import { PLACEHOLDERS } from "@/lib/media";
 import type { CenterSettings, MediaItem } from "@/types/owner";
 
 const inputClass =
@@ -492,7 +494,12 @@ export default function OwnerEditPage() {
               {logoPreview ? (
                 <div className="flex items-center gap-4 p-3 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
                   <div className="w-16 h-16 rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[var(--foreground)] shrink-0">
-                    <img src={logoPreview} alt="لوگوی گیمنت" className="w-full h-full object-cover" />
+                    <SafeImage
+                      src={logoPreview}
+                      alt="لوگوی گیمنت"
+                      fallbackSrc={PLACEHOLDERS.avatar}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-xs font-bold text-[var(--text-white)]">لوگوی فعال مجموعه</span>
@@ -586,9 +593,10 @@ export default function OwnerEditPage() {
                             key={imgId}
                             className="relative aspect-square rounded-card border border-[var(--border-subtle)] overflow-hidden group bg-[var(--foreground)]/30"
                           >
-                            <img
+                            <SafeImage
                               src={img.url}
                               alt={img.altText || "تصویر گیمنت"}
+                              fallbackSrc={PLACEHOLDERS.gallery}
                               className="w-full h-full object-cover"
                             />
                             {/* Delete X Button on top right */}
@@ -641,7 +649,12 @@ export default function OwnerEditPage() {
 
             {deleteConfirmMedia.url && (
               <div className="w-24 h-24 mx-auto rounded-card overflow-hidden border border-[var(--border-subtle)]">
-                <img src={deleteConfirmMedia.url} alt="پیش‌نمایش" className="w-full h-full object-cover" />
+                <SafeImage
+                  src={deleteConfirmMedia.url}
+                  alt="پیش‌نمایش"
+                  fallbackSrc={PLACEHOLDERS.gallery}
+                  className="w-full h-full object-cover"
+                />
               </div>
             )}
 

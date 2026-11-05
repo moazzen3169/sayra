@@ -12,7 +12,8 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { BannerItem } from "@/types/home";
-import { normalizeMediaUrl } from "@/lib/media";
+import { normalizeMediaUrl, PLACEHOLDERS } from "@/lib/media";
+import { SafeImage } from "@/components/ui/SafeImage";
 
 const DEFAULT_ASPECT = "aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[4/1]";
 
@@ -257,20 +258,16 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
               const isExternal = href ? /^https?:\/\//.test(href) : false;
 
               const slideContent = (
-                <picture className="block w-full h-full">
-                  {item.desktopImageUrl && (
-                    <source media="(min-width: 1024px)" srcSet={item.desktopImageUrl} />
-                  )}
-                  <img
-                    src={normalizeMediaUrl(item.imageUrl)}
-                    alt={item.alt}
-                    draggable={false}
-                    onError={() => handleImageError(item.id)}
-                    loading={index === 0 ? "eager" : "lazy"}
-                    {...(index === 0 ? ({ fetchPriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>) : { decoding: "async" })}
-                    className="w-full h-full object-cover select-none pointer-events-none"
-                  />
-                </picture>
+                <SafeImage
+                  src={item.imageUrl}
+                  alt={item.alt}
+                  draggable={false}
+                  fallbackSrc={PLACEHOLDERS.banner}
+                  onError={() => handleImageError(item.id)}
+                  loading={index === 0 ? "eager" : "lazy"}
+                  {...(index === 0 ? ({ fetchPriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>) : { decoding: "async" })}
+                  className="w-full h-full object-cover select-none pointer-events-none"
+                />
               );
 
               let framed: React.ReactNode;
@@ -408,11 +405,12 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
               <CarouselContent className="h-full flex items-center">
                 {validBanners.map((item) => (
                   <CarouselItem key={item.id} className="basis-full h-full flex items-center justify-center p-2">
-                    <img
-                      src={normalizeMediaUrl(item.imageUrl)}
+                    <SafeImage
+                      src={item.imageUrl}
                       alt={item.alt}
                       draggable={false}
-                      className="h-[95vh] w-full max-w-[1100px] object-contain select-none rounded-card "
+                      fallbackSrc={PLACEHOLDERS.banner}
+                      className="h-[95vh] w-full max-w-[1100px] object-contain select-none rounded-card"
                     />
                   </CarouselItem>
                 ))}

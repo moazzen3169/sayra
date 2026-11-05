@@ -18,6 +18,8 @@ import { ApiError, isAbortError } from "@/lib/api/client";
 import { formatBlogDate, formatReadingMinutes } from "@/lib/blog";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { blogService } from "@/services/blogService";
+import { SafeImage } from "@/components/ui/SafeImage";
+import { PLACEHOLDERS } from "@/lib/media";
 import type { BlogPostDetail, BlogPostSummary } from "@/types/blog";
 
 interface DetailState {
@@ -211,9 +213,10 @@ export const BlogPostView: React.FC<{ slug: string }> = ({ slug }) => {
                 </header>
 
                 <div className="aspect-[16/9] w-full overflow-hidden rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]">
-                  <img
+                  <SafeImage
                     src={post.coverUrl}
                     alt={post.title}
+                    fallbackSrc={PLACEHOLDERS.banner}
                     className="h-full w-full object-cover"
                   />
                 </div>
