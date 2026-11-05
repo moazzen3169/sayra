@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
+import { extractMediaItems, extractMediaUrl, normalizeMediaUrl } from "@/lib/media";
 import type { GameStationInfo } from "@/services/gamingCenterService";
 import type {
   CenterSettings,
@@ -589,8 +590,12 @@ export const ownerService = {
 
   async listMedia(slug: string, signal?: AbortSignal): Promise<MediaItem[]> {
     if (!slug) return [];
-    const { data } = await apiClient.get<MediaItem[]>(ENDPOINTS.gamingCenter.media(slug), { signal });
-    return asArray<MediaItem>(data).filter((m) => !!m?.url);
+    try {
+      const { data } = await apiClient.get<unknown>(ENDPOINTS.gamingCenter.media(slug), { signal });
+      return extractMediaItems<MediaItem>(data, "GALLERY");
+    } catch {
+      return [];
+    }
   },
 
   async uploadGalleryImage(
@@ -610,30 +615,40 @@ export const ownerService = {
       form.append("altText", file.name);
     }
 
-    const res = await apiClient.post<MediaItem | { id?: string; url?: string; media?: MediaItem }>(
+    const res = await apiClient.post<any>(
       ENDPOINTS.owner.mediaUpload(centerId),
       form
     );
 
-    // Read actual server response
-    const data = res.data as any;
-    if (data && typeof data === "object") {
-      if (data.url) {
-        return {
-          id: data.id,
-          url: data.url,
-          altText: data.altText || options?.altText || file.name,
-          purpose: data.purpose || options?.purpose || "GALLERY",
-        };
-      }
-      if (data.media?.url) {
-        return data.media;
-      }
-    }
+    // Read actual server response with resilient extraction across all possible envelopes
+    const rawData = res.data;
+    const extractedUrl = extractMediaUrl(rawData);
+
+    const resolvedId =
+      rawData?.id ||
+      rawData?.data?.id ||
+      rawData?.media?.id ||
+      `media-${Date.now()}`;
+
+    const resolvedAlt =
+      rawData?.altText ||
+      rawData?.data?.altText ||
+      rawData?.media?.altText ||
+      options?.altText ||
+      file.name;
+
+    const resolvedPurpose =
+      rawData?.purpose ||
+      rawData?.data?.purpose ||
+      rawData?.media?.purpose ||
+      options?.purpose ||
+      "GALLERY";
 
     return {
-      url: "",
-      altText: options?.altText || file.name,
+      id: resolvedId,
+      url: extractedUrl,
+      altText: resolvedAlt,
+      purpose: resolvedPurpose,
     };
   },
 

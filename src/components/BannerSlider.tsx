@@ -12,6 +12,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { BannerItem } from "@/types/home";
+import { normalizeMediaUrl } from "@/lib/media";
 
 const DEFAULT_ASPECT = "aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[4/1]";
 
@@ -261,7 +262,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
                     <source media="(min-width: 1024px)" srcSet={item.desktopImageUrl} />
                   )}
                   <img
-                    src={item.imageUrl}
+                    src={normalizeMediaUrl(item.imageUrl)}
                     alt={item.alt}
                     draggable={false}
                     onError={() => handleImageError(item.id)}
@@ -408,7 +409,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
                 {validBanners.map((item) => (
                   <CarouselItem key={item.id} className="basis-full h-full flex items-center justify-center p-2">
                     <img
-                      src={item.imageUrl}
+                      src={normalizeMediaUrl(item.imageUrl)}
                       alt={item.alt}
                       draggable={false}
                       className="h-[95vh] w-full max-w-[1100px] object-contain select-none rounded-card "

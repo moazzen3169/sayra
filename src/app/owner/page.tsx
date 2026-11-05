@@ -8,6 +8,7 @@ import { OwnerHeader } from "@/components/owner/OwnerHeader";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService } from "@/services/ownerService";
+import { BannerSlider } from "@/components/BannerSlider";
 import type { MediaItem } from "@/types/owner";
 
 const Icon = ({ d }: { d: string }) => (
@@ -189,10 +190,13 @@ export default function OwnerDashboardPage() {
       setUploading(true);
       setGalleryError(null);
       try {
-        await ownerService.uploadGalleryImage(centerId, file, {
+        const uploaded = await ownerService.uploadGalleryImage(centerId, file, {
           altText: file.name,
           purpose: "GALLERY",
         });
+        if (uploaded.url) {
+          setMedia((prev) => [uploaded, ...prev.filter((m) => m.url !== uploaded.url)]);
+        }
         setMediaToken((v) => v + 1);
       } catch (err) {
         setGalleryError(getErrorMessage(err));
@@ -203,8 +207,22 @@ export default function OwnerDashboardPage() {
     [centerId, uploading]
   );
 
-  // تعداد کاشی‌های «+» تا ردیف ۴تایی کامل شود (حداقل یک کاشی)
-  const addTiles = Math.max(1, Math.ceil((media.length + 1) / 4) * 4 - media.length);
+  const galleryBanners = React.useMemo(
+    () =>
+      media
+        .filter((m) => m.purpose !== "LOGO" && Boolean(m.url))
+        .map((m, idx) => ({
+          id: m.id || `owner-gallery-${idx}`,
+          imageUrl: m.url,
+          alt: m.altText || "تصویر گالری گیمنت",
+        })),
+    [media]
+  );
+
+  const logoMedia = React.useMemo(
+    () => media.find((m) => m.purpose === "LOGO" || m.purpose === "COVER"),
+    [media]
+  );
 
   if (isCenterLoading) {
     return (
@@ -266,8 +284,16 @@ export default function OwnerDashboardPage() {
               </select>
             </div>
           ) : (
-            <div className="flex items-center gap-2 truncate">
-              <span className="w-2 h-2 rounded-full bg-[var(--primary)] shrink-0 animate-pulse" />
+            <div className="flex items-center gap-2.5 truncate">
+              {logoMedia?.url ? (
+                <img
+                  src={logoMedia.url}
+                  alt={center?.name || "لوگو"}
+                  className="w-8 h-8 rounded-full object-cover border border-[var(--border-subtle)] shrink-0"
+                />
+              ) : (
+                <span className="w-2 h-2 rounded-full bg-[var(--primary)] shrink-0 animate-pulse" />
+              )}
               <span className="text-sm font-bold text-[var(--text-white)] truncate">
                 {center?.name || "مرکز بازی"}
               </span>
@@ -492,9 +518,19 @@ export default function OwnerDashboardPage() {
           ))}
         </div>
 
-        {/* Gallery */}
+        {/* Gallery Slider & Upload */}
         <section className="flex flex-col gap-3 mt-3">
-          <h2 className="text-xs text-[var(--text-white)]">گالری تصاویر شما</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs text-[var(--text-white)] font-bold">گالری تصاویر شما</h2>
+            <button
+              type="button"
+              disabled={uploading || !isApproved}
+              onClick={() => fileRef.current?.click()}
+              className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+            >
+              {uploading ? "در حال آپلود..." : "+ افزودن عکس به گالری"}
+            </button>
+          </div>
 
           {galleryError && (
             <div className="p-3 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold">
@@ -502,32 +538,49 @@ export default function OwnerDashboardPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-4 lg:grid-cols-6 gap-3">
-            {media.map((m, i) => (
-              <div key={m.id ?? `${m.url}-${i}`} className="relative aspect-square rounded-card overflow-hidden bg-[var(--foreground)]">
-                <img src={m.url} alt={m.altText ?? "تصویر گیمنت"} className="w-full h-full object-cover" />
+          {galleryBanners.length > 0 ? (
+            <div className="w-full flex flex-col gap-3">
+              <BannerSlider
+                banners={galleryBanners}
+                aspectClassName="aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[3/1]"
+                ariaLabel="گالری تصاویر گیمنت"
+              />
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
+                {galleryBanners.map((m, i) => (
+                  <div key={m.id ?? `${m.imageUrl}-${i}`} className="relative aspect-square rounded-card overflow-hidden bg-[var(--foreground)] border border-[var(--border-subtle)]">
+                    <img src={m.imageUrl} alt={m.alt ?? "تصویر گیمنت"} className="w-full h-full object-cover" />
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  disabled={uploading || !isApproved}
+                  onClick={() => fileRef.current?.click()}
+                  aria-label="افزودن تصویر"
+                  className="aspect-square rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex items-center justify-center disabled:opacity-50 hover:border-[var(--primary)] transition-colors cursor-pointer"
+                >
+                  <span className="w-[70%] h-[70%] rounded-md border-2 border-dashed border-[var(--text-subtle)] flex items-center justify-center text-[var(--text-muted)] text-2xl">
+                    {uploading ? (
+                      <span className="w-4 h-4 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" />
+                    ) : (
+                      "+"
+                    )}
+                  </span>
+                </button>
               </div>
-            ))}
-
-            {Array.from({ length: addTiles }).map((_, i) => (
+            </div>
+          ) : (
+            <div className="p-6 rounded-card bg-[var(--bg-card)] border border-dashed border-[var(--border-subtle)] flex flex-col items-center justify-center gap-3 text-center">
+              <span className="text-xs text-[var(--text-muted)]">هنوز تصویری برای گالری آپلود نشده است.</span>
               <button
-                key={`add-${i}`}
                 type="button"
                 disabled={uploading || !isApproved}
                 onClick={() => fileRef.current?.click()}
-                aria-label="افزودن تصویر"
-                className="aspect-square rounded-card bg-[var(--bg-card)] flex items-center justify-center disabled:opacity-50"
+                className="px-4 py-2 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 disabled:opacity-50 transition-all cursor-pointer"
               >
-                <span className="w-[70%] h-[70%] rounded-md border-2 border-dashed border-[var(--text-subtle)] flex items-center justify-center text-[var(--text-muted)] text-3xl">
-                  {uploading && i === 0 ? (
-                    <span className="w-5 h-5 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" />
-                  ) : (
-                    "+"
-                  )}
-                </span>
+                {uploading ? "در حال آپلود..." : "آپلود اولین تصویر گالری"}
               </button>
-            ))}
-          </div>
+            </div>
+          )}
 
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
         </section>

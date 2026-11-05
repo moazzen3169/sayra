@@ -378,8 +378,8 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       <OwnerAuthModal
         isOpen={authOpen}
         onClose={() => setAuthOpen(false)}
-        onSuccess={(fullName, phone, token, refreshToken, chosenCenterId) => {
-          login(fullName, phone, token, refreshToken);
+        onSuccess={(fullName, phone, token, refreshToken, chosenCenterId, role) => {
+          login(fullName, phone, token, refreshToken, role || "MANAGER");
           if (chosenCenterId) {
             try {
               localStorage.setItem(OWNER_CENTER_KEY, chosenCenterId);
