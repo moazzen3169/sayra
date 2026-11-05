@@ -956,7 +956,18 @@ export const adminService = {
     const parsedCatId = Number(input.category);
     const categoryId = !isNaN(parsedCatId) && parsedCatId > 0 ? parsedCatId : undefined;
 
-    const requestBody = mapAdminInputToCreateRequest(input, categoryId);
+    // Resolve or sync tags if tagIds not provided directly
+    let resolvedTagIds = input.tagIds;
+    if ((!resolvedTagIds || resolvedTagIds.length === 0) && input.tags && input.tags.length > 0) {
+      try {
+        resolvedTagIds = await adminService.ensureTagsExist(input.tags);
+      } catch {
+        // Tag sync error should not block article creation if network fails
+      }
+    }
+
+    const coverImageId = input.coverImageId != null ? String(input.coverImageId) : undefined;
+    const requestBody = mapAdminInputToCreateRequest(input, categoryId, resolvedTagIds, coverImageId);
 
     const createdDto = await blogApiService.createArticle(requestBody);
     return mapArticleDetailToUi(createdDto);
@@ -992,7 +1003,22 @@ export const adminService = {
     const parsedCatId = input.category ? Number(input.category) : undefined;
     const categoryId = parsedCatId && !isNaN(parsedCatId) && parsedCatId > 0 ? parsedCatId : undefined;
 
-    const patchBody = mapAdminInputToPatchRequest(input, categoryId);
+    // Resolve or sync tags if tags were provided
+    let resolvedTagIds = input.tagIds;
+    if (resolvedTagIds === undefined && input.tags !== undefined) {
+      if (input.tags.length > 0) {
+        try {
+          resolvedTagIds = await adminService.ensureTagsExist(input.tags);
+        } catch {
+          // Keep unresolved
+        }
+      } else {
+        resolvedTagIds = [];
+      }
+    }
+
+    const coverImageId = input.coverImageId !== undefined ? (input.coverImageId != null ? String(input.coverImageId) : null) : undefined;
+    const patchBody = mapAdminInputToPatchRequest(input, categoryId, resolvedTagIds, coverImageId);
 
     const updatedDto = await blogApiService.patchArticle(targetSlug, patchBody);
     return mapArticleDetailToUi(updatedDto);
@@ -1052,6 +1078,128 @@ export const adminService = {
   async getBlogCategories(): Promise<BlogCategory[]> {
     const dtos = await blogApiService.getCategories();
     return (dtos || []).map(mapCategoryToUi);
+  },
+
+  /**
+   * Full CRUD operations for Blog Categories
+   */
+  async getCategoryList(): Promise<CategoryDto[]> {
+    return blogApiService.getCategories();
+  },
+
+  async createCategory(body: CategoryRequestDto): Promise<CategoryDto> {
+    return blogApiService.createCategory(body);
+  },
+
+  async updateCategory(id: number | string, body: CategoryRequestDto): Promise<CategoryDto> {
+    return blogApiService.updateCategory(id, body);
+  },
+
+  async patchCategory(id: number | string, body: PatchedCategoryRequestDto): Promise<CategoryDto> {
+    return blogApiService.patchCategory(id, body);
+  },
+
+  async deleteCategory(id: number | string): Promise<void> {
+    return blogApiService.deleteCategory(id);
+  },
+
+  /**
+   * Full CRUD operations for Blog Tags
+   */
+  async getTagsList(): Promise<TagDto[]> {
+    return blogApiService.getTags();
+  },
+
+  async createTag(body: TagRequestDto): Promise<TagDto> {
+    return blogApiService.createTag(body);
+  },
+
+  async updateTag(id: number | string, body: TagRequestDto): Promise<TagDto> {
+    return blogApiService.updateTag(id, body);
+  },
+
+  async deleteTag(id: number | string): Promise<void> {
+    return blogApiService.deleteTag(id);
+  },
+
+  /**
+   * Checks for existing tags by name/slug and creates any missing tags,
+   * returning unique tag IDs (tag_ids) for the article.
+   */
+  async ensureTagsExist(tagNames: string[]): Promise<number[]> {
+    const trimmedNames = Array.from(
+      new Set(tagNames.map((t) => t.trim()).filter((t) => t.length > 0))
+    );
+    if (trimmedNames.length === 0) return [];
+
+    const existingTags = await blogApiService.getTags();
+    const tagIds: number[] = [];
+
+    for (const name of trimmedNames) {
+      // Find matching tag by name or slug (case-insensitive)
+      const found = existingTags.find(
+        (t) =>
+          t.name.trim().toLowerCase() === name.toLowerCase() ||
+          t.slug.trim().toLowerCase() === name.toLowerCase()
+      );
+
+      if (found) {
+        tagIds.push(found.id);
+      } else {
+        // Generate valid slug
+        const rawSlug = name
+          .toLowerCase()
+          .replace(/[^\w\s-]/g, "")
+          .replace(/\s+/g, "-")
+          .replace(/-+/g, "-")
+          .trim();
+        const finalSlug = rawSlug.length > 0 ? rawSlug : `tag-${Date.now().toString(36)}`;
+
+        try {
+          const created = await blogApiService.createTag({
+            name,
+            slug: finalSlug,
+          });
+          tagIds.push(created.id);
+          existingTags.push(created);
+        } catch (err) {
+          // If creation fails due to unique conflict, try to fetch again
+          const refreshed = await blogApiService.getTags();
+          const matchAfter = refreshed.find(
+            (t) =>
+              t.name.trim().toLowerCase() === name.toLowerCase() ||
+              t.slug.trim().toLowerCase() === finalSlug.toLowerCase()
+          );
+          if (matchAfter) {
+            tagIds.push(matchAfter.id);
+          }
+        }
+      }
+    }
+
+    return Array.from(new Set(tagIds));
+  },
+
+  /**
+   * Media upload via POST /api/media/ using FormData
+   */
+  async uploadMedia(input: MediaCreateRequestDto): Promise<MediaDetailDto> {
+    return blogApiService.uploadMedia(input);
+  },
+
+  /**
+   * Authors list from GET /api/authors/
+   */
+  async getAuthorsList(): Promise<AuthorProfileDto[]> {
+    return blogApiService.getAuthors();
+  },
+
+  /**
+   * Content block definitions inspection:
+   * GET /api/articles/block-definitions/
+   */
+  async getBlockDefinitions(): Promise<BlockDefinitionDto[]> {
+    return blogApiService.getBlockDefinitions();
   },
 
   // ==================== CAMPAIGNS & DISCOUNTS ====================
