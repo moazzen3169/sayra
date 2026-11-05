@@ -74,23 +74,6 @@ export const SafeImage: React.FC<SafeImageProps> = ({
     setHasFallbackError(false);
   }, [src, thumbSrc, fallbackSrc]);
 
-  const handleError = useCallback(
-    (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-      if (!hasPrimaryError) {
-        // First error on primary image
-        setHasPrimaryError(true);
-      } else {
-        // Fallback itself failed; do not trigger another change to prevent infinite loops
-        setHasFallbackError(true);
-      }
-
-      if (onError) {
-        onError(e);
-      }
-    },
-    [hasPrimaryError, onError]
-  );
-
   // Decide which source to display
   let currentSrc: string;
   if (hasFallbackError) {
@@ -101,6 +84,23 @@ export const SafeImage: React.FC<SafeImageProps> = ({
   } else {
     currentSrc = primaryResolved;
   }
+
+  const handleError = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+      // If the currently displayed image is already the fallback (or primary failed),
+      // then another error means the fallback itself failed.
+      if (!primaryResolved || hasPrimaryError || currentSrc === resolvedFallback) {
+        setHasFallbackError(true);
+      } else {
+        setHasPrimaryError(true);
+      }
+
+      if (onError) {
+        onError(e);
+      }
+    },
+    [primaryResolved, hasPrimaryError, currentSrc, resolvedFallback, onError]
+  );
 
   const combinedStyle: React.CSSProperties = {
     ...style,

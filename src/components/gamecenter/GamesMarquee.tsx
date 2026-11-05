@@ -3,6 +3,8 @@
 import React, { useMemo, useState } from "react";
 import { toPersianDigits } from "@/lib/format";
 import { Icon } from "@/components/ui/Icon";
+import { SafeImage } from "@/components/ui/SafeImage";
+import { PLACEHOLDERS } from "@/lib/media";
 import type { GameItem } from "@/types/gamecenter";
 
 const normalize = (v: string) =>
@@ -15,30 +17,19 @@ const normalize = (v: string) =>
     .trim();
 
 const GameTile: React.FC<{ game: GameItem; className?: string }> = ({ game, className = "w-28 sm:w-32 aspect-[3/4]" }) => {
-  const [failed, setFailed] = useState(false);
-  const hasLogo = !!game.logo && !failed;
-
   return (
     <div
       title={game.name}
       className={`rounded-card overflow-hidden bg-[var(--bg-card)] border border-[var(--border-subtle)] shadow-md shrink-0 flex items-center justify-center relative group transition-transform hover:scale-[1.02] ${className}`}
     >
-      {hasLogo ? (
-        <img
-          src={game.logo}
-          alt={game.name}
-          loading="lazy"
-          draggable={false}
-          onError={() => setFailed(true)}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
-      ) : (
-        <div className="p-3 text-center flex items-center justify-center w-full h-full bg-[var(--foreground)]/40">
-          <span className="text-xs font-bold text-[var(--text-white)] leading-snug line-clamp-3">
-            {game.name}
-          </span>
-        </div>
-      )}
+      <SafeImage
+        src={game.logo}
+        alt={game.name}
+        fallbackSrc={PLACEHOLDERS.center}
+        loading="lazy"
+        draggable={false}
+        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+      />
     </div>
   );
 };

@@ -46,6 +46,8 @@ import type { GamecenterDetail } from "@/types/gamecenter";
 import type { BannerItem } from "@/types/home";
 import type { Reservation } from "@/types/reservation";
 import { GamecenterInfoCard } from "@/components/gamecenter/GamecenterInfoCard";
+import { PLACEHOLDERS } from "@/lib/media";
+import { SafeImage } from "@/components/ui/SafeImage";
 
 /* ---------- Helpers ---------- */
 
@@ -316,12 +318,23 @@ export default function GameCenterDetailPage({
   );
 
   const galleryItems: BannerItem[] = useMemo(
-    () =>
-      (detail?.images ?? []).map((img) => ({
+    () => {
+      const images = detail?.images ?? [];
+      if (images.length === 0) {
+        return [
+          {
+            id: "fallback-gallery",
+            imageUrl: PLACEHOLDERS.gallery,
+            alt: detail?.center.name ? `تصویر گالری ${detail.center.name}` : "تصویر گیمنت",
+          },
+        ];
+      }
+      return images.map((img) => ({
         id: img.id,
         imageUrl: img.url,
-        alt: img.alt,
-      })),
+        alt: img.alt || detail?.center.name || "تصویر گیمنت",
+      }));
+    },
     [detail],
   );
 
@@ -518,6 +531,7 @@ export default function GameCenterDetailPage({
                 <div className="w-full">
                   <BannerSlider
                     banners={galleryItems}
+                    fallbackSrc={PLACEHOLDERS.gallery}
                     aspectClassName={GALLERY_ASPECT}
                     ariaLabel="گالری تصاویر گیمنت"
                   />
