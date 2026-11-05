@@ -72,6 +72,57 @@ export const ENDPOINTS = {
     gameById: (id: string) => `/catalog/games/${enc(id)}`,
   },
 
+  /* ---------- پلتفرم وبلاگ سایرا (Blog Platform API) ---------- */
+  blog: {
+    articles: {
+      list: "/articles/",
+      create: "/articles/",
+      detail: (slug: string) => `/articles/${enc(slug)}/`,
+      update: (slug: string) => `/articles/${enc(slug)}/`,
+      patch: (slug: string) => `/articles/${enc(slug)}/`,
+      delete: (slug: string) => `/articles/${enc(slug)}/`,
+      bySlug: (slug: string) => `/articles/slug/${enc(slug)}/`,
+      counts: "/articles/counts/",
+      publish: (slug: string) => `/articles/${enc(slug)}/publish/`,
+      related: (slug: string) => `/articles/${enc(slug)}/related/`,
+      sameCategory: (slug: string) => `/articles/${enc(slug)}/same-category/`,
+      similar: (slug: string) => `/articles/${enc(slug)}/similar/`,
+      blockDefinitions: "/articles/block-definitions/",
+    },
+    categories: {
+      list: "/categories/",
+      create: "/categories/",
+      detail: (id: number | string) => `/categories/${enc(String(id))}/`,
+      update: (id: number | string) => `/categories/${enc(String(id))}/`,
+      patch: (id: number | string) => `/categories/${enc(String(id))}/`,
+      delete: (id: number | string) => `/categories/${enc(String(id))}/`,
+    },
+    tags: {
+      list: "/tags/",
+      create: "/tags/",
+      detail: (id: number | string) => `/tags/${enc(String(id))}/`,
+      update: (id: number | string) => `/tags/${enc(String(id))}/`,
+      patch: (id: number | string) => `/tags/${enc(String(id))}/`,
+      delete: (id: number | string) => `/tags/${enc(String(id))}/`,
+    },
+    media: {
+      list: "/media/",
+      create: "/media/",
+      detail: (id: number | string) => `/media/${enc(String(id))}/`,
+      update: (id: number | string) => `/media/${enc(String(id))}/`,
+      patch: (id: number | string) => `/media/${enc(String(id))}/`,
+      delete: (id: number | string) => `/media/${enc(String(id))}/`,
+    },
+    authors: {
+      list: "/authors/",
+      create: "/authors/",
+      detail: (user: number | string) => `/authors/${enc(String(user))}/`,
+      update: (user: number | string) => `/authors/${enc(String(user))}/`,
+      patch: (user: number | string) => `/authors/${enc(String(user))}/`,
+      delete: (user: number | string) => `/authors/${enc(String(user))}/`,
+    },
+  },
+
   /* ---------- پنل صاحب گیمنت ---------- */
   owner: {
     me: "/auth/me",

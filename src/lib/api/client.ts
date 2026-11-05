@@ -23,6 +23,8 @@ export interface ApiEnvelope<T> {
     details?: unknown;
   };
   message?: string;
+  messagesList?: string[];
+  pagination?: unknown;
 }
 
 export class ApiError extends Error {
@@ -96,7 +98,7 @@ async function executeFetch<T>(
   path: string,
   options: RequestOptions = {},
   overrideToken?: string | null
-): Promise<{ data: T; meta?: ApiMeta; message?: string }> {
+): Promise<{ data: T; meta?: ApiMeta; message?: string; messagesList?: string[]; pagination?: unknown; rawEnvelope?: unknown }> {
   if (!API_BASE_URL) {
     throw new ApiError(0, "API_BASE_URL_MISSING", "ارتباط با سرور برقرار نشد.");
   }
@@ -185,6 +187,9 @@ async function executeFetch<T>(
     data: (json?.data !== undefined ? json.data : (json as unknown as T)) as T,
     meta: json?.meta,
     message: json?.message,
+    messagesList: json?.messagesList,
+    pagination: json?.pagination,
+    rawEnvelope: json,
   };
 }
 
@@ -220,7 +225,7 @@ async function request<T>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
   options: RequestOptions = {}
-): Promise<{ data: T; meta?: ApiMeta; message?: string }> {
+): Promise<{ data: T; meta?: ApiMeta; message?: string; messagesList?: string[]; pagination?: unknown; rawEnvelope?: unknown }> {
   const shouldRetry = options.retryOnAuth !== false && path !== "/auth/refresh" && path !== "/auth/login";
 
   try {
