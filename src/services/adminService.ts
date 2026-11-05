@@ -36,11 +36,23 @@ import type {
   AdminBlogPostInput,
   BlogCategory,
 } from "@/types/blog";
+import { blogApiService } from "@/services/blogApiService";
 import {
-  MOCK_BLOG_CATEGORIES,
-  MOCK_BLOG_POSTS,
-  findMockPost,
-} from "@/lib/mocks/blog.mock";
+  mapArticleDetailToUi,
+  mapArticleListToSummary,
+  mapCategoryToUi,
+  mapAdminInputToCreateRequest,
+  mapAdminInputToPatchRequest,
+  mapUiStatusToApi,
+} from "@/lib/mappers/blogMapper";
+import type {
+  ArticleDetailDto,
+  ArticleListDto,
+  ArticleListQueryParams,
+  CategoryDto,
+  PatchedArticleCreateUpdateRequestDto,
+  PostStatusApiEnum,
+} from "@/types/blogApi";
 
 // In-memory / LocalStorage state store for mock administrative data
 let gamecentersStore: AdminGamecenter[] = [...MOCK_ADMIN_GAMECENTERS];
@@ -52,10 +64,6 @@ let verificationsStore: AdminOwnerVerification[] = [...MOCK_ADMIN_OWNER_VERIFICA
 let adRequestsStore: AdminAdRequest[] = [...MOCK_ADMIN_AD_REQUESTS];
 let campaignsStore: AdminCampaign[] = [...MOCK_ADMIN_CAMPAIGNS];
 let siteSettingsStore: SiteSettings = { ...MOCK_SITE_SETTINGS };
-let blogPostsStore: BlogPostDetail[] = MOCK_BLOG_POSTS.map((summary) => {
-  const detail = findMockPost(summary.slug);
-  return detail || { ...summary, content: [] };
-});
 
 // Load from localStorage on client side if available
 if (typeof window !== "undefined") {
@@ -86,9 +94,6 @@ if (typeof window !== "undefined") {
 
     const stgSaved = localStorage.getItem("sayra_admin_site_settings");
     if (stgSaved) siteSettingsStore = JSON.parse(stgSaved);
-
-    const blogSaved = localStorage.getItem("sayra_admin_blog_posts");
-    if (blogSaved) blogPostsStore = JSON.parse(blogSaved);
   } catch (e) {
     console.warn("Failed to load admin mock store from localStorage", e);
   }
@@ -843,6 +848,31 @@ export const adminService = {
 
   // ==================== BLOG POSTS ====================
 
+  /**
+   * Helper: map UI sort keys to backend DRF ordering
+   */
+  mapAdminSortToOrdering(sortBy: string = "createdAt", sortOrder: "asc" | "desc" = "desc"): string {
+    const prefix = sortOrder === "desc" ? "-" : "";
+    switch (sortBy) {
+      case "publishedAt":
+        return `${prefix}published_at`;
+      case "viewsCount":
+        return `${prefix}views_count`;
+      case "readingMinutes":
+        return `${prefix}reading_time_sec`;
+      case "title":
+        return `${prefix}title`;
+      case "createdAt":
+      default:
+        // Backend stores published_at / creation date; ordering by published_at or id
+        return `${prefix}published_at`;
+    }
+  },
+
+  /**
+   * GET /api/articles/
+   * List articles for Admin Panel with real backend API pagination, search, category, and sorting.
+   */
   async getBlogPosts(
     params: AdminListQueryParams & { category?: string } = {}
   ): Promise<AdminPaginatedResult<BlogPostDetail>> {
@@ -856,193 +886,172 @@ export const adminService = {
       pageSize = 10,
     } = params;
 
-    let filtered = [...blogPostsStore];
-
-    // Filter by search
-    if (search.trim()) {
-      const query = search.trim().toLowerCase();
-      filtered = filtered.filter(
-        (p) =>
-          p.title.toLowerCase().includes(query) ||
-          p.slug.toLowerCase().includes(query) ||
-          p.excerpt.toLowerCase().includes(query) ||
-          p.authorName.toLowerCase().includes(query) ||
-          p.tags.some((t) => t.toLowerCase().includes(query)) ||
-          p.categoryLabel.toLowerCase().includes(query)
-      );
-    }
-
-    // Filter by status
-    if (status && status !== "all") {
-      filtered = filtered.filter((p) => (p.status ?? "PUBLISHED") === status);
-    }
-
-    // Filter by category
-    if (category && category !== "all") {
-      filtered = filtered.filter((p) => p.category === category);
-    }
-
-    // Sort
-    filtered.sort((a, b) => {
-      const valA = (a as unknown as Record<string, unknown>)[sortBy] ?? "";
-      const valB = (b as unknown as Record<string, unknown>)[sortBy] ?? "";
-
-      if (typeof valA === "string" && typeof valB === "string") {
-        return sortOrder === "asc"
-          ? valA.localeCompare(valB, "fa")
-          : valB.localeCompare(valA, "fa");
-      }
-
-      if (typeof valA === "number" && typeof valB === "number") {
-        return sortOrder === "asc" ? valA - valB : valB - valA;
-      }
-
-      return 0;
-    });
-
-    // Pagination
-    const total = filtered.length;
-    const totalPages = Math.ceil(total / pageSize) || 1;
-    const safePage = Math.max(1, Math.min(page, totalPages));
-    const start = (safePage - 1) * pageSize;
-    const items = filtered.slice(start, start + pageSize);
-
-    return Promise.resolve({
-      items,
-      total,
-      page: safePage,
-      pageSize,
-      totalPages,
-    });
-  },
-
-  async getBlogPostById(id: string): Promise<BlogPostDetail | null> {
-    const post = blogPostsStore.find((p) => p.id === id || p.slug === id);
-    return Promise.resolve(post || null);
-  },
-
-  async createBlogPost(input: AdminBlogPostInput): Promise<BlogPostDetail> {
-    const existing = blogPostsStore.find((p) => p.slug === input.slug.trim());
-    if (existing) {
-      throw new Error("این شناسه (Slug) قبلاً استفاده شده است.");
-    }
-
-    const categoryObj = MOCK_BLOG_CATEGORIES.find((c) => c.id === input.category);
-    const nowIso = new Date().toISOString();
-
-    const newPost: BlogPostDetail = {
-      id: `bp-${Date.now()}`,
-      slug: input.slug.trim(),
-      title: input.title.trim(),
-      excerpt: input.excerpt.trim(),
-      coverUrl: input.coverUrl.trim() || "/img/gamnet-1.webp",
-      category: input.category,
-      categoryLabel: categoryObj ? categoryObj.label : "عمومی",
-      authorName: input.authorName.trim() || "تحریریه‌ی سایرا",
-      readingMinutes: input.readingMinutes || 5,
-      tags: input.tags,
-      featured: Boolean(input.featured),
-      status: input.status,
-      publishedAt: input.status === "PUBLISHED" ? (input.publishedAt || nowIso) : "",
-      createdAt: nowIso,
-      updatedAt: nowIso,
-      viewsCount: 0,
-      content: input.content || [],
+    const queryParams: ArticleListQueryParams = {
+      page,
+      page_size: pageSize,
+      search: search.trim() || undefined,
+      ordering: this.mapAdminSortToOrdering(sortBy, sortOrder),
     };
 
-    blogPostsStore.unshift(newPost);
-    persistStore("sayra_admin_blog_posts", blogPostsStore);
-    return Promise.resolve(newPost);
+    if (category && category !== "all") {
+      queryParams.category = category;
+    }
+
+    // Contract note: Blog-Platform-API.yaml query parameters do not include 'status' in GET /articles/.
+    // We send status to backend query if specified and not 'all', so if backend supports it, it applies server-side.
+    if (status && status !== "all") {
+      const apiStatus = mapUiStatusToApi(status as BlogPostStatus);
+      queryParams.status = apiStatus;
+    }
+
+    const res = await blogApiService.getArticles(queryParams);
+
+    let items = (res.items || []).map((dto) => mapArticleDetailToUi(dto as unknown as ArticleDetailDto));
+
+    // If client requested a specific status filter and backend did not filter (or returned mixed statuses),
+    // we safely ensure the UI status filter consistency.
+    if (status && status !== "all") {
+      items = items.filter((item) => item.status === status);
+    }
+
+    return {
+      items,
+      total: res.pagination?.total ?? items.length,
+      page: res.pagination?.page ?? page,
+      pageSize: res.pagination?.pageSize ?? pageSize,
+      totalPages: res.pagination?.totalPages ?? (items.length ? 1 : 0),
+    };
   },
 
+  /**
+   * GET /api/articles/{slug}/
+   * Retrieves single article detail from backend by slug or ID.
+   */
+  async getBlogPostById(idOrSlug: string): Promise<BlogPostDetail | null> {
+    try {
+      const dto = await blogApiService.getArticleBySlug(idOrSlug);
+      if (!dto) return null;
+      return mapArticleDetailToUi(dto);
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * POST /api/articles/
+   * Creates a new blog article in the backend.
+   */
+  async createBlogPost(input: AdminBlogPostInput): Promise<BlogPostDetail> {
+    if (!input.title || !input.title.trim()) {
+      throw new Error("عنوان مقاله نمی‌تواند خالی باشد.");
+    }
+    if (!input.slug || !input.slug.trim()) {
+      throw new Error("شناسه (Slug) مقاله نمی‌تواند خالی باشد.");
+    }
+    if (!input.excerpt || !input.excerpt.trim()) {
+      throw new Error("خلاصه یا چکیده مقاله الزامی است.");
+    }
+
+    // Resolve categoryId if category string is numeric
+    const parsedCatId = Number(input.category);
+    const categoryId = !isNaN(parsedCatId) && parsedCatId > 0 ? parsedCatId : undefined;
+
+    const requestBody = mapAdminInputToCreateRequest(input, categoryId);
+
+    const createdDto = await blogApiService.createArticle(requestBody);
+    return mapArticleDetailToUi(createdDto);
+  },
+
+  /**
+   * PATCH /api/articles/{slug}/
+   * Partially updates a blog article without overriding untouched fields.
+   */
   async updateBlogPost(
-    id: string,
+    idOrSlug: string,
     input: Partial<AdminBlogPostInput>
   ): Promise<BlogPostDetail> {
-    const index = blogPostsStore.findIndex((p) => p.id === id);
-    if (index === -1) {
-      throw new Error("مقاله مورد نظر یافت نشد.");
+    // Resolve target slug
+    let targetSlug = idOrSlug;
+
+    // Check if input provides a new/current slug
+    if (input.slug && input.slug.trim()) {
+      targetSlug = input.slug.trim();
     }
 
-    const current = blogPostsStore[index];
-
-    if (input.slug && input.slug !== current.slug) {
-      const slugConflict = blogPostsStore.find((p) => p.slug === input.slug && p.id !== id);
-      if (slugConflict) {
-        throw new Error("این شناسه (Slug) قبلاً استفاده شده است.");
+    // First fetch current article to ensure slug is valid and verify state
+    let currentArticle: ArticleDetailDto | null = null;
+    try {
+      currentArticle = await blogApiService.getArticleBySlug(idOrSlug);
+      if (currentArticle?.slug) {
+        targetSlug = currentArticle.slug;
       }
+    } catch {
+      // If fetching by ID failed, proceed with idOrSlug as slug
     }
 
-    const nowIso = new Date().toISOString();
-    const newStatus = input.status ?? current.status ?? "PUBLISHED";
-    let newPublishedAt = current.publishedAt;
+    const parsedCatId = input.category ? Number(input.category) : undefined;
+    const categoryId = parsedCatId && !isNaN(parsedCatId) && parsedCatId > 0 ? parsedCatId : undefined;
 
-    if (newStatus === "PUBLISHED" && !current.publishedAt) {
-      newPublishedAt = input.publishedAt || nowIso;
-    } else if (input.publishedAt !== undefined) {
-      newPublishedAt = input.publishedAt;
-    }
+    const patchBody = mapAdminInputToPatchRequest(input, categoryId);
 
-    const categoryObj = input.category
-      ? MOCK_BLOG_CATEGORIES.find((c) => c.id === input.category)
-      : undefined;
-
-    const updated: BlogPostDetail = {
-      ...current,
-      ...input,
-      status: newStatus,
-      publishedAt: newPublishedAt,
-      updatedAt: nowIso,
-      categoryLabel: categoryObj ? categoryObj.label : current.categoryLabel,
-    };
-
-    blogPostsStore[index] = updated;
-    persistStore("sayra_admin_blog_posts", blogPostsStore);
-    return Promise.resolve(updated);
+    const updatedDto = await blogApiService.patchArticle(targetSlug, patchBody);
+    return mapArticleDetailToUi(updatedDto);
   },
 
+  /**
+   * Updates article status:
+   * - If newStatus is PUBLISHED, invokes POST /api/articles/{slug}/publish/
+   * - Otherwise invokes PATCH /api/articles/{slug}/ with status: draft | archived
+   */
   async updateBlogPostStatus(
-    id: string,
+    idOrSlug: string,
     status: BlogPostStatus
   ): Promise<BlogPostDetail> {
-    const index = blogPostsStore.findIndex((p) => p.id === id);
-    if (index === -1) {
-      throw new Error("مقاله مورد نظر یافت نشد.");
+    // Resolve slug from backend first
+    let slug = idOrSlug;
+    try {
+      const current = await blogApiService.getArticleBySlug(idOrSlug);
+      if (current?.slug) slug = current.slug;
+    } catch {
+      // Use idOrSlug as fallback
     }
 
-    const current = blogPostsStore[index];
-    const nowIso = new Date().toISOString();
-    let publishedAt = current.publishedAt;
-
-    if (status === "PUBLISHED" && !publishedAt) {
-      publishedAt = nowIso;
+    if (status === "PUBLISHED") {
+      const publishedDto = await blogApiService.publishArticle(slug);
+      return mapArticleDetailToUi(publishedDto);
     }
 
-    const updated: BlogPostDetail = {
-      ...current,
-      status,
-      publishedAt,
-      updatedAt: nowIso,
-    };
-
-    blogPostsStore[index] = updated;
-    persistStore("sayra_admin_blog_posts", blogPostsStore);
-    return Promise.resolve(updated);
+    const apiStatus = mapUiStatusToApi(status);
+    const updatedDto = await blogApiService.patchArticle(slug, {
+      status: apiStatus,
+    });
+    return mapArticleDetailToUi(updatedDto);
   },
 
-  async deleteBlogPost(id: string): Promise<boolean> {
-    const initialLength = blogPostsStore.length;
-    blogPostsStore = blogPostsStore.filter((p) => p.id !== id);
-    if (blogPostsStore.length === initialLength) {
-      throw new Error("مقاله مورد نظر یافت نشد.");
+  /**
+   * DELETE /api/articles/{slug}/
+   * Deletes an article from backend upon 204 No Content.
+   */
+  async deleteBlogPost(idOrSlug: string): Promise<boolean> {
+    let slug = idOrSlug;
+    try {
+      const current = await blogApiService.getArticleBySlug(idOrSlug);
+      if (current?.slug) slug = current.slug;
+    } catch {
+      // Use idOrSlug as slug
     }
 
-    persistStore("sayra_admin_blog_posts", blogPostsStore);
-    return Promise.resolve(true);
+    await blogApiService.deleteArticle(slug);
+    return true;
   },
 
+  /**
+   * GET /api/categories/
+   * Retrieves categories directly from real Backend API.
+   */
   async getBlogCategories(): Promise<BlogCategory[]> {
-    return Promise.resolve(MOCK_BLOG_CATEGORIES);
+    const dtos = await blogApiService.getCategories();
+    return (dtos || []).map(mapCategoryToUi);
   },
 
   // ==================== CAMPAIGNS & DISCOUNTS ====================
