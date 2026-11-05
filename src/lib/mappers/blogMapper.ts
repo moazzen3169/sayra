@@ -120,11 +120,16 @@ export function mapBlocksToUi(
       if (!b || typeof b !== "object") continue;
 
       const type = (b.type as string) || (b.block_type as string);
+      const val = b.value as Record<string, unknown> | undefined;
       const text =
         typeof b.text === "string"
           ? b.text
           : typeof b.content === "string"
           ? b.content
+          : typeof val?.text === "string"
+          ? val.text
+          : typeof val === "string"
+          ? val
           : "";
 
       if (type === "heading" || type === "header" || type === "h2" || type === "h3") {
@@ -223,7 +228,12 @@ export function mapArticleListToSummary(dto: ArticleListDto): BlogPostSummary {
       ? dto.cover_image.url
       : "";
 
-  const categoryName = typeof dto.category === "string" ? dto.category : "";
+  const categoryName =
+    typeof dto.category === "string"
+      ? dto.category
+      : dto.category && typeof dto.category === "object" && "name" in dto.category && typeof (dto.category as any).name === "string"
+      ? (dto.category as any).name
+      : "";
   const authorName =
     dto.author && typeof dto.author.display_name === "string"
       ? dto.author.display_name
