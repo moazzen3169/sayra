@@ -70,6 +70,10 @@ export const ENDPOINTS = {
     deviceById: (id: string) => `/catalog/devices/${enc(id)}`,
     games: "/catalog/games",
     gameById: (id: string) => `/catalog/games/${enc(id)}`,
+    adminDevices: "/platform-admin/catalog/devices",
+    adminDeviceById: (id: string) => `/platform-admin/catalog/devices/${enc(id)}`,
+    adminGames: "/platform-admin/catalog/games",
+    adminGameById: (id: string) => `/platform-admin/catalog/games/${enc(id)}`,
   },
 
   /* ---------- پلتفرم وبلاگ سایرا (Blog Platform API) ---------- */
@@ -153,6 +157,8 @@ export const ENDPOINTS = {
     settings: (c: string) => `/gamingCenters/${enc(c)}/settings`,
     siteSettings: (c: string) => `/gamingCenters/${enc(c)}/site-settings`,
     stations: (c: string) => `/gamingCenters/${enc(c)}/stations`,
+    stationsFromCatalog: (c: string) => `/gamingCenters/${enc(c)}/stations/from-catalog`,
+    gamesFromCatalog: (c: string) => `/gamingCenters/${enc(c)}/stations/games/from-catalog`,
     stationDetail: (c: string, s: string) => `/gamingCenters/${enc(c)}/stations/${enc(s)}`,
     addresses: (c: string) => `/gamingCenters/${enc(c)}/addresses`,
     addressDetail: (c: string, a: string) => `/gamingCenters/${enc(c)}/addresses/${enc(a)}`,

@@ -293,7 +293,8 @@ export const authService = {
       payload.gamingCenterId = gamingCenterId;
     }
 
-    const response = await apiClient.post<any>(ENDPOINTS.auth.userPasswordLogin, payload, {
+    const endpoint = ENDPOINTS.auth.platformAdminLogin || "/auth/login";
+    const response = await apiClient.post<any>(endpoint, payload, {
       retryOnAuth: false,
     });
 

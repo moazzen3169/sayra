@@ -627,6 +627,55 @@ export const ownerService = {
     return res.data;
   },
 
+  /**
+   * افزودن دستگاه‌ها به صورت دسته‌ای از کاتالوگ مرکزی:
+   * POST /gamingCenters/{gamingCenterId}/stations/from-catalog
+   */
+  async createStationsFromCatalog(
+    centerId: string,
+    payload: {
+      catalogDeviceId: string;
+      quantity: number;
+      hourlyPrice: number;
+      customNamePrefix?: string;
+      isVip?: boolean;
+      minRentHours?: number;
+      maxRentHours?: number;
+      defaultDurationHours?: number;
+      incrementMinutes?: number;
+    },
+    signal?: AbortSignal
+  ): Promise<GameStationInfo[]> {
+    const res = await apiClient.post<any>(
+      ENDPOINTS.owner.stationsFromCatalog(centerId),
+      payload,
+      { signal }
+    );
+    const resData = res.data;
+    if (Array.isArray(resData)) return resData;
+    if (resData && typeof resData === "object" && Array.isArray(resData.data)) {
+      return resData.data;
+    }
+    return [];
+  },
+
+  /**
+   * افزودن بازی‌ها از کاتالوگ مرکزی به گیم‌نت:
+   * POST /gamingCenters/{gamingCenterId}/stations/games/from-catalog
+   */
+  async addGamesFromCatalog(
+    centerId: string,
+    gameCatalogIds: string[],
+    signal?: AbortSignal
+  ): Promise<{ addedGames: string[]; allGames: string[] }> {
+    const res = await apiClient.post<any>(
+      ENDPOINTS.owner.gamesFromCatalog(centerId),
+      { gameCatalogIds },
+      { signal }
+    );
+    return res.data?.data || res.data || { addedGames: [], allGames: [] };
+  },
+
   async listMedia(slug: string, signal?: AbortSignal): Promise<MediaItem[]> {
     if (!slug) return [];
     try {

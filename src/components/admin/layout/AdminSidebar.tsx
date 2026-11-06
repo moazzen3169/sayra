@@ -16,6 +16,7 @@ export interface NavItem {
 export const ADMIN_NAV_ITEMS: NavItem[] = [
   { id: "dashboard", title: "داشبورد", href: "/admin", iconName: "monitor" },
   { id: "gamecenters", title: "گیمنت‌ها", href: "/admin/gamecenters", iconName: "gamepad" },
+  { id: "catalog", title: "کاتالوگ دستگاه‌ها", href: "/admin/catalog", iconName: "monitor" },
   { id: "tickets", title: "تیکت‌ها", href: "/admin/tickets", iconName: "ticket" },
   { id: "blog", title: "وبلاگ", href: "/admin/blog", iconName: "edit" },
   { id: "owners", title: "احراز هویت", href: "/admin/owners", iconName: "check" },

@@ -43,6 +43,38 @@ export interface DeviceCatalogQueryParams {
   search?: string;
 }
 
+export interface CreateDeviceCatalogInput {
+  name: string;
+  deviceType?: DeviceType;
+  coverImageUrl: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface UpdateDeviceCatalogInput {
+  name?: string;
+  deviceType?: DeviceType;
+  coverImageUrl?: string;
+  description?: string | null;
+  isActive?: boolean;
+}
+
+export interface CreateStationsFromCatalogInput {
+  catalogDeviceId: string;
+  quantity: number;
+  hourlyPrice: number;
+  customNamePrefix?: string;
+  isVip?: boolean;
+  minRentHours?: number;
+  maxRentHours?: number;
+  defaultDurationHours?: number;
+  incrementMinutes?: number;
+}
+
+export interface AddGamesFromCatalogInput {
+  gameCatalogIds: string[];
+}
+
 export interface GameCatalogQueryParams {
   page?: number;
   limit?: number;

@@ -152,10 +152,11 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({
                   className="pr-3 basis-[254px] sm:basis-[254px] min-w-0 flex"
                 >
                   <article
-                    className={`w-full rounded-card p-3 flex flex-col gap-3 border-2 transition-colors ${
+                    onClick={() => !selected && handleAddClick(g)}
+                    className={`w-full rounded-card p-3 flex flex-col gap-3 border-2 transition-colors cursor-pointer ${
                       selected
-                        ? "bg-[var(--primary)]/[0.06] border-[var(--primary)]"
-                        : "bg-[var(--bg-card)] border-[var(--border-subtle)]"
+                        ? "bg-[var(--primary)]/[0.06] border-[var(--primary)] cursor-default"
+                        : "bg-[var(--bg-card)] border-[var(--border-subtle)] hover:border-[var(--primary)]/60"
                     }`}
                   >
                     {/* تصویر */}
