@@ -12,6 +12,44 @@ import { Icon } from "@/components/ui/Icon";
 const inputClass =
   "w-full h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none text-[var(--text-white)] placeholder:text-[var(--text-subtle)] transition-colors";
 
+function Toggle({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className="flex items-center justify-between p-3.5 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] transition-colors hover:border-[var(--border-color)] cursor-pointer text-right w-full"
+      role="switch"
+      aria-checked={checked}
+    >
+      <div className="flex flex-col gap-0.5">
+        <span className="text-xs font-bold text-[var(--text-white)]">{label}</span>
+        {description && <span className="text-[11px] text-[var(--text-subtle)]">{description}</span>}
+      </div>
+      <span
+        className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 ${
+          checked ? "bg-[var(--primary)]" : "bg-[var(--foreground)]"
+        } inline-flex items-center`}
+      >
+        <span
+          className={`w-5 h-5 rounded-full bg-white transition-transform ${
+            checked ? "translate-x-0" : "-translate-x-5"
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
 export default function OwnerEditPage() {
   const { centerId, center, refreshCenters } = useOwner();
   const [loaded, setLoaded] = useState(false);
@@ -33,6 +71,13 @@ export default function OwnerEditPage() {
   const [savingAddress, setSavingAddress] = useState(false);
   const [addressMsg, setAddressMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  // ۳. تنظیمات رزرو گیم‌نت
+  const [allowOnline, setAllowOnline] = useState(true);
+  const [autoConfirm, setAutoConfirm] = useState(false);
+  const [preventOverlaps, setPreventOverlaps] = useState(true);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   useEffect(() => {
     let active = true;
 
@@ -46,7 +91,8 @@ export default function OwnerEditPage() {
     Promise.allSettled([
       ownerService.findCenter(centerId, controller.signal),
       ownerService.listAddresses(centerId, controller.signal),
-    ]).then(([centerRes, addressesRes]) => {
+      ownerService.getSettings(centerId, controller.signal),
+    ]).then(([centerRes, addressesRes, settingsRes]) => {
       if (!active) return;
 
       if (centerRes.status === "fulfilled" && centerRes.value) {
@@ -83,6 +129,18 @@ export default function OwnerEditPage() {
         }
         if (typeof primaryAddr?.lng === "number" && !isNaN(primaryAddr.lng)) {
           setLng(primaryAddr.lng);
+        }
+      }
+
+      if (settingsRes.status === "fulfilled" && settingsRes.value) {
+        if (typeof settingsRes.value.allowOnlineBooking === "boolean") {
+          setAllowOnline(settingsRes.value.allowOnlineBooking);
+        }
+        if (typeof settingsRes.value.onlineBookingAutoConfirm === "boolean") {
+          setAutoConfirm(settingsRes.value.onlineBookingAutoConfirm);
+        }
+        if (typeof settingsRes.value.preventOverlaps === "boolean") {
+          setPreventOverlaps(settingsRes.value.preventOverlaps);
         }
       }
 
@@ -203,6 +261,43 @@ export default function OwnerEditPage() {
       setAddressMsg({ ok: false, text: getErrorMessage(err) });
     } finally {
       setSavingAddress(false);
+    }
+  };
+
+  // ذخیره تنظیمات رزرو با درخواست API جداگانه
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (savingSettings || !centerId) return;
+
+    setSavingSettings(true);
+    setSettingsMsg(null);
+
+    try {
+      await ownerService.updateSettings(centerId, {
+        allowOnlineBooking: allowOnline,
+        onlineBookingAutoConfirm: autoConfirm,
+        preventOverlaps: preventOverlaps,
+      });
+
+      // بارگذاری مجدد تنظیمات از سرور جهت تایید
+      const freshSettings = await ownerService.getSettings(centerId).catch(() => null);
+      if (freshSettings) {
+        if (typeof freshSettings.allowOnlineBooking === "boolean") {
+          setAllowOnline(freshSettings.allowOnlineBooking);
+        }
+        if (typeof freshSettings.onlineBookingAutoConfirm === "boolean") {
+          setAutoConfirm(freshSettings.onlineBookingAutoConfirm);
+        }
+        if (typeof freshSettings.preventOverlaps === "boolean") {
+          setPreventOverlaps(freshSettings.preventOverlaps);
+        }
+      }
+
+      setSettingsMsg({ ok: true, text: "تنظیمات رزرو آنلاین با موفقیت ذخیره شد." });
+    } catch (err) {
+      setSettingsMsg({ ok: false, text: getErrorMessage(err) });
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -408,6 +503,63 @@ export default function OwnerEditPage() {
                   className="px-6 h-11 rounded-card bg-[var(--primary)] text-black font-bold text-xs hover:brightness-105 active:scale-95 transition-all disabled:opacity-60 cursor-pointer shadow"
                 >
                   {savingAddress ? "در حال ذخیره‌سازی آدرس..." : "ذخیره آدرس گیمنت"}
+                </button>
+              </div>
+            </form>
+
+            {/* ۳. بخش تنظیمات رزرو با درخواست API جداگانه */}
+            <form
+              onSubmit={handleSaveSettings}
+              className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-4 shadow-sm"
+            >
+              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+                <div className="flex items-center gap-2">
+                  <Icon name="calendar" size={18} className="text-[var(--primary)]" />
+                  <h2 className="text-sm font-bold text-[var(--text-white)]">تنظیمات رزرو</h2>
+                </div>
+                <span className="text-xs text-[var(--text-subtle)]">قوانین و رفتار رزرو آنلاین</span>
+              </div>
+
+              {settingsMsg && (
+                <div
+                  className={`p-3 rounded-card text-xs font-bold ${
+                    settingsMsg.ok
+                      ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
+                      : "bg-[var(--accent-red)]/10 text-[var(--accent-red)] border border-[var(--accent-red)]/30"
+                  }`}
+                >
+                  {settingsMsg.text}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3">
+                <Toggle
+                  label="فعال بودن رزرو آنلاین"
+                  description="مشتریان می‌توانند سانس‌های گیم‌نت را به‌صورت آنلاین مشاهده و رزرو کنند"
+                  checked={allowOnline}
+                  onChange={setAllowOnline}
+                />
+                <Toggle
+                  label="تایید خودکار رزروهای آنلاین"
+                  description="رزروها بدون نیاز به تایید دستی شما مستقیماً ثبت قطعی شوند"
+                  checked={autoConfirm}
+                  onChange={setAutoConfirm}
+                />
+                <Toggle
+                  label="جلوگیری از تداخل زمانی رزروها"
+                  description="عدم اجازه ثبت دو رزرو همپوشان بر روی یک دستگاه"
+                  checked={preventOverlaps}
+                  onChange={setPreventOverlaps}
+                />
+              </div>
+
+              <div className="flex justify-end pt-2 border-t border-[var(--border-subtle)]">
+                <button
+                  type="submit"
+                  disabled={savingSettings}
+                  className="px-6 h-11 rounded-card bg-[var(--primary)] text-black font-bold text-xs hover:brightness-105 active:scale-95 transition-all disabled:opacity-60 cursor-pointer shadow"
+                >
+                  {savingSettings ? "در حال ذخیره‌سازی..." : "ذخیره تنظیمات رزرو"}
                 </button>
               </div>
             </form>
