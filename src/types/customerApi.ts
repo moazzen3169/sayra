@@ -151,12 +151,19 @@ export interface PublicSocialLink {
 
 export interface PublicAddress {
   id?: string;
-  title?: string;
-  address: string;
-  city?: string;
-  postalCode?: string;
-  latitude?: number;
-  longitude?: number;
+  title?: string | null;
+  /** نام قدیمی فیلد؛ بک‌اند فعلی addressLine برمی‌گرداند */
+  address?: string | null;
+  addressLine?: string | null;
+  province?: string | null;
+  city?: string | null;
+  district?: string | null;
+  postalCode?: string | null;
+  isPrimary?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface PublicRating {

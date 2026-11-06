@@ -1,6 +1,6 @@
-import { apiClient, ApiError } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
+import { apiClient, ApiError, isAbortError } from "@/lib/api/client";
 import { getMockGamecenterDetail } from "@/lib/mocks/gamecenter.mock";
 import { gamingCenterService as coreGamingCenterService } from "@/services/gamingCenterService";
 import { catalogService } from "@/services/catalogService";
@@ -260,15 +260,15 @@ export function mapRatingsToReviews(ratings: PublicRating[]): GamecenterReview[]
  */
 export function formatAuthoritativeAddress(addresses: PublicAddress[]): string | undefined {
   if (!Array.isArray(addresses) || addresses.length === 0) return undefined;
-  const primary = addresses[0];
-  if (!primary || !primary.address) return undefined;
 
-  if (primary.city && primary.address) {
-    return primary.address.includes(primary.city)
-      ? primary.address
-      : `${primary.city}، ${primary.address}`;
-  }
-  return primary.address;
+  const primary = addresses.find((a) => a?.isPrimary) ?? addresses[0];
+  if (!primary) return undefined;
+
+  const line = (primary.addressLine ?? primary.address ?? "").trim();
+  if (!line) return undefined;
+
+  const city = primary.city?.trim();
+  return city && !line.includes(city) ? `${city}، ${line}` : line;
 }
 
 export async function loadGamecenterDetail(
@@ -289,15 +289,20 @@ export async function loadGamecenterDetail(
 
   // برای واکشی دستگاه‌ها، مطابق با قرارداد سرویس‌های مشتری و تست‌های موجود:
   // در صورت داشتن targetId مستقیماً از GET /gamingCenters/{id}/stations و در صورت داشتن targetSlug از GET /public/gamingCenters/{slug}/stations استفاده می‌شود.
-  const fetchStationsPromise = (async (): Promise<GameStationInfo[]> => {
-    if (targetId) {
+const fetchStationsPromise = (async (): Promise<GameStationInfo[]> => {
+  if (targetSlug) {
+    try {
+      return await gamingCenterService.getPublicStations(targetSlug, signal);
+    } catch (err) {
+      if (isAbortError(err) || !targetId) throw err;
       return await gamingCenterService.getStations(targetId, signal);
     }
-    if (targetSlug) {
-      return await gamingCenterService.getPublicStations(targetSlug, signal);
-    }
-    return [];
-  })();
+  }
+  if (targetId) {
+    return await gamingCenterService.getStations(targetId, signal);
+  }
+  return [];
+})();
 
   const [stationsRes, addressesRes, mediaRes, ratingsRes, gamesCatalogRes] = await Promise.allSettled([
     fetchStationsPromise,
