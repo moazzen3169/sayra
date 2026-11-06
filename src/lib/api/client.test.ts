@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { apiClient, ApiError, buildQueryString, buildUrl } from "./client";
+import { apiClient, blogApiClient, ApiError, buildQueryString, buildUrl } from "./client";
+import { API_BASE_URL, BLOG_API_BASE_URL } from "./config";
 import { setTokens } from "../token";
 
 const storage = new Map<string, string>();
@@ -32,6 +33,40 @@ describe("API Client & Request Infrastructure", () => {
   it("builds URL with base URL and normalized paths", () => {
     const url = buildUrl("gamingCenters/test/discounts", { page: 1 });
     expect(url).toContain("/gamingCenters/test/discounts?page=1");
+    expect(url.startsWith(API_BASE_URL)).toBe(true);
+  });
+
+  it("builds URL with custom baseUrl override for blog", () => {
+    const url = buildUrl("articles/", { page: 2 }, BLOG_API_BASE_URL);
+    expect(url).toBe("http://blog.sayra-booking.ir/articles/?page=2");
+    expect(url.startsWith(BLOG_API_BASE_URL)).toBe(true);
+  });
+
+  it("routes blogApiClient requests strictly to BLOG_API_BASE_URL", async () => {
+    const originalFetch = globalThis.fetch;
+    let requestedUrl = "";
+
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      requestedUrl = String(url);
+      return new Response(
+        JSON.stringify({
+          data: [{ id: 1, title: "بلاگ تست" }],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }) as unknown as typeof fetch;
+
+    try {
+      await blogApiClient.get("/articles/", { query: { page: 1 } });
+      expect(requestedUrl).toBe("http://blog.sayra-booking.ir/articles/?page=1");
+      expect(requestedUrl.startsWith(BLOG_API_BASE_URL)).toBe(true);
+
+      // Verify regular apiClient still uses API_BASE_URL
+      await apiClient.get("/gamingCenters");
+      expect(requestedUrl).toBe(`${API_BASE_URL}/gamingCenters`);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("preserves structured backend error codes and messages", async () => {

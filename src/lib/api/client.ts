@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./config";
+import { API_BASE_URL, BLOG_API_BASE_URL } from "./config";
 import { getAccessToken, refreshAccessToken, clearTokens } from "../token";
 
 export interface ApiMeta {
@@ -56,6 +56,8 @@ export interface RequestOptions {
   signal?: AbortSignal;
   /** Whether this request should attempt token refresh on 401 */
   retryOnAuth?: boolean;
+  /** Custom Base URL override (defaults to API_BASE_URL) */
+  baseUrl?: string;
 }
 
 /**
@@ -81,11 +83,11 @@ export function buildQueryString(query?: Query): string {
 }
 
 /**
- * Build complete request URL based on API_BASE_URL.
+ * Build complete request URL based on API_BASE_URL or custom baseUrl.
  */
-export function buildUrl(path: string, query?: Query): string {
+export function buildUrl(path: string, query?: Query, baseUrl?: string): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const base = API_BASE_URL.replace(/\/+$/, "");
+  const base = (baseUrl || API_BASE_URL).replace(/\/+$/, "");
   const qs = buildQueryString(query);
   return `${base}${normalizedPath}${qs}`;
 }
@@ -99,7 +101,8 @@ async function executeFetch<T>(
   options: RequestOptions = {},
   overrideToken?: string | null
 ): Promise<{ data: T; meta?: ApiMeta; message?: string; messagesList?: string[]; pagination?: unknown; rawEnvelope?: unknown }> {
-  if (!API_BASE_URL) {
+  const targetBaseUrl = options.baseUrl || API_BASE_URL;
+  if (!targetBaseUrl) {
     throw new ApiError(0, "API_BASE_URL_MISSING", "ارتباط با سرور برقرار نشد.");
   }
 
@@ -123,7 +126,7 @@ async function executeFetch<T>(
 
   let res: Response;
   try {
-    res = await fetch(buildUrl(path, options.query), {
+    res = await fetch(buildUrl(path, options.query, targetBaseUrl), {
       method,
       headers,
       body:
@@ -259,4 +262,22 @@ export const apiClient = {
   patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>("PATCH", path, { ...options, body }),
   delete: <T>(path: string, options?: RequestOptions) => request<T>("DELETE", path, options),
+};
+
+/**
+ * Blog Platform API Client
+ * Dedicated API client targeting BLOG_API_BASE_URL for all blog endpoints.
+ * Delegates calls through apiClient with { baseUrl: BLOG_API_BASE_URL }.
+ */
+export const blogApiClient = {
+  get: <T>(path: string, options?: RequestOptions) =>
+    apiClient.get<T>(path, { baseUrl: BLOG_API_BASE_URL, ...options }),
+  post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
+    apiClient.post<T>(path, body, { baseUrl: BLOG_API_BASE_URL, ...options }),
+  put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
+    apiClient.put<T>(path, body, { baseUrl: BLOG_API_BASE_URL, ...options }),
+  patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
+    apiClient.patch<T>(path, body, { baseUrl: BLOG_API_BASE_URL, ...options }),
+  delete: <T>(path: string, options?: RequestOptions) =>
+    apiClient.delete<T>(path, { baseUrl: BLOG_API_BASE_URL, ...options }),
 };

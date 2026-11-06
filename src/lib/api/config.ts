@@ -21,6 +21,20 @@ export const API_BASE_URL = (
 ).replace(/\/+$/, "");
 
 /**
+ * Blog Platform API Base URL:
+ * Dedicated Base URL used strictly for all blog-related requests (articles, categories, tags, media, authors).
+ * Priority:
+ * 1. NEXT_PUBLIC_BLOG_API_BASE_URL (explicit env override)
+ * 2. Default production/development blog API URL: http://blog.sayra-booking.ir/
+ */
+const DEFAULT_BLOG_API_URL = "http://blog.sayra-booking.ir/";
+
+export const BLOG_API_BASE_URL = (
+  process.env.NEXT_PUBLIC_BLOG_API_BASE_URL ||
+  DEFAULT_BLOG_API_URL
+).replace(/\/+$/, "");
+
+/**
  * Application Timezone.
  * Contract requires alignment with backend timezone (default: Asia/Tehran).
  */
