@@ -355,20 +355,14 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   برای دسترسی و مشاهده بخش‌های پنل مدیریت گیم‌نت، ابتدا باید وارد حساب کاربری خود شوید.
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 w-full mt-2">
+              <div className="flex flex-col gap-3 w-full mt-2">
                 <button
                   type="button"
                   onClick={() => setAuthOpen(true)}
-                  className="flex-1 h-11 rounded-card bg-[var(--primary)] text-on-primary text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center justify-center"
+                  className="w-full h-11 rounded-card bg-[var(--primary)] text-on-primary text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center justify-center"
                 >
                   ورود به حساب کاربری
                 </button>
-                <a
-                  href="/owner/new"
-                  className="flex-1 h-11 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-white)] hover:bg-[var(--foreground)]/80 active:scale-95 transition-transform flex items-center justify-center"
-                >
-                  ثبت گیم‌نت جدید
-                </a>
               </div>
             </div>
           </div>

@@ -62,7 +62,6 @@ export default function OwnerDashboardPage() {
   // اگر احراز هویت شده ولی هیچ گیم‌نتی در کانتکست و پروفایل و همچنین در localStorage وجود ندارد، به ساخت گیم‌نت هدایت کن
   useEffect(() => {
     if (!isCenterLoading && centers.length === 0 && !centerId && !me?.gamingCenterId) {
-      // بررسی وجود شناسه در حافظه قبل از ریدایرکت نهایی
       let storedCenterId: string | null = null;
       try {
         storedCenterId = localStorage.getItem("sayra_owner_center_id");
@@ -70,7 +69,6 @@ export default function OwnerDashboardPage() {
         storedCenterId = null;
       }
 
-      // اگر شناسه در localStorage هنوز وجود دارد، اجازه بده تلاش واکشی کامل شود یا تنها در صورتی ریدایرکت کن که هیچ شناسه‌ای نیست
       if (!storedCenterId) {
         router.push("/owner/new");
       }
@@ -94,10 +92,14 @@ export default function OwnerDashboardPage() {
   const [pendingCount, setPendingCount] = useState(0);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
+
+  // Gallery state
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [galleryError, setGalleryError] = useState<string | null>(null);
+  const [galleryMsg, setGalleryMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [mediaToken, setMediaToken] = useState(0);
+  const [deleteConfirmMedia, setDeleteConfirmMedia] = useState<MediaItem | null>(null);
+  const [deletingImage, setDeletingImage] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // واکشی داده‌های زنده: درآمد مستند، تعداد رزروهای در انتظار واقعی و تصاویر گالری
@@ -124,7 +126,6 @@ export default function OwnerDashboardPage() {
 
       if (summaryRes.status === "fulfilled") {
         const data = summaryRes.value;
-        // استفاده انحصاری از فیلد مالی مستند backend بدون حدس اعداد نامربوط
         if (typeof data?.withdrawableAmount === "number") {
           setWithdrawable(data.withdrawableAmount);
         } else if (typeof data?.withdrawableRevenue === "number") {
@@ -184,24 +185,53 @@ export default function OwnerDashboardPage() {
     });
   };
 
+  // آپلود عکس به همراه پیش‌نمایش آنی (Optimistic Preview)
   const handleUpload = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       e.target.value = "";
       if (!file || uploading || !centerId) return;
+
+      // پیش‌نمایش محلی و سریع قبل از دریافت پاسخ سرور
+      const localPreviewUrl = URL.createObjectURL(file);
+      const tempId = `temp-${Date.now()}`;
+      const tempItem: MediaItem = {
+        id: tempId,
+        url: localPreviewUrl,
+        altText: file.name,
+        purpose: "GALLERY",
+      };
+
+      // نمایش آنی تصویر در گالری
+      setMedia((prev) => [tempItem, ...prev]);
       setUploading(true);
-      setGalleryError(null);
+      setGalleryMsg(null);
+
       try {
         const uploaded = await ownerService.uploadGalleryImage(centerId, file, {
           altText: file.name,
           purpose: "GALLERY",
         });
-        if (uploaded.url) {
-          setMedia((prev) => [uploaded, ...prev.filter((m) => m.url !== uploaded.url)]);
-        }
+
+        // پس از موفقیت، آیتم موقت با تصویر نهایی و سروری جایگزین می‌شود
+        setMedia((prev) =>
+          prev.map((m) =>
+            m.id === tempId
+              ? {
+                  ...uploaded,
+                  // اگر سرور هنوز URL نهایی را فعال نکرده یا تاخیر دارد، از پیش‌نمایش مطمئن محلی استفاده می‌کنیم
+                  url: uploaded.url || localPreviewUrl,
+                }
+              : m
+          )
+        );
+        setGalleryMsg({ ok: true, text: "تصویر با موفقیت به گالری اضافه شد." });
         setMediaToken((v) => v + 1);
       } catch (err) {
-        setGalleryError(getErrorMessage(err));
+        // بازگرداندن وضعیت در صورت خطای آپلود
+        setMedia((prev) => prev.filter((m) => m.id !== tempId));
+        URL.revokeObjectURL(localPreviewUrl);
+        setGalleryMsg({ ok: false, text: getErrorMessage(err) });
       } finally {
         setUploading(false);
       }
@@ -253,12 +283,6 @@ export default function OwnerDashboardPage() {
             <div className="text-[var(--accent-red)] text-xs font-bold leading-relaxed">
               {centerError}
             </div>
-            <Link
-              href="/owner/new"
-              className="px-4 py-2 rounded-card bg-[var(--primary)] text-black text-xs font-bold text-center shrink-0 hover:brightness-105 active:scale-95 transition-transform"
-            >
-              + ثبت گیم‌نت جدید
-            </Link>
           </div>
         )}
 
@@ -268,7 +292,7 @@ export default function OwnerDashboardPage() {
           </div>
         )}
 
-        {/* Center Switcher & New Center Action */}
+        {/* Center Display (1 Gaming Center only for Owner) */}
         <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3 flex items-center justify-between gap-3">
           {centers.length > 1 ? (
             <div className="flex items-center gap-2 flex-1">
@@ -304,10 +328,10 @@ export default function OwnerDashboardPage() {
           )}
 
           <Link
-            href="/owner/new"
+            href="/owner/edit"
             className="px-3 py-1.5 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--primary)] hover:border-[var(--primary)] active:scale-95 transition-all shrink-0"
           >
-            + ثبت گیم‌نت جدید
+            ویرایش گیم‌نت
           </Link>
         </div>
 
@@ -521,23 +545,41 @@ export default function OwnerDashboardPage() {
           ))}
         </div>
 
-        {/* Gallery Slider & Upload */}
-        <section className="flex flex-col gap-3 mt-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs text-[var(--text-white)] font-bold">گالری تصاویر شما</h2>
+        {/* Gallery Section: نمایش یکپارچه، پیش‌نمایش آنی، بارگذاری سریع و حذف با تاییدیه */}
+        <section className="flex flex-col gap-3 mt-3 p-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)]">
+          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5">
+            <div>
+              <h2 className="text-sm font-bold text-[var(--text-white)]">گالری تصاویر گیمنت</h2>
+              <span className="text-[11px] text-[var(--text-subtle)] block mt-0.5">
+                نمایش، افزودن یا حذف تصاویر گالری با پیش‌نمایش پرسرعت
+              </span>
+            </div>
             <button
               type="button"
               disabled={uploading || !isApproved}
               onClick={() => fileRef.current?.click()}
-              className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+              className="px-3 py-1.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
-              {uploading ? "در حال آپلود..." : "+ افزودن عکس به گالری"}
+              {uploading ? (
+                <>
+                  <span className="w-3 h-3 rounded-full border-2 border-black border-t-transparent animate-spin" />
+                  <span>در حال آپلود...</span>
+                </>
+              ) : (
+                <span>+ افزودن عکس جدید</span>
+              )}
             </button>
           </div>
 
-          {galleryError && (
-            <div className="p-3 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold">
-              {galleryError}
+          {galleryMsg && (
+            <div
+              className={`p-3 rounded-card text-xs font-bold ${
+                galleryMsg.ok
+                  ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
+                  : "bg-[var(--accent-red)]/10 text-[var(--accent-red)] border border-[var(--accent-red)]/30"
+              }`}
+            >
+              {galleryMsg.text}
             </div>
           )}
 
@@ -548,42 +590,67 @@ export default function OwnerDashboardPage() {
                 aspectClassName="aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[3/1]"
                 ariaLabel="گالری تصاویر گیمنت"
               />
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
-                {galleryBanners.map((m, i) => (
-                  <div key={m.id ?? `${m.imageUrl}-${i}`} className="relative aspect-square rounded-card overflow-hidden bg-[var(--foreground)] border border-[var(--border-subtle)]">
-                    <SafeImage
-                      src={m.imageUrl}
-                      alt={m.alt ?? "تصویر گیمنت"}
-                      fallbackSrc={PLACEHOLDERS.gallery}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ))}
+
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5 pt-1">
+                {media
+                  .filter((m) => m.purpose !== "LOGO" && Boolean(m.url))
+                  .map((img, idx) => {
+                    const imgKey = img.id || `${img.url}-${idx}`;
+                    const isOptimistic = String(img.id).startsWith("temp-");
+                    return (
+                      <div
+                        key={imgKey}
+                        className="relative aspect-square rounded-card overflow-hidden bg-[var(--foreground)] border border-[var(--border-subtle)] group"
+                      >
+                        <SafeImage
+                          src={img.url}
+                          alt={img.altText ?? "تصویر گیمنت"}
+                          fallbackSrc={PLACEHOLDERS.gallery}
+                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                        />
+
+                        {isOptimistic && (
+                          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1">
+                            <span className="w-4 h-4 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" />
+                            <span className="text-[10px] font-bold text-white">در حال ثبت...</span>
+                          </div>
+                        )}
+
+                        {!isOptimistic && (
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirmMedia(img)}
+                            aria-label="حذف عکس"
+                            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/80 hover:bg-[var(--accent-red)] text-white font-black text-xs flex items-center justify-center transition-colors shadow-md cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                {/* دکمه افزودن داخل شبکه تصاویر */}
                 <button
                   type="button"
                   disabled={uploading || !isApproved}
                   onClick={() => fileRef.current?.click()}
-                  aria-label="افزودن تصویر"
-                  className="aspect-square rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex items-center justify-center disabled:opacity-50 hover:border-[var(--primary)] transition-colors cursor-pointer"
+                  aria-label="افزودن تصویر به گالری"
+                  className="aspect-square rounded-card bg-[var(--foreground)]/30 border border-dashed border-[var(--border-subtle)] hover:border-[var(--primary)] flex flex-col items-center justify-center gap-1 text-[var(--text-muted)] hover:text-white transition-all cursor-pointer disabled:opacity-50"
                 >
-                  <span className="w-[70%] h-[70%] rounded-md border-2 border-dashed border-[var(--text-subtle)] flex items-center justify-center text-[var(--text-muted)] text-2xl">
-                    {uploading ? (
-                      <span className="w-4 h-4 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" />
-                    ) : (
-                      "+"
-                    )}
-                  </span>
+                  <span className="text-xl font-bold">+</span>
+                  <span className="text-[10px] font-bold">عکس جدید</span>
                 </button>
               </div>
             </div>
           ) : (
-            <div className="p-6 rounded-card bg-[var(--bg-card)] border border-dashed border-[var(--border-subtle)] flex flex-col items-center justify-center gap-3 text-center">
+            <div className="p-8 rounded-card bg-[var(--foreground)]/10 border border-dashed border-[var(--border-subtle)] flex flex-col items-center justify-center gap-3 text-center">
               <span className="text-xs text-[var(--text-muted)]">هنوز تصویری برای گالری آپلود نشده است.</span>
               <button
                 type="button"
                 disabled={uploading || !isApproved}
                 onClick={() => fileRef.current?.click()}
-                className="px-4 py-2 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 disabled:opacity-50 transition-all cursor-pointer"
+                className="px-4 py-2 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 disabled:opacity-50 transition-all cursor-pointer shadow"
               >
                 {uploading ? "در حال آپلود..." : "آپلود اولین تصویر گالری"}
               </button>
@@ -595,6 +662,74 @@ export default function OwnerDashboardPage() {
         </div>
       </main>
 
+      {/* Confirmation Modal for Image Deletion */}
+      {deleteConfirmMedia && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fadeIn"
+          onClick={() => !deletingImage && setDeleteConfirmMedia(null)}
+        >
+          <div
+            className="w-full max-w-[380px] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-5 flex flex-col gap-4 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 rounded-full bg-[var(--accent-red)]/10 text-[var(--accent-red)] mx-auto flex items-center justify-center text-xl font-bold">
+              🗑️
+            </div>
+            <div className="flex flex-col gap-1">
+              <h3 className="text-sm font-bold text-[var(--text-white)]">تایید حذف تصویر</h3>
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                آیا از حذف این تصویر اطمینان دارید؟
+              </p>
+            </div>
+
+            {deleteConfirmMedia.url && (
+              <div className="w-24 h-24 mx-auto rounded-card overflow-hidden border border-[var(--border-subtle)]">
+                <SafeImage
+                  src={deleteConfirmMedia.url}
+                  alt="پیش‌نمایش تصویر"
+                  fallbackSrc={PLACEHOLDERS.gallery}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                disabled={deletingImage}
+                onClick={async () => {
+                  if (deletingImage || !deleteConfirmMedia) return;
+                  setDeletingImage(true);
+                  try {
+                    const targetId = deleteConfirmMedia.id || deleteConfirmMedia.url;
+                    await ownerService.deleteMedia(centerId, targetId);
+                    const updated = await ownerService.listMedia(center?.slug || centerId);
+                    setMedia(Array.isArray(updated) ? updated : []);
+                    setDeleteConfirmMedia(null);
+                    setGalleryMsg({ ok: true, text: "تصویر با موفقیت از گالری حذف شد." });
+                  } catch (err) {
+                    setDeleteConfirmMedia(null);
+                    setGalleryMsg({ ok: false, text: getErrorMessage(err) });
+                  } finally {
+                    setDeletingImage(false);
+                  }
+                }}
+                className="flex-1 h-10 rounded-card bg-[var(--accent-red)] text-white font-bold text-xs disabled:opacity-60 cursor-pointer"
+              >
+                {deletingImage ? "در حال حذف..." : "حذف تصویر"}
+              </button>
+              <button
+                type="button"
+                disabled={deletingImage}
+                onClick={() => setDeleteConfirmMedia(null)}
+                className="h-10 px-4 rounded-card bg-[var(--foreground)] text-xs font-bold text-[var(--text-white)] cursor-pointer"
+              >
+                انصراف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

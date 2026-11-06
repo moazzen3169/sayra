@@ -11,6 +11,23 @@ import { ownerService } from "@/services/ownerService";
 import type { GameStationInfo } from "@/services/gamingCenterService";
 import type { StationInput } from "@/types/owner";
 
+const POPULAR_GAMES = [
+  "EA Sports FC 25",
+  "Call of Duty: Modern Warfare III",
+  "GTA V",
+  "Mortal Kombat 1",
+  "Tekken 8",
+  "Counter-Strike 2",
+  "Dota 2",
+  "Elden Ring",
+  "Apex Legends",
+  "Rocket League",
+  "God of War Ragnarök",
+  "Spider-Man 2",
+  "Forza Horizon 5",
+  "Valorant",
+];
+
 const STATION_OPTIONS: Option[] = [
   { value: "PC", label: "PC (کامپیوتر گیمینگ)" },
   { value: "PLAYSTATION", label: "PLAYSTATION (پلی‌استیشن)" },
@@ -42,6 +59,16 @@ export default function OwnerStationsPage() {
   const [extraControllerPrice, setExtraControllerPrice] = useState("50000");
   const [description, setDescription] = useState("");
 
+  // مدیریت لیست تمامی بازی‌ها
+  const [games, setGames] = useState<string[]>([
+    "EA Sports FC 25",
+    "Call of Duty: Modern Warfare III",
+    "GTA V",
+    "Mortal Kombat 1",
+  ]);
+  const [newGameInput, setNewGameInput] = useState("");
+  const [gamesMsg, setGamesMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   useEffect(() => {
     if (!centerId) {
       setStations([]);
@@ -70,6 +97,29 @@ export default function OwnerStationsPage() {
   }, [centerId, reload]);
 
   const num = (v: string) => (v.trim() === "" ? undefined : Number(v));
+
+  const addGame = (gameName: string) => {
+    const trimmed = gameName.trim();
+    if (!trimmed) return;
+    if (!games.includes(trimmed)) {
+      setGames((prev) => [...prev, trimmed]);
+      setGamesMsg({ ok: true, text: `بازی «${trimmed}» به لیست اضافه شد.` });
+    }
+    setNewGameInput("");
+  };
+
+  const removeGame = (gameName: string) => {
+    setGames((prev) => prev.filter((g) => g !== gameName));
+    setGamesMsg({ ok: true, text: `بازی «${gameName}» از لیست حذف شد.` });
+  };
+
+  const togglePopularGame = (gameName: string) => {
+    if (games.includes(gameName)) {
+      removeGame(gameName);
+    } else {
+      addGame(gameName);
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,58 +164,167 @@ export default function OwnerStationsPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
-      <OwnerPageHeader title="دستگاه ها" />
+    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-12">
+      <OwnerPageHeader title="دستگاه‌ها و بازی‌ها" backUrl="/owner" />
 
-      <main className="flex-1 mt-16 px-4 py-4 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0 flex flex-col gap-3">
-        <button
-          type="button"
-          disabled={!isApproved}
-          onClick={() => setOpen(true)}
-          className="h-12 rounded-card bg-[var(--primary)] text-on-primary font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          + افزودن دستگاه
-        </button>
+      <main className="flex-1 mt-16 px-4 py-4 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0 flex flex-col gap-6">
 
-        {stations === null && <div className="h-24 rounded-card bg-[var(--bg-card)] animate-pulse" />}
-        {error && <p className="text-xs font-bold text-[var(--accent-red)]">{error}</p>}
-        {stations && !error && stations.length === 0 && (
-          <p className="py-12 text-center text-xs text-[var(--text-muted)]">هنوز دستگاهی ثبت نشده است.</p>
-        )}
+        {/* ۱. بخش دستگاه‌های گیم‌نت */}
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-[var(--text-white)]">دستگاه‌های گیم‌نت</h2>
+            <button
+              type="button"
+              disabled={!isApproved}
+              onClick={() => setOpen(true)}
+              className="px-4 py-2 rounded-card bg-[var(--primary)] text-on-primary font-bold text-xs hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shadow cursor-pointer"
+            >
+              + افزودن دستگاه
+            </button>
+          </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {stations?.map((s) => (
-            <div key={s.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3.5 flex items-center gap-3">
-              <div className="w-14 h-14 shrink-0 rounded-card bg-[var(--text-white)] flex items-center justify-center">
-                <img src={stationImageFor(s.stationType)} alt={s.name} className="w-12 h-12 object-contain" />
-              </div>
-              <div className="flex-1 min-w-0 flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold truncate">{s.name}</span>
-                  {s.isVip && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--primary)] text-on-primary">VIP</span>}
-                  {s.isActive === false && <span className="text-xs font-bold text-[var(--accent-red)]">غیرفعال</span>}
-                </div>
-                <span className="text-xs text-[var(--text-muted)]">
-                  {s.stationType}
-                  {s.quantity ? ` • موجودی: ${toPersianDigits(s.quantity)} دستگاه` : ""}
-                  {s.defaultControllers !== undefined && s.defaultControllers > 0 ? ` • ${toPersianDigits(s.defaultControllers)} دسته اصلی` : ""}
-                  {s.maxExtraControllers !== undefined && s.maxExtraControllers > 0 ? ` • حداکثر ${toPersianDigits(s.maxExtraControllers)} دسته اضافه` : ""}
-                </span>
-              </div>
-              <div className="text-left shrink-0 flex flex-col items-end">
-                <div className="text-sm font-black text-[var(--primary)]">{formatPrice(s.hourlyPrice)}</div>
-                <div className="text-xs text-[var(--text-muted)]">تومان / ساعت</div>
-                {s.extraControllerPrice ? (
-                  <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
-                    دسته اضافه: {formatPrice(s.extraControllerPrice)} ت
-                  </div>
-                ) : null}
-              </div>
+          {stations === null && <div className="h-24 rounded-card bg-[var(--bg-card)] animate-pulse" />}
+          {error && <p className="text-xs font-bold text-[var(--accent-red)]">{error}</p>}
+          {stations && !error && stations.length === 0 && (
+            <div className="p-8 text-center rounded-card bg-[var(--bg-card)] border border-dashed border-[var(--border-subtle)] text-xs text-[var(--text-muted)]">
+              هنوز دستگاهی ثبت نشده است. برای تعریف کنسول‌ها یا کامپیوترها روی دکمه افزودن کلیک کنید.
             </div>
-          ))}
-        </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {stations?.map((s) => (
+              <div key={s.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3.5 flex items-center gap-3">
+                <div className="w-14 h-14 shrink-0 rounded-card bg-[var(--text-white)] flex items-center justify-center">
+                  <img src={stationImageFor(s.stationType)} alt={s.name} className="w-12 h-12 object-contain" />
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold truncate">{s.name}</span>
+                    {s.isVip && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--primary)] text-on-primary">VIP</span>}
+                    {s.isActive === false && <span className="text-xs font-bold text-[var(--accent-red)]">غیرفعال</span>}
+                  </div>
+                  <span className="text-xs text-[var(--text-muted)]">
+                    {s.stationType}
+                    {s.quantity ? ` • موجودی: ${toPersianDigits(s.quantity)} دستگاه` : ""}
+                    {s.defaultControllers !== undefined && s.defaultControllers > 0 ? ` • ${toPersianDigits(s.defaultControllers)} دسته اصلی` : ""}
+                    {s.maxExtraControllers !== undefined && s.maxExtraControllers > 0 ? ` • حداکثر ${toPersianDigits(s.maxExtraControllers)} دسته اضافه` : ""}
+                  </span>
+                </div>
+                <div className="text-left shrink-0 flex flex-col items-end">
+                  <div className="text-sm font-black text-[var(--primary)]">{formatPrice(s.hourlyPrice)}</div>
+                  <div className="text-xs text-[var(--text-muted)]">تومان / ساعت</div>
+                  {s.extraControllerPrice ? (
+                    <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                      دسته اضافه: {formatPrice(s.extraControllerPrice)} ت
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ۲. بخش مدیریت لیست تمامی بازی‌ها */}
+        <section className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-4 shadow-sm">
+          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+            <div>
+              <h2 className="text-sm font-bold text-[var(--text-white)]">لیست تمامی بازی‌های گیمنت</h2>
+              <p className="text-xs text-[var(--text-subtle)] mt-0.5">
+                بازی‌های موجود در این گیم‌نت را مدیریت کنید تا مشتریان در صفحه مجموعه مشاهده کنند.
+              </p>
+            </div>
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">
+              {toPersianDigits(games.length)} بازی فعال
+            </span>
+          </div>
+
+          {gamesMsg && (
+            <div
+              className={`p-3 rounded-card text-xs font-bold ${
+                gamesMsg.ok
+                  ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
+                  : "bg-[var(--accent-red)]/10 text-[var(--accent-red)] border border-[var(--accent-red)]/30"
+              }`}
+            >
+              {gamesMsg.text}
+            </div>
+          )}
+
+          {/* تگ‌های بازی‌های انتخاب‌شده */}
+          <div className="flex flex-wrap gap-2 min-h-[46px] p-3 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)] items-center">
+            {games.length === 0 ? (
+              <span className="text-xs text-[var(--text-subtle)]">هیچ بازی برای این مرکز اضافه نشده است.</span>
+            ) : (
+              games.map((game) => (
+                <span
+                  key={game}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--primary)]/15 border border-[var(--primary)]/30 text-[var(--primary)] text-xs font-bold animate-fadeIn"
+                >
+                  {game}
+                  <button
+                    type="button"
+                    onClick={() => removeGame(game)}
+                    className="hover:text-white transition-colors cursor-pointer text-sm font-black"
+                    aria-label={`حذف ${game}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))
+            )}
+          </div>
+
+          {/* ورودی افزودن بازی جدید */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="نام بازی جدید را بنویسید (مثلاً Tekken 8)..."
+              value={newGameInput}
+              onChange={(e) => setNewGameInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addGame(newGameInput);
+                }
+              }}
+              className="flex-1 h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-xs text-[var(--text-white)] outline-none placeholder:text-[var(--text-subtle)]"
+            />
+            <button
+              type="button"
+              onClick={() => addGame(newGameInput)}
+              className="h-11 px-5 rounded-card bg-[var(--primary)] text-black font-bold text-xs hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow"
+            >
+              افزودن بازی
+            </button>
+          </div>
+
+          {/* انتخاب سریع از بازی‌های محبوب */}
+          <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border-subtle)]">
+            <span className="text-xs text-[var(--text-muted)] font-bold">انتخاب سریع از بازی‌های پرطرفدار:</span>
+            <div className="flex flex-wrap gap-2">
+              {POPULAR_GAMES.map((gameName) => {
+                const selected = games.includes(gameName);
+                return (
+                  <button
+                    key={gameName}
+                    type="button"
+                    onClick={() => togglePopularGame(gameName)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
+                      selected
+                        ? "bg-[var(--primary)] text-black border-[var(--primary)] font-bold shadow-sm"
+                        : "bg-[var(--foreground)]/30 text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-white)] hover:border-[var(--border-color)]"
+                    }`}
+                  >
+                    {selected ? `✓ ${gameName}` : `+ ${gameName}`}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
       </main>
 
+      {/* مودال افزودن دستگاه */}
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm sm:p-4"
@@ -270,14 +429,14 @@ export default function OwnerStationsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 h-11 rounded-card bg-[var(--primary)] text-on-primary font-bold text-sm disabled:opacity-60"
+                className="flex-1 h-11 rounded-card bg-[var(--primary)] text-on-primary font-bold text-sm disabled:opacity-60 cursor-pointer"
               >
                 {saving ? "در حال ثبت..." : "ثبت دستگاه"}
               </button>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="h-11 px-5 rounded-card bg-[var(--foreground)] text-xs font-bold"
+                className="h-11 px-5 rounded-card bg-[var(--foreground)] text-xs font-bold cursor-pointer"
               >
                 انصراف
               </button>
