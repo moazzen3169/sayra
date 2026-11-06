@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { API_BASE_URL } from "@/lib/api/config";
+import { API_BASE_URL, BLOG_API_BASE_URL } from "@/lib/api/config";
+
+const BLOG_PATH_ROOTS = new Set(["articles", "categories", "tags", "media", "authors"]);
 
 /**
  * Server-side API Proxy Route
@@ -8,15 +10,20 @@ import { API_BASE_URL } from "@/lib/api/config";
  * Forwards requests to backend API securely, injecting the server-side API key (SAYRA_API_KEY)
  * into the `x-api-key` header if configured on the server, ensuring secrets are NEVER exposed
  * to the browser client or NEXT_PUBLIC variables.
+ * Blog-related requests are routed to BLOG_API_BASE_URL, while all other requests use API_BASE_URL.
  */
 export async function dynamicHandler(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await context.params;
+  const firstSegment = (path || [])[0];
+  const isBlog = firstSegment ? BLOG_PATH_ROOTS.has(firstSegment) : false;
+  const baseUrl = isBlog ? BLOG_API_BASE_URL : API_BASE_URL;
+
   const targetPath = "/" + (path || []).join("/");
   const search = request.nextUrl.search;
-  const targetUrl = `${API_BASE_URL}${targetPath}${search}`;
+  const targetUrl = `${baseUrl}${targetPath}${search}`;
 
   const forwardHeaders = new Headers();
   request.headers.forEach((value, key) => {

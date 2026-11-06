@@ -2,13 +2,13 @@
  * Blog Platform API Service
  * Central typed service layer communicating with Blog Platform API.
  *
- * Uses existing `apiClient`, centralized endpoints from `ENDPOINTS.blog`,
- * and normalizes responses via `blogNormalizer`.
+ * Uses dedicated `blogApiClient` (targeting BLOG_API_BASE_URL: http://blog.sayra-booking.ir/),
+ * centralized endpoints from `ENDPOINTS.blog`, and normalizes responses via `blogNormalizer`.
  *
  * Does NOT alter UI components or existing mock services in this phase.
  */
 
-import { apiClient, isAbortError, type Query } from "@/lib/api/client";
+import { blogApiClient, isAbortError, type Query } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import {
   normalizeListResponse,
@@ -72,7 +72,7 @@ export const blogApiService = {
     if (params.status) query.status = params.status;
 
     try {
-      const res = await apiClient.get<unknown>(ENDPOINTS.blog.articles.list, {
+      const res = await blogApiClient.get<unknown>(ENDPOINTS.blog.articles.list, {
         query,
         signal: options?.signal,
         headers: options?.headers,
@@ -100,7 +100,7 @@ export const blogApiService = {
     body: ArticleCreateUpdateRequestDto,
     options?: BlogRequestOptions
   ): Promise<ArticleDetailDto> {
-    const res = await apiClient.post<unknown>(
+    const res = await blogApiClient.post<unknown>(
       ENDPOINTS.blog.articles.create,
       body,
       options
@@ -118,7 +118,7 @@ export const blogApiService = {
     slug: string,
     options?: BlogRequestOptions
   ): Promise<ArticleDetailDto> {
-    const res = await apiClient.get<unknown>(
+    const res = await blogApiClient.get<unknown>(
       ENDPOINTS.blog.articles.detail(slug),
       options
     );
@@ -135,7 +135,7 @@ export const blogApiService = {
     slug: string,
     options?: BlogRequestOptions
   ): Promise<ArticleListDto> {
-    const res = await apiClient.get<unknown>(
+    const res = await blogApiClient.get<unknown>(
       ENDPOINTS.blog.articles.bySlug(slug),
       options
     );
@@ -153,7 +153,7 @@ export const blogApiService = {
     body: ArticleCreateUpdateRequestDto,
     options?: BlogRequestOptions
   ): Promise<ArticleDetailDto> {
-    const res = await apiClient.put<unknown>(
+    const res = await blogApiClient.put<unknown>(
       ENDPOINTS.blog.articles.update(slug),
       body,
       options
@@ -172,7 +172,7 @@ export const blogApiService = {
     body: PatchedArticleCreateUpdateRequestDto,
     options?: BlogRequestOptions
   ): Promise<ArticleDetailDto> {
-    const res = await apiClient.patch<unknown>(
+    const res = await blogApiClient.patch<unknown>(
       ENDPOINTS.blog.articles.patch(slug),
       body,
       options
@@ -190,7 +190,7 @@ export const blogApiService = {
     slug: string,
     options?: BlogRequestOptions
   ): Promise<void> {
-    await apiClient.delete<void>(ENDPOINTS.blog.articles.delete(slug), options);
+    await blogApiClient.delete<void>(ENDPOINTS.blog.articles.delete(slug), options);
   },
 
   /**
@@ -200,7 +200,7 @@ export const blogApiService = {
   async getArticleCounts(
     options?: BlogRequestOptions
   ): Promise<ArticleCountsDto> {
-    const res = await apiClient.get<unknown>(
+    const res = await blogApiClient.get<unknown>(
       ENDPOINTS.blog.articles.counts,
       options
     );
@@ -217,7 +217,7 @@ export const blogApiService = {
     slug: string,
     options?: BlogRequestOptions
   ): Promise<ArticleDetailDto> {
-    const res = await apiClient.post<unknown>(
+    const res = await blogApiClient.post<unknown>(
       ENDPOINTS.blog.articles.publish(slug),
       undefined,
       options
@@ -235,7 +235,7 @@ export const blogApiService = {
     slug: string,
     options?: BlogRequestOptions
   ): Promise<ArticleListDto[]> {
-    const res = await apiClient.get<unknown>(
+    const res = await blogApiClient.get<unknown>(
       ENDPOINTS.blog.articles.related(slug),
       options
     );
@@ -252,7 +252,7 @@ export const blogApiService = {
     slug: string,
     options?: BlogRequestOptions
   ): Promise<BlogPaginatedResult<ArticleListDto>> {
-    const res = await apiClient.get<unknown>(
+    const res = await blogApiClient.get<unknown>(
       ENDPOINTS.blog.articles.sameCategory(slug),
       options
     );
@@ -268,7 +268,7 @@ export const blogApiService = {
     slug: string,
     options?: BlogRequestOptions
   ): Promise<ArticleListDto[]> {
-    const res = await apiClient.get<unknown>(
+    const res = await blogApiClient.get<unknown>(
       ENDPOINTS.blog.articles.similar(slug),
       options
     );
@@ -284,7 +284,7 @@ export const blogApiService = {
   async getBlockDefinitions(
     options?: BlogRequestOptions
   ): Promise<BlockDefinitionDto[]> {
-    const res = await apiClient.get<unknown>(
+    const res = await blogApiClient.get<unknown>(
       ENDPOINTS.blog.articles.blockDefinitions,
       options
     );
@@ -304,7 +304,7 @@ export const blogApiService = {
   async getCategories(
     options?: BlogRequestOptions
   ): Promise<CategoryDto[]> {
-    const res = await apiClient.get<unknown>(
+    const res = await blogApiClient.get<unknown>(
       ENDPOINTS.blog.categories.list,
       options
     );
@@ -319,7 +319,7 @@ export const blogApiService = {
     body: CategoryRequestDto,
     options?: BlogRequestOptions
   ): Promise<CategoryDto> {
-    const res = await apiClient.post<unknown>(
+    const res = await blogApiClient.post<unknown>(
       ENDPOINTS.blog.categories.create,
       body,
       options
@@ -335,7 +335,7 @@ export const blogApiService = {
     id: number | string,
     options?: BlogRequestOptions
   ): Promise<CategoryDto> {
-    const res = await apiClient.get<unknown>(
+    const res = await blogApiClient.get<unknown>(
       ENDPOINTS.blog.categories.detail(id),
       options
     );
@@ -351,7 +351,7 @@ export const blogApiService = {
     body: CategoryRequestDto,
     options?: BlogRequestOptions
   ): Promise<CategoryDto> {
-    const res = await apiClient.put<unknown>(
+    const res = await blogApiClient.put<unknown>(
       ENDPOINTS.blog.categories.update(id),
       body,
       options
@@ -368,7 +368,7 @@ export const blogApiService = {
     body: PatchedCategoryRequestDto,
     options?: BlogRequestOptions
   ): Promise<CategoryDto> {
-    const res = await apiClient.patch<unknown>(
+    const res = await blogApiClient.patch<unknown>(
       ENDPOINTS.blog.categories.patch(id),
       body,
       options
@@ -384,7 +384,7 @@ export const blogApiService = {
     id: number | string,
     options?: BlogRequestOptions
   ): Promise<void> {
-    await apiClient.delete<void>(ENDPOINTS.blog.categories.delete(id), options);
+    await blogApiClient.delete<void>(ENDPOINTS.blog.categories.delete(id), options);
   },
 
   // =========================================================================
@@ -397,7 +397,7 @@ export const blogApiService = {
   async getTags(
     options?: BlogRequestOptions
   ): Promise<TagDto[]> {
-    const res = await apiClient.get<unknown>(ENDPOINTS.blog.tags.list, options);
+    const res = await blogApiClient.get<unknown>(ENDPOINTS.blog.tags.list, options);
     const normalized = normalizeListResponse<TagDto>(res.data);
     return normalized.items;
   },
@@ -409,7 +409,7 @@ export const blogApiService = {
     body: TagRequestDto,
     options?: BlogRequestOptions
   ): Promise<TagDto> {
-    const res = await apiClient.post<unknown>(
+    const res = await blogApiClient.post<unknown>(
       ENDPOINTS.blog.tags.create,
       body,
       options
@@ -425,7 +425,7 @@ export const blogApiService = {
     id: number | string,
     options?: BlogRequestOptions
   ): Promise<TagDto> {
-    const res = await apiClient.get<unknown>(
+    const res = await blogApiClient.get<unknown>(
       ENDPOINTS.blog.tags.detail(id),
       options
     );
@@ -441,7 +441,7 @@ export const blogApiService = {
     body: TagRequestDto,
     options?: BlogRequestOptions
   ): Promise<TagDto> {
-    const res = await apiClient.put<unknown>(
+    const res = await blogApiClient.put<unknown>(
       ENDPOINTS.blog.tags.update(id),
       body,
       options
@@ -458,7 +458,7 @@ export const blogApiService = {
     body: PatchedTagRequestDto,
     options?: BlogRequestOptions
   ): Promise<TagDto> {
-    const res = await apiClient.patch<unknown>(
+    const res = await blogApiClient.patch<unknown>(
       ENDPOINTS.blog.tags.patch(id),
       body,
       options
@@ -474,7 +474,7 @@ export const blogApiService = {
     id: number | string,
     options?: BlogRequestOptions
   ): Promise<void> {
-    await apiClient.delete<void>(ENDPOINTS.blog.tags.delete(id), options);
+    await blogApiClient.delete<void>(ENDPOINTS.blog.tags.delete(id), options);
   },
 
   // =========================================================================
@@ -489,7 +489,7 @@ export const blogApiService = {
     pageSize: number = 20,
     options?: BlogRequestOptions
   ): Promise<BlogPaginatedResult<MediaDetailDto>> {
-    const res = await apiClient.get<unknown>(ENDPOINTS.blog.media.list, {
+    const res = await blogApiClient.get<unknown>(ENDPOINTS.blog.media.list, {
       query: { page, page_size: pageSize },
       signal: options?.signal,
       headers: options?.headers,
@@ -511,7 +511,7 @@ export const blogApiService = {
     if (input.alt_text) formData.append("alt_text", input.alt_text);
     if (input.title) formData.append("title", input.title);
 
-    const res = await apiClient.post<unknown>(
+    const res = await blogApiClient.post<unknown>(
       ENDPOINTS.blog.media.create,
       formData,
       options
@@ -527,7 +527,7 @@ export const blogApiService = {
     id: number | string,
     options?: BlogRequestOptions
   ): Promise<MediaDetailDto> {
-    const res = await apiClient.get<unknown>(
+    const res = await blogApiClient.get<unknown>(
       ENDPOINTS.blog.media.detail(id),
       options
     );
@@ -543,7 +543,7 @@ export const blogApiService = {
     body: MediaDetailRequestDto,
     options?: BlogRequestOptions
   ): Promise<MediaDetailDto> {
-    const res = await apiClient.put<unknown>(
+    const res = await blogApiClient.put<unknown>(
       ENDPOINTS.blog.media.update(id),
       body,
       options
@@ -560,7 +560,7 @@ export const blogApiService = {
     body: PatchedMediaDetailRequestDto,
     options?: BlogRequestOptions
   ): Promise<MediaDetailDto> {
-    const res = await apiClient.patch<unknown>(
+    const res = await blogApiClient.patch<unknown>(
       ENDPOINTS.blog.media.patch(id),
       body,
       options
@@ -576,7 +576,7 @@ export const blogApiService = {
     id: number | string,
     options?: BlogRequestOptions
   ): Promise<void> {
-    await apiClient.delete<void>(ENDPOINTS.blog.media.delete(id), options);
+    await blogApiClient.delete<void>(ENDPOINTS.blog.media.delete(id), options);
   },
 
   // =========================================================================
@@ -589,7 +589,7 @@ export const blogApiService = {
   async getAuthors(
     options?: BlogRequestOptions
   ): Promise<AuthorProfileDto[]> {
-    const res = await apiClient.get<unknown>(
+    const res = await blogApiClient.get<unknown>(
       ENDPOINTS.blog.authors.list,
       options
     );
@@ -604,7 +604,7 @@ export const blogApiService = {
     user: number | string,
     options?: BlogRequestOptions
   ): Promise<AuthorProfileDto> {
-    const res = await apiClient.get<unknown>(
+    const res = await blogApiClient.get<unknown>(
       ENDPOINTS.blog.authors.detail(user),
       options
     );
@@ -619,7 +619,7 @@ export const blogApiService = {
     body: AuthorProfileRequestDto,
     options?: BlogRequestOptions
   ): Promise<AuthorProfileDto> {
-    const res = await apiClient.post<unknown>(
+    const res = await blogApiClient.post<unknown>(
       ENDPOINTS.blog.authors.create,
       body,
       options
@@ -636,7 +636,7 @@ export const blogApiService = {
     body: AuthorProfileRequestDto,
     options?: BlogRequestOptions
   ): Promise<AuthorProfileDto> {
-    const res = await apiClient.put<unknown>(
+    const res = await blogApiClient.put<unknown>(
       ENDPOINTS.blog.authors.update(user),
       body,
       options
@@ -653,7 +653,7 @@ export const blogApiService = {
     body: PatchedAuthorProfileRequestDto,
     options?: BlogRequestOptions
   ): Promise<AuthorProfileDto> {
-    const res = await apiClient.patch<unknown>(
+    const res = await blogApiClient.patch<unknown>(
       ENDPOINTS.blog.authors.patch(user),
       body,
       options
@@ -669,6 +669,6 @@ export const blogApiService = {
     user: number | string,
     options?: BlogRequestOptions
   ): Promise<void> {
-    await apiClient.delete<void>(ENDPOINTS.blog.authors.delete(user), options);
+    await blogApiClient.delete<void>(ENDPOINTS.blog.authors.delete(user), options);
   },
 };
