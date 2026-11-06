@@ -1,26 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { BottomBar } from "@/components/BottomBar";
 import { useAuth } from "@/context/AuthContext";
 import { authService } from "@/services/authService";
-import { ACCESS_TOKEN_KEY } from "@/lib/api/config";
 import { toPersianDigits, formatPrice } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
+import { UnifiedAuthForm, UnifiedAuthSuccessData } from "@/components/auth/UnifiedAuthForm";
 
 export default function ProfilePage() {
   const { isLoggedIn, isLoading, user, login, logout } = useAuth();
-
-  // Unauthenticated Login/OTP Form States
-  const [authStep, setAuthStep] = useState<"info" | "otp">("info");
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [otpCode, setOtpCode] = useState(["", "", "", ""]);
-  const [timer, setTimer] = useState(120);
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState("");
 
   // Modal Visibility States
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
@@ -35,9 +26,9 @@ export default function ProfilePage() {
   const [editSuccess, setEditSuccess] = useState(false);
 
   // Wallet State
-  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletBalance] = useState(0);
   const [walletChargeAmount, setWalletChargeAmount] = useState<number | null>(null);
-  const [walletSuccess, setWalletSuccess] = useState("");
+  const [walletSuccess] = useState("");
   const [walletError, setWalletError] = useState("");
 
   // Open Edit Profile Modal and prefill data
@@ -49,130 +40,20 @@ export default function ProfilePage() {
     setIsEditModalOpen(true);
   };
 
-  // Timer countdown for OTP
-  useEffect(() => {
-    if (authStep !== "otp") return;
-    if (timer <= 0) return;
-
-    const interval = setInterval(() => {
-      setTimer((prev) => prev - 1);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [authStep, timer]);
-
-  /* --- Auth Handlers --- */
-  const handleRequestOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-
-    if (!fullName.trim()) {
-      setAuthError("لطفاً نام و نام خانوادگی خود را وارد کنید.");
-      return;
-    }
-
-    const cleanPhone = phone.trim().replace(/[^\d]/g, "");
-    if (!cleanPhone || cleanPhone.length < 10) {
-      setAuthError("لطفاً شماره موبایل معتبر (۱۱ رقم) وارد کنید.");
-      return;
-    }
-
-    setAuthLoading(true);
-    try {
-      await authService.requestOtp(cleanPhone);
-      setAuthStep("otp");
-      setTimer(120);
-      setOtpCode(["", "", "", ""]);
-    } catch (err) {
-      setAuthError(getErrorMessage(err));
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleOtpChange = (index: number, value: string) => {
-    if (value.length > 1) {
-      const digits = value.replace(/[^\d]/g, "").split("");
-      const newOtp = [...otpCode];
-      digits.forEach((d, i) => {
-        if (i < 4) newOtp[i] = d;
-      });
-      setOtpCode(newOtp);
-      return;
-    }
-
-    const clean = value.replace(/[^\d]/g, "");
-    const newOtp = [...otpCode];
-    newOtp[index] = clean;
-    setOtpCode(newOtp);
-
-    if (clean && index < 3) {
-      const nextInput = document.getElementById(`profile-otp-input-${index + 1}`);
-      nextInput?.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !otpCode[index] && index > 0) {
-      const prevInput = document.getElementById(`profile-otp-input-${index - 1}`);
-      prevInput?.focus();
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-
-    const fullCode = otpCode.join("");
-    if (fullCode.length < 4) {
-      setAuthError("لطفاً کد تایید ۴ رقمی را به طور کامل وارد کنید.");
-      return;
-    }
-
-    const cleanPhone = phone.trim().replace(/[^\d]/g, "");
-    setAuthLoading(true);
-    try {
-      const res = await authService.verifyOtp(cleanPhone, fullCode);
-      const token = res?.accessToken;
-      const refreshToken = res?.refreshToken;
-
-      let finalName = fullName.trim();
-      if (res?.user?.fullName) {
-        finalName = res.user.fullName;
-      } else {
-        try {
-          const me = await authService.getMe();
-          if (me && me.fullName) {
-            finalName = me.fullName;
-          }
-        } catch {
-          // Fallback to entered name
-        }
+  const handleAuthSuccess = (data: UnifiedAuthSuccessData) => {
+    login(
+      data.fullName || "کاربر سایرا",
+      data.phone,
+      data.accessToken,
+      data.refreshToken,
+      data.role || "USER"
+    );
+    if (data.gamingCenterId) {
+      try {
+        localStorage.setItem("sayra_owner_center_id", data.gamingCenterId);
+      } catch {
+        // ignore
       }
-
-      login(finalName || "کاربر سایرا", cleanPhone, token, refreshToken);
-      setAuthStep("info");
-      setFullName("");
-      setPhone("");
-    } catch (err) {
-      setAuthError(getErrorMessage(err));
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    setAuthError("");
-    const cleanPhone = phone.trim().replace(/[^\d]/g, "");
-    setAuthLoading(true);
-    try {
-      await authService.requestOtp(cleanPhone);
-      setTimer(120);
-      setOtpCode(["", "", "", ""]);
-    } catch (err) {
-      setAuthError(getErrorMessage(err));
-    } finally {
-      setAuthLoading(false);
     }
   };
 
@@ -198,11 +79,12 @@ export default function ProfilePage() {
         setEditSuccess(false);
         setIsEditModalOpen(false);
       }, 1200);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // In OpenAPI v1.0-LOCKED, customer profile editing is not supported on the backend.
       // We inform the user transparently without fabricating false backend persistence.
+      const errorObj = err as { message?: string; name?: string };
       const msg =
-        err?.message?.includes("CustomerProfileUpdate") || err?.name === "ContractGapError"
+        errorObj?.message?.includes("CustomerProfileUpdate") || errorObj?.name === "ContractGapError"
           ? "امکان ویرایش اطلاعات حساب کاربری در حال حاضر در سرویس فعال نیست."
           : getErrorMessage(err);
       setEditError(msg);
@@ -212,23 +94,17 @@ export default function ProfilePage() {
   };
 
   /* --- Wallet Charge Handler --- */
-  const handleChargeWallet = (amount: number) => {
+  const handleChargeWallet = () => {
     setWalletError("");
     try {
       authService.walletUnsupported();
-    } catch (err: any) {
+    } catch {
       setWalletError("درگاه و افزایش موجودی کیف پول در حال حاضر در دسترس نیست.");
       setWalletChargeAmount(null);
       setTimeout(() => {
         setWalletError("");
       }, 4000);
     }
-  };
-
-  const formatTimer = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${toPersianDigits(mins)}:${secs < 10 ? "۰" : ""}${toPersianDigits(secs)}`;
   };
 
   return (
@@ -245,138 +121,14 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Unauthenticated State: Login & Registration Form */}
+        {/* Unauthenticated State: Unified Login Form */}
         {!isLoading && !isLoggedIn && (
           <div className="w-full max-w-md lg:max-w-xl mx-auto bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-6 flex flex-col gap-5 shadow-xl">
-            <div className="flex flex-col items-center text-center gap-2 border-b border-[var(--border-subtle)] pb-4">
-              <div className="w-14 h-14 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center border border-[var(--primary)]/20 shadow-inner">
-                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <h1 className="text-base font-bold text-[var(--text-white)]">
-                {authStep === "info" ? "ورود یا ثبت‌نام در سایرا" : "تایید شماره موبایل"}
-              </h1>
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed max-w-xs">
-                {authStep === "info"
-                  ? "جهت استفاده از خدمات، رزرو نوبت و مدیریت حساب کاربری، لطفاً اطلاعات زیر را وارد کنید."
-                  : `کد تایید ارسال شده به شماره ${toPersianDigits(phone)} را وارد نمایید.`}
-              </p>
-            </div>
-
-            {authError && (
-              <div className="p-3 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold text-center">
-                {authError}
-              </div>
-            )}
-
-            {/* Step 1: User Info */}
-            {authStep === "info" ? (
-              <form onSubmit={handleRequestOtp} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-[var(--text-white)]">
-                    نام و نام خانوادگی <span className="text-[var(--accent-red)]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="مثال: علی محمدی"
-                    className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm text-[var(--text-white)] placeholder:text-[var(--text-subtle)] outline-none transition-colors"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-[var(--text-white)]">
-                    شماره تماس <span className="text-[var(--accent-red)]">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-                    dir="ltr"
-                    className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm text-[var(--text-white)] placeholder:text-[var(--text-subtle)] outline-none transition-colors text-right"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={authLoading}
-                  className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
-                >
-                  <span>{authLoading ? "در حال ارسال..." : "ارسال کد تایید"}</span>
-                  {!authLoading && (
-                    <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
-                  )}
-                </button>
-              </form>
-            ) : (
-              /* Step 2: OTP Verification */
-              <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-[var(--text-muted)]">شماره: <strong className="text-[var(--text-white)]">{toPersianDigits(phone)}</strong></span>
-                  <button
-                    type="button"
-                    onClick={() => setAuthStep("info")}
-                    className="text-[var(--primary)] underline hover:opacity-80 font-bold"
-                  >
-                    ویرایش شماره
-                  </button>
-                </div>
-
-                {/* OTP Inputs */}
-                <div className="flex items-center justify-center gap-3 dir-ltr my-2">
-                  {otpCode.map((digit, index) => (
-                    <input
-                      key={index}
-                      id={`profile-otp-input-${index}`}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handleOtpChange(index, e.target.value)}
-                      onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                      className="w-12 h-14 text-center text-xl font-black rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] focus:border-[var(--primary)] text-[var(--primary)] outline-none transition-colors shadow-inner"
-                      autoFocus={index === 0}
-                    />
-                  ))}
-                </div>
-
-                {/* Resend / Timer */}
-                <div className="flex items-center justify-between text-xs pt-1">
-                  {timer > 0 ? (
-                    <span className="text-[var(--text-muted)] flex items-center gap-1">
-                      <span>ارسال مجدد کد تا:</span>
-                      <strong className="text-[var(--primary)] font-mono">{formatTimer(timer)}</strong>
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleResendOtp}
-                      className="text-[var(--primary)] font-bold hover:underline"
-                    >
-                      ارسال مجدد کد تایید
-                    </button>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={authLoading}
-                  className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
-                >
-                  <span>{authLoading ? "در حال بررسی..." : "تایید و ورود"}</span>
-                  {!authLoading && (
-                    <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
-                  )}
-                </button>
-              </form>
-            )}
+            <UnifiedAuthForm
+              onSuccess={handleAuthSuccess}
+              title="ورود به حساب کاربری"
+              description="جهت استفاده از خدمات، رزرو نوبت و مدیریت حساب کاربری، با پیامک (OTP) یا رمز عبور وارد شوید."
+            />
           </div>
         )}
 
@@ -727,7 +479,7 @@ export default function ProfilePage() {
             {walletChargeAmount && (
               <button
                 type="button"
-                onClick={() => handleChargeWallet(walletChargeAmount)}
+                onClick={handleChargeWallet}
                 className="h-11 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs shadow-lg mt-1 transition-all active:scale-[0.98]"
               >
                 پرداخت و شارژ {formatPrice(walletChargeAmount)} تومان
