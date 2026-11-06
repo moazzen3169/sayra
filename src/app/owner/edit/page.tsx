@@ -1,39 +1,25 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import React, { useEffect, useState } from "react";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
 import { useOwner } from "@/context/OwnerContext";
-import { isAbortError } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService } from "@/services/ownerService";
-import { BannerSlider } from "@/components/BannerSlider";
-import { SafeImage } from "@/components/ui/SafeImage";
-import { PLACEHOLDERS } from "@/lib/media";
-import type { CenterSettings, MediaItem } from "@/types/owner";
+import { IRAN_PROVINCES } from "@/data/iranLocations";
+import { LocationMapPicker } from "@/components/owner/LocationMapPicker";
+import { Icon } from "@/components/ui/Icon";
 
 const inputClass =
-  "h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none text-[var(--text-white)] placeholder:text-[var(--text-subtle)]";
-
-const POPULAR_GAMES = [
-  "EA Sports FC 25",
-  "Call of Duty: Modern Warfare III",
-  "GTA V",
-  "Mortal Kombat 1",
-  "Tekken 8",
-  "Counter-Strike 2",
-  "Dota 2",
-  "Elden Ring",
-  "Apex Legends",
-  "Rocket League",
-];
+  "w-full h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none text-[var(--text-white)] placeholder:text-[var(--text-subtle)] transition-colors";
 
 function Toggle({
   label,
+  description,
   checked,
   onChange,
 }: {
   label: string;
+  description?: string;
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
@@ -41,19 +27,22 @@ function Toggle({
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="flex items-center justify-between p-3.5 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] transition-colors hover:border-[var(--border-color)] cursor-pointer"
+      className="flex items-center justify-between p-3.5 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] transition-colors hover:border-[var(--border-color)] cursor-pointer text-right w-full"
       role="switch"
       aria-checked={checked}
     >
-      <span className="text-xs font-bold text-[var(--text-white)]">{label}</span>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-xs font-bold text-[var(--text-white)]">{label}</span>
+        {description && <span className="text-[11px] text-[var(--text-subtle)]">{description}</span>}
+      </div>
       <span
-        className={`w-11 h-6 rounded-full p-0.5 transition-colors ${
+        className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 ${
           checked ? "bg-[var(--primary)]" : "bg-[var(--foreground)]"
-        }`}
+        } inline-flex items-center`}
       >
         <span
-          className={`block w-5 h-5 rounded-full bg-[#101014] transition-transform ${
-            checked ? "-translate-x-5" : "translate-x-0"
+          className={`w-5 h-5 rounded-full bg-white transition-transform ${
+            checked ? "translate-x-0" : "-translate-x-5"
           }`}
         />
       </span>
@@ -62,44 +51,32 @@ function Toggle({
 }
 
 export default function OwnerEditPage() {
-  const { centerId, center } = useOwner();
+  const { centerId, center, refreshCenters } = useOwner();
   const [loaded, setLoaded] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  // ۱. نام گیمنت
+  // ۱. ویرایش اطلاعات اولیه گیم‌نت (نام)
   const [name, setName] = useState(center?.name || "");
+  const [savingName, setSavingName] = useState(false);
+  const [nameMsg, setNameMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  // ۲. آدرس گیمنت
-  const [address, setAddress] = useState(center?.description || "");
-
-  // ۳. انتخاب از روی نقشه (Latitude / Longitude)
-  const [lat, setLat] = useState<number>(38.08);
-  const [lng, setLng] = useState<number>(46.29);
+  // ۲. ویرایش کامل آدرس گیم‌نت (استان، شهر، آدرس دقیق، کدپستی، تلفن، مختصات نقشه)
+  const [province, setProvince] = useState("تهران");
+  const [city, setCity] = useState("تهران");
+  const [addressLine, setAddressLine] = useState(center?.description || "");
+  const [phone, setPhone] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [lat, setLat] = useState<number>(35.6892);
+  const [lng, setLng] = useState<number>(51.389);
   const [geoLocating, setGeoLocating] = useState(false);
+  const [savingAddress, setSavingAddress] = useState(false);
+  const [addressMsg, setAddressMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  // ۴. لیست تمامی بازی‌ها
-  const [games, setGames] = useState<string[]>([
-    "EA Sports FC 25",
-    "Call of Duty: Modern Warfare III",
-    "GTA V",
-    "Mortal Kombat 1",
-  ]);
-  const [newGameInput, setNewGameInput] = useState("");
-
-  // ۵ & ۶. رزرو آنلاین و تایید خودکار
+  // ۳. تنظیمات رزرو گیم‌نت
   const [allowOnline, setAllowOnline] = useState(true);
   const [autoConfirm, setAutoConfirm] = useState(false);
-
-  // تصاویر لوگو و گالری
-  const [media, setMedia] = useState<MediaItem[]>([]);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [deleteConfirmMedia, setDeleteConfirmMedia] = useState<MediaItem | null>(null);
-  const [deletingImage, setDeletingImage] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [preventOverlaps, setPreventOverlaps] = useState(true);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -115,41 +92,58 @@ export default function OwnerEditPage() {
       ownerService.findCenter(centerId, controller.signal),
       ownerService.listAddresses(centerId, controller.signal),
       ownerService.getSettings(centerId, controller.signal),
-      ownerService.listMedia(center?.slug || centerId, controller.signal),
-    ]).then(([centerRes, addressesRes, settingsRes, mediaRes]) => {
+    ]).then(([centerRes, addressesRes, settingsRes]) => {
       if (!active) return;
 
       if (centerRes.status === "fulfilled" && centerRes.value) {
         setName(centerRes.value.name || "");
-        if (centerRes.value.description && !address) {
-          setAddress(centerRes.value.description);
+        if (centerRes.value.description && !addressLine) {
+          setAddressLine(centerRes.value.description);
         }
       } else if (center) {
         setName(center.name || "");
-        if (center.description && !address) {
-          setAddress(center.description);
+        if (center.description && !addressLine) {
+          setAddressLine(center.description);
         }
       }
 
       if (addressesRes.status === "fulfilled" && Array.isArray(addressesRes.value) && addressesRes.value.length > 0) {
-        const primaryAddr = addressesRes.value[0];
-        if (primaryAddr?.address) {
-          setAddress(primaryAddr.address);
+        const primaryAddr = addressesRes.value[0] as any;
+        if (primaryAddr?.addressLine || primaryAddr?.address) {
+          setAddressLine(primaryAddr.addressLine || primaryAddr.address);
+        }
+        if (primaryAddr?.city) {
+          setCity(primaryAddr.city);
+        }
+        if (primaryAddr?.province) {
+          setProvince(primaryAddr.province);
+        }
+        if (primaryAddr?.phone) {
+          setPhone(primaryAddr.phone);
+        }
+        if (primaryAddr?.postalCode) {
+          setPostalCode(primaryAddr.postalCode);
+        }
+        if (typeof primaryAddr?.lat === "number" && !isNaN(primaryAddr.lat)) {
+          setLat(primaryAddr.lat);
+        }
+        if (typeof primaryAddr?.lng === "number" && !isNaN(primaryAddr.lng)) {
+          setLng(primaryAddr.lng);
         }
       }
 
       if (settingsRes.status === "fulfilled" && settingsRes.value) {
-        setAllowOnline(settingsRes.value.allowOnlineBooking !== false);
-        setAutoConfirm(!!settingsRes.value.onlineBookingAutoConfirm);
-      }
-
-      if (mediaRes.status === "fulfilled" && Array.isArray(mediaRes.value)) {
-        setMedia(mediaRes.value);
-        const existingLogo = mediaRes.value.find((m) => m.purpose === "LOGO" || m.purpose === "COVER");
-        if (existingLogo?.url) {
-          setLogoPreview(existingLogo.url);
+        if (typeof settingsRes.value.allowOnlineBooking === "boolean") {
+          setAllowOnline(settingsRes.value.allowOnlineBooking);
+        }
+        if (typeof settingsRes.value.onlineBookingAutoConfirm === "boolean") {
+          setAutoConfirm(settingsRes.value.onlineBookingAutoConfirm);
+        }
+        if (typeof settingsRes.value.preventOverlaps === "boolean") {
+          setPreventOverlaps(settingsRes.value.preventOverlaps);
         }
       }
+
       setLoaded(true);
     });
 
@@ -159,30 +153,21 @@ export default function OwnerEditPage() {
     };
   }, [centerId, center]);
 
-  const addGame = (gameName: string) => {
-    const trimmed = gameName.trim();
-    if (!trimmed) return;
-    if (!games.includes(trimmed)) {
-      setGames((prev) => [...prev, trimmed]);
-    }
-    setNewGameInput("");
-  };
-
-  const removeGame = (gameName: string) => {
-    setGames((prev) => prev.filter((g) => g !== gameName));
-  };
-
-  const togglePopularGame = (gameName: string) => {
-    if (games.includes(gameName)) {
-      removeGame(gameName);
-    } else {
-      addGame(gameName);
+  const handleProvinceChange = (provName: string) => {
+    setProvince(provName);
+    const found = IRAN_PROVINCES.find((p) => p.name === provName);
+    if (found) {
+      if (found.cities.length > 0) {
+        setCity(found.cities[0]);
+      }
+      setLat(found.defaultLat);
+      setLng(found.defaultLng);
     }
   };
 
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
-      setMsg({ ok: false, text: "مرورگر شما از قابلیت Geolocation پشتیبانی نمی‌کند." });
+      setAddressMsg({ ok: false, text: "مرورگر شما از قابلیت موقعیت‌یابی پشتیبانی نمی‌کند." });
       return;
     }
     setGeoLocating(true);
@@ -191,510 +176,396 @@ export default function OwnerEditPage() {
         setLat(Number(position.coords.latitude.toFixed(6)));
         setLng(Number(position.coords.longitude.toFixed(6)));
         setGeoLocating(false);
-        setMsg({ ok: true, text: "موقعیت کنونی شما روی نقشه تنظیم شد." });
+        setAddressMsg({ ok: true, text: "موقعیت کنونی شما روی نقشه تنظیم شد." });
       },
       () => {
         setGeoLocating(false);
-        setMsg({ ok: false, text: "امکان دریافت موقعیت مکانی شما وجود نداشت." });
+        setAddressMsg({ ok: false, text: "امکان دریافت موقعیت مکانی شما وجود نداشت." });
       }
     );
   };
 
-  const save = async (e: React.FormEvent) => {
+  // ذخیره نام با درخواست API جداگانه
+  const handleSaveName = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (saving) return;
-    setSaving(true);
-    setMsg(null);
+    if (savingName || !centerId) return;
+    if (!name.trim()) {
+      setNameMsg({ ok: false, text: "لطفاً نام گیمنت را وارد کنید." });
+      return;
+    }
+
+    setSavingName(true);
+    setNameMsg(null);
     try {
-      // فقط فیلدهای پشتیبانی شده توسط اندپوینت settings ارسال می‌شوند
-      const settings: CenterSettings = {
-        allowOnlineBooking: allowOnline,
-        onlineBookingAutoConfirm: autoConfirm,
-      };
-      await ownerService.updateSettings(centerId, settings);
-
-      // به‌روزرسانی مجدد تنظیمات از سرور جهت اطمینان از تطابق با بک‌اند
-      const freshSettings = await ownerService.getSettings(centerId).catch(() => null);
-      if (freshSettings) {
-        setAllowOnline(freshSettings.allowOnlineBooking !== false);
-        setAutoConfirm(!!freshSettings.onlineBookingAutoConfirm);
+      await ownerService.patchCenter(centerId, { name: name.trim() });
+      try {
+        await refreshCenters();
+      } catch {
+        // ignore
       }
-
-      // پیام شفاف که به کاربر اعلام می‌کند تنظیمات رزرو در بک‌اند ثبت شد و سایر فیلدها منتظر قرارداد بک‌اند هستند
-      setMsg({
-        ok: true,
-        text: "تنظیمات رزرو آنلاین با موفقیت در سرور ذخیره شد. (تغییر نام، آدرس و بازی‌ها پس از فعال‌سازی اندپوینت مربوطه در بک‌اند اعمال خواهند شد)",
-      });
+      setNameMsg({ ok: true, text: "نام گیمنت با موفقیت ذخیره شد." });
     } catch (err) {
-      setMsg({ ok: false, text: getErrorMessage(err) });
+      setNameMsg({ ok: false, text: getErrorMessage(err) });
     } finally {
-      setSaving(false);
+      setSavingName(false);
     }
   };
 
+  // ذخیره آدرس کامل با درخواست API جداگانه
+  const handleSaveAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (savingAddress || !centerId) return;
+
+    if (!addressLine.trim()) {
+      setAddressMsg({ ok: false, text: "لطفاً آدرس دقیق گیمنت را وارد کنید." });
+      return;
+    }
+    if (!city.trim()) {
+      setAddressMsg({ ok: false, text: "لطفاً شهر را انتخاب کنید." });
+      return;
+    }
+
+    setSavingAddress(true);
+    setAddressMsg(null);
+
+    const userEnteredAddress = addressLine.trim();
+    const fullAddressString = `${province}، ${city.trim()}، ${userEnteredAddress}`;
+
+    try {
+      await ownerService.createAddress(centerId, {
+        addressLine: userEnteredAddress,
+        address: fullAddressString,
+        city: city.trim(),
+        province: province.trim() || undefined,
+        phone: phone.trim() || undefined,
+        postalCode: postalCode.trim() || undefined,
+        lat,
+        lng,
+      });
+
+      await ownerService.patchCenter(centerId, {
+        address: fullAddressString,
+        phone: phone.trim() || undefined,
+      }).catch(() => {
+        // Fallback gracefully if patchCenter is partial
+      });
+
+      try {
+        await refreshCenters();
+      } catch {
+        // ignore
+      }
+
+      setAddressMsg({ ok: true, text: "آدرس و موقعیت مکانی گیمنت با موفقیت ثبت و ذخیره شد." });
+    } catch (err) {
+      setAddressMsg({ ok: false, text: getErrorMessage(err) });
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
+  // ذخیره تنظیمات رزرو با درخواست API جداگانه
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (savingSettings || !centerId) return;
+
+    setSavingSettings(true);
+    setSettingsMsg(null);
+
+    try {
+      await ownerService.updateSettings(centerId, {
+        allowOnlineBooking: allowOnline,
+        onlineBookingAutoConfirm: autoConfirm,
+        preventOverlaps: preventOverlaps,
+      });
+
+      // بارگذاری مجدد تنظیمات از سرور جهت تایید
+      const freshSettings = await ownerService.getSettings(centerId).catch(() => null);
+      if (freshSettings) {
+        if (typeof freshSettings.allowOnlineBooking === "boolean") {
+          setAllowOnline(freshSettings.allowOnlineBooking);
+        }
+        if (typeof freshSettings.onlineBookingAutoConfirm === "boolean") {
+          setAutoConfirm(freshSettings.onlineBookingAutoConfirm);
+        }
+        if (typeof freshSettings.preventOverlaps === "boolean") {
+          setPreventOverlaps(freshSettings.preventOverlaps);
+        }
+      }
+
+      setSettingsMsg({ ok: true, text: "تنظیمات رزرو آنلاین با موفقیت ذخیره شد." });
+    } catch (err) {
+      setSettingsMsg({ ok: false, text: getErrorMessage(err) });
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const currentProvinceInfo = IRAN_PROVINCES.find((p) => p.name === province) || IRAN_PROVINCES[0];
+
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
-      <OwnerPageHeader title="ویرایش گیمنت" />
+    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-12">
+      <OwnerPageHeader title="ویرایش گیمنت" backUrl="/owner" />
 
-      <main className="flex-1 mt-16 px-4 py-4 lg:max-w-[var(--max-mini-app-width)] lg:mx-auto lg:w-full lg:px-0">
-        <div className="mb-4 flex items-center justify-between p-3 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)]">
-          <span className="text-xs text-[var(--text-subtle)]">گیم‌نت دیگری دارید یا می‌خواهید شعبه جدید اضافه کنید؟</span>
-          <Link
-            href="/owner/new"
-            className="px-3 py-1.5 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--primary)] hover:border-[var(--primary)] active:scale-95 transition-all shrink-0"
-          >
-            + ثبت گیم‌نت جدید
-          </Link>
-        </div>
+      <main className="flex-1 mt-16 px-4 py-4 lg:max-w-[var(--max-mini-app-width)] lg:mx-auto lg:w-full lg:px-0 flex flex-col gap-6">
         {!loaded ? (
-          <div className="h-60 rounded-card bg-[var(--bg-card)] animate-pulse" />
+          <div className="flex flex-col gap-4">
+            <div className="h-32 rounded-card bg-[var(--bg-card)] animate-pulse" />
+            <div className="h-64 rounded-card bg-[var(--bg-card)] animate-pulse" />
+          </div>
         ) : (
-          <form onSubmit={save} className="flex flex-col gap-5">
-            {msg && (
-              <div
-                className={`p-3.5 rounded-card text-xs font-bold ${
-                  msg.ok
-                    ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
-                    : "bg-[var(--accent-red)]/10 text-[var(--accent-red)] border border-[var(--accent-red)]/30"
-                }`}
-              >
-                {msg.text}
+          <>
+            {/* ۱. بخش ویرایش اطلاعات اولیه گیم‌نت (نام) با درخواست جدا */}
+            <form
+              onSubmit={handleSaveName}
+              className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-4 shadow-sm"
+            >
+              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[var(--primary)]"></span>
+                  <h2 className="text-sm font-bold text-[var(--text-white)]">اطلاعات اولیه گیمنت</h2>
+                </div>
+                <span className="text-xs text-[var(--text-subtle)]">ویرایش نام گیمنت</span>
               </div>
-            )}
 
-            {/* ۱. نام گیمنت */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-[var(--text-white)]">نام گیمنت</label>
-              <input
-                type="text"
-                className={inputClass}
-                placeholder="نام گیمنت را وارد کنید"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-
-            {/* ۲. آدرس گیمنت */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-[var(--text-white)]">آدرس گیمنت</label>
-              <textarea
-                rows={3}
-                placeholder="آدرس دقیق گیمنت را وارد کنید"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] p-3 text-sm outline-none resize-none text-[var(--text-white)] placeholder:text-[var(--text-subtle)]"
-                required
-              />
-            </div>
-
-            {/* ۳. انتخاب از روی نقشه */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-[var(--text-white)]">انتخاب از روی نقشه</label>
-                <button
-                  type="button"
-                  onClick={handleGetCurrentLocation}
-                  disabled={geoLocating}
-                  className="text-xs text-[var(--primary)] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+              {nameMsg && (
+                <div
+                  className={`p-3 rounded-card text-xs font-bold ${
+                    nameMsg.ok
+                      ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
+                      : "bg-[var(--accent-red)]/10 text-[var(--accent-red)] border border-[var(--accent-red)]/30"
+                  }`}
                 >
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                  {geoLocating ? "در حال دریافت..." : "موقعیت کنونی من"}
-                </button>
-              </div>
-
-              <div className="relative rounded-card border border-[var(--border-subtle)] overflow-hidden bg-[var(--bg-card)]">
-                {/* Map iframe preview */}
-                <iframe
-                  title="موقعیت روی نقشه"
-                  className="w-full h-48 border-0"
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${
-                    lng - 0.01
-                  }%2C${lat - 0.01}%2C${lng + 0.01}%2C${
-                    lat + 0.01
-                  }&layer=mapnik&marker=${lat}%2C${lng}`}
-                />
-
-                <div className="p-3 bg-[var(--foreground)]/30 border-t border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-2 text-[var(--text-muted)] dir-ltr">
-                    <span>📍 Lat: <strong className="text-[var(--text-white)]">{lat}</strong></span>
-                    <span>Lng: <strong className="text-[var(--text-white)]">{lng}</strong></span>
-                  </div>
-                  <span className="text-xs text-[var(--text-muted)]">
-                    برای تغییر موقعیت می‌توانید مختصات را وارد کنید یا موقعیت کنونی را بزنید
-                  </span>
+                  {nameMsg.text}
                 </div>
+              )}
 
-                <div className="grid grid-cols-2 gap-2 p-3 pt-0 bg-[var(--foreground)]/30">
-                  <input
-                    type="number"
-                    step="0.0001"
-                    placeholder="عرض جغرافیایی (Lat)"
-                    value={lat}
-                    onChange={(e) => setLat(parseFloat(e.target.value) || 0)}
-                    className="h-9 px-3 rounded-card bg-[var(--foreground)]/60 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-xs text-left text-[var(--text-white)] outline-none"
-                    dir="ltr"
-                  />
-                  <input
-                    type="number"
-                    step="0.0001"
-                    placeholder="طول جغرافیایی (Lng)"
-                    value={lng}
-                    onChange={(e) => setLng(parseFloat(e.target.value) || 0)}
-                    className="h-9 px-3 rounded-card bg-[var(--foreground)]/60 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-xs text-left text-[var(--text-white)] outline-none"
-                    dir="ltr"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* ۴. لیست تمامی بازی‌ها */}
-            <div className="flex flex-col gap-2.5">
-              <label className="text-xs font-bold text-[var(--text-white)]">لیست تمامی بازی‌ها</label>
-
-              {/* Selected games chips */}
-              <div className="flex flex-wrap gap-2 min-h-[38px] p-2.5 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
-                {games.length === 0 ? (
-                  <span className="text-xs text-[var(--text-subtle)] py-0.5">هیچ بازی انتخاب نشده است.</span>
-                ) : (
-                  games.map((game) => (
-                    <span
-                      key={game}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--primary)]/15 border border-[var(--primary)]/30 text-[var(--primary)] text-xs font-bold"
-                    >
-                      {game}
-                      <button
-                        type="button"
-                        onClick={() => removeGame(game)}
-                        className="hover:text-white transition-colors cursor-pointer"
-                        aria-label={`حذف ${game}`}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))
-                )}
-              </div>
-
-              {/* Add custom game input */}
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-[var(--text-white)]">
+                  نام گیمنت <span className="text-[var(--accent-red)]">*</span>
+                </label>
                 <input
                   type="text"
-                  placeholder="نام بازی جدید را وارد کنید..."
-                  value={newGameInput}
-                  onChange={(e) => setNewGameInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addGame(newGameInput);
-                    }
-                  }}
-                  className="flex-1 h-10 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-xs text-[var(--text-white)] outline-none placeholder:text-[var(--text-subtle)]"
-                />
-                <button
-                  type="button"
-                  onClick={() => addGame(newGameInput)}
-                  className="h-10 px-4 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-white)] hover:border-[var(--primary)] transition-colors cursor-pointer"
-                >
-                  افزودن
-                </button>
-              </div>
-
-              {/* Quick toggle popular games */}
-              <div className="flex flex-col gap-1.5 mt-1">
-                <span className="text-xs text-[var(--text-muted)]">انتخاب سریع از بازی‌های محبوب:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {POPULAR_GAMES.map((gameName) => {
-                    const selected = games.includes(gameName);
-                    return (
-                      <button
-                        key={gameName}
-                        type="button"
-                        onClick={() => togglePopularGame(gameName)}
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer border ${
-                          selected
-                            ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-bold"
-                            : "bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-white)]"
-                        }`}
-                      >
-                        {selected ? gameName : `+ ${gameName}`}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* ۵ & ۶. رزرو آنلاین و تایید خودکار */}
-            <div className="flex flex-col gap-3 mt-1">
-              <h2 className="text-xs font-bold text-[var(--text-white)]">تنظیمات رزرو</h2>
-              <Toggle label="فعال بودن رزرو آنلاین" checked={allowOnline} onChange={setAllowOnline} />
-              <Toggle label="تایید خودکار رزروهای آنلاین" checked={autoConfirm} onChange={setAutoConfirm} />
-            </div>
-
-            {/* ۷. لوگو و پروفایل گیم‌نت */}
-            <div className="flex flex-col gap-3 mt-2 border-t border-[var(--border-subtle)] pt-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xs font-bold text-[var(--text-white)]">تصویر پروفایل / لوگوی گیمنت</h2>
-                <button
-                  type="button"
-                  onClick={() => logoInputRef.current?.click()}
-                  disabled={uploadingLogo}
-                  className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                >
-                  {uploadingLogo ? "در حال آپلود..." : logoPreview ? "تغییر تصویر لوگو" : "+ افزودن لوگو"}
-                </button>
-                <input
-                  ref={logoInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = "";
-                    if (!file || uploadingLogo || !centerId) return;
-                    setUploadingLogo(true);
-                    setMsg(null);
-                    try {
-                      const uploaded = await ownerService.uploadGalleryImage(centerId, file, {
-                        altText: `لوگوی ${name || "گیم‌نت"}`,
-                        purpose: "LOGO",
-                      });
-                      if (uploaded.url) {
-                        setLogoPreview(uploaded.url);
-                        setMedia((prev) => [uploaded, ...prev.filter((m) => m.url !== uploaded.url)]);
-                      }
-                      setMsg({ ok: true, text: "تصویر لوگو/پروفایل با موفقیت ثبت شد." });
-                    } catch (err) {
-                      setMsg({ ok: false, text: getErrorMessage(err) });
-                    } finally {
-                      setUploadingLogo(false);
-                    }
-                  }}
+                  className={inputClass}
+                  placeholder="نام گیمنت را وارد کنید"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
                 />
               </div>
 
-              {logoPreview ? (
-                <div className="flex items-center gap-4 p-3 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
-                  <div className="w-16 h-16 rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[var(--foreground)] shrink-0">
-                    <SafeImage
-                      src={logoPreview}
-                      alt="لوگوی گیمنت"
-                      fallbackSrc={PLACEHOLDERS.avatar}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-bold text-[var(--text-white)]">لوگوی فعال مجموعه</span>
-                    <span className="text-[11px] text-[var(--text-subtle)]">این تصویر در بالای پنل و صفحه عمومی گیمنت نمایش داده می‌شود.</span>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  onClick={() => logoInputRef.current?.click()}
-                  className="p-4 rounded-card border-2 border-dashed border-[var(--border-subtle)] hover:border-[var(--primary)] transition-colors text-center text-xs text-[var(--text-muted)] cursor-pointer"
-                >
-                  لوگویی برای این مجموعه تنظیم نشده است. جهت بارگذاری کلیک کنید.
-                </div>
-              )}
-            </div>
-
-            {/* ۸. گالری تصاویر و اسلایدر */}
-            <div className="flex flex-col gap-3 mt-2 border-t border-[var(--border-subtle)] pt-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xs font-bold text-[var(--text-white)]">گالری تصاویر گیمنت</h2>
+              <div className="flex justify-end pt-2">
                 <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingImage}
-                  className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  type="submit"
+                  disabled={savingName}
+                  className="px-6 h-11 rounded-card bg-[var(--primary)] text-black font-bold text-xs hover:brightness-105 active:scale-95 transition-all disabled:opacity-60 cursor-pointer shadow"
                 >
-                  {uploadingImage ? "در حال آپلود..." : "+ افزودن عکس به گالری"}
+                  {savingName ? "در حال ذخیره..." : "ذخیره نام گیمنت"}
                 </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = "";
-                    if (!file || uploadingImage || !centerId) return;
-                    setUploadingImage(true);
-                    setMsg(null);
-                    try {
-                      const uploaded = await ownerService.uploadGalleryImage(centerId, file, {
-                        altText: file.name,
-                        purpose: "GALLERY",
-                      });
-                      if (uploaded?.url) {
-                        setMedia((prev) => [uploaded, ...prev.filter((m) => m.url !== uploaded.url)]);
-                      }
-                      const updated = await ownerService.listMedia(center?.slug || centerId);
-                      if (Array.isArray(updated) && updated.length > 0) {
-                        setMedia(updated);
-                      }
-                      setMsg({ ok: true, text: "تصویر با موفقیت در گالری ثبت شد." });
-                    } catch (err) {
-                      setMsg({ ok: false, text: getErrorMessage(err) });
-                    } finally {
-                      setUploadingImage(false);
-                    }
-                  }}
-                />
               </div>
+            </form>
 
-              {media.filter((m) => m.purpose !== "LOGO" && Boolean(m.url)).length === 0 ? (
-                <div className="p-4 rounded-card border border-dashed border-[var(--border-subtle)] text-center text-xs text-[var(--text-muted)]">
-                  هیچ تصویری در گالری این گیمنت آپلود نشده است.
-                </div>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {/* Slider view of gallery */}
-                  <div className="w-full">
-                    <BannerSlider
-                      banners={media
-                        .filter((m) => m.purpose !== "LOGO" && Boolean(m.url))
-                        .map((img, idx) => ({
-                          id: img.id || `gallery-slider-${idx}`,
-                          imageUrl: img.url,
-                          alt: img.altText || "تصویر گالری گیمنت",
-                        }))}
-                      aspectClassName="aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[3/1]"
-                      ariaLabel="اسلایدر تصاویر گیمنت"
-                    />
-                  </div>
-
-                  {/* Thumbnail management grid */}
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                    {media
-                      .filter((m) => m.purpose !== "LOGO" && Boolean(m.url))
-                      .map((img, idx) => {
-                        const imgId = img.id || `${img.url}-${idx}`;
-                        return (
-                          <div
-                            key={imgId}
-                            className="relative aspect-square rounded-card border border-[var(--border-subtle)] overflow-hidden group bg-[var(--foreground)]/30"
-                          >
-                            <SafeImage
-                              src={img.url}
-                              alt={img.altText || "تصویر گیمنت"}
-                              fallbackSrc={PLACEHOLDERS.gallery}
-                              className="w-full h-full object-cover"
-                            />
-                            {/* Delete X Button on top right */}
-                            <button
-                              type="button"
-                              onClick={() => setDeleteConfirmMedia(img)}
-                              aria-label="حذف عکس"
-                              className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/80 hover:bg-[var(--accent-red)] text-white font-black text-xs flex items-center justify-center transition-colors shadow-md cursor-pointer"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="h-12 mt-2 rounded-card bg-[var(--primary)] text-on-primary font-bold text-sm hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-60 cursor-pointer"
+            {/* ۲. بخش ویرایش کامل آدرس با درخواست API جدا و دکمه ذخیره‌سازی جداگانه */}
+            <form
+              onSubmit={handleSaveAddress}
+              className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-5 shadow-sm"
             >
-              {saving ? "در حال ذخیره..." : "ذخیره تغییرات"}
-            </button>
-          </form>
+              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+                <div className="flex items-center gap-2">
+                  <Icon name="pin" size={18} className="text-[var(--primary)]" />
+                  <h2 className="text-sm font-bold text-[var(--text-white)]">ویرایش کامل آدرس و موقعیت مکانی</h2>
+                </div>
+                <span className="text-xs text-[var(--text-subtle)]">موقعیت و آدرس گیمنت</span>
+              </div>
+
+              {addressMsg && (
+                <div
+                  className={`p-3 rounded-card text-xs font-bold ${
+                    addressMsg.ok
+                      ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
+                      : "bg-[var(--accent-red)]/10 text-[var(--accent-red)] border border-[var(--accent-red)]/30"
+                  }`}
+                >
+                  {addressMsg.text}
+                </div>
+              )}
+
+              {/* استان و شهر */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-[var(--text-white)]">
+                    استان <span className="text-[var(--accent-red)]">*</span>
+                  </label>
+                  <select
+                    value={province}
+                    onChange={(e) => handleProvinceChange(e.target.value)}
+                    className={inputClass}
+                  >
+                    {IRAN_PROVINCES.map((prov) => (
+                      <option key={prov.name} value={prov.name} className="bg-[var(--bg-card)]">
+                        {prov.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-[var(--text-white)]">
+                    شهر <span className="text-[var(--accent-red)]">*</span>
+                  </label>
+                  <select
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className={inputClass}
+                  >
+                    {currentProvinceInfo.cities.map((c) => (
+                      <option key={c} value={c} className="bg-[var(--bg-card)]">
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* شماره تماس و کد پستی */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-[var(--text-white)]">شماره تماس مجموعه</label>
+                  <input
+                    type="tel"
+                    dir="ltr"
+                    placeholder="02188888888"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className={`${inputClass} text-left font-mono`}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-[var(--text-white)]">کد پستی (اختیاری)</label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    placeholder="کد پستی ۱۰ رقمی"
+                    value={postalCode}
+                    onChange={(e) => setPostalCode(e.target.value)}
+                    className={`${inputClass} text-left font-mono`}
+                  />
+                </div>
+              </div>
+
+              {/* آدرس دقیق */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-[var(--text-white)]">
+                  آدرس دقیق گیمنت <span className="text-[var(--accent-red)]">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="خیابان، کوچه، پلاک، طبقه یا نشانی دقیق گیمنت را وارد کنید"
+                  value={addressLine}
+                  onChange={(e) => setAddressLine(e.target.value)}
+                  className="rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] p-3 text-sm outline-none resize-none text-[var(--text-white)] placeholder:text-[var(--text-subtle)] transition-colors"
+                  required
+                />
+              </div>
+
+              {/* انتخاب و مشاهده از روی نقشه */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[var(--text-white)]">موقعیت گیمنت روی نقشه</span>
+                  <button
+                    type="button"
+                    onClick={handleGetCurrentLocation}
+                    disabled={geoLocating}
+                    className="text-xs text-[var(--primary)] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  >
+                    <Icon name="pin" size={14} />
+                    {geoLocating ? "در حال دریافت..." : "تنظیم روی موقعیت کنونی من"}
+                  </button>
+                </div>
+
+                <LocationMapPicker
+                  latitude={lat}
+                  longitude={lng}
+                  cityName={city}
+                  provinceName={province}
+                  onChange={(newLat, newLng) => {
+                    setLat(newLat);
+                    setLng(newLng);
+                  }}
+                />
+              </div>
+
+              {/* دکمه اختصاصی ذخیره‌سازی آدرس */}
+              <div className="flex justify-end pt-3 border-t border-[var(--border-subtle)]">
+                <button
+                  type="submit"
+                  disabled={savingAddress}
+                  className="px-6 h-11 rounded-card bg-[var(--primary)] text-black font-bold text-xs hover:brightness-105 active:scale-95 transition-all disabled:opacity-60 cursor-pointer shadow"
+                >
+                  {savingAddress ? "در حال ذخیره‌سازی آدرس..." : "ذخیره آدرس گیمنت"}
+                </button>
+              </div>
+            </form>
+
+            {/* ۳. بخش تنظیمات رزرو با درخواست API جداگانه */}
+            <form
+              onSubmit={handleSaveSettings}
+              className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-4 shadow-sm"
+            >
+              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+                <div className="flex items-center gap-2">
+                  <Icon name="calendar" size={18} className="text-[var(--primary)]" />
+                  <h2 className="text-sm font-bold text-[var(--text-white)]">تنظیمات رزرو</h2>
+                </div>
+                <span className="text-xs text-[var(--text-subtle)]">قوانین و رفتار رزرو آنلاین</span>
+              </div>
+
+              {settingsMsg && (
+                <div
+                  className={`p-3 rounded-card text-xs font-bold ${
+                    settingsMsg.ok
+                      ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
+                      : "bg-[var(--accent-red)]/10 text-[var(--accent-red)] border border-[var(--accent-red)]/30"
+                  }`}
+                >
+                  {settingsMsg.text}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3">
+                <Toggle
+                  label="فعال بودن رزرو آنلاین"
+                  description="مشتریان می‌توانند سانس‌های گیم‌نت را به‌صورت آنلاین مشاهده و رزرو کنند"
+                  checked={allowOnline}
+                  onChange={setAllowOnline}
+                />
+                <Toggle
+                  label="تایید خودکار رزروهای آنلاین"
+                  description="رزروها بدون نیاز به تایید دستی شما مستقیماً ثبت قطعی شوند"
+                  checked={autoConfirm}
+                  onChange={setAutoConfirm}
+                />
+                <Toggle
+                  label="جلوگیری از تداخل زمانی رزروها"
+                  description="عدم اجازه ثبت دو رزرو همپوشان بر روی یک دستگاه"
+                  checked={preventOverlaps}
+                  onChange={setPreventOverlaps}
+                />
+              </div>
+
+              <div className="flex justify-end pt-2 border-t border-[var(--border-subtle)]">
+                <button
+                  type="submit"
+                  disabled={savingSettings}
+                  className="px-6 h-11 rounded-card bg-[var(--primary)] text-black font-bold text-xs hover:brightness-105 active:scale-95 transition-all disabled:opacity-60 cursor-pointer shadow"
+                >
+                  {savingSettings ? "در حال ذخیره‌سازی..." : "ذخیره تنظیمات رزرو"}
+                </button>
+              </div>
+            </form>
+          </>
         )}
       </main>
-
-      {/* Confirmation Modal for Image Deletion */}
-      {deleteConfirmMedia && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fadeIn"
-          onClick={() => !deletingImage && setDeleteConfirmMedia(null)}
-        >
-          <div
-            className="w-full max-w-[380px] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-5 flex flex-col gap-4 text-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="w-12 h-12 rounded-full bg-[var(--accent-red)]/10 text-[var(--accent-red)] mx-auto flex items-center justify-center text-xl font-bold">
-              🗑️
-            </div>
-            <div className="flex flex-col gap-1">
-              <h3 className="text-sm font-bold text-[var(--text-white)]">تایید حذف تصویر</h3>
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                آیا از حذف این تصویر اطمینان دارید؟ این عمل قابل بازگشت نیست.
-              </p>
-            </div>
-
-            {deleteConfirmMedia.url && (
-              <div className="w-24 h-24 mx-auto rounded-card overflow-hidden border border-[var(--border-subtle)]">
-                <SafeImage
-                  src={deleteConfirmMedia.url}
-                  alt="پیش‌نمایش"
-                  fallbackSrc={PLACEHOLDERS.gallery}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            )}
-
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                disabled={deletingImage}
-                onClick={async () => {
-                  if (deletingImage || !deleteConfirmMedia) return;
-                  setDeletingImage(true);
-                  try {
-                    const targetId = deleteConfirmMedia.id || deleteConfirmMedia.url;
-                    await ownerService.deleteMedia(centerId, targetId);
-                    const updated = await ownerService.listMedia(center?.slug || centerId);
-                    setMedia(Array.isArray(updated) ? updated : []);
-                    setDeleteConfirmMedia(null);
-                    setMsg({ ok: true, text: "تصویر با موفقیت حذف شد." });
-                  } catch (err) {
-                    setDeleteConfirmMedia(null);
-                    setMsg({ ok: false, text: getErrorMessage(err) });
-                  } finally {
-                    setDeletingImage(false);
-                  }
-                }}
-                className="flex-1 h-10 rounded-card bg-[var(--accent-red)] text-white font-bold text-xs disabled:opacity-60"
-              >
-                {deletingImage ? "در حال حذف..." : "حذف تصویر"}
-              </button>
-              <button
-                type="button"
-                disabled={deletingImage}
-                onClick={() => setDeleteConfirmMedia(null)}
-                className="h-10 px-4 rounded-card bg-[var(--foreground)] text-xs font-bold text-[var(--text-white)]"
-              >
-                انصراف
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
