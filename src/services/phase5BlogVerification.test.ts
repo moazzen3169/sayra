@@ -442,7 +442,7 @@ describe("Phase 5: Blog Mock Elimination & System Integrity", () => {
       controller.abort();
 
       await expect(
-        apiClient.get("/articles/", { signal: controller.signal })
+        blogApiService.getArticles({}, controller.signal)
       ).rejects.toThrow();
     });
   });

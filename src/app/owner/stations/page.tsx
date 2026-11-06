@@ -8,8 +8,10 @@ import { isAbortError } from "@/lib/api/client";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { getErrorMessage, stationImageFor } from "@/lib/reservationUi";
 import { ownerService } from "@/services/ownerService";
+import { catalogService } from "@/services/catalogService";
 import type { GameStationInfo } from "@/services/gamingCenterService";
 import type { StationInput } from "@/types/owner";
+import type { DeviceCatalogItem } from "@/types/catalog";
 
 const POPULAR_GAMES = [
   "EA Sports FC 25",
@@ -51,9 +53,17 @@ export default function OwnerStationsPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Tab: "catalog" or "custom"
+  const [addMode, setAddMode] = useState<"catalog" | "custom">("catalog");
+  const [catalogDevices, setCatalogDevices] = useState<DeviceCatalogItem[]>([]);
+  const [selectedCatalogDeviceId, setSelectedCatalogDeviceId] = useState<string>("");
+  const [catalogLoading, setCatalogLoading] = useState(false);
+
   const [type, setType] = useState<StationInput["stationType"]>("PC");
   const [price, setPrice] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const [customPrefix, setCustomPrefix] = useState("");
+  const [isVip, setIsVip] = useState(false);
   const [defaultControllers, setDefaultControllers] = useState("2");
   const [maxExtraControllers, setMaxExtraControllers] = useState("2");
   const [extraControllerPrice, setExtraControllerPrice] = useState("50000");
@@ -121,36 +131,76 @@ export default function OwnerStationsPage() {
     }
   };
 
+  useEffect(() => {
+    if (open) {
+      setCatalogLoading(true);
+      catalogService
+        .listDevices({ limit: 100 })
+        .then((items) => {
+          setCatalogDevices(items);
+          if (items.length > 0 && !selectedCatalogDeviceId) {
+            setSelectedCatalogDeviceId(items[0].id);
+          }
+        })
+        .catch(() => {
+          setCatalogDevices([]);
+        })
+        .finally(() => {
+          setCatalogLoading(false);
+        });
+    }
+  }, [open]);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (saving) return;
     const hourlyPrice = Number(price);
-    if (!type || !isFinite(hourlyPrice) || hourlyPrice <= 0) {
-      setFormError("نوع دستگاه و قیمت ساعتی معتبر را وارد کنید.");
+    if (!isFinite(hourlyPrice) || hourlyPrice <= 0) {
+      setFormError("قیمت ساعتی معتبر را وارد کنید.");
       return;
     }
+
     setSaving(true);
     setFormError(null);
 
-    const selectedLabel = STATION_OPTIONS.find((o) => o.value === type)?.label.split(" ")[0] || type;
-    const count = (stations?.length || 0) + 1;
-    const autoName = `${selectedLabel} #${toPersianDigits(count)}`;
-
     try {
-      await ownerService.createStation(centerId, {
-        name: autoName,
-        stationType: type,
-        hourlyPrice,
-        quantity: num(quantity) ?? 1,
-        defaultControllers: num(defaultControllers) ?? 0,
-        maxExtraControllers: num(maxExtraControllers) ?? 0,
-        extraControllerPrice: num(extraControllerPrice) ?? 0,
-        description: description.trim() || undefined,
-      });
+      if (addMode === "catalog") {
+        if (!selectedCatalogDeviceId) {
+          setFormError("دستگاه مورد نظر را از کاتالوگ انتخاب کنید.");
+          setSaving(false);
+          return;
+        }
+        await ownerService.createStationsFromCatalog(centerId, {
+          catalogDeviceId: selectedCatalogDeviceId,
+          quantity: Math.max(1, num(quantity) ?? 1),
+          hourlyPrice,
+          customNamePrefix: customPrefix.trim() || undefined,
+          isVip,
+        });
+      } else {
+        const selectedLabel = STATION_OPTIONS.find((o) => o.value === type)?.label.split(" ")[0] || type;
+        const count = (stations?.length || 0) + 1;
+        const autoName = customPrefix.trim() || `${selectedLabel} #${toPersianDigits(count)}`;
+
+        await ownerService.createStation(centerId, {
+          name: autoName,
+          stationType: type,
+          hourlyPrice,
+          isVip,
+          quantity: num(quantity) ?? 1,
+          defaultControllers: num(defaultControllers) ?? 0,
+          maxExtraControllers: num(maxExtraControllers) ?? 0,
+          extraControllerPrice: num(extraControllerPrice) ?? 0,
+          description: description.trim() || undefined,
+        });
+      }
+
       setOpen(false);
       setType("PC");
       setPrice("");
       setQuantity("1");
+      setCustomPrefix("");
+      setIsVip(false);
       setDefaultControllers("2");
       setMaxExtraControllers("2");
       setExtraControllerPrice("50000");
@@ -335,17 +385,84 @@ export default function OwnerStationsPage() {
             className="w-full max-w-[460px] max-h-[92vh] overflow-y-auto bg-[var(--bg-card)] border-t sm:border border-[var(--border-subtle)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-bold">افزودن دستگاه</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold">افزودن دستگاه به گیم‌نت</h3>
+              <div className="flex rounded-lg bg-[var(--foreground)]/40 p-1 border border-[var(--border-subtle)] text-xs">
+                <button
+                  type="button"
+                  onClick={() => setAddMode("catalog")}
+                  className={`px-3 py-1 rounded-md transition-all font-bold ${
+                    addMode === "catalog"
+                      ? "bg-[var(--primary)] text-black"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-white)]"
+                  }`}
+                >
+                  از کاتالوگ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddMode("custom")}
+                  className={`px-3 py-1 rounded-md transition-all font-bold ${
+                    addMode === "custom"
+                      ? "bg-[var(--primary)] text-black"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-white)]"
+                  }`}
+                >
+                  سفارشی / دستی
+                </button>
+              </div>
+            </div>
+
             {formError && <p className="text-xs font-bold text-[var(--accent-red)]">{formError}</p>}
 
+            {addMode === "catalog" ? (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-[var(--text-muted)]">
+                  انتخاب دستگاه از کاتالوگ مرکزی
+                </label>
+                {catalogLoading ? (
+                  <div className="h-11 rounded-card bg-[var(--foreground)]/20 animate-pulse" />
+                ) : catalogDevices.length === 0 ? (
+                  <div className="p-3 text-xs text-[var(--text-muted)] bg-[var(--foreground)]/20 rounded-card">
+                    دستگاهی در کاتالوگ یافت نشد، از تب «سفارشی / دستی» استفاده کنید.
+                  </div>
+                ) : (
+                  <select
+                    className={input}
+                    value={selectedCatalogDeviceId}
+                    onChange={(e) => setSelectedCatalogDeviceId(e.target.value)}
+                  >
+                    {catalogDevices.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name} ({d.deviceType})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-[var(--text-muted)]">نوع پلتفرم دستگاه</label>
+                <SearchableSelect
+                  options={STATION_OPTIONS}
+                  value={type}
+                  onChange={(v) => setType(v as StationInput["stationType"])}
+                  placeholder="انتخاب نوع دستگاه"
+                  searchPlaceholder="جستجوی نوع دستگاه..."
+                />
+              </div>
+            )}
+
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-[var(--text-muted)]">نوع دستگاه</label>
-              <SearchableSelect
-                options={STATION_OPTIONS}
-                value={type}
-                onChange={(v) => setType(v as StationInput["stationType"])}
-                placeholder="انتخاب نوع دستگاه"
-                searchPlaceholder="جستجوی نوع دستگاه..."
+              <label className="text-xs font-bold text-[var(--text-muted)]">
+                نام یا پیشوند دستگاه (اختیاری)
+              </label>
+              <input
+                className={input}
+                type="text"
+                placeholder={addMode === "catalog" ? "مثلاً PS5 VIP" : "مثلاً سیستم شماره ۱"}
+                value={customPrefix}
+                onChange={(e) => setCustomPrefix(e.target.value)}
               />
             </div>
 
@@ -412,6 +529,19 @@ export default function OwnerStationsPage() {
                   onChange={(e) => setExtraControllerPrice(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isVipStation"
+                checked={isVip}
+                onChange={(e) => setIsVip(e.target.checked)}
+                className="cursor-pointer"
+              />
+              <label htmlFor="isVipStation" className="text-xs font-bold text-[var(--text-white)] cursor-pointer">
+                این دستگاه(ها) به عنوان VIP ثبت شوند
+              </label>
             </div>
 
             <div className="flex flex-col gap-1.5">

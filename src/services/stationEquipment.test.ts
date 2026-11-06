@@ -271,15 +271,6 @@ describe("Phase 7: Gaming-Center Stations and Equipment", () => {
 
     it("captures stationsError when GET /stations fails with 500 without masking as empty", async () => {
       setupMockFetch((url) => {
-        if (url.includes("/public/gamingCenters/center-error")) {
-          return new Response(
-            JSON.stringify({
-              success: true,
-              data: { id: "gc-err", name: "مرکز با خطا", slug: "center-error", isActive: true },
-            }),
-            { status: 200 }
-          );
-        }
         if (url.includes("/stations")) {
           return new Response(
             JSON.stringify({
@@ -287,6 +278,15 @@ describe("Phase 7: Gaming-Center Stations and Equipment", () => {
               error: { code: "STATIONS_UNAVAILABLE", message: "سرور در واکشی ایستگاه‌ها دچار خطا شد" },
             }),
             { status: 500 }
+          );
+        }
+        if (url.includes("/public/gamingCenters/center-error")) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: { id: "gc-err", name: "مرکز با خطا", slug: "center-error", isActive: true },
+            }),
+            { status: 200 }
           );
         }
         return new Response(JSON.stringify({ success: true, data: [] }), { status: 200 });

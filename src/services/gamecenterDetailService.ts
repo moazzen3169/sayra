@@ -293,9 +293,13 @@ const fetchStationsPromise = (async (): Promise<GameStationInfo[]> => {
   if (targetSlug) {
     try {
       return await gamingCenterService.getPublicStations(targetSlug, signal);
-    } catch (err) {
+    } catch (err: any) {
       if (isAbortError(err) || !targetId) throw err;
-      return await gamingCenterService.getStations(targetId, signal);
+      // Fallback only if public slug returns 404 Not Found
+      if (err?.status === 404) {
+        return await gamingCenterService.getStations(targetId, signal);
+      }
+      throw err;
     }
   }
   if (targetId) {

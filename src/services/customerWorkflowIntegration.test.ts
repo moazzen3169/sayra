@@ -159,7 +159,7 @@ describe("Phase 22: Customer Workflow Integration Tests (Mocked Network)", () =>
           { status: 200, headers: { "Content-Type": "application/json" } }
         );
       }
-      if (url.includes("/gamingCenters/gc-1/stations")) {
+      if (url.includes("/stations")) {
         return new Response(
           JSON.stringify({
             success: true,
