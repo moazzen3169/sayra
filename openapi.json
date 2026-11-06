@@ -1255,6 +1255,11 @@
           "description": {
             "type": "string"
           },
+          "managerId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Unique ID of the manager user managing this gaming center (1-to-1 relationship)"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -8172,6 +8177,157 @@
         "tags": [
           "GamingCenters"
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number for pagination",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of records per page",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Search term across name or slug",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "description": "Filter by address city name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "province",
+            "in": "query",
+            "description": "Filter by address province name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "district",
+            "in": "query",
+            "description": "Filter by address district name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "game",
+            "in": "query",
+            "description": "Filter by game offered",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stationType",
+            "in": "query",
+            "description": "Filter by station hardware type",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PC",
+                "PLAYSTATION",
+                "XBOX",
+                "SWITCH",
+                "VR"
+              ]
+            }
+          },
+          {
+            "name": "minStationCount",
+            "in": "query",
+            "description": "Minimum count of stations for the specified hardware type",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "minHourlyRate",
+            "in": "query",
+            "description": "Minimum hourly price",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxHourlyRate",
+            "in": "query",
+            "description": "Maximum hourly price",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "hasFoodService",
+            "in": "query",
+            "description": "Filter by food service availability",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "minRating",
+            "in": "query",
+            "description": "Filter by minimum customer review score",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "isOpen",
+            "in": "query",
+            "description": "Filter by current opening status",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "createdAt",
+                "updatedAt",
+                "name",
+                "hourlyRate",
+                "pcCount",
+                "consoleCount"
+              ]
+            }
+          },
+          {
+            "name": "sortOrder",
+            "in": "query",
+            "description": "Sort direction",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "List of gamingCenters",
@@ -8479,6 +8635,22 @@
             "name": "ticketId",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "description": "Comma-separated list of relation sections to include (addresses, stations, ratings, settings)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "description": "Comma-separated list of scalar fields to selectively return",
             "schema": {
               "type": "string"
             }
@@ -17705,15 +17877,32 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "platform",
-                  "url"
+                  "type",
+                  "value"
                 ],
                 "properties": {
-                  "platform": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "INSTAGRAM",
+                      "WHATSAPP",
+                      "TELEGRAM",
+                      "WEBSITE",
+                      "PHONE",
+                      "GOOGLE_MAP"
+                    ]
+                  },
+                  "value": {
                     "type": "string"
                   },
-                  "url": {
+                  "label": {
                     "type": "string"
+                  },
+                  "isPrimary": {
+                    "type": "boolean"
+                  },
+                  "isActive": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -17770,7 +17959,32 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object"
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "INSTAGRAM",
+                      "WHATSAPP",
+                      "TELEGRAM",
+                      "WEBSITE",
+                      "PHONE",
+                      "GOOGLE_MAP"
+                    ]
+                  },
+                  "value": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "isPrimary": {
+                    "type": "boolean"
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                }
               }
             }
           }
@@ -17897,17 +18111,36 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "address"
+                  "city",
+                  "addressLine"
                 ],
                 "properties": {
-                  "address": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "province": {
                     "type": "string"
                   },
                   "city": {
                     "type": "string"
                   },
-                  "phone": {
+                  "district": {
                     "type": "string"
+                  },
+                  "addressLine": {
+                    "type": "string"
+                  },
+                  "postalCode": {
+                    "type": "string"
+                  },
+                  "lat": {
+                    "type": "number"
+                  },
+                  "lng": {
+                    "type": "number"
+                  },
+                  "isPrimary": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -17964,7 +18197,36 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object"
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "province": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "district": {
+                    "type": "string"
+                  },
+                  "addressLine": {
+                    "type": "string"
+                  },
+                  "postalCode": {
+                    "type": "string"
+                  },
+                  "lat": {
+                    "type": "number"
+                  },
+                  "lng": {
+                    "type": "number"
+                  },
+                  "isPrimary": {
+                    "type": "boolean"
+                  }
+                }
               }
             }
           }
