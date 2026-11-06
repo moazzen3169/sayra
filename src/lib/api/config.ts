@@ -12,8 +12,8 @@ export const IS_PRODUCTION = process.env.NODE_ENV === "production";
  * 2. In browser when a proxy or custom origin is preferred, fallback to /api/v1 (or full URL)
  * 3. Default demo API URL
  */
-const DEFAULT_DEV_API_URL = "http://51.20.249.108/api/v1/";
-const DEFAULT_PROD_API_URL = "http://51.20.249.108/api/v1/";
+const DEFAULT_DEV_API_URL = "https://51.20.249.108/api/v1/";
+const DEFAULT_PROD_API_URL = "https://51.20.249.108/api/v1/";
 
 export const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -27,7 +27,7 @@ export const API_BASE_URL = (
  * 1. NEXT_PUBLIC_BLOG_API_BASE_URL (explicit env override)
  * 2. Default production/development blog API URL: http://blog.sayra-booking.ir/
  */
-const DEFAULT_BLOG_API_URL = "http://blog.sayra-booking.ir/";
+const DEFAULT_BLOG_API_URL = "https://blog.sayra-booking.ir/";
 
 export const BLOG_API_BASE_URL = (
   process.env.NEXT_PUBLIC_BLOG_API_BASE_URL ||
