@@ -1,7 +1,7 @@
-
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ModalShell } from "./ModalShell";
 
 export interface CityModalProps {
   isOpen: boolean;
@@ -54,26 +54,8 @@ export const CityModal: React.FC<CityModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    const focusTimer = window.setTimeout(() => {
-      searchRef.current?.focus();
-    }, 100);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-      window.clearTimeout(focusTimer);
-    };
-  }, [isOpen, onClose]);
+    setSearchQuery("");
+  }, [isOpen]);
 
   const filteredCities = useMemo(() => {
     const query = normalizeText(searchQuery);
@@ -96,208 +78,165 @@ export const CityModal: React.FC<CityModalProps> = ({
     onClose();
   };
 
-  if (!isOpen) return null;
+  const headerTitle = (
+    <div className="relative min-w-0 flex-1">
+      <svg
+        className="pointer-events-none absolute right-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--primary)]"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        aria-hidden="true"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path strokeLinecap="round" d="m20 20-3.5-3.5" />
+      </svg>
 
-  return (
-    <div
-      dir="rtl"
-      className="fixed inset-0 z-[100] flex h-[100dvh] w-full flex-col overflow-hidden bg-[var(--bg-card)] text-[var(--text-white)] animate-fadeIn"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="city-modal-title"
-    >
-      
+      <input
+        ref={searchRef}
+        type="text"
+        value={searchQuery}
+        onChange={(event) => setSearchQuery(event.target.value)}
+        placeholder="نام شهر یا استان را بنویس..."
+        aria-label="جستجوی شهر یا استان"
+        autoComplete="off"
+        className="h-12 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] pr-11 pl-10 text-sm text-[var(--text-white)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]"
+      />
 
-      {/* Search */}
-      <div className="shrink-0 flex gap-4 border-b border-[var(--border-subtle)] px-4 py-4 sm:px-8">
-        <div className="mx-auto w-full max-w-3xl">
-          <div className="relative">
-            <svg
-              className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--text-muted)]"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.8}
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path
-                d="m20 20-4-4"
-                strokeLinecap="round"
-              />
-            </svg>
-
-            <input
-              ref={searchRef}
-              type="text"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="نام شهر یا استان را بنویس..."
-              aria-label="جستجوی شهر یا استان"
-              autoComplete="off"
-              className="h-12 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--foreground)]/20 pr-12 pl-12 text-sm outline-none transition-colors placeholder:text-[var(--text-subtle)] focus:border-[var(--primary)]"
-            />
-
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery("");
-                  searchRef.current?.focus();
-                }}
-                aria-label="پاک کردن جستجو"
-                className="absolute left-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--foreground)]/10 hover:text-[var(--text-white)]"
-              >
-                <svg
-                  className="h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    d="m18 6-12 12M6 6l12 12"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            )}
-          </div>
-        </div>
-        
+      {searchQuery && (
         <button
           type="button"
-          onClick={onClose}
-          aria-label="بستن انتخاب شهر"
-          className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--foreground)]/10 hover:text-[var(--text-white)]"
+          onClick={() => {
+            setSearchQuery("");
+            searchRef.current?.focus();
+          }}
+          aria-label="پاک کردن جستجو"
+          className="absolute left-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--foreground)] hover:text-[var(--text-white)]"
         >
-          <svg
-            className="h-5 w-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              d="m18 6-12 12M6 6l12 12"
-              strokeLinecap="round"
-            />
-          </svg>
+          <span aria-hidden="true">×</span>
         </button>
-      </div>
+      )}
+    </div>
+  );
 
-      {/* Scrollable content */}
-      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-8">
-        <div className="mx-auto w-full max-w-3xl">
-          {!searchQuery.trim() && (
-            <section className="mb-7">
-              <h3 className="mb-3 text-sm font-bold">
-                شهرهای پرطرفدار
-              </h3>
+  return (
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      ariaLabel="انتخاب شهر"
+      title={headerTitle}
+      focusRef={searchRef}
+    >
+      <div className="mx-auto w-full max-w-[var(--max-mini-app-width)] px-4 py-5 sm:px-6 sm:py-7">
+        {!searchQuery.trim() && (
+          <section className="mb-7">
+            <h3 className="mb-3 text-xs font-bold text-[var(--text-muted)]">
+              شهرهای پرطرفدار
+            </h3>
 
-              <div className="flex flex-wrap gap-2">
-                {popularCities.map((city) => {
-                  const isSelected = selectedCity === city.name;
+            <div className="flex flex-wrap gap-2">
+              {popularCities.map((city) => {
+                const isSelected = selectedCity === city.name;
 
-                  return (
-                    <button
-                      key={city.id}
-                      type="button"
-                      onClick={() => handleSelectCity(city.name)}
-                      aria-pressed={isSelected}
-                      className={`rounded-lg border px-4 py-2.5 text-sm transition-colors ${
-                        isSelected
-                          ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
-                          : "border-[var(--border-subtle)] bg-[var(--foreground)]/10 hover:border-[var(--primary)]/50"
-                      }`}
-                    >
-                      {city.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          <section>
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-bold">
-                {searchQuery.trim() ? "نتایج جستجو" : "همه شهرها"}
-              </h3>
-
-              <span className="text-xs text-[var(--text-muted)]">
-                {filteredCities.length} شهر
-              </span>
+                return (
+                  <button
+                    key={city.id}
+                    type="button"
+                    onClick={() => handleSelectCity(city.name)}
+                    aria-pressed={isSelected}
+                    className={`rounded-full border px-3.5 py-2 text-xs font-medium transition-colors ${
+                      isSelected
+                        ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
+                        : "border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                    }`}
+                  >
+                    {city.name}
+                  </button>
+                );
+              })}
             </div>
+          </section>
+        )}
 
-            {filteredCities.length > 0 ? (
-              <div className="divide-y divide-[var(--border-subtle)]">
-                {filteredCities.map((city) => {
-                  const isSelected = selectedCity === city.name;
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-xs font-bold text-[var(--text-muted)]">
+              {searchQuery.trim() ? "نتایج جستجو" : "همه شهرها"}
+            </h3>
 
-                  return (
-                    <button
-                      key={city.id}
-                      type="button"
-                      onClick={() => handleSelectCity(city.name)}
-                      aria-pressed={isSelected}
-                      className="flex w-full items-center justify-between gap-4 py-4 text-right transition-colors hover:bg-[var(--foreground)]/5"
-                    >
-                      <div className="min-w-0">
-                        <div
-                          className={`text-sm ${
-                            isSelected
-                              ? "font-bold text-[var(--primary)]"
-                              : "font-medium"
-                          }`}
-                        >
-                          {city.name}
-                        </div>
+            <span className="text-xs text-[var(--text-muted)]">
+              {filteredCities.length} شهر
+            </span>
+          </div>
 
-                        <div className="mt-1 text-xs text-[var(--text-muted)]">
-                          {city.province}
-                        </div>
+          {filteredCities.length > 0 ? (
+            <div className="divide-y divide-[var(--border-subtle)]">
+              {filteredCities.map((city) => {
+                const isSelected = selectedCity === city.name;
+
+                return (
+                  <button
+                    key={city.id}
+                    type="button"
+                    onClick={() => handleSelectCity(city.name)}
+                    aria-pressed={isSelected}
+                    className="flex w-full items-center justify-between gap-4 py-4 text-right transition-colors hover:bg-[var(--foreground)]/5"
+                  >
+                    <div className="min-w-0">
+                      <div
+                        className={`text-sm ${
+                          isSelected
+                            ? "font-bold text-[var(--primary)]"
+                            : "font-medium text-[var(--text-white)]"
+                        }`}
+                      >
+                        {city.name}
                       </div>
 
-                      {isSelected && (
-                        <svg
-                          className="h-5 w-5 shrink-0 text-[var(--primary)]"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={2.5}
-                          aria-label="شهر انتخاب‌شده"
-                        >
-                          <path
-                            d="m5 12 4 4L19 6"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <p className="text-sm font-medium">
-                  شهری پیدا نشد
-                </p>
-                <p className="mt-2 text-xs text-[var(--text-muted)]">
-                  نام شهر یا استان را بررسی کن.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="mt-4 text-sm font-bold text-[var(--primary)]"
-                >
-                  نمایش همه شهرها
-                </button>
-              </div>
-            )}
-          </section>
-        </div>
-      </main>
-    </div>
+                      <div className="mt-1 text-xs text-[var(--text-muted)]">
+                        {city.province}
+                      </div>
+                    </div>
+
+                    {isSelected && (
+                      <svg
+                        className="h-5 w-5 shrink-0 text-[var(--primary)]"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2.5}
+                        aria-label="شهر انتخاب‌شده"
+                      >
+                        <path
+                          d="m5 12 4 4L19 6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <p className="text-sm font-medium text-[var(--text-white)]">
+                شهری پیدا نشد
+              </p>
+              <p className="mt-2 text-xs text-[var(--text-muted)]">
+                نام شهر یا استان را بررسی کن.
+              </p>
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="mt-4 text-sm font-bold text-[var(--primary)]"
+              >
+                نمایش همه شهرها
+              </button>
+            </div>
+          )}
+        </section>
+      </div>
+    </ModalShell>
   );
 };

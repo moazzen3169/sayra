@@ -348,7 +348,7 @@ export const Header: React.FC<HeaderProps> = ({
       <header className="fixed inset-x-0 top-0 z-40 w-full">
         {/* ================= MOBILE HEADER ================= */}
         <div className="lg:hidden border-b border-[var(--border-subtle)] bg-body-bg">
-          <div className="flex flex-col gap-2 p-2">
+          <div className="flex flex-col gap-2 p-4">
             {/* Row 1 */}
             <div className="flex items-center justify-between gap-2">
               <Link
@@ -419,10 +419,10 @@ export const Header: React.FC<HeaderProps> = ({
                     aria-label="پروفایل"
                     aria-haspopup="menu"
                     aria-expanded={isAccountMenuOpen}
-                    className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+                    className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
                   >
                     <svg
-                      className="h-4 w-4"
+                      className="h-5 w-5"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -453,7 +453,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <Link
                   href="/profile"
                   aria-label="پروفایل"
-                  className="flex h-9 items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 text-xs font-bold text-[var(--text-white)] hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] transition-colors"
+                  className="relative flex h-10 w-10 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
                 >
                   <svg
                     className="h-3.5 w-3.5"
@@ -469,7 +469,6 @@ export const Header: React.FC<HeaderProps> = ({
                       d="M5 20a7 7 0 0114 0"
                     />
                   </svg>
-                  <span>پروفایل</span>
                 </Link>
               )}
             </div>
