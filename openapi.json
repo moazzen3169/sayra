@@ -3040,6 +3040,42 @@
               "schema": {
                 "$ref": "#/components/schemas/CreateDeviceCatalogInput"
               }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "deviceType": {
+                    "type": "string",
+                    "enum": [
+                      "PC",
+                      "PLAYSTATION",
+                      "XBOX",
+                      "SWITCH",
+                      "VR"
+                    ]
+                  },
+                  "coverImageUrl": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                }
+              }
             }
           }
         },
@@ -3361,6 +3397,48 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateGameCatalogInput"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "coverImageUrl": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "supportedPlatforms": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "PC",
+                        "PLAYSTATION",
+                        "XBOX",
+                        "SWITCH",
+                        "VR"
+                      ]
+                    }
+                  },
+                  "genre": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                }
               }
             }
           }
@@ -13737,6 +13815,85 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFoundError"
+          }
+        }
+      }
+    },
+    "/platform-admin/media/upload": {
+      "post": {
+        "summary": "Upload media image for platform administration",
+        "description": "Uploads an image file to the server for platform catalog or configuration use, generating public and thumbnail URLs",
+        "tags": [
+          "PlatformAdmin"
+        ],
+        "operationId": "platform_admin_media_upload",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Image file to upload (JPEG, PNG, WEBP, GIF, max 5MB)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Media uploaded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "url": {
+                          "type": "string",
+                          "example": "/uploads/e3b0c442-98fc-1c14-9afbf4c8996fb924.jpg"
+                        },
+                        "thumbUrl": {
+                          "type": "string",
+                          "example": "/uploads/thumbnails/e3b0c442-98fc-1c14-9afbf4c8996fb924.jpg"
+                        },
+                        "fileName": {
+                          "type": "string",
+                          "example": "e3b0c442-98fc-1c14-9afbf4c8996fb924.jpg"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
           }
         }
       }
