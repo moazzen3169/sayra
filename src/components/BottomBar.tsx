@@ -2,9 +2,14 @@
 
 import React from "react";
 import Link from "next/link";
-import { useAuth } from "@/context/AuthContext";
 
-export type TabType = "home" | "history" | "profile";
+export type TabType =
+  | "home"
+  | "gamecenters"
+  | "news"
+  | "reservations"
+  | "history"
+  | "profile";
 
 interface BottomBarProps {
   activeTab?: TabType;
@@ -14,12 +19,15 @@ interface BottomBarProps {
 /** مسیر هر تب */
 export const TAB_ROUTES: Record<TabType, string> = {
   home: "/",
+  gamecenters: "/gamecenters",
+  news: "/blog",
+  reservations: "/reservations",
   history: "/reservations",
   profile: "/profile",
 };
 
 const iconProps = {
-  className: "w-6 h-6",
+  className: "w-5 h-5",
   fill: "none",
   viewBox: "0 0 24 24",
   stroke: "currentColor",
@@ -28,10 +36,18 @@ const iconProps = {
   strokeLinejoin: "round" as const,
 };
 
-const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
+/**
+ * تب‌های BottomBar به ترتیب از راست به چپ:
+ * ۱. خانه
+ * ۲. گیمنت‌ها
+ * ۳. اخبار
+ * ۴. رزروهای من
+ */
+const tabs: { id: TabType; label: string; icon: React.ReactNode; href: string }[] = [
   {
     id: "home",
     label: "خانه",
+    href: TAB_ROUTES.home,
     icon: (
       <svg {...iconProps}>
         <path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1v-9z" />
@@ -39,8 +55,32 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
-    id: "history",
+    id: "gamecenters",
+    label: "گیمنت‌ها",
+    href: TAB_ROUTES.gamecenters,
+    icon: (
+      <svg {...iconProps}>
+        <rect x="2" y="6" width="20" height="12" rx="2" />
+        <path d="M6 12h4m-2-2v4" />
+        <circle cx="16" cy="10" r="1" fill="currentColor" />
+        <circle cx="18" cy="13" r="1" fill="currentColor" />
+      </svg>
+    ),
+  },
+  {
+    id: "news",
+    label: "اخبار",
+    href: TAB_ROUTES.news,
+    icon: (
+      <svg {...iconProps}>
+        <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 8h6m-6 4h6m-6 4h4" />
+      </svg>
+    ),
+  },
+  {
+    id: "reservations",
     label: "رزروهای من",
+    href: TAB_ROUTES.reservations,
     icon: (
       <svg {...iconProps}>
         <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
@@ -51,77 +91,36 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
       </svg>
     ),
   },
-  {
-    id: "profile",
-    label: "حساب کاربری",
-    icon: (
-      <svg {...iconProps}>
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
-      </svg>
-    ),
-  },
 ];
 
 export const BottomBar: React.FC<BottomBarProps> = ({ activeTab = "home", onTabChange }) => {
-  const { role } = useAuth();
-  const isAdmin = role === "ADMIN";
-  const isManager = role === "MANAGER";
-
-  const resolvedTabs = tabs.map((tab) => {
-    if (tab.id === "profile") {
-      if (isAdmin) {
-        return {
-          id: tab.id,
-          label: "پنل مدیریت",
-          href: "/admin",
-          icon: (
-            <svg {...iconProps}>
-              <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-          ),
-        };
-      }
-      if (isManager) {
-        return {
-          id: tab.id,
-          label: "پنل گیم‌نت",
-          href: "/owner",
-          icon: (
-            <svg {...iconProps}>
-              <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-          ),
-        };
-      }
-      return {
-        ...tab,
-        href: "/profile",
-      };
-    }
-    return {
-      ...tab,
-      href: TAB_ROUTES[tab.id],
-    };
-  });
+  const normalizedActiveTab =
+    activeTab === "history" ? "reservations" : activeTab;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none lg:hidden">
-      <div className="w-full max-w-[var(--max-app-width)] bg-[var(--bg-body)] px-6 pt-3 pb-4 flex items-center justify-around pointer-events-auto">
-        {resolvedTabs.map((tab) => {
-          const isActive = activeTab === tab.id;
+    <nav
+      aria-label="ناوبری پایین صفحه"
+      className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none lg:hidden"
+    >
+      <div className="w-full max-w-[var(--max-app-width)] border-t border-[var(--border-subtle)] bg-[var(--bg-body)]/95 backdrop-blur-md px-4 pt-2.5 pb-3 flex items-center justify-around pointer-events-auto">
+        {tabs.map((tab) => {
+          const isActive = normalizedActiveTab === tab.id;
           return (
             <Link
               key={tab.id}
               href={tab.href}
               onClick={() => onTabChange?.(tab.id)}
               aria-current={isActive ? "page" : undefined}
-              className={`flex flex-col items-center gap-1.5 min-w-20 transition-colors ${
-                isActive ? "text-[var(--primary)] font-bold" : "text-[var(--text-white)]"
+              className={`flex flex-col items-center gap-1 px-2 py-1 min-w-[64px] transition-colors rounded-lg ${
+                isActive
+                  ? "text-[var(--primary)] font-bold"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-white)]"
               }`}
             >
-              {tab.icon}
-              <span className="text-xs">{tab.label}</span>
+              <span className={isActive ? "text-[var(--primary)] scale-105 transition-transform" : ""}>
+                {tab.icon}
+              </span>
+              <span className="text-[11px] font-medium leading-tight">{tab.label}</span>
             </Link>
           );
         })}
