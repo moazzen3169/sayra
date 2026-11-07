@@ -58,6 +58,20 @@ export const ENDPOINTS = {
     messages: (id: string) => `/tickets/${enc(id)}/messages`,
     attachments: (id: string) => `/tickets/${enc(id)}/attachments`,
   },
+  support: {
+    tickets: "/support/tickets",
+    ticketDetail: (id: string) => `/support/tickets/${enc(id)}`,
+    ticketMessages: (id: string) => `/support/tickets/${enc(id)}/messages`,
+    ticketAttachments: (id: string) => `/support/tickets/${enc(id)}/attachments`,
+    ticketAssign: (id: string) => `/support/tickets/${enc(id)}/assign`,
+    ticketStatus: (id: string) => `/support/tickets/${enc(id)}/status`,
+  },
+  adminTickets: {
+    list: "/admin/tickets",
+    statistics: "/admin/tickets/statistics",
+    assign: (id: string) => `/admin/tickets/${enc(id)}/assign`,
+    status: (id: string) => `/admin/tickets/${enc(id)}/status`,
+  },
   waitlist: {
     list: "/customer/waitlist",
     create: "/customer/waitlist",

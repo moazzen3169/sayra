@@ -2,6 +2,8 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
+import { UnifiedAuthModal } from "@/components/auth/UnifiedAuthModal";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { BottomBar } from "@/components/BottomBar";
 import { Icon } from "@/components/ui/Icon";
@@ -32,6 +34,8 @@ const inputStyles =
   "h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm text-[var(--text-white)] placeholder:text-[var(--text-subtle)] outline-none transition-colors";
 
 export default function SupportPage() {
+  const { isLoggedIn, isLoading: isAuthLoading, login } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [selected, setSelected] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,6 +55,12 @@ export default function SupportPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (!isLoggedIn) {
+      setLoading(false);
+      setTickets([]);
+      return;
+    }
+
     let active = true;
     const controller = new AbortController();
     setLoading(true);
@@ -75,9 +85,13 @@ export default function SupportPage() {
       active = false;
       controller.abort();
     };
-  }, [reload]);
+  }, [isLoggedIn, reload]);
 
   const openTicket = async (id: string) => {
+    if (!isLoggedIn) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -93,6 +107,10 @@ export default function SupportPage() {
   const createTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
+    if (!isLoggedIn) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     if (!subject.trim() || !message.trim()) {
       setError("لطفاً موضوع و متن پیام را وارد کنید.");
       return;
@@ -193,6 +211,10 @@ export default function SupportPage() {
               <button
                 type="button"
                 onClick={() => {
+                  if (!isLoggedIn) {
+                    setIsAuthModalOpen(true);
+                    return;
+                  }
                   setError(null);
                   setCreating(true);
                 }}
@@ -204,6 +226,30 @@ export default function SupportPage() {
             )}
           </div>
 
+          {!isAuthLoading && !isLoggedIn ? (
+            <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-8 flex flex-col items-center justify-center gap-4 text-center shadow-lg">
+              <div className="w-16 h-16 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center border border-[var(--primary)]/20 shadow-sm">
+                <Icon name="user" size={28} />
+              </div>
+              <div className="flex flex-col gap-1.5 max-w-sm">
+                <h3 className="text-sm font-bold text-[var(--text-white)]">
+                  مشاهده و ثبت تیکت نیازمند ورود به حساب کاربری است
+                </h3>
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                  جهت پیگیری درخواست‌های قبلی و یا ثبت تیکت جدید با هویت اختصاصی خود، لطفاً وارد شوید.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAuthModalOpen(true)}
+                className="h-11 px-6 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98]"
+              >
+                <span>ورود به حساب کاربری</span>
+                <Icon name="back" size={14} className="transform rotate-180" />
+              </button>
+            </div>
+          ) : (
+            <>
           {/* DETAIL VIEW */}
           {selected ? (
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-5 flex flex-col gap-4 shadow-lg">
@@ -426,6 +472,8 @@ export default function SupportPage() {
               )}
             </div>
           )}
+          </>
+          )}
         </section>
 
         {/* DIRECT CONTACT CHANNELS SECTION */}
@@ -501,6 +549,16 @@ export default function SupportPage() {
           </div>
         </section>
       </main>
+
+      <UnifiedAuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={(data) => {
+          login(data.fullName, data.phone, data.accessToken, data.refreshToken, data.role || "USER");
+          setIsAuthModalOpen(false);
+          setReload((v) => v + 1);
+        }}
+      />
 
       {/* App Shell BottomBar for Mobile Navigation */}
       <BottomBar activeTab="profile" />

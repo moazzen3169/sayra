@@ -17,11 +17,13 @@ import {
   AdminCampaignInput,
   SiteSettings,
 } from "@/types/admin";
+import { apiClient } from "@/lib/api/client";
+import { ENDPOINTS } from "@/lib/api/endpoints";
+import { formatClock, formatDayLabel } from "@/lib/reservationUi";
 import {
   ADMIN_DASHBOARD_MOCK_DATA,
   MOCK_ADMIN_GAMECENTERS,
   MOCK_ADMIN_USERS,
-  MOCK_ADMIN_TICKETS,
   MOCK_CANNED_RESPONSES,
   MOCK_ADMIN_REVIEWS,
   MOCK_ADMIN_USER_RESERVATIONS,
@@ -65,7 +67,6 @@ import type {
 // In-memory / LocalStorage state store for mock administrative data
 let gamecentersStore: AdminGamecenter[] = [...MOCK_ADMIN_GAMECENTERS];
 let usersStore: AdminUser[] = [...MOCK_ADMIN_USERS];
-let ticketsStore: AdminTicket[] = [...MOCK_ADMIN_TICKETS];
 let reviewsStore: AdminReview[] = [...MOCK_ADMIN_REVIEWS];
 let reservationsStore: AdminUserReservation[] = [...MOCK_ADMIN_USER_RESERVATIONS];
 let verificationsStore: AdminOwnerVerification[] = [...MOCK_ADMIN_OWNER_VERIFICATIONS];
@@ -81,9 +82,6 @@ if (typeof window !== "undefined") {
 
     const usrSaved = localStorage.getItem("sayra_admin_users");
     if (usrSaved) usersStore = JSON.parse(usrSaved);
-
-    const tktSaved = localStorage.getItem("sayra_admin_tickets");
-    if (tktSaved) ticketsStore = JSON.parse(tktSaved);
 
     const revSaved = localStorage.getItem("sayra_admin_reviews");
     if (revSaved) reviewsStore = JSON.parse(revSaved);
@@ -121,6 +119,64 @@ function persistStore(key: string, data: unknown) {
  * Service for handling Admin Panel operations.
  * Operates purely with mock data isolated from presentation components.
  */
+
+function mapApiTicketToAdminTicket(raw: any): AdminTicket {
+  if (!raw) return raw;
+  const createdAtFormatted = raw.createdAt
+    ? `${formatDayLabel(raw.createdAt)} - ${formatClock(raw.createdAt, true)}`
+    : "";
+  const updatedAtFormatted = raw.updatedAt
+    ? `${formatDayLabel(raw.updatedAt)} - ${formatClock(raw.updatedAt, true)}`
+    : createdAtFormatted;
+
+  const messages: AdminTicketMessage[] = Array.isArray(raw.messages)
+    ? raw.messages.map((m: any) => ({
+        id: m.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        ticketId: m.ticketId || raw.id,
+        senderId: m.senderId,
+        senderName: m.senderType === "SUPPORT" ? "پشتیبانی سایرا" : (raw.userName || "کاربر"),
+        senderRole: m.senderType === "SUPPORT" ? "ADMIN" : (raw.userRole || "USER"),
+        message: m.text || m.message || "",
+        attachment: m.attachment || null,
+        createdAt: m.createdAt
+          ? `${formatDayLabel(m.createdAt)} - ${formatClock(m.createdAt, true)}`
+          : "",
+      }))
+    : [];
+
+  return {
+    id: raw.id,
+    userId: raw.customerAccountId || raw.userId,
+    userName: raw.userName || "کاربر سامانه",
+    userPhone: raw.userPhone,
+    userRole: raw.userRole || "USER",
+    gamecenterId: raw.gamecenterId,
+    gamecenterName: raw.gamecenterName,
+    reservationId: raw.reservationId,
+    reservationCode: raw.reservationCode,
+    subject: raw.subject || "بدون عنوان",
+    status: (raw.status || "OPEN") as AdminTicket["status"],
+    priority: (raw.priority || "MEDIUM") as AdminTicket["priority"],
+    category: (raw.category || "TECHNICAL") as AdminTicket["category"],
+    assignedAdminId: raw.assignedToUserId || raw.assignedAdminId,
+    assignedAdminName: raw.assignedAdminName,
+    createdAt: createdAtFormatted,
+    lastUpdate: updatedAtFormatted,
+    messagesCount: typeof raw.messagesCount === "number" ? raw.messagesCount : messages.length,
+    messages,
+  };
+}
+
+function unwrapTicketsList(resData: unknown): any[] {
+  if (Array.isArray(resData)) return resData;
+  if (resData && typeof resData === "object") {
+    const obj = resData as Record<string, unknown>;
+    if (Array.isArray(obj.data)) return obj.data;
+    if (Array.isArray(obj.items)) return obj.items;
+  }
+  return [];
+}
+
 export const adminService = {
   /**
    * Retrieves dashboard summary metrics, trends, pending action items, and recent reservations.
@@ -288,8 +344,12 @@ export const adminService = {
 
   // ==================== TICKETS ====================
 
+  /**
+   * دریافت لیست تیکت‌های پلتفرم از اندپوینت رسمی GET /admin/tickets یا /support/tickets
+   */
   async getTickets(
-    params: AdminListQueryParams = {}
+    params: AdminListQueryParams = {},
+    signal?: AbortSignal
   ): Promise<AdminPaginatedResult<AdminTicket>> {
     const {
       search = "",
@@ -303,17 +363,36 @@ export const adminService = {
       pageSize = 10,
     } = params;
 
-    let filtered = [...ticketsStore];
+    let rawList: any[] = [];
+    let serverTotal: number | undefined;
+    let serverTotalPages: number | undefined;
 
-    // Filter needing response (OPEN or PENDING)
-    if (needingResponseOnly) {
-      filtered = filtered.filter((t) => t.status === "OPEN" || t.status === "PENDING");
+    try {
+      const response = await apiClient.get<unknown>(ENDPOINTS.adminTickets.list, { signal });
+      const resData = response.data;
+      rawList = unwrapTicketsList(resData);
+      if (response.meta?.pagination) {
+        serverTotal = response.meta.pagination.total;
+        serverTotalPages = response.meta.pagination.totalPages;
+      }
+    } catch (err: any) {
+      if (err?.status === 403 || err?.status === 404) {
+        const response = await apiClient.get<unknown>(ENDPOINTS.support.tickets, { signal });
+        rawList = unwrapTicketsList(response.data);
+      } else {
+        throw err;
+      }
     }
 
-    // Filter by Search (ID, Subject, User Name, Gamecenter Name, Reservation Code)
+    let mapped = rawList.map(mapApiTicketToAdminTicket);
+
+    if (needingResponseOnly) {
+      mapped = mapped.filter((t) => t.status === "OPEN" || t.status === "PENDING");
+    }
+
     if (search.trim()) {
       const query = search.trim().toLowerCase();
-      filtered = filtered.filter(
+      mapped = mapped.filter(
         (t) =>
           t.id.toLowerCase().includes(query) ||
           t.subject.toLowerCase().includes(query) ||
@@ -323,27 +402,23 @@ export const adminService = {
       );
     }
 
-    // Filter by Status
     if (status && status !== "all") {
-      filtered = filtered.filter((t) => t.status === status);
+      mapped = mapped.filter((t) => t.status === status);
     }
 
-    // Filter by Sender Type (USER / OWNER)
     if (senderType && senderType !== "all") {
-      filtered = filtered.filter((t) => (t.userRole || "USER") === senderType);
+      mapped = mapped.filter((t) => (t.userRole || "USER") === senderType);
     }
 
-    // Filter by Assigned Admin
     if (assignedAdminId && assignedAdminId !== "all") {
       if (assignedAdminId === "unassigned") {
-        filtered = filtered.filter((t) => !t.assignedAdminId);
+        mapped = mapped.filter((t) => !t.assignedAdminId);
       } else {
-        filtered = filtered.filter((t) => t.assignedAdminId === assignedAdminId);
+        mapped = mapped.filter((t) => t.assignedAdminId === assignedAdminId);
       }
     }
 
-    // Sort
-    filtered.sort((a, b) => {
+    mapped.sort((a, b) => {
       const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
       const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
 
@@ -356,130 +431,130 @@ export const adminService = {
       return 0;
     });
 
-    // Pagination
-    const total = filtered.length;
-    const totalPages = Math.ceil(total / pageSize) || 1;
+    const total = serverTotal ?? mapped.length;
+    const totalPages = serverTotalPages ?? (Math.ceil(total / pageSize) || 1);
     const safePage = Math.max(1, Math.min(page, totalPages));
     const start = (safePage - 1) * pageSize;
-    const items = filtered.slice(start, start + pageSize);
+    const items = mapped.slice(start, start + pageSize);
 
-    return Promise.resolve({
+    return {
       items,
       total,
       page: safePage,
       pageSize,
       totalPages,
-    });
+    };
   },
 
-  async getTicketById(id: string): Promise<AdminTicket | null> {
-    const t = ticketsStore.find((item) => item.id === id);
-    return Promise.resolve(t || null);
+  /**
+   * دریافت جزئیات تیکت از اندپوینت‌های رسمی پشتیبانی /support/tickets/{id} یا کاربر /tickets/{id}
+   */
+  async getTicketById(id: string, signal?: AbortSignal): Promise<AdminTicket | null> {
+    try {
+      const response = await apiClient.get<unknown>(ENDPOINTS.support.ticketDetail(id), { signal });
+      const resData = (response.data as any)?.data || response.data;
+      if (resData) {
+        return mapApiTicketToAdminTicket(resData);
+      }
+    } catch (err: any) {
+      if (err?.status === 404) return null;
+      try {
+        const response = await apiClient.get<unknown>(ENDPOINTS.tickets.detail(id), { signal });
+        const resData = (response.data as any)?.data || response.data;
+        if (resData) return mapApiTicketToAdminTicket(resData);
+      } catch (custErr: any) {
+        if (custErr?.status === 404) return null;
+        throw custErr;
+      }
+    }
+    return null;
   },
 
+  /**
+   * ارسال پاسخ به تیکت از طرف پشتیبانی:
+   * POST /support/tickets/{id}/messages
+   */
   async replyToTicket(
     ticketId: string,
     messageText: string,
-    senderAdminId?: string
+    _senderAdminId?: string
   ): Promise<AdminTicket> {
-    const index = ticketsStore.findIndex((t) => t.id === ticketId);
-    if (index === -1) {
-      throw new Error("تیکت مورد نظر یافت نشد.");
-    }
-
     const trimmed = messageText.trim();
     if (!trimmed) {
       throw new Error("متن پاسخ نمی‌تواند خالی باشد.");
     }
 
-    const currentTicket = ticketsStore[index];
-    const adminUser = usersStore.find((u) => u.id === senderAdminId) ||
-      usersStore.find((u) => u.role === "ADMIN") || {
-        id: "usr-8",
-        fullName: "مدیر پشتیبانی سایرا",
-      };
+    try {
+      await apiClient.post(ENDPOINTS.support.ticketMessages(ticketId), {
+        text: trimmed,
+      });
+    } catch (err: any) {
+      if (err?.status === 404 || err?.status === 403) {
+        await apiClient.post(ENDPOINTS.tickets.messages(ticketId), {
+          text: trimmed,
+        });
+      } else {
+        throw err;
+      }
+    }
 
-    const nowFormatted = new Date().toLocaleDateString("fa-IR") + " - " + new Date().toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
-
-    const newMessage: AdminTicketMessage = {
-      id: `msg-${ticketId}-${Date.now()}`,
-      ticketId,
-      senderId: adminUser.id,
-      senderName: adminUser.fullName,
-      senderRole: "ADMIN",
-      message: trimmed,
-      createdAt: nowFormatted,
-    };
-
-    const updatedMessages = [...(currentTicket.messages || []), newMessage];
-
-    const updatedTicket: AdminTicket = {
-      ...currentTicket,
-      status: "ANSWERED",
-      lastUpdate: nowFormatted,
-      messagesCount: updatedMessages.length,
-      messages: updatedMessages,
-      assignedAdminId: currentTicket.assignedAdminId || adminUser.id,
-      assignedAdminName: currentTicket.assignedAdminName || adminUser.fullName,
-    };
-
-    ticketsStore[index] = updatedTicket;
-    persistStore("sayra_admin_tickets", ticketsStore);
-    return Promise.resolve(updatedTicket);
+    const refreshed = await adminService.getTicketById(ticketId);
+    if (!refreshed) {
+      throw new Error("دریافت تیکت پس از ثبت پاسخ با خطا مواجه شد.");
+    }
+    return refreshed;
   },
 
+  /**
+   * تغییر وضعیت تیکت:
+   * PATCH /admin/tickets/{id}/status یا PATCH /support/tickets/{id}/status
+   */
   async updateTicketStatus(
     ticketId: string,
     status: AdminTicket["status"]
   ): Promise<AdminTicket> {
-    const index = ticketsStore.findIndex((t) => t.id === ticketId);
-    if (index === -1) {
-      throw new Error("تیکت مورد نظر یافت نشد.");
+    try {
+      await apiClient.patch(ENDPOINTS.adminTickets.status(ticketId), { status });
+    } catch (err: any) {
+      if (err?.status === 403 || err?.status === 404) {
+        await apiClient.patch(ENDPOINTS.support.ticketStatus(ticketId), { status });
+      } else {
+        throw err;
+      }
     }
 
-    const nowFormatted = new Date().toLocaleDateString("fa-IR") + " - " + new Date().toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
-
-    const updatedTicket: AdminTicket = {
-      ...ticketsStore[index],
-      status,
-      lastUpdate: nowFormatted,
-    };
-
-    ticketsStore[index] = updatedTicket;
-    persistStore("sayra_admin_tickets", ticketsStore);
-    return Promise.resolve(updatedTicket);
+    const refreshed = await adminService.getTicketById(ticketId);
+    if (!refreshed) {
+      throw new Error("دریافت تیکت پس از تغییر وضعیت با خطا مواجه شد.");
+    }
+    return refreshed;
   },
 
+  /**
+   * ارجاع تیکت به ادمین/پشتیبان:
+   * PATCH /admin/tickets/{id}/assign یا PATCH /support/tickets/{id}/assign
+   */
   async assignTicket(
     ticketId: string,
     adminId: string | null
   ): Promise<AdminTicket> {
-    const index = ticketsStore.findIndex((t) => t.id === ticketId);
-    if (index === -1) {
-      throw new Error("تیکت مورد نظر یافت نشد.");
-    }
+    const payload = { assignedToUserId: adminId || "" };
 
-    let adminName: string | undefined = undefined;
-    if (adminId) {
-      const adminUser = usersStore.find((u) => u.id === adminId && u.role === "ADMIN");
-      if (!adminUser) {
-        throw new Error("کاربر مدیریتی یافت نشد.");
+    try {
+      await apiClient.patch(ENDPOINTS.adminTickets.assign(ticketId), payload);
+    } catch (err: any) {
+      if (err?.status === 403 || err?.status === 404) {
+        await apiClient.patch(ENDPOINTS.support.ticketAssign(ticketId), payload);
+      } else {
+        throw err;
       }
-      adminName = adminUser.fullName;
     }
 
-    const nowFormatted = new Date().toLocaleDateString("fa-IR") + " - " + new Date().toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
-
-    const updatedTicket: AdminTicket = {
-      ...ticketsStore[index],
-      assignedAdminId: adminId || undefined,
-      assignedAdminName: adminName,
-      lastUpdate: nowFormatted,
-    };
-
-    ticketsStore[index] = updatedTicket;
-    persistStore("sayra_admin_tickets", ticketsStore);
-    return Promise.resolve(updatedTicket);
+    const refreshed = await adminService.getTicketById(ticketId);
+    if (!refreshed) {
+      throw new Error("دریافت تیکت پس از ارجاع با خطا مواجه شد.");
+    }
+    return refreshed;
   },
 
   async getCannedResponses(): Promise<CannedResponse[]> {
@@ -491,9 +566,13 @@ export const adminService = {
     return Promise.resolve(admins);
   },
 
-  async getGamecenterTickets(gamecenterId: string): Promise<AdminTicket[]> {
-    const items = ticketsStore.filter((t) => t.gamecenterId === gamecenterId);
-    return Promise.resolve(items);
+  async getGamecenterTickets(gamecenterId: string, signal?: AbortSignal): Promise<AdminTicket[]> {
+    try {
+      const res = await adminService.getTickets({ pageSize: 100 }, signal);
+      return res.items.filter((t) => t.gamecenterId === gamecenterId);
+    } catch {
+      return [];
+    }
   },
 
   async getGamecenterReviews(gamecenterId: string): Promise<AdminReview[]> {
@@ -645,9 +724,13 @@ export const adminService = {
     return Promise.resolve(items);
   },
 
-  async getUserTickets(userId: string): Promise<AdminTicket[]> {
-    const items = ticketsStore.filter((t) => t.userId === userId);
-    return Promise.resolve(items);
+  async getUserTickets(userId: string, signal?: AbortSignal): Promise<AdminTicket[]> {
+    try {
+      const res = await adminService.getTickets({ pageSize: 100 }, signal);
+      return res.items.filter((t) => t.userId === userId);
+    } catch {
+      return [];
+    }
   },
 
   async getUserReviews(userId: string): Promise<AdminReview[]> {
