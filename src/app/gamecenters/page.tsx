@@ -8,6 +8,7 @@ import { DiscountedGamecenterCard } from "@/components/DiscountedGamecenterCard"
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Icon } from "@/components/ui/Icon";
+import { Button } from "@/components/ui/Button";
 import {
   Carousel,
   CarouselContent,
@@ -33,6 +34,8 @@ const CATEGORIES = [
   { id: "steering", name: "فرمان بازی" },
 ];
 
+const ITEMS_PER_PAGE = 12;
+
 const SORT_OPTIONS: { id: GamecenterFilterParams["sort"]; name: string }[] = [
   { id: "default", name: "پیش‌فرض" },
   { id: "popular", name: "محبوب‌ترین" },
@@ -53,6 +56,8 @@ function GamecentersContent() {
   const sortParam =
     (searchParams.get("sort") as GamecenterFilterParams["sort"]) || "default";
   const cityParam = searchParams.get("city") || "تبریز";
+  const pageParam = parseInt(searchParams.get("page") || "1", 10);
+  const currentPage = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
 
   const [searchInput, setSearchInput] = useState(queryParam);
   const [selectedCity, setSelectedCity] = useState(cityParam);
@@ -102,15 +107,20 @@ function GamecentersContent() {
   // Update query params helper
   const updateQueryParams = (
     updates: Record<string, string | null | undefined>,
+    resetPage = false
   ) => {
     const params = new URLSearchParams(searchParams.toString());
+    if (resetPage) {
+      params.delete("page");
+    }
     Object.entries(updates).forEach(([key, value]) => {
       if (
         value === null ||
         value === undefined ||
         value === "" ||
         (key === "category" && value === "all") ||
-        (key === "sort" && value === "default")
+        (key === "sort" && value === "default") ||
+        (key === "page" && value === "1")
       ) {
         params.delete(key);
       } else {
@@ -123,15 +133,20 @@ function GamecentersContent() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateQueryParams({ q: searchInput.trim() });
+    updateQueryParams({ q: searchInput.trim() }, true);
   };
 
   const handleCategorySelect = (catId: string) => {
-    updateQueryParams({ category: catId });
+    updateQueryParams({ category: catId }, true);
   };
 
   const handleSortSelect = (sortId: GamecenterFilterParams["sort"]) => {
-    updateQueryParams({ sort: sortId });
+    updateQueryParams({ sort: sortId }, true);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    updateQueryParams({ page: newPage > 1 ? String(newPage) : null });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleClearFilters = () => {
@@ -152,16 +167,9 @@ function GamecentersContent() {
     () => gamecentersPageService.getDiscountedCenters(allCenters),
     [allCenters],
   );
-  const newestCenters = useMemo(
-    () => gamecentersPageService.getNewestCenters(allCenters),
-    [allCenters],
-  );
-  const popularCenters = useMemo(
-    () => gamecentersPageService.getPopularCenters(allCenters),
-    [allCenters],
-  );
 
-  const filteredResults = useMemo(() => {
+  // Filtered centers based on current filter/search/city/sort
+  const filteredCenters = useMemo(() => {
     return gamecentersPageService.filterCenters(allCenters, {
       q: queryParam,
       category: categoryParam,
@@ -169,6 +177,16 @@ function GamecentersContent() {
       city: selectedCity,
     });
   }, [allCenters, queryParam, categoryParam, sortParam, selectedCity]);
+
+  // Pagination calculation (12 items per page)
+  const totalItems = filteredCenters.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedCenters = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
+    return filteredCenters.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredCenters, safeCurrentPage]);
 
   const activeCategoryName = CATEGORIES.find(
     (c) => c.id === categoryParam,
@@ -180,7 +198,7 @@ function GamecentersContent() {
         locationName={selectedCity}
         onCityChange={(city) => {
           setSelectedCity(city);
-          updateQueryParams({ city });
+          updateQueryParams({ city }, true);
         }}
       />
 
@@ -316,8 +334,8 @@ function GamecentersContent() {
 
         {/* Loading / Error States */}
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 py-6">
-            {Array.from({ length: 6 }).map((_, idx) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 py-6">
+            {Array.from({ length: 12 }).map((_, idx) => (
               <div
                 key={idx}
                 className="animate-pulse bg-[var(--bg-card)] rounded-card border border-[var(--border-subtle)] h-64"
@@ -338,56 +356,16 @@ function GamecentersContent() {
                 .finally(() => setIsLoading(false));
             }}
           />
-        ) : isFilteringActive ? (
-          /* Dynamic View: If filtering is active, show Search Results Grid */
-          <section className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-[var(--text-white)]">
-                نتایج جست‌وجو{" "}
-                <span className="text-xs font-normal text-[var(--text-muted)] mr-1">
-                  ({toPersianDigits(filteredResults.length)} گیمنت)
-                </span>
-              </h2>
-
-              <div className="flex flex-wrap gap-1.5">
-                {queryParam && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--foreground)] text-xs text-[var(--text-white)]">
-                    عبارت: «{queryParam}»
-                  </span>
-                )}
-                {categoryParam && categoryParam !== "all" && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--foreground)] text-xs text-[var(--primary)] font-bold">
-                    دستگاه: {activeCategoryName}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {filteredResults.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {filteredResults.map((item) => (
-                  <DiscountedGamecenterCard key={item.id} center={item} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                title="هیچ گیمنتی با این مشخصات پیدا نشد"
-                description="پیشنهاد می‌کنیم فیلترها را تغییر دهید یا عبارت دیگری را جست‌وجو کنید."
-                actionLabel="پاک کردن فیلترها"
-                onAction={handleClearFilters}
-              />
-            )}
-          </section>
         ) : allCenters.length === 0 ? (
           <EmptyState
             title="هیچ گیمنتی ثبت نشده است"
             description="در حال حاضر اطلاعات گیمنتی برای نمایش وجود ندارد."
           />
         ) : (
-          /* Default Browse View: Containers 1, 2, and 3 */
+          /* Main Content: Discounted Carousel (on page 1 when no filter) + Paginated 4-columns Grid */
           <>
-            {/* Container 1: Discounted Gamecenters Carousel */}
-            {discountedCenters.length > 0 && (
+            {/* Optional Top Carousel: Discounted Gamecenters on first page when not actively filtered */}
+            {!isFilteringActive && safeCurrentPage === 1 && discountedCenters.length > 0 && (
               <section className="flex flex-col gap-3 rounded-card p-4 bg-primary text-[var(--text-black)] shadow-lg">
                 <Carousel
                   opts={{
@@ -442,46 +420,118 @@ function GamecentersContent() {
               </section>
             )}
 
-            {/* Container 2: Newest Gamecenters */}
-            <section className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
+            {/* Paginated Gamecenters Section */}
+            <section className="flex flex-col gap-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <span className="h-5 w-1 rounded-full bg-[var(--primary)]" />
                   <h2 className="font-bold text-base text-[var(--text-white)]">
-                    جدیدترین گیمنت‌ها
+                    {isFilteringActive ? "نتایج جست‌وجو" : "همه گیمنت‌ها"}
                   </h2>
+                  <span className="text-xs text-[var(--text-muted)] mr-1">
+                    ({toPersianDigits(totalItems)} گیمنت)
+                  </span>
                 </div>
-                <span className="text-xs text-[var(--text-muted)]">
-                  تازه‌ترین‌های افزوده شده
-                </span>
+
+                {isFilteringActive && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {queryParam && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--foreground)] text-xs text-[var(--text-white)]">
+                        عبارت: «{queryParam}»
+                      </span>
+                    )}
+                    {categoryParam && categoryParam !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--foreground)] text-xs text-[var(--primary)] font-bold">
+                        دستگاه: {activeCategoryName}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {newestCenters.map((item) => (
-                  <DiscountedGamecenterCard key={item.id} center={item} />
-                ))}
-              </div>
-            </section>
+              {paginatedCenters.length > 0 ? (
+                <>
+                  {/* Desktop: 4 cards per row (lg:grid-cols-4), tablet: 2 (sm:grid-cols-2), mobile: 1 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {paginatedCenters.map((item) => (
+                      <DiscountedGamecenterCard key={item.id} center={item} />
+                    ))}
+                  </div>
 
-            {/* Container 3: Most Popular Gamecenters */}
-            <section className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="h-5 w-1 rounded-full bg-[var(--primary)]" />
-                  <h2 className="font-bold text-base text-[var(--text-white)]">
-                    محبوب‌ترین گیمنت‌ها
-                  </h2>
-                </div>
-                <span className="text-xs text-[var(--text-muted)]">
-                  بیشترین رضایت و رزرو
-                </span>
-              </div>
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-6 border-t border-[var(--border-subtle)]">
+                      <span className="text-xs text-[var(--text-muted)]">
+                        نمایش صفحه {toPersianDigits(safeCurrentPage)} از {toPersianDigits(totalPages)} ({toPersianDigits(totalItems)} گیمنت)
+                      </span>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {popularCenters.map((item) => (
-                  <DiscountedGamecenterCard key={item.id} center={item} />
-                ))}
-              </div>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handlePageChange(Math.max(1, safeCurrentPage - 1))}
+                          disabled={safeCurrentPage <= 1}
+                          className="h-8 px-3 text-xs"
+                        >
+                          قبلی
+                        </Button>
+
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => {
+                            // Show first page, last page, current page, and pages adjacent to current page
+                            const isAdjacent = Math.abs(pNum - safeCurrentPage) <= 1;
+                            const isFirst = pNum === 1;
+                            const isLast = pNum === totalPages;
+
+                            if (!isAdjacent && !isFirst && !isLast) {
+                              if (pNum === safeCurrentPage - 2 || pNum === safeCurrentPage + 2) {
+                                return (
+                                  <span key={`ellipsis-${pNum}`} className="w-6 text-center text-xs text-[var(--text-muted)]">
+                                    ...
+                                  </span>
+                                );
+                              }
+                              return null;
+                            }
+
+                            return (
+                              <button
+                                key={pNum}
+                                type="button"
+                                onClick={() => handlePageChange(pNum)}
+                                className={`w-8 h-8 rounded-card text-xs font-bold transition-colors cursor-pointer ${
+                                  pNum === safeCurrentPage
+                                    ? "bg-[var(--primary)] text-on-primary shadow-sm"
+                                    : "bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-subtle)] hover:text-white hover:border-[var(--primary)]/50"
+                                }`}
+                              >
+                                {toPersianDigits(pNum)}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handlePageChange(Math.min(totalPages, safeCurrentPage + 1))}
+                          disabled={safeCurrentPage >= totalPages}
+                          className="h-8 px-3 text-xs"
+                        >
+                          بعدی
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <EmptyState
+                  title="هیچ گیمنتی با این مشخصات پیدا نشد"
+                  description="پیشنهاد می‌کنیم فیلترها را تغییر دهید یا عبارت دیگری را جست‌وجو کنید."
+                  actionLabel="پاک کردن فیلترها"
+                  onAction={handleClearFilters}
+                />
+              )}
             </section>
           </>
         )}
