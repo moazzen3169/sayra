@@ -20,6 +20,8 @@ export const ENDPOINTS = {
   },
   gamingCenter: {
     list: "/gamingCenters",
+    adminList: "/platform-admin/gaming-centers",
+    adminStatus: (id: string) => `/platform-admin/gaming-centers/${enc(id)}/status`,
     detail: (slug: string) => `/public/gamingCenters/${enc(slug)}`,
     byId: (id: string) => `/gamingCenters/${enc(id)}`,
     availabilitySlots: (slug: string) => `/public/gamingCenters/${enc(slug)}/availability/slots`,

@@ -35,12 +35,13 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
   const [formData, setFormData] = useState<AdminGamecenterInput>({
     name: "",
     slug: "",
-    ownerName: "",
+    ownerName: "مدیر گیم‌نت",
     ownerPhone: "",
     city: "تهران",
     address: "",
     description: "",
     isActive: true,
+    phone: "",
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
