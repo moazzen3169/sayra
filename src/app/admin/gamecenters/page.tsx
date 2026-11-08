@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { GamecenterFormModal } from "@/components/admin/gamecenters/GamecenterFormModal";
+import { GamecenterMediaModal } from "@/components/admin/gamecenters/GamecenterMediaModal";
 import { DeleteConfirmationModal } from "@/components/admin/gamecenters/DeleteConfirmationModal";
 import { AdminGamecenter } from "@/types/admin";
 import { adminService } from "@/services/adminService";
@@ -31,6 +32,9 @@ export default function GamecentersAdminPage() {
   // Modals & Actions
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingGc, setEditingGc] = useState<AdminGamecenter | null>(null);
+
+  const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
+  const [mediaGc, setMediaGc] = useState<AdminGamecenter | null>(null);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingGc, setDeletingGc] = useState<AdminGamecenter | null>(null);
@@ -189,6 +193,17 @@ export default function GamecentersAdminPage() {
       className: "text-left",
       render: (gc) => (
         <div className="flex items-center justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              setMediaGc(gc);
+              setIsMediaModalOpen(true);
+            }}
+            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--foreground)]/40 transition-colors"
+            title="مدیریت و آپلود تصاویر"
+          >
+            <Icon name="gamepad" size={18} />
+          </button>
           <Link
             href={`/admin/gamecenters/${gc.id}`}
             className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--foreground)]/40 transition-colors"
@@ -203,7 +218,7 @@ export default function GamecentersAdminPage() {
               setIsFormModalOpen(true);
             }}
             className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-white)] hover:bg-[var(--foreground)]/40 transition-colors"
-            title="ویرایش گیمنت"
+            title="ویرایش کامل گیمنت و اسلاگ"
           >
             <Icon name="user" size={18} />
           </button>
@@ -392,10 +407,21 @@ export default function GamecentersAdminPage() {
         onSuccess={() => {
           showFeedback(
             "success",
-            editingGc ? "تغییرات گیمنت با موفقیت ثبت شد." : "گیمنت جدید با موفقیت ایجاد گردید."
+            editingGc ? "تغییرات گیمنت و شناسه اسلاگ با موفقیت ثبت شد." : "گیمنت جدید با موفقیت ایجاد گردید."
           );
           loadGamecenters();
         }}
+      />
+
+      {/* Media Management Modal */}
+      <GamecenterMediaModal
+        isOpen={isMediaModalOpen}
+        onClose={() => {
+          setIsMediaModalOpen(false);
+          setMediaGc(null);
+        }}
+        gamecenter={mediaGc}
+        onUpdated={loadGamecenters}
       />
 
       {/* Delete Confirmation Modal */}

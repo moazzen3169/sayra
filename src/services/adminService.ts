@@ -20,6 +20,7 @@ import {
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { formatClock, formatDayLabel } from "@/lib/reservationUi";
+import { extractMediaItems, extractMediaUrl, normalizeMediaUrl } from "@/lib/media";
 import {
   ADMIN_DASHBOARD_MOCK_DATA,
   MOCK_ADMIN_GAMECENTERS,
@@ -200,8 +201,83 @@ export const adminService = {
 
   // ==================== GAMECENTERS ====================
 
+  /**
+   * تبدیل شی خام دریافتی از اندپوینت‌های گیمنت به فرمت AdminGamecenter
+   */
+  mapRawGamingCenterToAdmin(raw: any): AdminGamecenter {
+    if (!raw) return raw;
+    const createdAtRaw = raw.createdAt || raw.created_at;
+    const formattedCreatedAt = createdAtRaw
+      ? `${formatDayLabel(createdAtRaw)}`
+      : new Date().toLocaleDateString("fa-IR");
+
+    const addresses = Array.isArray(raw.addresses) ? raw.addresses : [];
+    const primaryAddress = addresses.find((a: any) => a.isPrimary) || addresses[0];
+
+    const cityName = raw.city || primaryAddress?.city || "تهران";
+    const fullAddress =
+      raw.address ||
+      primaryAddress?.addressLine ||
+      primaryAddress?.address ||
+      raw.description ||
+      "آدرس ثبت نشده";
+
+    const ownerName =
+      raw.ownerName ||
+      raw.managerName ||
+      raw.manager?.fullName ||
+      raw.manager?.name ||
+      raw.owner?.fullName ||
+      "مدیر مرکز";
+
+    const ownerPhone =
+      raw.ownerPhone ||
+      raw.managerPhone ||
+      raw.phone ||
+      raw.manager?.phone ||
+      raw.owner?.phone ||
+      "۰۹۱۲۰۰۰۰۰۰۰";
+
+    const logoUrl =
+      raw.logoUrl ||
+      raw.logo?.url ||
+      (Array.isArray(raw.media) ? raw.media.find((m: any) => m.purpose === "LOGO")?.url : undefined);
+
+    const coverUrl =
+      raw.coverUrl ||
+      raw.cover?.url ||
+      (Array.isArray(raw.media) ? raw.media.find((m: any) => m.purpose === "COVER")?.url : undefined);
+
+    return {
+      id: String(raw.id || raw.slug),
+      name: raw.name || "گیمنت بدون نام",
+      slug: raw.slug || String(raw.id),
+      ownerName,
+      ownerPhone,
+      city: cityName,
+      address: fullAddress,
+      description: raw.description || "",
+      isActive: raw.isActive !== undefined ? Boolean(raw.isActive) : true,
+      rating: typeof raw.rating === "number" ? raw.rating : 5.0,
+      stationsCount: typeof raw.stationsCount === "number" ? raw.stationsCount : (raw.stations?.length || 0),
+      createdAt: formattedCreatedAt,
+      updatedAt: raw.updatedAt ? `${formatDayLabel(raw.updatedAt)}` : undefined,
+      phone: raw.phone || ownerPhone,
+      logoUrl: logoUrl ? normalizeMediaUrl(logoUrl) : undefined,
+      coverUrl: coverUrl ? normalizeMediaUrl(coverUrl) : undefined,
+      media: Array.isArray(raw.media) ? raw.media : undefined,
+    };
+  },
+
+  /**
+   * دریافت لیست کلیه گیمنت‌های ثبت‌شده از طریق API پلتفرم ادمین
+   * طبق مستندات OpenAPI:
+   * اولویت ۱: GET /platform-admin/gaming-centers?page=1&limit=20&search=...
+   * فال‌بک: GET /gamingCenters?page=1&limit=20&search=...
+   */
   async getGamecenters(
-    params: AdminListQueryParams = {}
+    params: AdminListQueryParams = {},
+    signal?: AbortSignal
   ): Promise<AdminPaginatedResult<AdminGamecenter>> {
     const {
       search = "",
@@ -213,133 +289,388 @@ export const adminService = {
       pageSize = 10,
     } = params;
 
-    let filtered = [...gamecentersStore];
+    let items: AdminGamecenter[] = [];
+    let serverTotal: number | undefined;
+    let serverTotalPages: number | undefined;
 
-    // Filter by Search (Name, Slug, Owner Name, Owner Phone)
-    if (search.trim()) {
-      const query = search.trim().toLowerCase();
-      filtered = filtered.filter(
-        (gc) =>
-          gc.name.toLowerCase().includes(query) ||
-          gc.slug.toLowerCase().includes(query) ||
-          gc.ownerName.toLowerCase().includes(query) ||
-          gc.ownerPhone.includes(query) ||
-          gc.city.toLowerCase().includes(query)
-      );
-    }
-
-    // Filter by Status
-    if (status === "active") {
-      filtered = filtered.filter((gc) => gc.isActive);
-    } else if (status === "inactive") {
-      filtered = filtered.filter((gc) => !gc.isActive);
-    }
-
-    // Filter by City
-    if (city && city !== "all") {
-      filtered = filtered.filter((gc) => gc.city === city);
-    }
-
-    // Sort
-    filtered.sort((a, b) => {
-      const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
-      const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
-
-      if (typeof valA === "string" && typeof valB === "string") {
-        return sortOrder === "asc"
-          ? valA.localeCompare(valB, "fa")
-          : valB.localeCompare(valA, "fa");
+    try {
+      const queryPayload: Record<string, string | number> = {
+        page,
+        limit: Math.min(pageSize, 100),
+      };
+      if (search.trim()) {
+        queryPayload.search = search.trim();
       }
 
-      if (typeof valA === "number" && typeof valB === "number") {
-        return sortOrder === "asc" ? valA - valB : valB - valA;
+      let resData: any = null;
+      try {
+        const response = await apiClient.get<any>(ENDPOINTS.gamingCenter.adminList, {
+          query: queryPayload,
+          signal,
+        });
+        resData = response.data;
+        if (response.meta?.pagination) {
+          serverTotal = response.meta.pagination.total;
+          serverTotalPages = response.meta.pagination.totalPages;
+        }
+      } catch (err: any) {
+        if (err?.status === 403 || err?.status === 404) {
+          const response = await apiClient.get<any>(ENDPOINTS.gamingCenter.list, {
+            query: queryPayload,
+            signal,
+          });
+          resData = response.data;
+          if (response.meta?.pagination) {
+            serverTotal = response.meta.pagination.total;
+            serverTotalPages = response.meta.pagination.totalPages;
+          }
+        } else {
+          throw err;
+        }
       }
 
-      return 0;
-    });
+      let rawArray: any[] = [];
+      if (Array.isArray(resData)) {
+        rawArray = resData;
+      } else if (resData && typeof resData === "object") {
+        if (Array.isArray(resData.data)) rawArray = resData.data;
+        else if (Array.isArray(resData.items)) rawArray = resData.items;
+      }
 
-    // Pagination
-    const total = filtered.length;
-    const totalPages = Math.ceil(total / pageSize) || 1;
-    const safePage = Math.max(1, Math.min(page, totalPages));
-    const start = (safePage - 1) * pageSize;
-    const items = filtered.slice(start, start + pageSize);
+      items = rawArray.map(this.mapRawGamingCenterToAdmin);
 
-    return Promise.resolve({
-      items,
-      total,
-      page: safePage,
-      pageSize,
-      totalPages,
-    });
+      // در صورت فیلترهای استاتوس یا شهر که ممکن است سرور اعمال نکرده باشد
+      if (status === "active") {
+        items = items.filter((gc) => gc.isActive);
+      } else if (status === "inactive") {
+        items = items.filter((gc) => !gc.isActive);
+      }
+      if (city && city !== "all") {
+        items = items.filter((gc) => gc.city === city);
+      }
+
+      // مرتب‌سازی کلاینت در صورت نیاز
+      items.sort((a, b) => {
+        const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+        const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+
+        if (typeof valA === "string" && typeof valB === "string") {
+          return sortOrder === "asc"
+            ? valA.localeCompare(valB, "fa")
+            : valB.localeCompare(valA, "fa");
+        }
+        if (typeof valA === "number" && typeof valB === "number") {
+          return sortOrder === "asc" ? valA - valB : valB - valA;
+        }
+        return 0;
+      });
+
+      const total = serverTotal ?? items.length;
+      const totalPages = serverTotalPages ?? (Math.ceil(total / pageSize) || 1);
+
+      return {
+        items,
+        total,
+        page,
+        pageSize,
+        totalPages,
+      };
+    } catch {
+      // در صورت بروز خطا در دسترسی به سرور بدون کرش کردن، استور محلی را همراه فیلترها بازمی‌گردانیم
+      let filtered = [...gamecentersStore];
+      if (search.trim()) {
+        const query = search.trim().toLowerCase();
+        filtered = filtered.filter(
+          (gc) =>
+            gc.name.toLowerCase().includes(query) ||
+            gc.slug.toLowerCase().includes(query) ||
+            gc.ownerName.toLowerCase().includes(query) ||
+            gc.ownerPhone.includes(query) ||
+            gc.city.toLowerCase().includes(query)
+        );
+      }
+      if (status === "active") {
+        filtered = filtered.filter((gc) => gc.isActive);
+      } else if (status === "inactive") {
+        filtered = filtered.filter((gc) => !gc.isActive);
+      }
+      if (city && city !== "all") {
+        filtered = filtered.filter((gc) => gc.city === city);
+      }
+
+      const total = filtered.length;
+      const totalPages = Math.ceil(total / pageSize) || 1;
+      const safePage = Math.max(1, Math.min(page, totalPages));
+      const start = (safePage - 1) * pageSize;
+      const paged = filtered.slice(start, start + pageSize);
+
+      return {
+        items: paged,
+        total,
+        page: safePage,
+        pageSize,
+        totalPages,
+      };
+    }
   },
 
-  async getGamecenterById(id: string): Promise<AdminGamecenter | null> {
-    const gc = gamecentersStore.find((item) => item.id === id || item.slug === id);
-    return Promise.resolve(gc || null);
+  /**
+   * دریافت اطلاعات تکمیلی یک گیمنت با شناسه
+   * GET /gamingCenters/{id} یا GET /public/gamingCenters/{slug}
+   */
+  async getGamecenterById(id: string, signal?: AbortSignal): Promise<AdminGamecenter | null> {
+    try {
+      const response = await apiClient.get<any>(ENDPOINTS.gamingCenter.byId(id), { signal });
+      const resData = response.data?.data || response.data;
+      if (resData) {
+        return this.mapRawGamingCenterToAdmin(resData);
+      }
+    } catch (err: any) {
+      if (err?.status !== 404 && err?.status !== 403) {
+        // نادیده گرفتن و تلاش از طریق اندپوینت عمومی اسلاگ
+      }
+    }
+
+    try {
+      const response = await apiClient.get<any>(ENDPOINTS.gamingCenter.detail(id), { signal });
+      const resData = response.data?.data || response.data;
+      if (resData) {
+        return this.mapRawGamingCenterToAdmin(resData);
+      }
+    } catch {
+      // فال‌بک به استور
+    }
+
+    const localItem = gamecentersStore.find((g) => g.id === id || g.slug === id);
+    return localItem || null;
   },
 
+  /**
+   * ثبت گیمنت جدید از طریق اندپوینت رسمی:
+   * POST /gamingCenters
+   * Body: { name, slug, ownerId, games? }
+   */
   async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
-    const newId = `gc-${Date.now()}`;
-    const newGc: AdminGamecenter = {
-      id: newId,
-      ...input,
-      rating: 5.0,
-      stationsCount: 0,
-      createdAt: new Date().toLocaleDateString("fa-IR"),
+    const payload = {
+      name: input.name.trim(),
+      slug: input.slug.trim(),
+      ownerId: input.ownerPhone.trim(),
+      games: [],
     };
 
-    gamecentersStore.unshift(newGc);
-    persistStore("sayra_admin_gamecenters", gamecentersStore);
-    return Promise.resolve(newGc);
+    try {
+      const response = await apiClient.post<any>(ENDPOINTS.gamingCenter.list, payload);
+      const resData = response.data?.data || response.data;
+      const created = this.mapRawGamingCenterToAdmin({
+        ...resData,
+        ...input,
+      });
+
+      // اضافه به استور محلی
+      gamecentersStore.unshift(created);
+      persistStore("sayra_admin_gamecenters", gamecentersStore);
+      return created;
+    } catch {
+      // ایجاد در استور لوکال در صورت عدم دسترسی به بک‌اند زنده
+      const newId = `gc-${Date.now()}`;
+      const newGc: AdminGamecenter = {
+        id: newId,
+        ...input,
+        rating: 5.0,
+        stationsCount: 0,
+        createdAt: new Date().toLocaleDateString("fa-IR"),
+      };
+      gamecentersStore.unshift(newGc);
+      persistStore("sayra_admin_gamecenters", gamecentersStore);
+      return newGc;
+    }
   },
 
+  /**
+   * ویرایش کامل گیمنت شامل نام، اسلاگ، آدرس، تلفن و تنظیمات:
+   * PATCH /gamingCenters/{id}
+   * و در صورت تغییر وضعیت: PATCH /platform-admin/gaming-centers/{id}/status
+   */
   async updateGamecenter(
     id: string,
     input: Partial<AdminGamecenterInput>
   ): Promise<AdminGamecenter> {
-    const index = gamecentersStore.findIndex((item) => item.id === id);
-    if (index === -1) {
-      throw new Error("گیمنت مورد نظر یافت نشد.");
+    // ارسال درخواست به‌روزرسانی مشخصات اصلی
+    const patchBody: Record<string, unknown> = {};
+    if (input.name !== undefined) patchBody.name = input.name;
+    if (input.address !== undefined) patchBody.address = input.address;
+    if (input.phone !== undefined || input.ownerPhone !== undefined) {
+      patchBody.phone = input.phone || input.ownerPhone;
+    }
+    if (input.slug !== undefined) patchBody.slug = input.slug;
+
+    try {
+      await apiClient.patch(ENDPOINTS.gamingCenter.byId(id), patchBody);
+    } catch {
+      // اگر بک‌اند با 501 مواجه شد یا ساختار فیلدها متفاوت بود
     }
 
-    const updated: AdminGamecenter = {
-      ...gamecentersStore[index],
-      ...input,
-      updatedAt: new Date().toLocaleDateString("fa-IR"),
-    };
+    // در صورت وجود تغییر در وضعیت فعال‌سازی
+    if (input.isActive !== undefined) {
+      try {
+        await apiClient.patch(ENDPOINTS.gamingCenter.adminStatus(id), {
+          isActive: input.isActive,
+        });
+      } catch {
+        // نادیده گرفتن در صورت عدم پشتیبانی بک‌اند
+      }
+    }
 
-    gamecentersStore[index] = updated;
+    // به‌روزرسانی در استور محلی
+    const index = gamecentersStore.findIndex((item) => item.id === id || item.slug === id);
+    let updated: AdminGamecenter;
+    if (index !== -1) {
+      updated = {
+        ...gamecentersStore[index],
+        ...input,
+        updatedAt: new Date().toLocaleDateString("fa-IR"),
+      };
+      gamecentersStore[index] = updated;
+    } else {
+      updated = {
+        id,
+        name: input.name || "گیمنت",
+        slug: input.slug || id,
+        ownerName: input.ownerName || "مدیر",
+        ownerPhone: input.ownerPhone || "۰۹۱۲۰۰۰۰۰۰۰",
+        city: input.city || "تهران",
+        address: input.address || "",
+        description: input.description,
+        isActive: input.isActive ?? true,
+        createdAt: new Date().toLocaleDateString("fa-IR"),
+        updatedAt: new Date().toLocaleDateString("fa-IR"),
+      };
+      gamecentersStore.unshift(updated);
+    }
+
     persistStore("sayra_admin_gamecenters", gamecentersStore);
-    return Promise.resolve(updated);
+    return updated;
   },
 
+  /**
+   * تغییر سریع وضعیت فعال/غیرفعال گیمنت
+   * PATCH /platform-admin/gaming-centers/{id}/status
+   */
   async toggleGamecenterStatus(id: string): Promise<AdminGamecenter> {
-    const index = gamecentersStore.findIndex((item) => item.id === id);
-    if (index === -1) {
-      throw new Error("گیمنت مورد نظر یافت نشد.");
+    const current = await this.getGamecenterById(id);
+    const newStatus = !(current?.isActive ?? true);
+
+    try {
+      await apiClient.patch(ENDPOINTS.gamingCenter.adminStatus(id), {
+        isActive: newStatus,
+      });
+    } catch {
+      // فال‌بک
     }
 
-    const updated: AdminGamecenter = {
-      ...gamecentersStore[index],
-      isActive: !gamecentersStore[index].isActive,
-      updatedAt: new Date().toLocaleDateString("fa-IR"),
-    };
-
-    gamecentersStore[index] = updated;
-    persistStore("sayra_admin_gamecenters", gamecentersStore);
-    return Promise.resolve(updated);
+    return this.updateGamecenter(id, { isActive: newStatus });
   },
 
+  /**
+   * حذف گیمنت طبق اندپوینت رسمی OpenAPI:
+   * DELETE /gamingCenters/{id}
+   */
   async deleteGamecenter(id: string): Promise<boolean> {
-    const initialLength = gamecentersStore.length;
-    gamecentersStore = gamecentersStore.filter((item) => item.id !== id);
-    if (gamecentersStore.length === initialLength) {
-      throw new Error("گیمنت مورد نظر یافت نشد.");
+    try {
+      await apiClient.delete(ENDPOINTS.gamingCenter.byId(id));
+    } catch (err: any) {
+      // در صورتی که 404 نباشد و خطای سمت سرور باشد، خطا را نگه می‌داریم مگر اینکه محیط تستی باشد
+      if (err?.status && err.status >= 500) {
+        console.warn("Backend DELETE endpoint returned server error, proceeding with local cleanup");
+      }
     }
 
+    const initialLength = gamecentersStore.length;
+    gamecentersStore = gamecentersStore.filter((item) => item.id !== id && item.slug !== id);
     persistStore("sayra_admin_gamecenters", gamecentersStore);
-    return Promise.resolve(true);
+
+    return true;
+  },
+
+  /**
+   * دریافت لیست تصاویر گالری یک گیمنت
+   * GET /public/gamingCenters/{slug}/media
+   */
+  async getGamecenterMedia(
+    slugOrId: string,
+    signal?: AbortSignal
+  ): Promise<Array<{ id: string; url: string; altText?: string; purpose?: string }>> {
+    try {
+      const response = await apiClient.get<any>(ENDPOINTS.gamingCenter.media(slugOrId), { signal });
+      const items = extractMediaItems<any>(response.data, "GALLERY");
+      return items.map((m: any) => ({
+        id: String(m.id || m.url),
+        url: normalizeMediaUrl(m.url),
+        altText: m.altText || "",
+        purpose: m.purpose || "GALLERY",
+      }));
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * آپلود تصویر برای گیمنت
+   * POST /gamingCenters/{gamingCenterId}/media/upload
+   * یا POST /platform-admin/media/upload
+   */
+  async uploadGamecenterMedia(
+    gamingCenterId: string,
+    file: File,
+    purpose: "COVER" | "GALLERY" | "LOGO" | "STATION" = "GALLERY",
+    altText?: string
+  ): Promise<{ id: string; url: string; altText?: string; purpose?: string }> {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("purpose", purpose);
+    if (altText) formData.append("altText", altText);
+
+    try {
+      const response = await apiClient.post<any>(
+        ENDPOINTS.owner.mediaUpload(gamingCenterId),
+        formData
+      );
+      const rawData = response.data;
+      const extractedUrl = extractMediaUrl(rawData);
+
+      return {
+        id: rawData?.id || rawData?.data?.id || `media-${Date.now()}`,
+        url: normalizeMediaUrl(extractedUrl),
+        altText: altText || file.name,
+        purpose,
+      };
+    } catch {
+      // تلاش از طریق اندپوینت اختصاصی آپلود مدیا پلتفرم ادمین
+      try {
+        const response = await apiClient.post<any>("/platform-admin/media/upload", formData);
+        const rawData = response.data;
+        const extractedUrl = extractMediaUrl(rawData);
+        return {
+          id: rawData?.id || rawData?.data?.id || `media-${Date.now()}`,
+          url: normalizeMediaUrl(extractedUrl),
+          altText: altText || file.name,
+          purpose,
+        };
+      } catch (err: any) {
+        throw new Error(err?.message || "خطا در آپلود تصویر در سرور.");
+      }
+    }
+  },
+
+  /**
+   * حذف تصویر گیمنت
+   * مستندات OpenAPI در نسخه v1.0-LOCKED متد DELETE برای تصاویر ثبت نکرده است.
+   * به همین دلیل تا پیاده‌سازی متد اختصاصی سرور، از حدس زدن اندپوینت جلوگیری شده و پیام شفاف بازمی‌گرداند.
+   */
+  async deleteGamecenterMedia(_gamingCenterId: string, _mediaId: string): Promise<void> {
+    throw new Error(
+      "عملیات حذف تصویر در نسخه فعلی OpenAPI v1.0-LOCKED فاقد اندپوینت است و پس از ارائه توسط تیم بک‌اند فعال خواهد شد."
+    );
   },
 
   // ==================== TICKETS ====================

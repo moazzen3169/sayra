@@ -310,4 +310,43 @@ export const authService = {
       user,
     };
   },
+
+  /**
+   * ورود اختصاصی مدیر سامانه (Platform Admin) با ایمیل و رمز عبور
+   * POST /auth/platform-admin/login
+   */
+  async loginPlatformAdminWithEmail(
+    email: string,
+    password: string
+  ): Promise<UserLoginResponse> {
+    const trimmedEmail = email.trim().toLowerCase();
+    const payload = {
+      email: trimmedEmail,
+      phone: trimmedEmail,
+      password,
+    };
+
+    const endpoint = ENDPOINTS.auth.userPasswordLogin || "/auth/platform-admin/login";
+    const response = await apiClient.post<any>(endpoint, payload, {
+      retryOnAuth: false,
+    });
+
+    const resData = response.data;
+    const tokens = resData?.tokens || resData;
+    const accessToken = tokens?.accessToken || resData?.accessToken || "";
+    const refreshToken = tokens?.refreshToken || resData?.refreshToken;
+    const user = resData?.user || resData?.admin || resData?.data?.user;
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user?.id || "admin-user",
+        phone: user?.phone || trimmedEmail,
+        fullName: user?.fullName || user?.name || "مدیر سامانه",
+        role: user?.role || "ADMIN",
+        gamingCenterId: user?.gamingCenterId,
+      },
+    };
+  },
 };
