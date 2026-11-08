@@ -120,6 +120,23 @@ export const gamingCenterService = {
   },
 
   /**
+   * دریافت اطلاعات کامل یک گیمنت بر اساس ID
+   * GET /gamingCenters/{id}
+   */
+  async getCenter(centerId: string, signal?: AbortSignal): Promise<GamingCenterInfo> {
+    if (USE_MOCK_RESERVATIONS) {
+      return getMockGamecenterDetail(centerId).center;
+    }
+
+    const { data } = await apiClient.get<GamingCenterInfo>(
+      ENDPOINTS.gamingCenter.detail(centerId),
+      { signal }
+    );
+
+    return data;
+  },
+
+  /**
    * دریافت نظرات و امتیازات عمومی گیمنت
    * GET /public/gamingCenters/{slug}/ratings
    */
