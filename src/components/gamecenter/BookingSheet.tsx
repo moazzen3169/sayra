@@ -18,6 +18,8 @@ import {
 } from "@/services/bookingPreparationService";
 import { gamingCenterService } from "@/services/gamingCenterService";
 import type { AvailabilitySlot } from "@/services/gamingCenterService";
+import { Icon } from "@/components/ui/Icon";
+import { cn } from "@/lib/utils";
 
 export interface SlotView {
   /** همان startTime برگشتی Backend؛ بدون دستکاری به API ارسال می‌شود */
@@ -82,6 +84,14 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
 
   const dateListRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  const submittingRef = useRef(isSubmitting);
+
+  useEffect(() => {
+    closeRef.current = onClose;
+    submittingRef.current = isSubmitting;
+  }, [onClose, isSubmitting]);
 
   const date = dates.find((d) => d.id === dateId) ?? dates[0];
   const stations = useMemo(
@@ -90,21 +100,26 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
   );
   const deviceCount = lines.reduce((a, l) => a + l.qty, 0);
 
-  // قفل اسکرول + Escape
+  // قفل اسکرول، Escape و مدیریت فوکوس
   useEffect(() => {
-    const prev = document.body.style.overflow;
+    const prevFocus = document.activeElement as HTMLElement | null;
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    dialogRef.current?.focus();
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !isSubmitting) onClose();
+      if (e.key === "Escape" && !submittingRef.current) closeRef.current();
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onClose, isSubmitting]);
 
-  // Availability همه‌ی دستگاه‌های نوع‌های انتخاب‌شده؛ فقط از Backend
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+      prevFocus?.focus();
+    };
+  }, []);
+
+  // Availability همه‌ی دستگاه‌های انتخاب‌شده؛ فقط از Backend
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
@@ -206,7 +221,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
 
   const scrollDates = (dir: "next" | "prev") => {
     dateListRef.current?.scrollBy({
-      left: dir === "next" ? -200 : 200,
+      left: dir === "next" ? -240 : 240,
       behavior: "smooth",
     });
   };
@@ -219,185 +234,194 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
       ? `ثبت رزرو (${toPersianDigits(selectedSlots.length)} ساعت)`
       : "ابتدا ساعت‌ها را انتخاب کنید";
 
+  const devicesLabel = lines
+    .map(
+      (l) =>
+        `${toPersianDigits(l.qty)} × ${l.group.label}${
+          l.extra > 0 ? ` (+${toPersianDigits(l.extra)} دسته)` : ""
+        }`,
+    )
+    .join("، ");
+
+  const slotsLabel =
+    selectedSlots.length > 0
+      ? selectedSlots.map((s) => s.startLabel).join("، ")
+      : "هنوز ساعتی انتخاب نشده";
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm animate-fadeIn sm:p-4"
-      onClick={() => !isSubmitting && onClose()}
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="booking-sheet-title"
+      tabIndex={-1}
+      dir="rtl"
+      className="fixed inset-0 z-50 flex animate-fadeIn flex-col bg-[var(--bg-body)] text-[var(--text-white)] outline-none"
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="انتخاب روز و ساعت رزرو"
-        className="animate-sheetUp w-full sm:max-w-[600px] max-h-[92dvh] flex flex-col bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card shadow-2xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="shrink-0 flex items-center justify-between gap-3 px-4 pt-4 pb-3 border-b border-[var(--border-subtle)]">
-          <div className="flex flex-col min-w-0">
-            <h3 className="text-base font-bold text-[var(--text-white)]">
-              انتخاب روز و ساعت
-            </h3>
-            <span className="text-xs text-[var(--text-muted)] truncate">
-              {lines
-                .map(
-                  (l) =>
-                    `${toPersianDigits(l.qty)} × ${l.group.label}${
-                      l.extra > 0 ? ` (+${toPersianDigits(l.extra)} دسته)` : ""
-                    }`,
-                )
-                .join("، ")}
-            </span>
-          </div>
+      {/* هدر */}
+      <header className="shrink-0 border-b border-[var(--border-subtle)] bg-[var(--bg-body)]">
+        <div className="mx-auto flex h-16 w-full max-w-[1100px] items-center gap-3 px-4">
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            aria-label="بستن"
-            className="w-9 h-9 flex   items-center  justify-center shrink-0 rounded-full bg-[var(--foreground)]/50 text-[var(--text-muted)] hover:text-[var(--text-white)] disabled:opacity-40"
+            aria-label="بازگشت"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--text-white)] transition-colors hover:bg-[var(--bg-card)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:opacity-40"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-              className="size-6"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M6 18 18 6M6 6l12 12"
-              />
-            </svg>
+            <Icon name="back" size={20} />
           </button>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-5">
-          {/* Step 1: day */}
-          <section className="flex flex-col gap-2.5">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-bold text-[var(--text-white)]">
-                ۱. روز را انتخاب کنید
-              </h4>
-              <div className="hidden sm:flex items-center gap-1">
-                {(["prev", "next"] as const).map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => scrollDates(d)}
-                    aria-label={d === "next" ? "روزهای بعدی" : "روزهای قبلی"}
-                    className="w-7 h-7 rounded bg-[var(--foreground)] text-[var(--text-white)] flex items-center justify-center hover:bg-[var(--primary)] hover:text-on-primary transition-colors"
-                  >
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d={d === "next" ? "M15 19l-7-7 7-7" : "M9 5l7 7-7 7"}
-                      />
-                    </svg>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div
-              ref={dateListRef}
-              className=" px-4 flex gap-2 overflow-x-auto pb-1 scroll-smooth snap-x"
+          <div className="flex min-w-0 flex-col">
+            <h2
+              id="booking-sheet-title"
+              className="truncate text-base font-bold text-[var(--text-white)]"
             >
-              {dates.map((d) => {
-                const active = d.id === dateId;
-                return (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => setDateId(d.id)}
-                    aria-pressed={active}
-                    disabled={isSubmitting}
-                    className={`snap-start shrink-0 w-[84px] h-16 rounded-card flex flex-col items-center justify-center gap-0.5 border transition-all ${
-                      active
-                        ? "bg-[var(--primary)] text-on-primary border-[var(--primary)]"
-                        : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
-                    }`}
-                  >
-                    <span className="text-xs font-bold">{d.dayName}</span>
-                    <span
-                      className={`text-xs ${active ? "font-bold opacity-80" : "text-[var(--text-muted)]"}`}
+              انتخاب روز و ساعت
+            </h2>
+            <span className="truncate text-xs text-[var(--text-muted)]">
+              {devicesLabel}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      {/* بدنه */}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-8 px-4 py-6 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-10">
+          {/* ستون اصلی */}
+          <div className="flex min-w-0 flex-col gap-8">
+            {/* روز */}
+            <section className="flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-base font-bold text-[var(--text-white)]">
+                  انتخاب روز
+                </h3>
+                <div className="hidden items-center gap-2 lg:flex">
+                  {(["prev", "next"] as const).map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => scrollDates(d)}
+                      aria-label={d === "next" ? "روزهای بعدی" : "روزهای قبلی"}
+                      className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--border-color)]"
                     >
-                      {d.dateStr}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+                      <Icon
+                        name="chevron"
+                        size={20}
+                        className={d === "next" ? "rotate-90" : "-rotate-90"}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Step 2: time (چندانتخابی) */}
-          <section className="flex flex-col gap-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <h4 className="text-sm font-bold text-[var(--text-white)]">
-                ۲. ساعت‌ها را انتخاب کنید
-              </h4>
-              {selectedSlots.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedKeys([])}
-                  disabled={isSubmitting}
-                  className="text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-white)]"
-                >
-                  پاک کردن انتخاب
-                </button>
-              )}
-            </div>
-
-
-            {loading && (
               <div
-                className="grid grid-cols-3 sm:grid-cols-4 gap-2"
-                aria-busy="true"
+                ref={dateListRef}
+                className="-mx-4 flex snap-x gap-2 overflow-x-auto scroll-smooth px-4 pb-1"
               >
-                {Array.from({ length: 12 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-14 rounded-card bg-[var(--foreground)]/40 animate-pulse"
-                  />
-                ))}
+                {dates.map((d) => {
+                  const active = d.id === dateId;
+                  const parts = d.dateStr.split(" ");
+                  const dayNum = parts[0];
+                  const month = parts.slice(1).join(" ");
+                  return (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setDateId(d.id)}
+                      aria-pressed={active}
+                      disabled={isSubmitting}
+                      className={cn(
+                        "flex h-24 w-20 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-card border transition-colors sm:w-24",
+                        active
+                          ? "border-[var(--primary)] bg-[var(--primary)] text-on-primary"
+                          : "border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] hover:border-[var(--border-color)]"
+                      )}
+                    >
+                      <span className="text-xs font-bold">{d.dayName}</span>
+                      <span className="text-xl font-black leading-none">
+                        {dayNum}
+                      </span>
+                      {month && (
+                        <span
+                          className={cn(
+                            "text-xs",
+                            active ? "font-bold" : "text-[var(--text-muted)]"
+                          )}
+                        >
+                          {month}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
-            )}
+            </section>
 
-            {!loading && loadError && (
-              <div className="rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-4 flex flex-col items-center gap-3 text-center">
-                <p className="text-xs font-bold text-[var(--accent-red)]">
-                  {loadError}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setRetryToken((v) => v + 1)}
-                  className="h-9 px-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-color)] text-xs font-bold"
+            <hr className="border-[var(--border-subtle)]" />
+
+            {/* ساعت */}
+            <section className="flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 flex-col gap-1">
+                  <h3 className="text-base font-bold text-[var(--text-white)]">
+                    انتخاب ساعت
+                  </h3>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    {date.dayName} {date.dateStr} • امکان انتخاب چند ساعت
+                  </p>
+                </div>
+                {selectedSlots.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedKeys([])}
+                    disabled={isSubmitting}
+                    className="flex h-11 shrink-0 items-center px-2 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-white)]"
+                  >
+                    پاک کردن انتخاب
+                  </button>
+                )}
+              </div>
+
+              {loading && (
+                <div
+                  className="grid grid-cols-3 gap-2 sm:grid-cols-4"
+                  aria-busy="true"
                 >
-                  تلاش دوباره
-                </button>
-              </div>
-            )}
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-16 animate-pulse rounded-card bg-[var(--foreground)]/40"
+                    />
+                  ))}
+                </div>
+              )}
 
-            {!loading && !loadError && slots.length === 0 && (
-              <div className="rounded-card border border-dashed border-[var(--border-color)] p-6 text-center text-xs text-[var(--text-muted)]">
-                برای این روز ساعت خالی وجود ندارد. روز دیگری را امتحان کنید.
-              </div>
-            )}
+              {!loading && loadError && (
+                <div className="flex flex-col items-center gap-3 rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-5 text-center">
+                  <p className="text-xs font-bold leading-6 text-[var(--accent-red)]">
+                    {loadError}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setRetryToken((v) => v + 1)}
+                    className="h-11 rounded-card border border-[var(--border-color)] bg-[var(--bg-card)] px-5 text-xs font-bold text-[var(--text-white)]"
+                  >
+                    تلاش دوباره
+                  </button>
+                </div>
+              )}
 
-            {!loading && !loadError && slots.length > 0 && (
-              <>
+              {!loading && !loadError && slots.length === 0 && (
+                <div className="rounded-card border border-dashed border-[var(--border-color)] p-8 text-center text-xs leading-6 text-[var(--text-muted)]">
+                  برای این روز ساعت خالی وجود ندارد. روز دیگری را انتخاب کنید.
+                </div>
+              )}
+
+              {!loading && !loadError && slots.length > 0 && (
                 <div
                   role="group"
                   aria-label="ساعت‌های موجود"
-                  className="grid grid-cols-3 sm:grid-cols-4 gap-2"
+                  className="grid grid-cols-3 gap-2 sm:grid-cols-4"
                 >
                   {slots.map((s) => {
                     const ok = isSlotBookable(lines, s.startTime, avail);
@@ -409,85 +433,145 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
                         aria-pressed={active}
                         disabled={!ok || isSubmitting}
                         onClick={() => toggleSlot(s.key)}
-                        className={`relative h-14 rounded-card flex flex-col items-center justify-center border transition-all active:scale-[0.97] ${
+                        className={cn(
+                          "relative flex h-16 flex-col items-center justify-center gap-0.5 rounded-card border transition-colors active:scale-[0.97]",
                           !ok
-                            ? "bg-[var(--foreground)]/20 border-transparent text-[var(--text-subtle)] line-through cursor-not-allowed opacity-50"
+                            ? "cursor-not-allowed border-[var(--border-subtle)] bg-[var(--bg-card)]/50 text-[var(--text-muted)] opacity-60"
                             : active
-                              ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-bold"
-                              : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--primary)]/60"
-                        }`}
+                              ? "border-[var(--primary)] bg-[var(--primary)] text-on-primary"
+                              : "border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] hover:border-[var(--border-color)]"
+                        )}
                       >
                         {active && (
-                          <span className="absolute top-1 left-1 w-4 h-4 rounded-full bg-[#101014] text-[var(--primary)] text-xs flex items-center justify-center font-bold">
-                            ✓
+                          <span
+                            aria-hidden="true"
+                            className="absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--bg-body)] text-[var(--primary)]"
+                          >
+                            <Icon name="check" size={16} />
                           </span>
                         )}
-                        <span className="text-sm font-bold">
+                        <span
+                          className={cn(
+                            "text-sm font-bold",
+                            !ok && "line-through"
+                          )}
+                        >
                           {s.startLabel}
                         </span>
-                        {s.endLabel && (
-                          <span className="text-xs opacity-70">
-                            تا {s.endLabel}
-                          </span>
-                        )}
+                        <span className="text-xs">
+                          {!ok
+                            ? "ناموجود"
+                            : s.endLabel
+                              ? `تا ${s.endLabel}`
+                              : ""}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
-                <p className="text-xs text-[var(--text-subtle)]">
-                  ساعت‌های خط‌خورده در دسترس نیستند.
-                </p>
-              </>
-            )}
-          </section>
-        </div>
+              )}
+            </section>
+          </div>
 
-        {/* Footer */}
-        <div className="shrink-0 border-t border-[var(--border-color)] bg-[var(--bg-card)] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] flex flex-col gap-3">
-          {submitError && (
-            <div
-              role="alert"
-              className="p-3 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold leading-relaxed"
-            >
-              {submitError}
-            </div>
-          )}
+          {/* خلاصه‌ی رزرو (فقط دسکتاپ) */}
+          <aside className="hidden flex-col gap-4 self-start rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-5 lg:sticky lg:top-6 lg:flex">
+            <h3 className="text-base font-bold text-[var(--text-white)]">
+              رزرو شما
+            </h3>
 
-          <div className="flex items-center justify-between gap-3 text-xs">
-            <div className="flex flex-col gap-0.5 min-w-0">
-              <span className="text-[var(--text-muted)]">
-                {toPersianDigits(deviceCount)} دستگاه •{" "}
-                {toPersianDigits(selectedSlots.length)} ساعت
+            <dl className="flex flex-col gap-3 text-sm">
+              <div className="flex items-start justify-between gap-3">
+                <dt className="shrink-0 text-xs text-[var(--text-muted)]">
+                  دستگاه‌ها
+                </dt>
+                <dd className="text-left text-xs font-bold leading-6 text-[var(--text-white)]">
+                  {devicesLabel}
+                </dd>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <dt className="shrink-0 text-xs text-[var(--text-muted)]">
+                  روز
+                </dt>
+                <dd className="text-left text-xs font-bold text-[var(--text-white)]">
+                  {date.dayName} {date.dateStr}
+                </dd>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <dt className="shrink-0 text-xs text-[var(--text-muted)]">
+                  ساعت‌ها
+                </dt>
+                <dd className="text-left text-xs font-bold leading-6 text-[var(--text-white)]">
+                  {slotsLabel}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="flex items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-4">
+              <span className="text-xs text-[var(--text-muted)]">
+                برآورد مبلغ
               </span>
-              <span className="font-bold text-[var(--text-white)] truncate">
-                {selectedSlots.length > 0
-                  ? `${date.dayName}: ${selectedSlots.map((s) => s.startLabel).join("، ")}`
-                  : "هنوز ساعتی انتخاب نشده"}
-              </span>
-            </div>
-            <div className="flex flex-col items-end gap-0.5 shrink-0">
-              <span className="text-[var(--text-muted)]">برآورد مبلغ</span>
-              <span className="font-black text-[var(--primary)]">
+              <span className="text-lg font-black text-[var(--primary)]">
                 {selectedSlots.length > 0 ? formatPrice(estimate) : "—"}{" "}
                 <span className="text-xs font-normal text-[var(--text-white)]">
                   تومان
                 </span>
               </span>
             </div>
-          </div>
-
-          <button
-            type="button"
-            disabled={!canSubmit}
-            onClick={() =>
-              items && onConfirm({ date, slots: selectedSlots, items })
-            }
-            className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:bg-[var(--foreground)] disabled:text-[var(--text-muted)] text-on-primary font-bold text-sm transition-all active:scale-[0.98]"
-          >
-            {buttonText}
-          </button>
+          </aside>
         </div>
       </div>
+
+      {/* فوتر چسبان */}
+      <footer className="shrink-0 border-t border-[var(--border-color)] bg-[var(--bg-card)] pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+        <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-3 px-4">
+          {submitError && (
+            <div
+              role="alert"
+              className="rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-3 text-xs font-bold leading-6 text-[var(--accent-red)]"
+            >
+              {submitError}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+            <div className="flex items-center justify-between gap-3 sm:flex-1">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-xs text-[var(--text-muted)]">
+                  {toPersianDigits(deviceCount)} دستگاه •{" "}
+                  {toPersianDigits(selectedSlots.length)} ساعت
+                </span>
+                <span className="truncate text-xs font-bold text-[var(--text-white)]">
+                  {selectedSlots.length > 0
+                    ? `${date.dayName}: ${slotsLabel}`
+                    : slotsLabel}
+                </span>
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-0.5">
+                <span className="text-xs text-[var(--text-muted)]">
+                  برآورد مبلغ
+                </span>
+                <span className="text-base font-black text-[var(--primary)]">
+                  {selectedSlots.length > 0 ? formatPrice(estimate) : "—"}{" "}
+                  <span className="text-xs font-normal text-[var(--text-white)]">
+                    تومان
+                  </span>
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={!canSubmit}
+              onClick={() =>
+                items && onConfirm({ date, slots: selectedSlots, items })
+              }
+              className="h-12 w-full shrink-0 rounded-card bg-[var(--primary)] px-8 text-sm font-bold text-on-primary transition-all hover:bg-[var(--primary-hover)] active:scale-[0.98] disabled:bg-[var(--foreground)] disabled:text-[var(--text-muted)] sm:w-auto sm:min-w-[220px]"
+            >
+              {buttonText}
+            </button>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

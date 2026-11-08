@@ -23,10 +23,10 @@ export const ENDPOINTS = {
     ratings: (slug: string) => `/public/gamingCenters/${enc(slug)}/ratings`,
     media: (slug: string) => `/public/gamingCenters/${enc(slug)}/media`,
     links: (slug: string) => `/public/gamingCenters/${enc(slug)}/links`,
-    addresses: (slug: string) => `/public/gamingCenters/${enc(slug)}/addresses`,
+    addresses: (slug: string) => `/gamingCenters/${enc(slug)}/addresses`,
     stations: (gamingCenterId: string) => `/gamingCenters/${enc(gamingCenterId)}/stations`,
-    publicStations: (slug: string) => `/public/gamingCenters/${enc(slug)}/stations`,
-    deviceCategories: (slug: string) => `/public/gamingCenters/${enc(slug)}/device-categories`,
+    publicStations: (slug: string) => `/gamingCenters/${enc(slug)}/stations`,
+    deviceCategories: (slug: string) => `/gamingCenters/${enc(slug)}/device-categories`,
     groupReservations: (slug: string) => `/public/gamingCenters/${enc(slug)}/group-reservations`,
     page: (slug: string, pageSlug: string) =>
       `/public/gamingCenters/${enc(slug)}/pages/${enc(pageSlug)}`,
