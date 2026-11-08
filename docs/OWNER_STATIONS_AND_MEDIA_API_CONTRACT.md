@@ -77,11 +77,12 @@ The frontend gaming center management UI supports configuration of multi-device 
 ```
 
 #### Individual Station Updates & Deletion
-The current OpenAPI does not define:
-- `PUT /gamingCenters/{gamingCenterId}/stations/{stationId}`
-- `DELETE /gamingCenters/{gamingCenterId}/stations/{stationId}`
+OpenAPI officially documents:
+- `PATCH /gamingCenters/{gamingCenterId}/stations/{stationId}`: Allows updating `name`, `type` (`PC` | `CONSOLE` | `VR`), `hourlyRate`, `hardwareSpecs`, and `isActive`.
+- `DELETE /gamingCenters/{gamingCenterId}/stations/{stationId}`: Deletes the station from the gaming center inventory.
+- `POST /gamingCenters/{gamingCenterId}/stations/games/from-catalog`: Allows manager to select games from central catalog (`gameCatalogIds`) and add them directly to the gaming center.
 
-To avoid guess-routing, station editing/deletion operations are deferred until backend endpoints are officially specified.
+These endpoints are implemented and fully active in the manager stations dashboard (`/owner/stations`).
 
 ---
 
