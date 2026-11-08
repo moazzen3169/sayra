@@ -412,7 +412,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
                         aria-pressed={active}
                         disabled={isSubmitting}
                         className={cn(
-                          "flex h-24 w-20 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-card border transition-colors sm:w-24",
+                          "flex h-30 w-20 shrink-0 snap-start flex-col items-center justify-center gap-3 rounded-card border transition-colors sm:w-24",
                           active
                             ? "border-[var(--primary)] bg-[var(--primary)] text-on-primary"
                             : "border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] hover:border-[var(--border-color)]"

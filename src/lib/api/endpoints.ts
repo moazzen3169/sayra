@@ -13,7 +13,7 @@ export const ENDPOINTS = {
     userOtpVerify: "/auth/user/otp/verify",
     userOtpLogin: "/auth/user/login/otp",
     userPasswordLogin: "/auth/platform-admin/login",
-    platformAdminLogin: "/auth/login",
+    platformAdminLogin: "/auth/platform-admin/login",
   },
   gamingCenter: {
     list: "/gamingCenters",
@@ -23,7 +23,7 @@ export const ENDPOINTS = {
     ratings: (slug: string) => `/public/gamingCenters/${enc(slug)}/ratings`,
     media: (slug: string) => `/public/gamingCenters/${enc(slug)}/media`,
     links: (slug: string) => `/public/gamingCenters/${enc(slug)}/links`,
-    addresses: (slug: string) => `/gamingCenters/${enc(slug)}/addresses`,
+    addresses: (slug: string) => `/public/gamingCenters/${enc(slug)}/addresses`,
     stations: (gamingCenterId: string) => `/gamingCenters/${enc(gamingCenterId)}/stations`,
     publicStations: (slug: string) => `/gamingCenters/${enc(slug)}/stations`,
     deviceCategories: (slug: string) => `/gamingCenters/${enc(slug)}/device-categories`,
