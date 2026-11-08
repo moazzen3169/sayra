@@ -17,6 +17,7 @@ import {
   ReservationSummaryDetails,
 } from "@/components/PaymentSuccessModal";
 import { DevicePicker } from "@/components/gamecenter/DevicePicker";
+import { GameNetGroupReservationFlow } from "@/components/gamecenter/GameNetGroupReservationFlow";
 import { GamesMarquee } from "@/components/gamecenter/GamesMarquee";
 import {
   BookingSheet,
@@ -561,23 +562,40 @@ export default function GameCenterDetailPage({
 
             {/* ===== Main column ( سمت راست: ابتدا دستگاه ها، سپس بازی ها و نظرات ) ===== */}
             <div className="flex flex-col gap-8 min-w-0 mt-6 lg:mt-0 lg:order-1">
-              {/* Step 1: devices */}
+              {/* Step 1: devices & group reservation */}
               <section
                 id="stations"
                 className="flex flex-col gap-3 scroll-mt-20"
               >
                 <SectionTitle
                   step={1}
-                  title="انتخاب دستگاه"
-                  hint="دستگاه‌های موردنظر برای رزرو را انتخاب کنید"
+                  title="انتخاب دستگاه و رزرو گروهی"
+                  hint="دسته‌بندی و دستگاه‌های فیزیکی موردنظر برای رزرو گروهی را انتخاب کنید"
                 />
-                <DevicePicker
-                  groups={groups}
-                  cart={cart}
-                  error={detail.stationsError}
-                  onRetry={() => setReloadToken((t) => t + 1)}
-                  onQtyChange={handleQtyChange}
-                  onExtraChange={handleExtraChange}
+                <GameNetGroupReservationFlow
+                  gamingCenterSlug={gamingCenterSlug}
+                  gamingCenterName={detail.center.name}
+                  initialCustomer={
+                    user ? { fullName: user.fullName, phone: user.phone } : undefined
+                  }
+                  requireOtp={false}
+                  onSuccess={(groupRes) => {
+                    setSuccessDetails({
+                      gameCenterTitle: detail.center.name,
+                      reservationId: groupRes.id,
+                      trackingCode: groupRes.trackingCode || groupRes.id,
+                      grandTotal: groupRes.totalPrice,
+                      devicesSummary: groupRes.items
+                        ?.map((it) => it.stationName || "دستگاه")
+                        .join("، "),
+                      totalHours: Math.round(groupRes.durationMinutes / 60),
+                      dateStr: new Date(groupRes.startTime).toLocaleDateString("fa-IR"),
+                    });
+                    setIsSuccessOpen(true);
+                  }}
+                  onRequestOtp={(phone) => {
+                    setIsAuthModalOpen(true);
+                  }}
                 />
               </section>
 
