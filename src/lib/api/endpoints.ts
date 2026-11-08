@@ -26,6 +26,8 @@ export const ENDPOINTS = {
     addresses: (slug: string) => `/public/gamingCenters/${enc(slug)}/addresses`,
     stations: (gamingCenterId: string) => `/gamingCenters/${enc(gamingCenterId)}/stations`,
     publicStations: (slug: string) => `/public/gamingCenters/${enc(slug)}/stations`,
+    deviceCategories: (slug: string) => `/public/gamingCenters/${enc(slug)}/device-categories`,
+    groupReservations: (slug: string) => `/public/gamingCenters/${enc(slug)}/group-reservations`,
     page: (slug: string, pageSlug: string) =>
       `/public/gamingCenters/${enc(slug)}/pages/${enc(pageSlug)}`,
   },
