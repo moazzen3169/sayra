@@ -13,7 +13,7 @@ export const ENDPOINTS = {
     userOtpVerify: "/auth/user/otp/verify",
     userOtpLogin: "/auth/user/login/otp",
     userPasswordLogin: "/auth/platform-admin/login",
-    platformAdminLogin: "/auth/platform-admin/login",
+    platformAdminLogin: "/auth/login",
   },
   gamingCenter: {
     list: "/gamingCenters",
