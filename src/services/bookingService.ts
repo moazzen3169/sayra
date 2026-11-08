@@ -53,6 +53,7 @@ export async function submitBooking(params: SubmitParams): Promise<Reservation[]
             idempotencyKey: key,
             stationId: item.station.id,
             startTime: item.startTime,
+            durationHours: 1,
             customer: params.customer,
             ...(item.extraControllers > 0
               ? { note: `دسته اضافه: ${toPersianDigits(item.extraControllers)}` }

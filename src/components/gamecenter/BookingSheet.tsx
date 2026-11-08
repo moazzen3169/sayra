@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { isAbortError } from "@/lib/api/client";
-import { generateDays } from "@/lib/dates";
+import { generateDays, mapCalendarDaysToDateOptions } from "@/lib/dates";
 import type { DateOption } from "@/lib/dates";
 import {
   isSlotBookable,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/devices";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatClock, getErrorMessage } from "@/lib/reservationUi";
+import { calendarService } from "@/services/calendarService";
 import {
   bookingPreparationService,
   type BookingPriceBreakdown,
@@ -74,7 +75,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
   onClose,
   onConfirm,
 }) => {
-  const [dates] = useState<DateOption[]>(() => generateDays(10));
+  const [dates, setDates] = useState<DateOption[]>(() => generateDays(10));
   const [dateId, setDateId] = useState<string>("day-0");
   const [slots, setSlots] = useState<SlotView[]>([]);
   const [avail, setAvail] = useState<AvailabilityMap>({});
@@ -92,6 +93,31 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
     closeRef.current = onClose;
     submittingRef.current = isSubmitting;
   }, [onClose, isSubmitting]);
+
+  // بارگذاری روزها از API رسمی تقویم ایران (GET /iran-calendar/days)
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    (async () => {
+      try {
+        const calDays = await calendarService.getUpcomingDays(10, controller.signal);
+        if (active && calDays && calDays.length > 0) {
+          const mapped = mapCalendarDaysToDateOptions(calDays);
+          setDates(mapped);
+        }
+      } catch (err) {
+        if (!isAbortError(err)) {
+          // در صورت بروز هر خطای شبکه، به تولید محلی تاریخ‌ها متکی می‌ماند
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, []);
 
   const date = dates.find((d) => d.id === dateId) ?? dates[0];
   const stations = useMemo(
@@ -337,7 +363,18 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
                           : "border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] hover:border-[var(--border-color)]"
                       )}
                     >
-                      <span className="text-xs font-bold">{d.dayName}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold">{d.dayName}</span>
+                        {d.isHoliday && (
+                          <span
+                            className={cn(
+                              "h-1.5 w-1.5 rounded-full",
+                              active ? "bg-white" : "bg-red-500",
+                            )}
+                            title={d.events?.[0]?.title || "تعطیل رسمی"}
+                          />
+                        )}
+                      </div>
                       <span className="text-xl font-black leading-none">
                         {dayNum}
                       </span>
@@ -345,7 +382,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
                         <span
                           className={cn(
                             "text-xs",
-                            active ? "font-bold" : "text-[var(--text-muted)]"
+                            active ? "font-bold" : d.isHoliday ? "text-red-400" : "text-[var(--text-muted)]",
                           )}
                         >
                           {month}

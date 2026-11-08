@@ -381,6 +381,45 @@ export interface CustomerFileUploadOptions {
 // Explicit Contract Gap Errors
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Iranian Official & Jalali Calendar (/iran-calendar/days)
+// ---------------------------------------------------------------------------
+
+export interface IranCalendarEventItem {
+  title: string;
+  type: string;
+  isHoliday?: boolean;
+  source?: string;
+  verified?: boolean;
+}
+
+export interface IranCalendarDayItem {
+  date: string;
+  year: number;
+  month: number;
+  monthName: string;
+  day: number;
+  dayOfWeek: number;
+  dayOfWeekName: string;
+  dayOfYear: number;
+  isWeekend: boolean;
+  isHoliday: boolean;
+  holidayType: "official" | "weekend" | "none" | string;
+  isToday: boolean;
+  relativeDay?: string | null;
+  relativeDayName?: string | null;
+  isOfficialCalendarPublished?: boolean;
+  events?: IranCalendarEventItem[];
+}
+
+export interface IranCalendarDaysResponse {
+  calendar: string;
+  from: string;
+  to: string;
+  totalDays: number;
+  days: IranCalendarDayItem[];
+}
+
 export class ContractGapError extends Error {
   code: string;
 

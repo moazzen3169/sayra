@@ -2,6 +2,9 @@
 const enc = encodeURIComponent;
 
 export const ENDPOINTS = {
+  calendar: {
+    days: "/iran-calendar/days",
+  },
   auth: {
     otpRequest: "/auth/customer/otp/request",
     otpVerify: "/auth/customer/otp/verify",

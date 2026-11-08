@@ -11,6 +11,7 @@ export interface CreateReservationInput {
   idempotencyKey: string;
   stationId: string;
   startTime: string;
+  durationHours?: number;
   customer: { fullName: string; phone: string; email?: string };
   staffId?: string;
   note?: string;
@@ -74,6 +75,7 @@ export const reservationService = {
         stationId: input.stationId,
         startTime: input.startTime,
         customer: input.customer,
+        ...(input.durationHours ? { durationHours: input.durationHours } : {}),
         ...(input.staffId ? { staffId: input.staffId } : {}),
         ...(input.note ? { note: input.note } : {}),
       },

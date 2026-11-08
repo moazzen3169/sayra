@@ -1,12 +1,19 @@
 import { APP_TIME_ZONE } from "./api/config";
 import { toPersianDigits } from "./format";
 
+import type { IranCalendarDayItem } from "@/types/customerApi";
+
 export interface DateOption {
   id: string;
   dayName: string;
   dateStr: string;
   /** کلید تاریخ YYYY-MM-DD بر اساس Timezone اپ؛ مستقیم به پارامتر date در Availability API می‌رود */
   fullDate: string;
+  /** اطلاعات تکمیلی از تقویم رسمی ایران (در صورت واکشی از API) */
+  isHoliday?: boolean;
+  holidayType?: string;
+  events?: { title: string; isHoliday?: boolean }[];
+  jalaliDate?: string;
 }
 
 /** «امروز» را بر اساس Timezone تعریف‌شده اپ (نه ساعت دستگاه) می‌گیرد */
@@ -47,6 +54,51 @@ export function generateDays(count = 10): DateOption[] {
   }
 
   return options;
+}
+
+/**
+ * تبدیل آیتم‌های بازگشتی از API رسمی تقویم ایران به DateOption هماهنگ با کامپوننت‌های شیت رزرو
+ */
+export function mapCalendarDaysToDateOptions(
+  days: IranCalendarDayItem[],
+  fallbackCount = 10
+): DateOption[] {
+  if (!days || days.length === 0) {
+    return generateDays(fallbackCount);
+  }
+
+  const [y, m, d] = todayKeyFmt.format(new Date()).split("-").map(Number);
+
+  return days.map((dayItem, index) => {
+    // تاریخ ISO گریگوری متناظر برای استفاده در Availability slots API
+    const noonUtc = new Date(Date.UTC(y, m - 1, d + index, 12));
+    const fullDate = noonUtc.toISOString().slice(0, 10);
+
+    const dayName =
+      dayItem.relativeDayName ||
+      (dayItem.isToday
+        ? "امروز"
+        : index === 0
+        ? "امروز"
+        : index === 1
+        ? "فردا"
+        : index === 2
+        ? "پس‌فردا"
+        : dayItem.dayOfWeekName || weekdayFmt.format(noonUtc));
+
+    const dateStr = `${toPersianDigits(dayItem.day)} ${dayItem.monthName}`;
+
+    return {
+      id: `day-${index}`,
+      dayName,
+      dateStr,
+      fullDate,
+      isHoliday: dayItem.isHoliday,
+      holidayType: dayItem.holidayType,
+      events: dayItem.events?.map((e) => ({ title: e.title, isHoliday: e.isHoliday })),
+      jalaliDate: dayItem.date,
+    };
+  });
 }
 
 /** برای سازگاری با کدهای قبلی */
