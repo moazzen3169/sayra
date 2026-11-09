@@ -15,8 +15,8 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  title = "ورود به حساب کاربری",
-  description = "ورود با پیامک (OTP) یا رمز عبور",
+  title = "ورود یا ثبت‌نام",
+  description = "ورود و ثبت‌نام سریع با پیامک یک‌بار مصرف (OTP)",
 }) => {
   if (!isOpen) return null;
 

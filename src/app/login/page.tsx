@@ -61,8 +61,8 @@ function LoginContent() {
 
         <UnifiedAuthForm
           onSuccess={handleSuccess}
-          title="ورود به سامانه سایرا"
-          description="ورود سریع با پیامک یکبار مصرف (OTP) یا رمز عبور"
+          title="ورود و ثبت‌نام در سامانه سایرا"
+          description="ورود و ثبت‌نام سریع با پیامک یک‌بار مصرف (OTP) بدون نیاز به رمز عبور"
         />
       </div>
     </main>
