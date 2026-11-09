@@ -59,6 +59,10 @@ export interface AdminGamecenter {
   stationsCount?: number;
   createdAt: string;
   updatedAt?: string;
+  phone?: string;
+  logoUrl?: string;
+  coverUrl?: string;
+  media?: Array<{ id: string; url: string; altText?: string; purpose?: string }>;
 }
 
 export interface AdminGamecenterInput {
@@ -70,6 +74,7 @@ export interface AdminGamecenterInput {
   address: string;
   description?: string;
   isActive: boolean;
+  phone?: string;
 }
 
 export interface AdminUser {

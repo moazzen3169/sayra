@@ -34,7 +34,7 @@ const inputClass =
 export default function OwnerStationsPage() {
   const { centerId, verificationStatus } = useOwner();
   const isApproved = verificationStatus === "APPROVED";
-
+const [tableSearch, setTableSearch] = useState("");
   // Data states
   const [stations, setStations] = useState<GameStationInfo[] | null>(null);
   const [categories, setCategories] = useState<DeviceCategory[] | null>(null);
@@ -44,7 +44,7 @@ export default function OwnerStationsPage() {
 
   // Active Category Filter for Drill-down
   const [selectedCategory, setSelectedCategory] = useState<DeviceCategory | null>(null);
-  const [tableSearch, setTableSearch] = useState("");
+    
 
   // Notification / Toast Message
   const [statusFeedback, setStatusFeedback] = useState<{ ok: boolean; text: string } | null>(null);
