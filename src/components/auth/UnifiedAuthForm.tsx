@@ -138,56 +138,30 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
     try {
       // 1. Verify OTP and authenticate customer (POST /auth/customer/otp/verify)
       // Login & Registration are unified: receiving tokens completes login / registration directly
-      let authRes: any = null;
-      let isCustomerVerified = false;
+      const authRes = await authService.verifyOtp(cleanPhone, fullCode);
+      const token = authRes?.accessToken;
 
-      try {
-        authRes = await authService.verifyOtp(cleanPhone, fullCode);
-        if (authRes?.accessToken) {
-          isCustomerVerified = true;
+      if (!token) {
+        throw new Error("توکن ورود دریافت نشد.");
+      }
+
+      let resolvedName = authRes?.user?.fullName || "کاربر سایرا";
+      if (!authRes?.user?.fullName) {
+        try {
+          const me = await authService.getMe();
+          if (me?.fullName) resolvedName = me.fullName;
+        } catch {
+          // ignore
         }
-      } catch (custErr) {
-        // If customer verify failed (e.g. staff/owner account), attempt user OTP verify
-        isCustomerVerified = false;
       }
 
-      if (isCustomerVerified && authRes?.accessToken) {
-        const token = authRes.accessToken;
-        let resolvedName = authRes?.user?.fullName || "کاربر سایرا";
-        if (!authRes?.user?.fullName) {
-          try {
-            const me = await authService.getMe();
-            if (me?.fullName) resolvedName = me.fullName;
-          } catch {
-            // ignore
-          }
-        }
-
-        onSuccess({
-          fullName: resolvedName,
-          phone: cleanPhone,
-          accessToken: token,
-          refreshToken: authRes.refreshToken,
-          role: authRes?.user?.role || "USER",
-        });
-        return;
-      }
-
-      // 2. Fallback: Check if user is staff/owner with gaming center associations
-      let activeCenters: UserGamingCenterOption[] = [];
-      const userRes = await authService.verifyUserOtp(cleanPhone, fullCode);
-      activeCenters = userRes?.gamingCenters || [];
-
-      setCenters(activeCenters);
-      if (activeCenters.length === 1) {
-        setSelectedCenterId(activeCenters[0].id);
-        await finalizeOtpLogin(cleanPhone, activeCenters[0].id, fullCode);
-      } else if (activeCenters.length > 1) {
-        setSelectedCenterId(activeCenters[0].id);
-        setOtpStep("centerSelect");
-      } else {
-        await finalizeOtpLogin(cleanPhone, undefined, fullCode);
-      }
+      onSuccess({
+        fullName: resolvedName,
+        phone: cleanPhone,
+        accessToken: token,
+        refreshToken: authRes.refreshToken,
+        role: authRes?.user?.role || "USER",
+      });
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {

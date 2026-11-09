@@ -226,24 +226,11 @@ export default function NewGamingCenterPage() {
     const cleanPhone = managerPhone.trim().replace(/[^\d]/g, "");
     setIsVerifyingOtp(true);
     try {
-      let accessToken = "";
-      let refreshToken = "";
-      let resUser: any = null;
-
-      try {
-        // Try staff user OTP verify
-        await authService.verifyUserOtp(cleanPhone, fullCode);
-        const loginRes = await authService.loginUserWithOtp(cleanPhone, undefined, fullCode);
-        accessToken = loginRes.accessToken;
-        refreshToken = loginRes.refreshToken || "";
-        resUser = loginRes.user;
-      } catch {
-        // Fallback to customer OTP verify
-        const authRes = await authService.verifyOtp(cleanPhone, fullCode);
-        accessToken = authRes.accessToken;
-        refreshToken = authRes.refreshToken || "";
-        resUser = authRes.user;
-      }
+      // Authenticate via customer OTP verification which directly verifies and returns tokens
+      const authRes = await authService.verifyOtp(cleanPhone, fullCode);
+      const accessToken = authRes?.accessToken;
+      const refreshToken = authRes?.refreshToken || "";
+      const resUser = authRes?.user;
 
       if (!accessToken) {
         throw new Error("توکن ورود دریافت نشد.");

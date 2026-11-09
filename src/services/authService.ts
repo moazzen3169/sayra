@@ -8,6 +8,7 @@ export interface AuthUser {
   phone: string;
   fullName?: string;
   phoneVerifiedAt?: string;
+  role?: string;
 }
 
 export interface AuthVerifyResponse {
