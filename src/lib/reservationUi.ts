@@ -102,6 +102,17 @@ export function formatClock(iso: string, alwaysMinutes = false): string {
   return toPersianDigits(`${h}:${m}`);
 }
 
+/**
+ * دریافت عدد ساعت به صورت انگلیسی (مانند 12 13 14 15 16 17) بر اساس منطقه زمانی ایران
+ */
+export function formatSlotHourEnglish(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const parts = clockFmt.formatToParts(d);
+  const h = parts.find((p) => p.type === "hour")?.value ?? "00";
+  return String(Number(h));
+}
+
 /** مثال: «امروز از ساعت ۱۳ تا ۱۴» */
 export function formatReservationWhen(startIso: string, endIso: string): string {
   return `${formatDayLabel(startIso)} از ساعت ${formatClock(startIso)} تا ${formatClock(endIso)}`;

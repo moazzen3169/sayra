@@ -13,6 +13,73 @@ import {
   ContractGapError,
 } from "@/types/customerApi";
 
+/**
+ * نرمال‌سازی پاسخ اندپوینت /availability/slots
+ * پشتیبانی از هر دو فرمت:
+ * ۱) آرایه تخت از اسلات‌ها: AvailabilitySlot[]
+ * ۲) انولوپ مبتنی بر ایستگاه: [{ date, gamingCenter, station, slots: [...] }]
+ * ۳) شیء والد دارای کلید slots: { slots: [...] }
+ */
+export function normalizeAvailabilitySlots(raw: unknown): AvailabilitySlot[] {
+  if (!raw) return [];
+
+  // اگر داده شیء باشد
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    const obj = raw as Record<string, unknown>;
+    if (Array.isArray(obj.slots)) {
+      return normalizeAvailabilitySlots(obj.slots);
+    }
+    if (Array.isArray(obj.data)) {
+      return normalizeAvailabilitySlots(obj.data);
+    }
+    return [];
+  }
+
+  // اگر داده آرایه باشد
+  if (Array.isArray(raw)) {
+    if (raw.length === 0) return [];
+
+    // بررسی آیا آیتم‌های آرایه شامل آرایه slots هستند (مثل فرمت چندگانه ایستگاه‌ها)
+    const hasNestedSlots = raw.some(
+      (item) => item && typeof item === "object" && Array.isArray((item as Record<string, unknown>).slots)
+    );
+
+    if (hasNestedSlots) {
+      const flattened: AvailabilitySlot[] = [];
+      for (const item of raw) {
+        if (item && typeof item === "object") {
+          const rec = item as Record<string, unknown>;
+          const stationId =
+            typeof rec.station === "object" && rec.station !== null
+              ? (rec.station as Record<string, unknown>).id
+              : rec.stationId;
+
+          if (Array.isArray(rec.slots)) {
+            for (const slot of rec.slots) {
+              if (slot && typeof slot === "object" && (slot as Record<string, unknown>).startTime) {
+                flattened.push({
+                  ...(slot as AvailabilitySlot),
+                  stationId:
+                    (slot as AvailabilitySlot).stationId || (typeof stationId === "string" ? stationId : undefined),
+                });
+              }
+            }
+          }
+        }
+      }
+      return flattened;
+    }
+
+    // آرایه تخت اسلات‌ها
+    return raw.filter(
+      (item): item is AvailabilitySlot =>
+        Boolean(item && typeof item === "object" && (item as Record<string, unknown>).startTime)
+    );
+  }
+
+  return [];
+}
+
 export type GamingCenterInfo = PublicGamingCenter;
 
 export interface GameStationInfo extends GameStation {
@@ -94,14 +161,14 @@ export const gamingCenterService = {
     if (USE_MOCK_RESERVATIONS) {
       return buildMockAvailabilitySlots(date);
     }
-    const { data } = await apiClient.get<AvailabilitySlot[]>(
+    const { data } = await apiClient.get<unknown>(
       ENDPOINTS.gamingCenter.availabilitySlots(slug),
       {
         query: { date, stationId },
         signal,
       }
     );
-    return Array.isArray(data) ? data : [];
+    return normalizeAvailabilitySlots(data);
   },
 
   /**

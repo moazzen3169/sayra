@@ -5,6 +5,7 @@ import { getMockGamecenterDetail } from "@/lib/mocks/gamecenter.mock";
 import { gamingCenterService as coreGamingCenterService } from "@/services/gamingCenterService";
 import { catalogService } from "@/services/catalogService";
 import { extractMediaItems, normalizeMediaUrl } from "@/lib/media";
+import { normalizeAvailabilitySlots } from "@/services/gamingCenterService";
 import type { GamecenterDetail, GamecenterImage, GamecenterReview, GameItem } from "@/types/gamecenter";
 import type {
   PublicAddress,
@@ -44,6 +45,8 @@ export interface GameStationInfo {
 export interface AvailabilitySlot {
   startTime: string;
   endTime?: string;
+  durationMinutes?: number;
+  stationId?: string;
   isAvailable?: boolean;
   status?: "AVAILABLE" | "UNAVAILABLE" | string;
 }
@@ -144,14 +147,14 @@ export const gamingCenterService = {
     stationId?: string,
     signal?: AbortSignal
   ): Promise<AvailabilitySlot[]> {
-    const { data } = await apiClient.get<AvailabilitySlot[]>(
+    const { data } = await apiClient.get<unknown>(
       ENDPOINTS.gamingCenter.availabilitySlots(slug),
       {
         query: { date, stationId },
         signal,
       }
     );
-    return Array.isArray(data) ? data : [];
+    return normalizeAvailabilitySlots(data);
   },
 
   /**
