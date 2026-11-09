@@ -94,4 +94,59 @@ describe("ownerService: Station & Games Management", () => {
       apiClient.post = originalPost;
     }
   });
+
+  it("lists stations with catalogDeviceId query filter", async () => {
+    let capturedUrl = "";
+    let capturedQuery: any = null;
+
+    const originalGet = apiClient.get;
+    apiClient.get = (async (url: string, opts: any) => {
+      capturedUrl = url;
+      capturedQuery = opts?.query;
+      return {
+        data: [
+          { id: "st-1", name: "PC 1", catalogDeviceId: "cat-10", stationType: "PC" },
+        ],
+      };
+    }) as any;
+
+    try {
+      const res = await ownerService.listStations(centerId, { catalogDeviceId: "cat-10" });
+      expect(capturedUrl).toBe(ENDPOINTS.owner.stations(centerId));
+      expect(capturedQuery).toEqual({ catalogDeviceId: "cat-10" });
+      expect(res.length).toBe(1);
+      expect(res[0].id).toBe("st-1");
+    } finally {
+      apiClient.get = originalGet;
+    }
+  });
+
+  it("removes a game and saves the updated games list via PATCH /gamingCenters/{id}", async () => {
+    let capturedUrl = "";
+    let capturedBody: any = null;
+
+    const originalPatch = apiClient.patch;
+    apiClient.patch = (async (url: string, body: any) => {
+      capturedUrl = url;
+      capturedBody = body;
+      return { data: { success: true } };
+    }) as any;
+
+    try {
+      const { ownerGamesService } = await import("./ownerGamesService");
+      const updated = await ownerGamesService.removeCenterGame(
+        centerId,
+        "Mortal Kombat 1",
+        ["GTA V", "EA Sports FC 25", "Mortal Kombat 1"]
+      );
+
+      expect(capturedUrl).toBe(ENDPOINTS.owner.center(centerId));
+      expect(capturedBody).toEqual({
+        games: ["GTA V", "EA Sports FC 25"],
+      });
+      expect(updated).toEqual(["GTA V", "EA Sports FC 25"]);
+    } finally {
+      apiClient.patch = originalPatch;
+    }
+  });
 });
