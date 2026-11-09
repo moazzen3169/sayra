@@ -156,13 +156,18 @@ export const Header: React.FC<HeaderProps> = ({
   const isAdmin = role === "ADMIN";
   const isOwner = isManager || isAdmin;
 
+  // Managed reservations navigation based on role
+  const reservationsHref = isOwner ? "/owner/reservations" : "/reservations";
+  const reservationsLabel = isOwner ? "رزروهای گیم‌نت" : "رزروهای من";
+
   /**
    * منوی دراپ‌داون پروفایل در هر اندازه صفحه هنگام لاگین بودن:
    * ۱. اطلاعات کاربر= پروفایل (/profile)
-   * ۲. نوتیفیکیشن
-   * ۳. صاحب گیمنت: مدیریت گیمنت (/owner یا /admin) | غیر صاحب: ساخت گیمنت جدید (/owner/new)
-   * ۴. پشتیبانی (/support)
-   * ۵. خروج از حساب
+   * ۲. رزروهای من / مدیریت رزروها بر اساس نقش
+   * ۳. نوتیفیکیشن
+   * ۴. صاحب گیمنت: مدیریت گیمنت (/owner یا /admin) | غیر صاحب: ساخت گیمنت جدید (/owner/new)
+   * ۵. پشتیبانی (/support)
+   * ۶. خروج از حساب
    */
   const renderAccountDropdownContent = () => (
     <div
@@ -197,7 +202,33 @@ export const Header: React.FC<HeaderProps> = ({
         <span>اطلاعات کاربر (پروفایل)</span>
       </Link>
 
-      {/* 2. نوتیفیکیشن */}
+      {/* 2. رزروها (مدیریت شده بر اساس نقش کاربر) */}
+      <Link
+        href={reservationsHref}
+        role="menuitem"
+        onClick={closeAccountMenu}
+        className="flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+      >
+        <span className="shrink-0 text-[var(--text-muted)]">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.7}
+            className="h-[18px] w-[18px]"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+        </span>
+        <span>{reservationsLabel}</span>
+      </Link>
+
+      {/* 3. نوتیفیکیشن */}
       <button
         type="button"
         role="menuitem"
