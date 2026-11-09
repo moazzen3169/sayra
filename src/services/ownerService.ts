@@ -524,9 +524,27 @@ export const ownerService = {
     await apiClient.patch(ENDPOINTS.owner.siteSettings(centerId), payload);
   },
 
-  async listStations(centerId: string, signal?: AbortSignal): Promise<GameStationInfo[]> {
+  async listStations(
+    centerId: string,
+    options?: { catalogDeviceId?: string; signal?: AbortSignal } | AbortSignal
+  ): Promise<GameStationInfo[]> {
     if (!centerId) return [];
-    const { data } = await apiClient.get<GameStationInfo[]>(ENDPOINTS.owner.stations(centerId), { signal });
+    let signal: AbortSignal | undefined;
+    const query: Record<string, string> = {};
+
+    if (options instanceof AbortSignal) {
+      signal = options;
+    } else if (options) {
+      signal = options.signal;
+      if (options.catalogDeviceId) {
+        query.catalogDeviceId = options.catalogDeviceId;
+      }
+    }
+
+    const { data } = await apiClient.get<GameStationInfo[]>(ENDPOINTS.owner.stations(centerId), {
+      query: Object.keys(query).length > 0 ? query : undefined,
+      signal,
+    });
     return asArray<GameStationInfo>(data);
   },
 
