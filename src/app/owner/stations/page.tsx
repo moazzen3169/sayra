@@ -34,17 +34,18 @@ const inputClass =
 export default function OwnerStationsPage() {
   const { centerId, verificationStatus } = useOwner();
   const isApproved = verificationStatus === "APPROVED";
-const [tableSearch, setTableSearch] = useState("");
+
   // Data states
   const [stations, setStations] = useState<GameStationInfo[] | null>(null);
   const [categories, setCategories] = useState<DeviceCategory[] | null>(null);
+  const [allCatalogDevices, setAllCatalogDevices] = useState<Record<string, DeviceCatalogItem>>({});
   const [error, setError] = useState<string | null>(null);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
 
   // Active Category Filter for Drill-down
   const [selectedCategory, setSelectedCategory] = useState<DeviceCategory | null>(null);
-    
+  const [tableSearch, setTableSearch] = useState("");
 
   // Notification / Toast Message
   const [statusFeedback, setStatusFeedback] = useState<{ ok: boolean; text: string } | null>(null);
@@ -89,16 +90,25 @@ const [tableSearch, setTableSearch] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Games Section States
-  const [gamesList, setGamesList] = useState<string[]>([]);
+  // Games Section States (Now enriched with full GameCatalog data)
+  const [centerGameTitles, setCenterGameTitles] = useState<string[]>([]);
+  const [gamesDetailsMap, setGamesDetailsMap] = useState<Record<string, GameCatalogItem>>({});
+  const [gamesLoading, setGamesLoading] = useState(false);
+  const [centerGamesPlatformFilter, setCenterGamesPlatformFilter] = useState<string>("ALL");
+  const [centerGamesSearch, setCenterGamesSearch] = useState("");
+
+  // Add Games from Central Catalog Modal States
+  const [showAddGamesModal, setShowAddGamesModal] = useState(false);
   const [gamesCatalog, setGamesCatalog] = useState<GameCatalogItem[]>([]);
   const [catalogGamesLoading, setCatalogGamesLoading] = useState(false);
-  const [gameSearch, setGameSearch] = useState("");
-  const [gamePlatformFilter, setGamePlatformFilter] = useState<string>("ALL");
-  const [gamesMsg, setGamesMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [showAddGamesModal, setShowAddGamesModal] = useState(false);
+  const [catalogGameSearch, setCatalogGameSearch] = useState("");
+  const [catalogGamePlatformFilter, setCatalogGamePlatformFilter] = useState<string>("ALL");
   const [selectedCatalogGameIds, setSelectedCatalogGameIds] = useState<string[]>([]);
   const [isSavingCatalogGames, setIsSavingCatalogGames] = useState(false);
+
+  // Delete Game confirmation modal
+  const [deletingGameTitle, setDeletingGameTitle] = useState<string | null>(null);
+  const [isDeletingGame, setIsDeletingGame] = useState(false);
 
   // Auto-dismiss status feedback toast
   useEffect(() => {
@@ -127,7 +137,27 @@ const [tableSearch, setTableSearch] = useState("");
       .listStations(centerId, c.signal)
       .then((d) => {
         if (!active) return;
-        setStations(Array.isArray(d) ? d : []);
+        const list = Array.isArray(d) ? d : [];
+        setStations(list);
+
+        // Fetch catalog details for any station that has a catalogDeviceId
+        const deviceIds = Array.from(
+          new Set(list.map((s) => s.catalogDeviceId).filter((id): id is string => Boolean(id)))
+        );
+        if (deviceIds.length > 0) {
+          Promise.allSettled(
+            deviceIds.map((id) => catalogService.getDeviceById(id, c.signal))
+          ).then((results) => {
+            if (!active) return;
+            const map: Record<string, DeviceCatalogItem> = {};
+            results.forEach((r) => {
+              if (r.status === "fulfilled" && r.value?.id) {
+                map[r.value.id] = r.value;
+              }
+            });
+            setAllCatalogDevices((prev) => ({ ...prev, ...map }));
+          });
+        }
       })
       .catch((e) => {
         if (!active || isAbortError(e)) return;
@@ -154,24 +184,46 @@ const [tableSearch, setTableSearch] = useState("");
     };
   }, [centerId, reload]);
 
-  // 2. Load Center Games & Initial Catalog Games
+  // 2. Load Center Games & Match with Catalog Details (/catalog/games)
   useEffect(() => {
     if (!centerId) return;
     let active = true;
     const c = new AbortController();
+    setGamesLoading(true);
 
     gamingCenterService
       .getCenter(centerId, c.signal)
-      .then((center) => {
+      .then(async (center) => {
         if (!active) return;
         const g = (center as unknown as { games?: string[] })?.games;
-        if (Array.isArray(g)) {
-          setGamesList(g);
-        } else {
-          setGamesList((prev) => (prev.length > 0 ? prev : ["EA Sports FC 25", "GTA V", "Mortal Kombat 1"]));
+        const loadedGames = Array.isArray(g)
+          ? g
+          : ["EA Sports FC 25", "GTA V", "Mortal Kombat 1"];
+        setCenterGameTitles(loadedGames);
+
+        // Fetch catalog games to populate rich game cards (cover, genre, platforms)
+        try {
+          const catalogList = await catalogService.listGames({ limit: 100, isActive: true }, c.signal);
+          if (!active) return;
+          const map: Record<string, GameCatalogItem> = {};
+          catalogList.forEach((item) => {
+            map[item.title.toLowerCase()] = item;
+            if (item.id) {
+              map[item.id] = item;
+            }
+          });
+          setGamesDetailsMap(map);
+        } catch {
+          // If catalog fetch fails, fallback to title display
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!active) return;
+        setCenterGameTitles(["EA Sports FC 25", "GTA V", "Mortal Kombat 1"]);
+      })
+      .finally(() => {
+        if (active) setGamesLoading(false);
+      });
 
     return () => {
       active = false;
@@ -207,8 +259,8 @@ const [tableSearch, setTableSearch] = useState("");
       catalogService
         .listGames({
           limit: 60,
-          search: gameSearch.trim() || undefined,
-          platform: gamePlatformFilter !== "ALL" ? (gamePlatformFilter as unknown as any) : undefined,
+          search: catalogGameSearch.trim() || undefined,
+          platform: catalogGamePlatformFilter !== "ALL" ? (catalogGamePlatformFilter as any) : undefined,
           isActive: true,
         })
         .then((res) => {
@@ -221,7 +273,7 @@ const [tableSearch, setTableSearch] = useState("");
           setCatalogGamesLoading(false);
         });
     }
-  }, [showAddGamesModal, gameSearch, gamePlatformFilter]);
+  }, [showAddGamesModal, catalogGameSearch, catalogGamePlatformFilter]);
 
   const num = (v: string) => (v.trim() === "" ? undefined : Number(v));
 
@@ -256,6 +308,26 @@ const [tableSearch, setTableSearch] = useState("");
 
     return list;
   }, [stations, selectedCategory, tableSearch]);
+
+  // Filter center games
+  const filteredCenterGames = useMemo(() => {
+    return centerGameTitles.filter((title) => {
+      const detail = gamesDetailsMap[title.toLowerCase()];
+      if (centerGamesPlatformFilter !== "ALL") {
+        const platforms = detail?.supportedPlatforms?.map((p) => p.toUpperCase()) || [];
+        if (!platforms.includes(centerGamesPlatformFilter.toUpperCase())) {
+          return false;
+        }
+      }
+      if (centerGamesSearch.trim()) {
+        const q = centerGamesSearch.trim().toLowerCase();
+        const matchTitle = title.toLowerCase().includes(q);
+        const matchGenre = detail?.genre?.toLowerCase().includes(q) ?? false;
+        return matchTitle || matchGenre;
+      }
+      return true;
+    });
+  }, [centerGameTitles, gamesDetailsMap, centerGamesPlatformFilter, centerGamesSearch]);
 
   // Open Quick Price Change Modal
   const handleOpenQuickPrice = (station: GameStationInfo) => {
@@ -462,25 +534,38 @@ const [tableSearch, setTableSearch] = useState("");
     setIsSavingCatalogGames(true);
     try {
       const res = await ownerService.addGamesFromCatalog(centerId, selectedCatalogGameIds);
+      let updatedTitles: string[] = [];
       if (res.allGames && Array.isArray(res.allGames) && res.allGames.length > 0) {
-        setGamesList(res.allGames);
+        updatedTitles = res.allGames;
       } else if (res.addedGames && Array.isArray(res.addedGames)) {
-        setGamesList((prev) => Array.from(new Set([...prev, ...res.addedGames])));
+        updatedTitles = Array.from(new Set([...centerGameTitles, ...res.addedGames]));
       } else {
         const addedTitles = gamesCatalog
           .filter((g) => selectedCatalogGameIds.includes(g.id))
           .map((g) => g.title);
-        setGamesList((prev) => Array.from(new Set([...prev, ...addedTitles])));
+        updatedTitles = Array.from(new Set([...centerGameTitles, ...addedTitles]));
       }
 
-      setGamesMsg({
+      setCenterGameTitles(updatedTitles);
+
+      // Cache details of newly added games
+      const newDetailsMap = { ...gamesDetailsMap };
+      gamesCatalog.forEach((g) => {
+        if (selectedCatalogGameIds.includes(g.id)) {
+          newDetailsMap[g.title.toLowerCase()] = g;
+          newDetailsMap[g.id] = g;
+        }
+      });
+      setGamesDetailsMap(newDetailsMap);
+
+      setStatusFeedback({
         ok: true,
         text: `${toPersianDigits(selectedCatalogGameIds.length)} بازی با موفقیت به گیم‌نت اضافه شد.`,
       });
       setSelectedCatalogGameIds([]);
       setShowAddGamesModal(false);
     } catch (err) {
-      setGamesMsg({
+      setStatusFeedback({
         ok: false,
         text: `خطا در افزودن بازی‌ها: ${getErrorMessage(err)}`,
       });
@@ -489,9 +574,28 @@ const [tableSearch, setTableSearch] = useState("");
     }
   };
 
-  const removeGame = (gameName: string) => {
-    setGamesList((prev) => prev.filter((g) => g !== gameName));
-    setGamesMsg({ ok: true, text: `بازی «${gameName}» از نمایش گیم‌نت حذف شد.` });
+  // Confirm and persist removal of game from Gaming Center
+  const handleConfirmDeleteGame = async () => {
+    if (!deletingGameTitle || !centerId || isDeletingGame) return;
+    setIsDeletingGame(true);
+
+    const remaining = centerGameTitles.filter((g) => g !== deletingGameTitle);
+    try {
+      await ownerService.updateCenterGames(centerId, remaining);
+      setCenterGameTitles(remaining);
+      setStatusFeedback({
+        ok: true,
+        text: `بازی «${deletingGameTitle}» با موفقیت از گیم‌نت حذف شد.`,
+      });
+      setDeletingGameTitle(null);
+    } catch (err) {
+      setStatusFeedback({
+        ok: false,
+        text: `خطا در حذف بازی: ${getErrorMessage(err)}`,
+      });
+    } finally {
+      setIsDeletingGame(false);
+    }
   };
 
   return (
@@ -527,16 +631,17 @@ const [tableSearch, setTableSearch] = useState("");
       <main className="flex-1 mt-16 px-4 py-4 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0 flex flex-col gap-8">
 
         {/* ========================================================
-            بخش ۱: کاتالوگ دستگاه‌ها (انتخاب دسته‌بندی برای فیلتر جدول)
+            بخش ۱: کاتالوگ دستگاه‌ها (دسته‌بندی‌های دستگاه‌های این گیم‌نت)
             ======================================================== */}
         <section className="flex flex-col gap-3.5">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-[var(--text-white)]">
-                کاتالوگ دستگاه‌های گیم‌نت
+              <h2 className="text-base font-bold text-[var(--text-white)] flex items-center gap-2">
+                <Icon name="monitor" size={18} className="text-[var(--primary)]" />
+                <span>دسته‌بندی کاتالوگ دستگاه‌های گیم‌نت</span>
               </h2>
               <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                روی هر کاتالوگ کلیک کنید تا دستگاه‌های مربوط به آن در جدول زیر نمایش داده و مدیریت شوند.
+                برای مشاهده و ویرایش دستگاه‌های هر دسته‌بندی روی کارت مربوطه کلیک کنید.
               </p>
             </div>
             {selectedCategory && (
@@ -545,7 +650,7 @@ const [tableSearch, setTableSearch] = useState("");
                 onClick={() => setSelectedCategory(null)}
                 className="px-3 py-1.5 rounded-card bg-[var(--foreground)] text-xs font-bold text-[var(--primary)] hover:bg-[var(--foreground)]/80 transition-all flex items-center gap-1.5 cursor-pointer border border-[var(--border-subtle)]"
               >
-                <span>مشاهده همه دستگاه‌ها</span>
+                <span>مشاهده همه دسته‌ها</span>
                 <span className="text-[10px] bg-[var(--primary)] text-black rounded-full px-1.5 py-0.2">
                   ✕
                 </span>
@@ -558,7 +663,7 @@ const [tableSearch, setTableSearch] = useState("");
               {Array.from({ length: 4 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-36 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse"
+                  className="h-40 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse"
                 />
               ))}
             </div>
@@ -572,7 +677,7 @@ const [tableSearch, setTableSearch] = useState("");
 
           {categories && categories.length === 0 && !categoriesError && (
             <div className="p-6 text-center rounded-card bg-[var(--bg-card)] border border-dashed border-[var(--border-subtle)] text-xs text-[var(--text-muted)]">
-              هنوز کاتالوگ فعالی ثبت نشده است. با دکمه «+ افزودن دستگاه»، اولین دستگاه را اضافه کنید.
+              هنوز دستگاهی ثبت نشده است. با دکمه «+ افزودن دستگاه»، اولین دستگاه را اضافه کنید.
             </div>
           )}
 
@@ -580,6 +685,9 @@ const [tableSearch, setTableSearch] = useState("");
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {categories.map((cat) => {
                 const isSelected = selectedCategory?.name === cat.name;
+                const catalogDetail = cat.catalogId ? allCatalogDevices[cat.catalogId] : null;
+                const cover = cat.coverImageUrl || catalogDetail?.coverImageUrl || "";
+
                 return (
                   <button
                     key={`${cat.catalogId || "custom"}-${cat.name}`}
@@ -588,7 +696,7 @@ const [tableSearch, setTableSearch] = useState("");
                       setSelectedCategory(isSelected ? null : cat)
                     }
                     className={cn(
-                      "flex flex-col gap-2 rounded-card border p-3 text-right transition-all active:scale-[0.98] cursor-pointer group text-xs",
+                      "flex flex-col gap-2 rounded-card border p-3 text-right transition-all active:scale-[0.98] cursor-pointer group text-xs relative",
                       isSelected
                         ? "border-[var(--primary)] bg-[var(--primary)]/10 shadow-md ring-1 ring-[var(--primary)]"
                         : "border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-color)]"
@@ -596,31 +704,38 @@ const [tableSearch, setTableSearch] = useState("");
                   >
                     <div className="relative aspect-[16/10] w-full overflow-hidden rounded-md bg-[var(--foreground)]/40">
                       <SafeImage
-                        src={cat.coverImageUrl || ""}
+                        src={cover}
                         alt={cat.name}
                         fallbackSrc={PLACEHOLDERS.center}
                         loading="lazy"
                         className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
-                      <span className="absolute left-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--primary)] px-1.5 text-[11px] font-bold text-black">
-                        {toPersianDigits(cat.deviceCount)}
+                      <span className="absolute left-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--primary)] px-1.5 text-[11px] font-bold text-black shadow">
+                        {toPersianDigits(cat.deviceCount)} عدد
                       </span>
                     </div>
 
-                    <div className="flex min-w-0 flex-col gap-0.5 mt-1">
+                    <div className="flex min-w-0 flex-col gap-1 mt-1">
                       <div className="flex items-center justify-between gap-1">
                         <h3 className="truncate text-xs sm:text-sm font-bold text-[var(--text-white)]">
                           {cat.name}
                         </h3>
                         {isSelected && (
                           <span className="text-[10px] text-[var(--primary)] font-bold shrink-0">
-                            انتخاب‌شده
+                            فیلتر شده
                           </span>
                         )}
                       </div>
-                      <span className="text-[11px] text-[var(--text-muted)] truncate">
-                        پلتفرم: {cat.deviceType || "سفارشی"}
-                      </span>
+                      <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+                        <span className="px-1.5 py-0.5 rounded bg-[var(--foreground)]/50 text-[10px] font-mono">
+                          {cat.deviceType || "CUSTOM"}
+                        </span>
+                        {catalogDetail?.description && (
+                          <span className="truncate text-[10px] text-[var(--text-muted)]">
+                            {catalogDetail.description}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </button>
                 );
@@ -630,7 +745,7 @@ const [tableSearch, setTableSearch] = useState("");
         </section>
 
         {/* ========================================================
-            بخش ۲: جدول مرتب و مینیمال دستگاه‌ها (با فیلتر بر اساس کاتالوگ)
+            بخش ۲: جدول مرتب و مینیمال دستگاه‌های موجود گیم‌نت
             ======================================================== */}
         <section className="flex flex-col gap-3 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 sm:p-5 shadow-sm">
           {/* Header Controls */}
@@ -722,6 +837,8 @@ const [tableSearch, setTableSearch] = useState("");
                 <tbody className="divide-y divide-[var(--border-subtle)]">
                   {filteredStations.map((s, index) => {
                     const isStationActive = s.isActive !== false;
+                    const catItem = s.catalogDeviceId ? allCatalogDevices[s.catalogDeviceId] : null;
+
                     return (
                       <tr
                         key={s.id}
@@ -735,17 +852,31 @@ const [tableSearch, setTableSearch] = useState("");
                         {/* Station Name & Info */}
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-md bg-[var(--foreground)] flex items-center justify-center p-1 shrink-0 border border-[var(--border-subtle)]">
-                              <img
-                                src={stationImageFor(s.stationType)}
-                                alt={s.name}
-                                className="w-full h-full object-contain"
-                              />
+                            <div className="w-9 h-9 rounded-md bg-[var(--foreground)] flex items-center justify-center p-1 shrink-0 border border-[var(--border-subtle)] overflow-hidden">
+                              {catItem?.coverImageUrl ? (
+                                <SafeImage
+                                  src={catItem.coverImageUrl}
+                                  alt={s.name}
+                                  fallbackSrc={stationImageFor(s.stationType)}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <img
+                                  src={stationImageFor(s.stationType)}
+                                  alt={s.name}
+                                  className="w-full h-full object-contain"
+                                />
+                              )}
                             </div>
                             <div className="flex flex-col min-w-0">
                               <span className="font-bold text-[var(--text-white)] truncate text-xs sm:text-sm">
                                 {s.name}
                               </span>
+                              {catItem?.name && catItem.name !== s.name && (
+                                <span className="text-[10px] text-[var(--primary)] truncate">
+                                  مدل کاتالوگ: {catItem.name}
+                                </span>
+                              )}
                               {s.quantity && s.quantity > 1 ? (
                                 <span className="text-[10px] text-[var(--text-muted)]">
                                   موجودی: {toPersianDigits(s.quantity)} دستگاه
@@ -836,16 +967,18 @@ const [tableSearch, setTableSearch] = useState("");
         </section>
 
         {/* ========================================================
-            بخش ۳: بازی‌های گیم‌نت و کاتالوگ بازی‌ها
+            بخش ۳: بازی‌های گیم‌نت و کاتالوگ بازی‌ها (نمایش دسته‌بندی‌شده و غنی)
             ======================================================== */}
         <section className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-4 shadow-sm">
+          {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
             <div>
-              <h2 className="text-base font-bold text-[var(--text-white)]">
-                بازی‌های فعال در گیم‌نت
+              <h2 className="text-base font-bold text-[var(--text-white)] flex items-center gap-2">
+                <Icon name="gamepad" size={18} className="text-[var(--primary)]" />
+                <span>بازی‌های فعال در گیم‌نت</span>
               </h2>
               <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                بازی‌های موجود را از کاتالوگ مرکزی انتخاب کرده و به لیست این مرکز اضافه کنید.
+                کاتالوگ عناوین بازی نصب‌شده و آماده اجرای این مرکز را مدیریت کنید.
               </p>
             </div>
 
@@ -856,50 +989,143 @@ const [tableSearch, setTableSearch] = useState("");
                 className="px-3.5 py-1.5 rounded-card bg-[var(--primary)] text-black font-bold text-xs hover:brightness-105 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 shadow"
               >
                 <Icon name="plus" size={14} />
-                <span>+ انتخاب از کاتالوگ بازی‌ها</span>
+                <span>+ افزودن بازی از کاتالوگ</span>
               </button>
               <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">
-                {toPersianDigits(gamesList.length)} بازی
+                {toPersianDigits(centerGameTitles.length)} بازی فعال
               </span>
             </div>
           </div>
 
-          {gamesMsg && (
-            <div
-              className={`p-3 rounded-card text-xs font-bold ${
-                gamesMsg.ok
-                  ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
-                  : "bg-[var(--accent-red)]/10 text-[var(--accent-red)] border border-[var(--accent-red)]/30"
-              }`}
-            >
-              {gamesMsg.text}
+          {/* Filtering Controls */}
+          {centerGameTitles.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
+              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+                {["ALL", "PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"].map((plat) => (
+                  <button
+                    key={plat}
+                    type="button"
+                    onClick={() => setCenterGamesPlatformFilter(plat)}
+                    className={cn(
+                      "px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer shrink-0 border",
+                      centerGamesPlatformFilter === plat
+                        ? "bg-[var(--primary)] text-black border-[var(--primary)]"
+                        : "bg-[var(--foreground)]/30 text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-white"
+                    )}
+                  >
+                    {plat === "ALL" ? "همه پلتفرم‌ها" : plat}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative w-full sm:w-60">
+                <input
+                  type="text"
+                  placeholder="جستجوی بازی‌های گیم‌نت..."
+                  value={centerGamesSearch}
+                  onChange={(e) => setCenterGamesSearch(e.target.value)}
+                  className="h-9 w-full pl-3 pr-8 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]"
+                />
+                <span className="absolute right-2.5 top-2.5 text-[var(--text-muted)] pointer-events-none">
+                  <Icon name="search" size={14} />
+                </span>
+              </div>
             </div>
           )}
 
-          <div className="flex flex-wrap gap-2 min-h-[50px] p-3.5 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)] items-center">
-            {gamesList.length === 0 ? (
-              <span className="text-xs text-[var(--text-muted)]">
-                هنوز هیچ بازی به این گیم‌نت متصل نشده است. از دکمه بالا برای افزودن بازی‌ها از کاتالوگ استفاده کنید.
-              </span>
-            ) : (
-              gamesList.map((game) => (
-                <span
-                  key={game}
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--primary)]/15 border border-[var(--primary)]/30 text-[var(--primary)] text-xs font-bold"
-                >
-                  <span>{game}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeGame(game)}
-                    className="hover:text-white transition-colors cursor-pointer text-sm font-black"
-                    aria-label={`حذف ${game}`}
+          {/* Games Grid */}
+          {gamesLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-44 rounded-card bg-[var(--foreground)]/20 animate-pulse"
+                />
+              ))}
+            </div>
+          ) : centerGameTitles.length === 0 ? (
+            <div className="p-8 text-center rounded-card bg-[var(--foreground)]/10 border border-dashed border-[var(--border-subtle)] text-xs text-[var(--text-muted)] flex flex-col items-center gap-2">
+              <span>هنوز هیچ بازی به این گیم‌نت متصل نشده است.</span>
+              <button
+                type="button"
+                onClick={() => setShowAddGamesModal(true)}
+                className="text-xs text-[var(--primary)] hover:underline cursor-pointer font-bold"
+              >
+                + انتخاب بازی‌ها از کاتالوگ مرکزی
+              </button>
+            </div>
+          ) : filteredCenterGames.length === 0 ? (
+            <div className="p-8 text-center rounded-card bg-[var(--foreground)]/10 border border-dashed border-[var(--border-subtle)] text-xs text-[var(--text-muted)]">
+              هیچ بازی‌ای مطابق با فیلتر یا جستجوی انتخابی یافت نشد.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+              {filteredCenterGames.map((gameTitle) => {
+                const detail = gamesDetailsMap[gameTitle.toLowerCase()];
+                const cover = detail?.coverImageUrl || "";
+                const genre = detail?.genre || "بازی ویدیویی";
+                const platforms = detail?.supportedPlatforms || [];
+
+                return (
+                  <div
+                    key={gameTitle}
+                    className="group relative flex flex-col rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/20 overflow-hidden hover:border-[var(--primary)]/50 transition-all shadow-sm"
                   >
-                    ×
-                  </button>
-                </span>
-              ))
-            )}
-          </div>
+                    {/* Game Cover */}
+                    <div className="relative aspect-[3/4] w-full bg-black/40 overflow-hidden">
+                      <SafeImage
+                        src={cover}
+                        alt={gameTitle}
+                        fallbackSrc={PLACEHOLDERS.center}
+                        loading="lazy"
+                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80" />
+
+                      {/* Delete Game Button */}
+                      <button
+                        type="button"
+                        onClick={() => setDeletingGameTitle(gameTitle)}
+                        title={`حذف بازی «${gameTitle}»`}
+                        className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/70 hover:bg-[var(--accent-red)] text-white flex items-center justify-center transition-colors cursor-pointer border border-white/20 shadow"
+                      >
+                        <Icon name="trash" size={13} />
+                      </button>
+
+                      {/* Platforms Badge */}
+                      {platforms.length > 0 && (
+                        <div className="absolute bottom-2 right-2 left-2 flex flex-wrap gap-1">
+                          {platforms.slice(0, 2).map((p) => (
+                            <span
+                              key={p}
+                              className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-black/70 text-[var(--primary)] border border-[var(--primary)]/30 backdrop-blur-xs"
+                            >
+                              {p}
+                            </span>
+                          ))}
+                          {platforms.length > 2 && (
+                            <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-black/70 text-[var(--text-muted)]">
+                              +{platforms.length - 2}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Game Details */}
+                    <div className="p-2.5 flex flex-col gap-1">
+                      <h4 className="font-bold text-xs text-[var(--text-white)] truncate" title={gameTitle}>
+                        {gameTitle}
+                      </h4>
+                      <span className="text-[10px] text-[var(--text-muted)] truncate">
+                        ژانر: {genre}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       </main>
 
@@ -1285,7 +1511,48 @@ const [tableSearch, setTableSearch] = useState("");
       )}
 
       {/* ========================================================
-          مودال ۵: انتخاب بازی‌ها از کاتالوگ مرکزی و افزودن به گیم‌نت
+          مودال ۵: تایید حذف بازی از گیم‌نت (PATCH /gamingCenters/{id})
+          ======================================================== */}
+      {deletingGameTitle && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+          onClick={() => !isDeletingGame && setDeletingGameTitle(null)}
+        >
+          <div
+            className="w-full max-w-[400px] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-5 flex flex-col gap-4 text-right"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-bold text-[var(--text-white)]">
+              حذف بازی «{deletingGameTitle}»
+            </h3>
+            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+              آیا از حذف این بازی از فهرست بازی‌های فعال گیم‌نت اطمینان دارید؟ تغییرات در سرور ذخیره شده و از نمایش عمومی گیم‌نت حذف خواهد شد.
+            </p>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingGame}
+                onClick={handleConfirmDeleteGame}
+                className="flex-1 h-10 rounded-card bg-[var(--accent-red)] text-white font-bold text-xs disabled:opacity-60 cursor-pointer"
+              >
+                {isDeletingGame ? "در حال حذف..." : "بله، حذف شود"}
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingGame}
+                onClick={() => setDeletingGameTitle(null)}
+                className="h-10 px-5 rounded-card bg-[var(--foreground)] text-xs font-bold cursor-pointer"
+              >
+                انصراف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          مودال ۶: انتخاب بازی‌ها از کاتالوگ مرکزی (GET /catalog/games + POST /stations/games/from-catalog)
           ======================================================== */}
       {showAddGamesModal && (
         <div
@@ -1293,7 +1560,7 @@ const [tableSearch, setTableSearch] = useState("");
           onClick={() => !isSavingCatalogGames && setShowAddGamesModal(false)}
         >
           <div
-            className="w-full max-w-[650px] max-h-[90vh] flex flex-col bg-[var(--bg-card)] border-t sm:border border-[var(--border-subtle)] rounded-t-2xl sm:rounded-card overflow-hidden"
+            className="w-full max-w-[680px] max-h-[90vh] flex flex-col bg-[var(--bg-card)] border-t sm:border border-[var(--border-subtle)] rounded-t-2xl sm:rounded-card overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
@@ -1302,7 +1569,7 @@ const [tableSearch, setTableSearch] = useState("");
                   انتخاب بازی از کاتالوگ مرکزی
                 </h3>
                 <span className="text-xs text-[var(--text-muted)]">
-                  بازی‌های مورد نظر را تیک بزنید تا به گیم‌نت اضافه شوند.
+                  عناوین مورد نظر را تیک بزنید تا به لیست بازی‌های این گیم‌نت افزوده شوند.
                 </span>
               </div>
               <button
@@ -1317,14 +1584,14 @@ const [tableSearch, setTableSearch] = useState("");
             <div className="p-4 border-b border-[var(--border-subtle)] flex flex-col sm:flex-row gap-2 bg-[var(--foreground)]/10">
               <input
                 type="text"
-                placeholder="جستجوی عنوان بازی (مثلا FIFA, Mortal Kombat)..."
-                value={gameSearch}
-                onChange={(e) => setGameSearch(e.target.value)}
+                placeholder="جستجوی عنوان یا ژانر بازی (مثلا FIFA, Mortal Kombat)..."
+                value={catalogGameSearch}
+                onChange={(e) => setCatalogGameSearch(e.target.value)}
                 className="flex-1 h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none placeholder:text-[var(--text-muted)]"
               />
               <select
-                value={gamePlatformFilter}
-                onChange={(e) => setGamePlatformFilter(e.target.value)}
+                value={catalogGamePlatformFilter}
+                onChange={(e) => setCatalogGamePlatformFilter(e.target.value)}
                 className="h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none"
               >
                 <option value="ALL">همه پلتفرم‌ها</option>
@@ -1336,25 +1603,27 @@ const [tableSearch, setTableSearch] = useState("");
               </select>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 min-h-[280px]">
+            <div className="flex-1 overflow-y-auto p-4 min-h-[300px]">
               {catalogGamesLoading ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {Array.from({ length: 6 }).map((_, i) => (
                     <div
                       key={i}
-                      className="h-36 rounded-card bg-[var(--foreground)]/20 animate-pulse"
+                      className="h-44 rounded-card bg-[var(--foreground)]/20 animate-pulse"
                     />
                   ))}
                 </div>
               ) : gamesCatalog.length === 0 ? (
                 <div className="text-center py-12 text-xs text-[var(--text-muted)]">
-                  هیچ بازی مطابق با جستجو در کاتالوگ یافت نشد.
+                  هیچ بازی‌ای در کاتالوگ مرکزی یافت نشد.
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {gamesCatalog.map((game) => {
                     const isSelected = selectedCatalogGameIds.includes(game.id);
-                    const isAlreadyAdded = gamesList.includes(game.title);
+                    const isAlreadyAdded = centerGameTitles.some(
+                      (t) => t.toLowerCase() === game.title.toLowerCase()
+                    );
 
                     return (
                       <button
@@ -1367,7 +1636,7 @@ const [tableSearch, setTableSearch] = useState("");
                           isAlreadyAdded
                             ? "opacity-50 border-[var(--border-subtle)] bg-[var(--foreground)]/10 cursor-not-allowed"
                             : isSelected
-                            ? "border-[var(--primary)] bg-[var(--primary-muted)] shadow-sm"
+                            ? "border-[var(--primary)] bg-[var(--primary)]/15 shadow-sm ring-1 ring-[var(--primary)]"
                             : "border-[var(--border-subtle)] bg-[var(--foreground)]/30 hover:border-[var(--border-color)]"
                         )}
                       >
@@ -1380,12 +1649,12 @@ const [tableSearch, setTableSearch] = useState("");
                             className="h-full w-full object-cover"
                           />
                           {isSelected && (
-                            <span className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-[var(--primary)] text-black font-bold flex items-center justify-center text-xs">
+                            <span className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-[var(--primary)] text-black font-bold flex items-center justify-center text-xs shadow">
                               ✓
                             </span>
                           )}
                           {isAlreadyAdded && (
-                            <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[10px] text-[var(--text-muted)] font-bold">
+                            <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[10px] text-[var(--accent-green)] font-bold">
                               موجود در گیم‌نت
                             </span>
                           )}
