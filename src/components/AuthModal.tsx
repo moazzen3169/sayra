@@ -31,8 +31,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       onSuccess={handleSuccess}
-      title="ورود به حساب کاربری"
-      description="ورود با پیامک (OTP) یا رمز عبور"
+      title="ورود یا ثبت‌نام"
+      description="ورود و ثبت‌نام سریع با پیامک یک‌بار مصرف (OTP)"
     />
   );
 };

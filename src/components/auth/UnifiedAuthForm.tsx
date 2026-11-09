@@ -26,8 +26,8 @@ type OtpStep = "phone" | "otp" | "centerSelect";
 
 export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
   onSuccess,
-  title = "ورود به حساب کاربری",
-  description = "ورود با پیامک یکبار مصرف (OTP) یا رمز عبور",
+  title = "ورود یا ثبت‌نام در سایرا",
+  description = "ورود و ثبت‌نام با پیامک یک‌بار مصرف (OTP) بدون نیاز به رمز عبور",
   initialMode = "otp",
 }) => {
   const [mode, setMode] = useState<AuthMode>(initialMode);
@@ -72,11 +72,16 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
 
     setLoading(true);
     try {
+      // Primary: Request customer OTP (POST /auth/customer/otp/request)
       try {
-        await authService.requestUserOtp(cleanPhone);
-      } catch {
-        // Fallback to customer/general OTP request if user OTP request fails
         await authService.requestOtp(cleanPhone);
+      } catch (custErr) {
+        // Fallback to user/staff OTP endpoint if customer request fails
+        try {
+          await authService.requestUserOtp(cleanPhone);
+        } catch {
+          throw custErr;
+        }
       }
       setOtpStep("otp");
       setTimer(120);
@@ -131,35 +136,23 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
     const cleanPhone = phone.trim().replace(/[^\d]/g, "");
     setLoading(true);
     try {
-      // First attempt user/owner OTP verify
-      let activeCenters: UserGamingCenterOption[] = [];
-      let isUserOtp = false;
+      // 1. Verify OTP and authenticate customer (POST /auth/customer/otp/verify)
+      // Login & Registration are unified: receiving tokens completes login / registration directly
+      let authRes: any = null;
+      let isCustomerVerified = false;
 
       try {
-        const res = await authService.verifyUserOtp(cleanPhone, fullCode);
-        activeCenters = res.gamingCenters || [];
-        isUserOtp = true;
-      } catch {
-        isUserOtp = false;
+        authRes = await authService.verifyOtp(cleanPhone, fullCode);
+        if (authRes?.accessToken) {
+          isCustomerVerified = true;
+        }
+      } catch (custErr) {
+        // If customer verify failed (e.g. staff/owner account), attempt user OTP verify
+        isCustomerVerified = false;
       }
 
-      if (isUserOtp) {
-        setCenters(activeCenters);
-        if (activeCenters.length === 1) {
-          setSelectedCenterId(activeCenters[0].id);
-          await finalizeOtpLogin(cleanPhone, activeCenters[0].id, fullCode);
-        } else if (activeCenters.length > 1) {
-          setSelectedCenterId(activeCenters[0].id);
-          setOtpStep("centerSelect");
-        } else {
-          await finalizeOtpLogin(cleanPhone, undefined, fullCode);
-        }
-      } else {
-        // Fallback directly to customer verifyOtp if staff verify failed
-        const authRes = await authService.verifyOtp(cleanPhone, fullCode);
-        const token = authRes?.accessToken;
-        if (!token) throw new Error("توکن ورود دریافت نشد.");
-
+      if (isCustomerVerified && authRes?.accessToken) {
+        const token = authRes.accessToken;
         let resolvedName = authRes?.user?.fullName || "کاربر سایرا";
         if (!authRes?.user?.fullName) {
           try {
@@ -175,8 +168,25 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
           phone: cleanPhone,
           accessToken: token,
           refreshToken: authRes.refreshToken,
-          role: "USER",
+          role: authRes?.user?.role || "USER",
         });
+        return;
+      }
+
+      // 2. Fallback: Check if user is staff/owner with gaming center associations
+      let activeCenters: UserGamingCenterOption[] = [];
+      const userRes = await authService.verifyUserOtp(cleanPhone, fullCode);
+      activeCenters = userRes?.gamingCenters || [];
+
+      setCenters(activeCenters);
+      if (activeCenters.length === 1) {
+        setSelectedCenterId(activeCenters[0].id);
+        await finalizeOtpLogin(cleanPhone, activeCenters[0].id, fullCode);
+      } else if (activeCenters.length > 1) {
+        setSelectedCenterId(activeCenters[0].id);
+        setOtpStep("centerSelect");
+      } else {
+        await finalizeOtpLogin(cleanPhone, undefined, fullCode);
       }
     } catch (err) {
       setError(getErrorMessage(err));
@@ -238,9 +248,9 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
     setLoading(true);
     try {
       try {
-        await authService.requestUserOtp(cleanPhone);
-      } catch {
         await authService.requestOtp(cleanPhone);
+      } catch {
+        await authService.requestUserOtp(cleanPhone);
       }
       setTimer(120);
       setOtpCode(["", "", "", "", "", ""]);
@@ -326,7 +336,7 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
                 : "text-[var(--text-muted)] hover:text-[var(--text-white)]"
             }`}
           >
-            ورود با پیامک (OTP)
+            ورود و ثبت‌نام سریع (پیامک OTP)
           </button>
           <button
             type="button"
@@ -358,12 +368,12 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
           {otpStep === "phone" && (
             <form onSubmit={handleRequestOtp} className="flex flex-col gap-4">
               <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                شماره موبایل خود را وارد کنید تا کد تأیید ورود برای شما ارسال شود.
+                شماره موبایل خود را وارد کنید تا کد تأیید یک‌بار مصرف برای شما ارسال شود. در صورت نداشتن حساب، به‌صورت خودکار ثبت‌نام خواهید شد.
               </p>
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-[var(--text-white)]">
-                  شماره تماس <span className="text-[var(--accent-red)]">*</span>
+                  شماره موبایل <span className="text-[var(--accent-red)]">*</span>
                 </label>
                 <input
                   type="tel"
@@ -380,7 +390,7 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
                 disabled={loading}
                 className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60 cursor-pointer"
               >
-                <span>{loading ? "در حال ارسال..." : "دریافت کد ورود"}</span>
+                <span>{loading ? "در حال ارسال..." : "دریافت کد تأیید (ورود / ثبت‌نام)"}</span>
                 {!loading && (
                   <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -447,7 +457,7 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
                 disabled={loading}
                 className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60 cursor-pointer"
               >
-                <span>{loading ? "در حال اعتبارسنجی..." : "تایید و ادامه"}</span>
+                <span>{loading ? "در حال اعتبارسنجی..." : "تأیید و ورود به حساب"}</span>
                 {!loading && (
                   <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />

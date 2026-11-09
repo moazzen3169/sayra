@@ -126,8 +126,8 @@ export default function ProfilePage() {
           <div className="w-full max-w-md lg:max-w-xl mx-auto bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-6 flex flex-col gap-5 shadow-xl">
             <UnifiedAuthForm
               onSuccess={handleAuthSuccess}
-              title="ورود به حساب کاربری"
-              description="جهت استفاده از خدمات، رزرو نوبت و مدیریت حساب کاربری، با پیامک (OTP) یا رمز عبور وارد شوید."
+              title="ورود یا ثبت‌نام در حساب کاربری"
+              description="جهت استفاده از خدمات، رزرو نوبت و مدیریت حساب کاربری، با پیامک یک‌بار مصرف (OTP) وارد شوید یا ثبت‌نام کنید."
             />
           </div>
         )}
