@@ -12,9 +12,9 @@ export const ENDPOINTS = {
     logout: "/auth/logout",
     me: "/customer/me",
     // Staff / Manager Auth APIs
-    userOtpRequest: "/auth/user/otp/request",
-    userOtpVerify: "/auth/user/otp/verify",
-    userOtpLogin: "/auth/user/login/otp",
+    userOtpRequest: "/auth/customer/otp/request",
+    userOtpVerify: "/auth/customer/otp/verify",
+    userOtpLogin: "/auth/customer/login/otp",
     userPasswordLogin: "/auth/platform-admin/login",
     platformAdminLogin: "/auth/login",
   },
