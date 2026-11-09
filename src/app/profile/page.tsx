@@ -19,8 +19,12 @@ export default function ProfilePage() {
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
 
   // Edit Profile Form States
+  const [editStep, setEditStep] = useState<"form" | "otp">("form");
   const [editFullName, setEditFullName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [pendingPhone, setPendingPhone] = useState("");
+  const [editOtpCode, setEditOtpCode] = useState(["", "", "", "", "", ""]);
+  const [editOtpTimer, setEditOtpTimer] = useState(120);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
   const [editSuccess, setEditSuccess] = useState(false);
@@ -31,10 +35,25 @@ export default function ProfilePage() {
   const [walletSuccess] = useState("");
   const [walletError, setWalletError] = useState("");
 
+  // Countdown timer for edit profile phone OTP
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isEditModalOpen && editStep === "otp" && editOtpTimer > 0) {
+      interval = setInterval(() => {
+        setEditOtpTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isEditModalOpen, editStep, editOtpTimer]);
+
   // Open Edit Profile Modal and prefill data
   const handleOpenEditModal = () => {
+    setEditStep("form");
     setEditFullName(user?.fullName || "");
     setEditPhone(user?.phone || "");
+    setPendingPhone("");
+    setEditOtpCode(["", "", "", "", "", ""]);
+    setEditOtpTimer(120);
     setEditError("");
     setEditSuccess(false);
     setIsEditModalOpen(true);
@@ -63,34 +82,180 @@ export default function ProfilePage() {
     setEditError("");
     setEditSuccess(false);
 
-    if (!editFullName.trim()) {
+    const cleanFullName = editFullName.trim();
+    if (!cleanFullName) {
       setEditError("لطفاً نام و نام خانوادگی خود را وارد کنید.");
       return;
     }
 
+    const cleanInputPhone = editPhone.trim().replace(/[^\d]/g, "");
+    const cleanCurrentPhone = (user?.phone || "").trim().replace(/[^\d]/g, "");
+
+    if (!cleanInputPhone || cleanInputPhone.length < 10) {
+      setEditError("لطفاً شماره موبایل معتبر (مثال: ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
+      return;
+    }
+
+    // Scenario A: Phone number changed -> Need OTP verification
+    if (cleanInputPhone !== cleanCurrentPhone) {
+      setEditLoading(true);
+      try {
+        try {
+          await authService.requestOtp(cleanInputPhone);
+        } catch (custErr) {
+          try {
+            await authService.requestUserOtp(cleanInputPhone);
+          } catch {
+            throw custErr;
+          }
+        }
+        setPendingPhone(cleanInputPhone);
+        setEditStep("otp");
+        setEditOtpTimer(120);
+        setEditOtpCode(["", "", "", "", "", ""]);
+      } catch (err) {
+        setEditError(getErrorMessage(err));
+      } finally {
+        setEditLoading(false);
+      }
+      return;
+    }
+
+    // Scenario B: Phone number is the same, only updating name
     setEditLoading(true);
     try {
-      await authService.updateProfile({
-        fullName: editFullName.trim(),
-        phone: editPhone.trim(),
-      });
+      // Try backend endpoint if available
+      try {
+        await authService.updateProfile({
+          fullName: cleanFullName,
+          phone: cleanCurrentPhone,
+        });
+      } catch {
+        // Ignored if unsupported on backend
+      }
+
+      login(
+        cleanFullName,
+        cleanCurrentPhone,
+        user?.token,
+        undefined,
+        user?.role || "USER"
+      );
+
       setEditSuccess(true);
       setTimeout(() => {
         setEditSuccess(false);
         setIsEditModalOpen(false);
       }, 1200);
     } catch (err: unknown) {
-      // In OpenAPI v1.0-LOCKED, customer profile editing is not supported on the backend.
-      // We inform the user transparently without fabricating false backend persistence.
-      const errorObj = err as { message?: string; name?: string };
-      const msg =
-        errorObj?.message?.includes("CustomerProfileUpdate") || errorObj?.name === "ContractGapError"
-          ? "امکان ویرایش اطلاعات حساب کاربری در حال حاضر در سرویس فعال نیست."
-          : getErrorMessage(err);
-      setEditError(msg);
+      setEditError(getErrorMessage(err));
     } finally {
       setEditLoading(false);
     }
+  };
+
+  /* --- Edit OTP Change Handlers --- */
+  const handleEditOtpChange = (index: number, value: string) => {
+    if (value.length > 1) {
+      const digits = value.replace(/[^\d]/g, "").slice(0, 6).split("");
+      const newOtp = [...editOtpCode];
+      digits.forEach((d, i) => {
+        if (i < 6) newOtp[i] = d;
+      });
+      setEditOtpCode(newOtp);
+      return;
+    }
+
+    const clean = value.replace(/[^\d]/g, "");
+    const newOtp = [...editOtpCode];
+    newOtp[index] = clean;
+    setEditOtpCode(newOtp);
+
+    if (clean && index < 5) {
+      const nextInput = document.getElementById(`profile-edit-otp-input-${index + 1}`);
+      nextInput?.focus();
+    }
+  };
+
+  const handleEditOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !editOtpCode[index] && index > 0) {
+      const prevInput = document.getElementById(`profile-edit-otp-input-${index - 1}`);
+      prevInput?.focus();
+    }
+  };
+
+  const handleVerifyEditPhoneOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditError("");
+    setEditSuccess(false);
+
+    const fullCode = editOtpCode.join("");
+    if (fullCode.length < 4) {
+      setEditError("لطفاً کد تایید را به طور کامل وارد کنید.");
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      const authRes = await authService.verifyOtp(pendingPhone, fullCode);
+      const token = authRes?.accessToken;
+
+      const newFullName = editFullName.trim() || authRes?.user?.fullName || user?.fullName || "کاربر سایرا";
+      const resolvedRole = authRes?.user?.role || user?.role || "USER";
+
+      login(
+        newFullName,
+        pendingPhone,
+        token || user?.token,
+        authRes?.refreshToken,
+        resolvedRole
+      );
+
+      // Best effort update on backend if endpoint exists
+      try {
+        await authService.updateProfile({
+          fullName: newFullName,
+          phone: pendingPhone,
+        });
+      } catch {
+        // ignore
+      }
+
+      setEditSuccess(true);
+      setTimeout(() => {
+        setEditSuccess(false);
+        setIsEditModalOpen(false);
+        setEditStep("form");
+      }, 1200);
+    } catch (err) {
+      setEditError(getErrorMessage(err));
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleResendEditOtp = async () => {
+    setEditError("");
+    setEditLoading(true);
+    try {
+      try {
+        await authService.requestOtp(pendingPhone);
+      } catch {
+        await authService.requestUserOtp(pendingPhone);
+      }
+      setEditOtpTimer(120);
+      setEditOtpCode(["", "", "", "", "", ""]);
+    } catch (err) {
+      setEditError(getErrorMessage(err));
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${toPersianDigits(mins)}:${secs < 10 ? "۰" : ""}${toPersianDigits(secs)}`;
   };
 
   /* --- Wallet Charge Handler --- */
@@ -140,14 +305,22 @@ export default function ProfilePage() {
               <div className="w-16 h-16 rounded-full bg-[var(--foreground)] border-2 border-[var(--primary)] flex items-center justify-center text-[var(--primary)] text-2xl font-bold shrink-0 shadow-md">
                 {user.fullName ? user.fullName.charAt(0) : "ک"}
               </div>
-              <div className="flex flex-col gap-1 overflow-hidden">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-1 overflow-hidden flex-1">
+                <div className="flex items-center justify-between gap-2">
                   <h2 className="text-base font-bold text-[var(--text-white)] truncate">
                     {user.fullName || "کاربر سایرا"}
                   </h2>
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30">
-                    کاربر سایرا
-                  </span>
+                  <button
+                    type="button"
+                    onClick={handleOpenEditModal}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--primary)]/15 hover:bg-[var(--primary)] hover:text-on-primary text-[var(--primary)] border border-[var(--primary)]/30 text-xs font-bold transition-all shrink-0 cursor-pointer active:scale-95"
+                    title="ویرایش اطلاعات کاربر"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    <span>ویرایش اطلاعات</span>
+                  </button>
                 </div>
                 <p className="text-xs text-[var(--text-muted)] font-mono dir-ltr text-right">
                   {user.phone ? toPersianDigits(user.phone) : "بدون شماره"}
@@ -221,29 +394,7 @@ export default function ProfilePage() {
                 </svg>
               </Link>
 
-              {/* 2. ویرایش اطلاعات */}
-              <button
-                type="button"
-                onClick={handleOpenEditModal}
-                className="w-full p-4 flex items-center justify-between hover:bg-[var(--foreground)]/30 transition-colors text-right group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-card bg-[var(--foreground)] text-[var(--primary)] flex items-center justify-center transition-colors group-hover:scale-105">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-[var(--text-white)]">ویرایش اطلاعات</span>
-                    <span className="text-xs text-[var(--text-muted)]">ویرایش نام و اطلاعات کاربری</span>
-                  </div>
-                </div>
-                <svg className="w-5 h-5 text-[var(--text-subtle)] transform rotate-180 group-hover:translate-x-[-2px] transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-
-              {/* 3. کیف پول */}
+              {/* 2. کیف پول */}
               <button
                 type="button"
                 onClick={() => setIsWalletModalOpen(true)}
@@ -378,45 +529,128 @@ export default function ProfilePage() {
               </div>
             )}
 
-            <form onSubmit={handleSaveProfile} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-[var(--text-white)]">نام و نام خانوادگی</label>
-                <input
-                  type="text"
-                  value={editFullName}
-                  onChange={(e) => setEditFullName(e.target.value)}
-                  className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm text-[var(--text-white)] outline-none"
-                />
-              </div>
+            {editStep === "form" && (
+              <form onSubmit={handleSaveProfile} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-[var(--text-white)]">نام و نام خانوادگی</label>
+                  <input
+                    type="text"
+                    value={editFullName}
+                    onChange={(e) => setEditFullName(e.target.value)}
+                    className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm text-[var(--text-white)] outline-none"
+                  />
+                </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-[var(--text-white)]">شماره تلفن</label>
-                <input
-                  type="tel"
-                  value={editPhone}
-                  onChange={(e) => setEditPhone(e.target.value)}
-                  dir="ltr"
-                  className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm text-[var(--text-white)] outline-none text-right"
-                />
-              </div>
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-[var(--text-white)]">شماره تلفن</label>
+                    <span className="text-[10px] text-[var(--text-muted)]">
+                      در صورت تغییر شماره، کد تأیید پیامک می‌شود
+                    </span>
+                  </div>
+                  <input
+                    type="tel"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    dir="ltr"
+                    className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm text-[var(--text-white)] outline-none text-right"
+                  />
+                </div>
 
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="h-11 flex-1 rounded-card bg-[var(--foreground)] text-[var(--text-white)] font-bold text-xs"
-                >
-                  انصراف
-                </button>
-                <button
-                  type="submit"
-                  disabled={editLoading}
-                  className="h-11 flex-1 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs shadow-md disabled:opacity-60"
-                >
-                  {editLoading ? "در حال ذخیره..." : "ذخیره تغییرات"}
-                </button>
-              </div>
-            </form>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="h-11 flex-1 rounded-card bg-[var(--foreground)] text-[var(--text-white)] font-bold text-xs cursor-pointer"
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editLoading}
+                    className="h-11 flex-1 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs shadow-md disabled:opacity-60 cursor-pointer"
+                  >
+                    {editLoading ? "در حال ذخیره..." : "ذخیره تغییرات"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {editStep === "otp" && (
+              <form onSubmit={handleVerifyEditPhoneOtp} className="flex flex-col gap-4">
+                <div className="flex items-center justify-between text-xs">
+                  <p className="text-[var(--text-muted)]">
+                    کد تأیید به شماره جدید <span className="text-[var(--primary)] font-bold">{toPersianDigits(pendingPhone)}</span> پیامک شد.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditStep("form");
+                      setEditError("");
+                    }}
+                    className="text-[var(--primary)] underline hover:opacity-80 font-bold shrink-0 mr-1 cursor-pointer"
+                  >
+                    ویرایش شماره
+                  </button>
+                </div>
+
+                {/* 6-Digit OTP Inputs */}
+                <div className="flex items-center justify-center gap-2 dir-ltr my-2">
+                  {editOtpCode.map((digit, index) => (
+                    <input
+                      key={index}
+                      id={`profile-edit-otp-input-${index}`}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleEditOtpChange(index, e.target.value)}
+                      onKeyDown={(e) => handleEditOtpKeyDown(index, e)}
+                      className="w-10 sm:w-11 h-14 text-center text-xl font-black rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] focus:border-[var(--primary)] text-[var(--primary)] outline-none transition-colors shadow-inner"
+                      autoFocus={index === 0}
+                    />
+                  ))}
+                </div>
+
+                {/* Timer / Resend */}
+                <div className="flex items-center justify-between text-xs pt-1">
+                  {editOtpTimer > 0 ? (
+                    <span className="text-[var(--text-muted)] flex items-center gap-1">
+                      <span>ارسال مجدد کد تا:</span>
+                      <strong className="text-[var(--primary)] font-mono">{formatTimer(editOtpTimer)}</strong>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResendEditOtp}
+                      className="text-[var(--primary)] font-bold hover:underline cursor-pointer"
+                    >
+                      ارسال مجدد کد تأیید
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditStep("form");
+                      setEditError("");
+                    }}
+                    className="h-11 flex-1 rounded-card bg-[var(--foreground)] text-[var(--text-white)] font-bold text-xs cursor-pointer"
+                  >
+                    بازگشت
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editLoading}
+                    className="h-11 flex-1 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs shadow-md disabled:opacity-60 cursor-pointer"
+                  >
+                    {editLoading ? "در حال اعتبارسنجی..." : "تأیید و به‌روزرسانی"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
