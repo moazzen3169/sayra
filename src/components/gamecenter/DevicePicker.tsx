@@ -119,7 +119,7 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({
           <span className="text-xs text-[var(--text-muted)]">
             {toPersianDigits(categories.length)} نوع دستگاه موجود
           </span>
-          <div className="hidden sm:flex items-center gap-1.5" dir="ltr">
+          <div className="hidden sm:flex items-center gap-1.5" dir="rtl">
             <CarouselPrevious
               className="static h-8 w-8 translate-x-0 translate-y-0 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] hover:bg-[var(--foreground)]"
             />
