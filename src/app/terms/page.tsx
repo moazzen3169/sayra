@@ -898,8 +898,8 @@ export default function TermsAndRulesPage() {
         </nav>
 
         {/* Hero Section */}
-        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-[var(--bg-card)] via-[var(--bg-card)] to-[var(--foreground)]/30 border border-[var(--border-subtle)] p-6 sm:p-10 shadow-xl">
-          <div className="relative z-10 flex flex-col gap-4 max-w-3xl">
+        <section className="relative overflow-hidden ">
+          <div className="relative z-10 flex flex-col gap-6 max-w-3xl">
             <div className="inline-flex items-center gap-2 w-fit px-3 py-1.5 rounded-full bg-[var(--primary)]/15 border border-[var(--primary)]/30 text-[var(--primary)] text-xs font-bold">
               <Icon name="check" size={14} />
               <span>سند قانونی و شرایط استفاده رسمی</span>
@@ -939,7 +939,7 @@ export default function TermsAndRulesPage() {
         </section>
 
         {/* Introduction & Definitions */}
-        <section className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-6 flex flex-col gap-5 shadow-sm">
+        <section className=" flex flex-col gap-5 shadow-sm">
           <SectionTitle title="مقدمه و تعاریف مفاهیم" />
           <p className="text-xs sm:text-sm text-[var(--text-white)]/90 leading-relaxed text-justify">
             پلتفرم سایرا بستری اینترنتی برای معرفی، جست‌وجو و رزرو خدمات گیم‌نت‌های مستقل فراهم
