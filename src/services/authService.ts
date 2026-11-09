@@ -57,14 +57,46 @@ export const authService = {
    * Verify customer OTP according to OpenAPI:
    * POST /auth/customer/otp/verify
    * Body: { phone: string, code: string }
-   * Response Envelope: { success: true, data: { accessToken, refreshToken?, user? } }
+   * Handles multiple backend response shapes:
+   * - { success: true, data: { tokens: { accessToken, refreshToken }, user } }
+   * - { success: true, data: { accessToken, refreshToken, user } }
+   * - Direct tokens object
    */
   async verifyOtp(phone: string, code: string): Promise<AuthVerifyResponse> {
-    const { data } = await apiClient.post<AuthVerifyResponse>(ENDPOINTS.auth.otpVerify, {
+    const response = await apiClient.post<any>(ENDPOINTS.auth.otpVerify, {
       phone,
       code,
     });
-    return data;
+
+    const resData = response.data;
+    // Extract tokens from resData.tokens, resData.data.tokens, or resData directly
+    const tokens =
+      resData?.tokens ||
+      resData?.data?.tokens ||
+      (response.rawEnvelope as any)?.data?.tokens ||
+      resData;
+
+    const accessToken =
+      tokens?.accessToken ||
+      resData?.accessToken ||
+      resData?.data?.accessToken ||
+      "";
+    const refreshToken =
+      tokens?.refreshToken ||
+      resData?.refreshToken ||
+      resData?.data?.refreshToken;
+    const user =
+      resData?.user ||
+      resData?.data?.user ||
+      tokens?.user ||
+      resData?.customer ||
+      resData?.data?.customer;
+
+    return {
+      accessToken,
+      refreshToken,
+      user,
+    };
   },
 
   /**

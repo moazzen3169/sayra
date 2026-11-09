@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { toPersianDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { authService, UserGamingCenterOption } from "@/services/authService";
+import { setTokens } from "@/lib/token";
 
 export interface UnifiedAuthSuccessData {
   fullName: string;
@@ -145,6 +146,9 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
         throw new Error("توکن ورود دریافت نشد.");
       }
 
+      // Immediately save tokens to localStorage and cookies to ensure immediate availability
+      setTokens(token, authRes.refreshToken);
+
       let resolvedName = authRes?.user?.fullName || "کاربر سایرا";
       if (!authRes?.user?.fullName) {
         try {
@@ -188,6 +192,9 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
       if (!token) {
         throw new Error("توکن ورود دریافت نشد.");
       }
+
+      // Immediately save tokens to localStorage and cookies
+      setTokens(token, loginRes.refreshToken);
 
       const userName = loginRes.user?.fullName || loginRes.user?.name || "کاربر سایرا";
       const userRole = loginRes.user?.role || "MANAGER";
@@ -263,6 +270,9 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
       if (!token) {
         throw new Error("توکن ورود دریافت نشد.");
       }
+
+      // Immediately save tokens to localStorage and cookies
+      setTokens(token, res.refreshToken);
 
       const userName = res.user?.fullName || res.user?.name || "مدیر گیم‌نت";
       const userRole = res.user?.role || "MANAGER";
