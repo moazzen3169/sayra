@@ -104,13 +104,25 @@ const Carousel = React.forwardRef<
       [opts?.direction, scrollPrev, scrollNext]
     );
 
+    // Stabilize setApi callback ref so effect re-runs are governed strictly by api changes,
+    // avoiding infinite update cascades if a parent supplies an unmemoized setApi function.
+    const setApiRef = React.useRef(setApi);
     React.useEffect(() => {
-      if (!api || !setApi) {
+      setApiRef.current = setApi;
+    }, [setApi]);
+
+    const lastNotifiedApiRef = React.useRef<CarouselApi | null>(null);
+
+    React.useEffect(() => {
+      if (!api) {
         return;
       }
 
-      setApi(api);
-    }, [api, setApi]);
+      if (setApiRef.current && lastNotifiedApiRef.current !== api) {
+        lastNotifiedApiRef.current = api;
+        setApiRef.current(api);
+      }
+    }, [api]);
 
     React.useEffect(() => {
       if (!api) {
@@ -126,20 +138,32 @@ const Carousel = React.forwardRef<
       };
     }, [api, onSelect]);
 
+    const contextValue = React.useMemo<CarouselContextProps>(
+      () => ({
+        carouselRef,
+        api,
+        opts,
+        orientation:
+          orientation || (opts?.axis === "y" ? "vertical" : "horizontal"),
+        scrollPrev,
+        scrollNext,
+        canScrollPrev,
+        canScrollNext,
+      }),
+      [
+        carouselRef,
+        api,
+        opts,
+        orientation,
+        scrollPrev,
+        scrollNext,
+        canScrollPrev,
+        canScrollNext,
+      ]
+    );
+
     return (
-      <CarouselContext.Provider
-        value={{
-          carouselRef,
-          api,
-          opts,
-          orientation:
-            orientation || (opts?.axis === "y" ? "vertical" : "horizontal"),
-          scrollPrev,
-          scrollNext,
-          canScrollPrev,
-          canScrollNext,
-        }}
-      >
+      <CarouselContext.Provider value={contextValue}>
         <div
           ref={ref}
           onKeyDownCapture={handleKeyDown}

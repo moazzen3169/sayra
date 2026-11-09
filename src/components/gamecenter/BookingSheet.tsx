@@ -124,6 +124,10 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
     () => lines.flatMap((l) => l.group.stations),
     [lines],
   );
+  const stationIdsKey = useMemo(
+    () => stations.map((s) => s.id).sort().join(","),
+    [stations],
+  );
   const deviceCount = lines.reduce((a, l) => a + l.qty, 0);
 
   // قفل اسکرول، Escape و مدیریت فوکوس
@@ -215,7 +219,8 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [gamingCenterSlug, stations, date.fullDate, refreshKey, retryToken]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gamingCenterSlug, stationIdsKey, date.fullDate, refreshKey, retryToken]);
 
   const toggleSlot = (key: string) =>
     setSelectedKeys((prev) =>
