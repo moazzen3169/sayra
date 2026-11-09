@@ -20,7 +20,9 @@ export function useGamingCenterStations(
     total: 0,
     totalPages: 0,
   });
-  const [isLoading, setIsLoading] = useState(false);
+  // شروع با لودینگ در صورتی که slug وجود دارد تا پیام "هیچ دستگاهی پیدا نشد" فلش نزند
+  const [isLoading, setIsLoading] = useState<boolean>(() => Boolean(gamingCenterSlug?.trim()));
+  const [hasFetched, setHasFetched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -37,6 +39,7 @@ export function useGamingCenterStations(
       if (!gamingCenterSlug?.trim()) {
         setStations([]);
         setIsLoading(false);
+        setHasFetched(true);
         return;
       }
 
@@ -66,9 +69,10 @@ export function useGamingCenterStations(
         setMeta(result.meta);
       } catch (err: unknown) {
         if (isAbortError(err)) return;
-        setError((err as Error)?.message || "خطا در دریافت دستگاه‌های فیزیکی");
+        setError((err as Error)?.message || "دریافت دستگاه‌ها با خطا مواجه شد. لطفاً دوباره تلاش کنید.");
       } finally {
         setIsLoading(false);
+        setHasFetched(true);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -88,6 +92,7 @@ export function useGamingCenterStations(
     stations,
     meta,
     isLoading,
+    hasFetched,
     error,
     refetch: () => fetchStations(false),
     loadMore: () => {

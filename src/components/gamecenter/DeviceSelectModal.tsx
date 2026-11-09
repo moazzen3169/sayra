@@ -63,7 +63,7 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
     [category],
   );
 
-  const { stations, isLoading, error, refetch } = useGamingCenterStations(
+  const { stations, isLoading, hasFetched, error, refetch } = useGamingCenterStations(
     gamingCenterSlug,
     filter,
   );
@@ -88,6 +88,8 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
   };
   const clearAll = () =>
     onChange(selected.filter((s) => !stations.some((x) => x.id === s.id)));
+
+  const showSkeleton = isLoading || (!hasFetched && !error);
 
   return (
     <div
@@ -118,7 +120,7 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
               {category.name}
             </h2>
             <span className="truncate text-xs text-[var(--text-muted)]">
-              دستگاه‌های موردنظر را انتخاب کنید
+              دستگاه‌های دلخواهت رو انتخاب کن
             </span>
           </div>
         </div>
@@ -127,7 +129,7 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
       {/* بدنه */}
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto flex w-full max-w-[960px] flex-col gap-6 px-4 py-6">
-          {isLoading && (
+          {showSkeleton && (
             <div
               className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
               aria-busy="true"
@@ -135,13 +137,17 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
               {Array.from({ length: 8 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-52 animate-pulse rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)]"
-                />
+                  className="flex flex-col gap-3 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-3 animate-pulse"
+                >
+                  <div className="aspect-[4/3] w-full rounded-card bg-[var(--bg-body)]" />
+                  <div className="h-4 w-3/4 rounded bg-[var(--bg-body)]" />
+                  <div className="h-3 w-1/2 rounded bg-[var(--bg-body)]" />
+                </div>
               ))}
             </div>
           )}
 
-          {!isLoading && error && (
+          {!showSkeleton && error && (
             <ErrorState
               title="بارگذاری دستگاه‌ها انجام نشد"
               description={error}
@@ -149,14 +155,14 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
             />
           )}
 
-          {!isLoading && !error && stations.length === 0 && (
+          {!showSkeleton && !error && stations.length === 0 && (
             <EmptyState
-              title="دستگاهی در این دسته وجود ندارد"
-              description="دسته‌ی دیگری را انتخاب کنید."
+              title="دستگاهی در این دسته پیدا نشد"
+              description="می‌تونی از دسته‌های دیگه دستگاهت رو انتخاب کنی."
             />
           )}
 
-          {!isLoading && !error && stations.length > 0 && (
+          {!showSkeleton && !error && stations.length > 0 && (
             <>
               <div className="flex items-center justify-between gap-3">
                 <p
@@ -165,7 +171,7 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
                 >
                   {has
                     ? `${toPersianDigits(count)} دستگاه انتخاب شده`
-                    : `${toPersianDigits(stations.length)} دستگاه موجود`}
+                    : `${toPersianDigits(stations.length)} دستگاه آماده بازی`}
                 </p>
                 <button
                   type="button"
@@ -259,12 +265,12 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs text-[var(--text-muted)]">
               {has
-                ? `${toPersianDigits(count)} دستگاه از این دسته`
-                : "هنوز دستگاهی انتخاب نشده"}
+                ? `${toPersianDigits(count)} دستگاه انتخاب کردی`
+                : "هنوز دستگاهی انتخاب نکردی"}
             </span>
             <div className="flex items-baseline gap-1">
               <span className="text-xs text-[var(--text-muted)]">
-                برآورد ساعتی
+                مجموع ساعتی
               </span>
               <span className="text-base font-black text-[var(--primary)]">
                 {has ? formatPrice(hourly) : "—"}
@@ -280,14 +286,13 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
             className="h-12 w-full rounded-card bg-[var(--primary)] text-sm font-bold text-on-primary transition-all hover:bg-[var(--primary-hover)] active:scale-[0.98] disabled:bg-[var(--foreground)] disabled:text-[var(--text-muted)]"
           >
             {has
-              ? `ثبت انتخاب (${toPersianDigits(count)} دستگاه)`
-              : "ابتدا دستگاه را انتخاب کنید"}
+              ? `تأیید و ادامه (${toPersianDigits(count)} دستگاه)`
+              : "دستگاهت رو انتخاب کن"}
           </button>
 
           {has && (
             <p className="text-center text-xs text-[var(--text-muted)]">
-              بعد از ثبت، می‌توانید دستگاه دیگری اضافه کنید یا روز و ساعت را
-              انتخاب کنید.
+              بعد از تأیید، می‌تونی دستگاه‌های بیشتر اضافه کنی یا تاریخ و ساعت رزرو رو مشخص کنی.
             </p>
           )}
         </div>
