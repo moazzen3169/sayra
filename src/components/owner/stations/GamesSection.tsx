@@ -269,6 +269,9 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, onNotify }
   const [catalogGames, setCatalogGames] = useState<GameCatalogItem[]>([]);
   const [reload, setReload] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [deletingTitle, setDeletingTitle] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // بازی‌های انتخاب‌شده‌ی همین گیمنت
   useEffect(() => {
@@ -338,6 +341,22 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, onNotify }
     else setReload((v) => v + 1);
   };
 
+  const handleRemoveGame = async () => {
+    if (!deletingTitle || !games || isDeleting) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const updated = await ownerGamesService.removeCenterGame(centerId, deletingTitle, games);
+      setGames(updated);
+      onNotify(`بازی «${deletingTitle}» حذف شد.`);
+      setDeletingTitle(null);
+    } catch (err) {
+      setDeleteError(getErrorMessage(err));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <section className="flex flex-col gap-3">
       <SectionTitle
@@ -380,6 +399,9 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, onNotify }
                 <th scope="col" className="px-4 py-3 font-bold">بازی</th>
                 <th scope="col" className="hidden px-4 py-3 font-bold sm:table-cell">پلتفرم</th>
                 <th scope="col" className="hidden px-4 py-3 font-bold md:table-cell">ژانر</th>
+                <th scope="col" className="w-16 px-4 py-3 font-bold">
+                  <span className="sr-only">عملیات</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-subtle)]">
@@ -410,11 +432,74 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, onNotify }
                   <td className="hidden px-4 py-3 text-xs text-[var(--text-muted)] md:table-cell">
                     {catalog?.genre || "—"}
                   </td>
+                  <td className="px-4 py-3 text-left">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeletingTitle(title);
+                      }}
+                      aria-label={`حذف ${title}`}
+                      className="flex h-9 w-9 items-center justify-center rounded-card text-[var(--text-muted)] hover:bg-[var(--foreground)] hover:text-[var(--accent-red)] transition-colors"
+                    >
+                      <Icon name="trash" size={18} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {deletingTitle && (
+        <Modal
+          isOpen
+          onClose={() => {
+            if (!isDeleting) {
+              setDeletingTitle(null);
+              setDeleteError(null);
+            }
+          }}
+          title="حذف بازی از گیم‌نت"
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-sm leading-7 text-[var(--text-white)]">
+              آیا از حذف بازی «{deletingTitle}» از فهرست بازی‌های گیم‌نت اطمینان دارید؟
+            </p>
+
+            {deleteError && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-3 text-xs font-bold leading-6 text-[var(--accent-red)]"
+              >
+                <Icon name="alert" size={16} className="mt-1" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2 sm:flex-row-reverse">
+              <Button
+                type="button"
+                size="lg"
+                isLoading={isDeleting}
+                onClick={handleRemoveGame}
+                className="border-transparent bg-[var(--accent-red)] text-white hover:bg-[var(--accent-red)]/90 sm:flex-1"
+              >
+                حذف بازی
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="lg"
+                onClick={() => setDeletingTitle(null)}
+                disabled={isDeleting}
+              >
+                انصراف
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {pickerOpen && (

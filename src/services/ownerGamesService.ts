@@ -29,4 +29,25 @@ export const ownerGamesService = {
       .filter((t): t is string => typeof t === "string");
     return Array.from(new Set(titles));
   },
+
+  /**
+   * حذف بازی از لیست گیم‌نت و ذخیره تغییرات در سرور:
+   * با ارسال بازی‌های باقیمانده به PATCH /gamingCenters/{id}
+   */
+  async removeCenterGame(
+    centerId: string,
+    gameTitleToRemove: string,
+    allCurrentGames: string[],
+    signal?: AbortSignal
+  ): Promise<string[]> {
+    const updatedGames = allCurrentGames.filter(
+      (t) => t.trim().toLowerCase() !== gameTitleToRemove.trim().toLowerCase()
+    );
+    await apiClient.patch(
+      ENDPOINTS.owner.center(centerId),
+      { games: updatedGames },
+      { signal }
+    );
+    return updatedGames;
+  },
 };
