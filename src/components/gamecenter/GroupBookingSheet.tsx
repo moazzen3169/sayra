@@ -125,6 +125,11 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
   const date = dates.find((d) => d.id === dateId) ?? dates[0];
 
   // محدودیت مدت زمان بین همه‌ی دستگاه‌های انتخاب‌شده
+  const stationIdsKey = useMemo(
+    () => stations.map((s) => s.id).sort().join(","),
+    [stations],
+  );
+
   const { minHours, maxHours } = useMemo(
     () => ({
       minHours: Math.max(1, ...stations.map((s) => s.minRentHours || 1)),
@@ -225,7 +230,8 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [gamingCenterSlug, stations, date.fullDate, retryToken]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gamingCenterSlug, stationIdsKey, date.fullDate, retryToken]);
 
   // ساعت فقط وقتی قابل انتخاب است که برای همه‌ی دستگاه‌ها خالی باشد
   const isBookable = (key: string) =>

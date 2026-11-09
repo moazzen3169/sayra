@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { toPersianDigits } from "@/lib/format";
 import type { DeviceCategory } from "@/types/gaming-center/device-category.types";
 import type { PhysicalStation } from "@/types/gaming-center/station.types";
@@ -41,7 +41,31 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({
   onOpen,
 }) => {
   const isDraggingRef = useRef(false);
-  const [, forceUpdate] = useState({});
+
+  const carouselOptions = useMemo(
+    () => ({
+      direction: "rtl" as const,
+      align: "start" as const,
+      dragFree: true,
+      containScroll: "trimSnaps" as const,
+    }),
+    [],
+  );
+
+  const handleSetApi = useCallback((api: Parameters<NonNullable<React.ComponentProps<typeof Carousel>["setApi"]>>[0]) => {
+    if (!api) return;
+    api.on("pointerDown", () => {
+      isDraggingRef.current = false;
+    });
+    api.on("scroll", () => {
+      isDraggingRef.current = true;
+    });
+    api.on("pointerUp", () => {
+      setTimeout(() => {
+        isDraggingRef.current = false;
+      }, 100);
+    });
+  }, []);
 
   if (isLoading) {
     return (
@@ -87,27 +111,8 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({
   return (
     <div className="relative w-full">
       <Carousel
-        opts={{
-          direction: "rtl",
-          align: "start",
-          dragFree: true,
-          containScroll: "trimSnaps",
-        }}
-        setApi={(api) => {
-          if (!api) return;
-          api.on("pointerDown", () => {
-            isDraggingRef.current = false;
-          });
-          api.on("scroll", () => {
-            isDraggingRef.current = true;
-          });
-          api.on("pointerUp", () => {
-            setTimeout(() => {
-              isDraggingRef.current = false;
-            }, 100);
-          });
-          forceUpdate({});
-        }}
+        opts={carouselOptions}
+        setApi={handleSetApi}
         className="w-full"
       >
         <div className="mb-3 flex items-center justify-between">
