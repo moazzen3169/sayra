@@ -331,7 +331,7 @@ describe("Phase 6: Gaming-Center Detail Data (Mocked Network)", () => {
 
     it("fetches stations via getPublicStations for slug without gamingCenterId", async () => {
       setupMockFetch((url) => {
-        if (url.includes("/public/gamingCenters/test-slug/stations")) {
+        if (url.includes("/gamingCenters/test-slug/stations")) {
           return new Response(
             JSON.stringify({
               success: true,
@@ -348,7 +348,7 @@ describe("Phase 6: Gaming-Center Detail Data (Mocked Network)", () => {
       const stations = await gamingCenterService.getPublicStations("test-slug");
       expect(stations.length).toBe(1);
       expect(stations[0].id).toBe("st-pub-1");
-      const pubStationReq = requests.find((r) => r.url.includes("/public/gamingCenters/test-slug/stations"));
+      const pubStationReq = requests.find((r) => r.url.includes("/gamingCenters/test-slug/stations"));
       expect(pubStationReq).toBeDefined();
     });
   });

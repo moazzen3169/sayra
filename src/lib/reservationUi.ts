@@ -44,10 +44,10 @@ export function getStatusUi(status: string) {
 const PAYMENT_LABELS: Record<PaymentState, string> = {
   UNPAID: "پرداخت نشده",
   PENDING: "در انتظار پرداخت",
-  PARTIALLY_PAID: "پرداخت ناقص",
+  PARTIALLY_PAID: "پرداخت بیعانه",
   PAID: "پرداخت شده",
   REFUNDED: "بازگشت وجه",
-  OVERPAID: "پرداخت بیش از مبلغ",
+  OVERPAID: "پرداخت اضافی",
   FAILED: "پرداخت ناموفق",
   CANCELED: "لغو شده",
 };
@@ -102,7 +102,7 @@ export function formatClock(iso: string, alwaysMinutes = false): string {
   return toPersianDigits(`${h}:${m}`);
 }
 
-/** مثال: «امروز از ساعت ۱۳ الی ۱۴» */
+/** مثال: «امروز از ساعت ۱۳ تا ۱۴» */
 export function formatReservationWhen(startIso: string, endIso: string): string {
   return `${formatDayLabel(startIso)} از ساعت ${formatClock(startIso)} تا ${formatClock(endIso)}`;
 }
@@ -135,44 +135,44 @@ export const mapsUrl = (address: string) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
 const ERROR_MESSAGES: Record<string, string> = {
-  NETWORK_ERROR: "ارتباط با سرور برقرار نشد. اینترنت خود را بررسی کنید.",
-  PROXY_NETWORK_ERROR: "پاسخی از سرور دریافت نشد (خطای اتصال یا ۵۰۲). لطفاً چند لحظه بعد تلاش کنید.",
-  INVALID_RESPONSE: "پاسخی از سرور دریافت نشد (خطای ۵۰۲ سرور). لطفاً کمی بعد مجدداً تلاش نمایید.",
-  UNAUTHORIZED: "برای مشاهده این بخش ابتدا وارد حساب کاربری شوید.",
-  FORBIDDEN: "شما به این بخش دسترسی ندارید.",
-  NOT_FOUND: "گیمنت یا مورد درخواستی یافت نشد.",
-  INVALID_TRANSITION: "در وضعیت فعلی رزرو، این عملیات امکان‌پذیر نیست.",
-  VALIDATION_ERROR: "اطلاعات ارسال‌شده معتبر نیست.",
-  DB_REQUEST_FAILED: "خطای پایگاه داده در پردازش درخواست. لطفاً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.",
-  INTERNAL_ERROR: "خطای داخلی سرور در پردازش درخواست. لطفاً دقایقی دیگر تلاش کنید.",
-  APP_ERROR: "خطایی در پردازش سامانه رخ داد. لطفاً مجدداً تلاش نمایید.",
-  CONFLICT: "تداخلی در درخواست شما وجود دارد.",
-  RESERVATION_CANCEL_NOT_ALLOWED: "امکان لغو این رزرو در وضعیت کنونی وجود ندارد.",
-  RESERVATION_ALREADY_CANCELLED: "این رزرو پیش از این لغو گردیده است.",
-  RESERVATION_EXPIRED: "مهلت یا زمان این رزرو به پایان رسیده است.",
-  PROPOSAL_NOT_PENDING: "این پیشنهاد تغییر زمان دیگر در حالت انتظار نیست یا قبلاً پاسخ داده شده است.",
-  SLOT_NOT_AVAILABLE: "این ساعت دیگر خالی نیست یا با رزرو دیگری تداخل دارد. لطفاً ساعت دیگری انتخاب کنید.",
-  RESERVATION_OVERLAP: "این زمان با رزرو دیگری تداخل دارد. لطفاً زمان دیگری انتخاب کنید.",
-  OVERLAP_CONFLICT: "این ساعت با رزرو دیگری تداخل دارد. لطفاً ساعت دیگری انتخاب کنید.",
-  RESERVATION_START_TIME_IN_PAST: "زمان انتخاب‌شده گذشته است. لطفاً ساعت دیگری انتخاب کنید.",
-  ONLINE_RESERVATION_DISABLED: "رزرو آنلاین برای این گیمنت فعال نیست.",
-  IDEMPOTENCY_REQUEST_IN_PROGRESS: "درخواست قبلی شما در حال پردازش است. چند لحظه صبر کنید.",
-  IDEMPOTENCY_KEY_REQUIRED: "ثبت رزرو انجام نشد. لطفاً دوباره تلاش کنید.",
-  IDEMPOTENCY_KEY_INVALID_LENGTH: "ثبت رزرو انجام نشد. لطفاً دوباره تلاش کنید.",
-  IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD: "ثبت رزرو انجام نشد. لطفاً دوباره تلاش کنید.",
-  STATUS_TRANSITION_NOT_IMPLEMENTED: "تغییر وضعیت رزرو توسط سرور نیازمند تکمیل اندپوینت اختصاصی بک‌اند است.",
+  NETWORK_ERROR: "اینترنت قطع است یا ارتباط با سرور برقرار نشد.",
+  PROXY_NETWORK_ERROR: "پاسخی از سرور دریافت نشد. لطفاً چند لحظه بعد دوباره امتحان کنید.",
+  INVALID_RESPONSE: "پاسخ سرور نامعتبر بود. لطفاً کمی بعد دوباره امتحان کنید.",
+  UNAUTHORIZED: "برای ادامه، لطفاً وارد حسابتان شوید.",
+  FORBIDDEN: "شما اجازه دسترسی به این بخش را ندارید.",
+  NOT_FOUND: "موردی که دنبالش بودید پیدا نشد.",
+  INVALID_TRANSITION: "در وضعیت فعلی امکان انجام این کار وجود ندارد.",
+  VALIDATION_ERROR: "اطلاعات وارد شده کامل یا صحیح نیست.",
+  DB_REQUEST_FAILED: "مشکلی در ذخیره اطلاعات پیش آمد. لطفاً دوباره تلاش کنید.",
+  INTERNAL_ERROR: "مشکلی در سرور پیش آمده. لطفاً دقایقی دیگر دوباره امتحان کنید.",
+  APP_ERROR: "خطایی پیش آمد. لطفاً دوباره تلاش کنید.",
+  CONFLICT: "این درخواست با اطلاعات فعلی تداخل دارد.",
+  RESERVATION_CANCEL_NOT_ALLOWED: "در وضعیت فعلی امکان لغو این رزرو وجود ندارد.",
+  RESERVATION_ALREADY_CANCELLED: "این رزرو قبلاً لغو شده است.",
+  RESERVATION_EXPIRED: "زمان این رزرو گذشته است.",
+  PROPOSAL_NOT_PENDING: "این پیشنهاد زمان قبلاً پاسخ داده شده یا منقضی شده است.",
+  SLOT_NOT_AVAILABLE: "این ساعت رزرو شده است. لطفاً ساعت دیگری انتخاب کنید.",
+  RESERVATION_OVERLAP: "این زمان با رزرو دیگری هم‌پوشانی دارد. لطفاً زمان دیگری انتخاب کنید.",
+  OVERLAP_CONFLICT: "این زمان پر است. لطفاً یک زمان خالی دیگر را انتخاب کنید.",
+  RESERVATION_START_TIME_IN_PAST: "زمان انتخاب شده گذشته است. ساعت‌های بعدی را انتخاب کنید.",
+  ONLINE_RESERVATION_DISABLED: "رزرو آنلاین این گیم‌نت در حال حاضر فعال نیست.",
+  IDEMPOTENCY_REQUEST_IN_PROGRESS: "درخواست شما در حال پردازش است، لطفاً کمی صبر کنید.",
+  IDEMPOTENCY_KEY_REQUIRED: "رزرو انجام نشد. لطفاً دوباره تلاش کنید.",
+  IDEMPOTENCY_KEY_INVALID_LENGTH: "رزرو انجام نشد. لطفاً دوباره تلاش کنید.",
+  IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD: "ثبت رزرو با خطا روبرو شد. لطفاً دوباره امتحان کنید.",
+  STATUS_TRANSITION_NOT_IMPLEMENTED: "این عملیات در حال حاضر توسط سرور پشتیبانی نمی‌شود.",
 };
 
 export function getErrorMessage(e: unknown): string {
   if (e instanceof ApiError) {
     if (e.status === 502) {
-      return "خطای ارتباط با سرور (502 Bad Gateway). سرور در دسترس نیست یا در حال بروزرسانی است.";
+      return "خطای ارتباط با سرور (502). سرور موقتاً در دسترس نیست یا در حال بروزرسانی است.";
     }
     if (e.status === 503 || e.status === 504) {
-      return "سرور در حال حاضر پاسخگو نیست. لطفاً دقایقی دیگر دوباره تلاش کنید.";
+      return "سرور پاسخگو نیست. لطفاً دقایقی بعد تلاش کنید.";
     }
     if (e.status === 404) {
-      return "اطلاعات گیمنت در سامانه پیدا نشد.";
+      return "گیم‌نت مورد نظر پیدا نشد.";
     }
     return ERROR_MESSAGES[e.code] ?? e.message;
   }

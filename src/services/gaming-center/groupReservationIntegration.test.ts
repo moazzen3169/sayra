@@ -65,7 +65,7 @@ describe("GameNet Device Categories & Group Reservation Integration", () => {
       expect(cats[1].catalogId).toBeNull();
       expect(cats[1].deviceType).toBe("PS5");
       expect(interceptedRequests[0].url).toBe(
-        `${API_BASE_URL}/public/gamingCenters/my-gamenet/device-categories`
+        "https://api.sayra-booking.ir/api/v1/gamingCenters/my-gamenet/device-categories"
       );
     });
 
