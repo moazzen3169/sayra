@@ -15,6 +15,8 @@ const GLOBAL_NAV_ITEMS: NavItem[] = [
   { id: "home", label: "صفحه اصلی", href: "/" },
   { id: "reservations", label: "گیمنت‌ها", href: "/gamecenters" },
   { id: "blog", label: "وبلاگ", href: "/blog" },
+  { id: "about", label: "درباره سایرا", href: "/about" },
+  { id: "terms", label: "قوانین و مقررات", href: "/terms" },
 ];
 
 interface DesktopNavProps {
@@ -25,7 +27,7 @@ export const DesktopNav: React.FC<DesktopNavProps> = ({ onSearchClick }) => {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="ناوبری اصلی دسکتاپ" className="flex items-center gap-6 shrink-0 pl-[200px]">
+    <nav aria-label="ناوبری اصلی دسکتاپ" className="flex items-center gap-6 shrink-0 pl-[100px]">
       {GLOBAL_NAV_ITEMS.map((item) => {
         const isActive =
           item.href === "/" && item.id === "home"

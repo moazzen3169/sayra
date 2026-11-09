@@ -71,8 +71,10 @@ export const Header: React.FC<HeaderProps> = ({
 
     const handleOutsideClick = (event: MouseEvent) => {
       const target = event.target as Node;
-      const clickedInsideDesktop = desktopAccountMenuRef.current?.contains(target);
-      const clickedInsideMobile = mobileAccountMenuRef.current?.contains(target);
+      const clickedInsideDesktop =
+        desktopAccountMenuRef.current?.contains(target);
+      const clickedInsideMobile =
+        mobileAccountMenuRef.current?.contains(target);
       if (!clickedInsideDesktop && !clickedInsideMobile) {
         setIsAccountMenuOpen(false);
       }
@@ -81,7 +83,10 @@ export const Header: React.FC<HeaderProps> = ({
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsAccountMenuOpen(false);
-        if (desktopAccountButtonRef.current && desktopAccountButtonRef.current.offsetParent !== null) {
+        if (
+          desktopAccountButtonRef.current &&
+          desktopAccountButtonRef.current.offsetParent !== null
+        ) {
           desktopAccountButtonRef.current.focus();
         } else if (mobileAccountButtonRef.current) {
           mobileAccountButtonRef.current.focus();
@@ -508,158 +513,120 @@ export const Header: React.FC<HeaderProps> = ({
         {/* ================= DESKTOP HEADER ================= */}
         <div className="hidden bg-body-bg lg:block">
           <div className="mx-auto flex min-h-[68px] max-w-[var(--max-app-width)] items-center justify-between gap-4 border border-[var(--border-subtle)] p-6">
-            <div className="flex items-center gap-6 shrink-0">
-              {/* Navigation */}
-              <div className="flex shrink-0 items-center">
-                <DesktopNav onSearchClick={handleSearchBtnClick} />
-              </div>
-            </div>
-
             {/* Brand */}
             <Link
               href="/"
-              className="flex shrink-0 items-center"
+              className="flex shrink-0 items-center ml-4"
               aria-label="صفحه اصلی سایرا"
             >
-              <img
-                src="/design/sayra.svg"
-                alt="سایرا"
-                className="h-6 w-auto"
-              />
+              <img src="/design/sayra.svg" alt="سایرا" className="h-8 w-auto" />
             </Link>
 
-            <div className="flex items-center gap-2 shrink-0">
-              {/* City selector */}
-              <button
-                type="button"
-                onClick={handleLocationBtnClick}
-                aria-label="انتخاب شهر"
-                className="flex h-10 shrink-0 items-center gap-2 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 transition-colors hover:border-[var(--primary)]/40 hover:bg-[var(--foreground)]/60 xl:px-3.5"
+            {/* Navigation */}
+            <div className="flex shrink-0 items-center">
+              <DesktopNav onSearchClick={handleSearchBtnClick} />
+            </div>
+
+            {/* City selector */}
+            <button
+              type="button"
+              onClick={handleLocationBtnClick}
+              aria-label="انتخاب شهر"
+              className="flex h-10 shrink-0 items-center gap-2 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 transition-colors hover:border-[var(--primary)]/40 hover:bg-[var(--foreground)]/60 xl:px-3.5"
+            >
+              <svg
+                className="h-4 w-4 shrink-0 text-[var(--primary)]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
               >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+
+              <span className="whitespace-nowrap text-xs font-bold text-[var(--text-white)]">
+                {currentCity}
+              </span>
+
+              <svg
+                className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m19 9-7 7-7-7"
+                />
+              </svg>
+            </button>
+
+            {/* Search */}
+            <button
+              type="button"
+              onClick={handleSearchBtnClick}
+              aria-label="جست‌وجوی گیم‌نت، سیستم یا بازی"
+              className="group flex h-10 w-full flex-1 items-center justify-between gap-3 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 transition-colors hover:border-[var(--primary)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60 xl:px-4"
+            >
+              <span className="flex min-w-0 items-center gap-2.5">
                 <svg
-                  className="h-4 w-4 shrink-0 text-[var(--primary)]"
+                  className="h-4 w-4 shrink-0 text-[var(--primary)] transition-transform group-hover:scale-110"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
                   strokeWidth={2}
                   aria-hidden="true"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
+                  <circle cx="11" cy="11" r="7" />
+                  <path strokeLinecap="round" d="m20 20-3.5-3.5" />
                 </svg>
 
-                <span className="whitespace-nowrap text-xs font-bold text-[var(--text-white)]">
-                  {currentCity}
+                <span className="truncate text-xs text-[var(--text-subtle)] transition-colors group-hover:text-[var(--text-muted)]">
+                  جست‌وجوی گیم‌نت، سیستم یا بازی…
                 </span>
+              </span>
 
-                <svg
-                  className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="m19 9-7 7-7-7"
-                  />
-                </svg>
-              </button>
+              <span className="hidden shrink-0 rounded border border-[var(--border-subtle)] bg-[var(--foreground)]/40 px-2 py-1 text-xs font-medium text-[var(--text-muted)] xl:inline-flex">
+                /
+              </span>
+            </button>
 
-              {/* Search */}
-              <button
-                type="button"
-                onClick={handleSearchBtnClick}
-                aria-label="جست‌وجوی گیم‌نت، سیستم یا بازی"
-                className="group flex h-10 max-w-[300px] flex-1 items-center justify-between gap-3 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 transition-colors hover:border-[var(--primary)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60 xl:px-4"
-              >
-                <span className="flex min-w-0 items-center gap-2.5">
-                  <svg
-                    className="h-4 w-4 shrink-0 text-[var(--primary)] transition-transform group-hover:scale-110"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    aria-hidden="true"
-                  >
-                    <circle cx="11" cy="11" r="7" />
-                    <path strokeLinecap="round" d="m20 20-3.5-3.5" />
-                  </svg>
-
-                  <span className="truncate text-xs text-[var(--text-subtle)] transition-colors group-hover:text-[var(--text-muted)]">
-                    جست‌وجوی گیم‌نت، سیستم یا بازی…
-                  </span>
-                </span>
-
-                <span className="hidden shrink-0 rounded border border-[var(--border-subtle)] bg-[var(--foreground)]/40 px-2 py-1 text-xs font-medium text-[var(--text-muted)] xl:inline-flex">
-                  /
-                </span>
-              </button>
-
-              {/* Actions */}
-              <div className="flex shrink-0 items-center gap-2">
-                {/* Account menu — desktop */}
-                {isLoggedIn ? (
-                  <div ref={desktopAccountMenuRef} className="relative">
-                    <button
-                      ref={desktopAccountButtonRef}
-                      type="button"
-                      onClick={() =>
-                        setIsAccountMenuOpen((previous) => !previous)
-                      }
-                      aria-label="پروفایل"
-                      aria-haspopup="menu"
-                      aria-expanded={isAccountMenuOpen}
-                      className="relative flex h-10 w-10 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
-                    >
-                      <svg
-                        className="h-5 w-5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={1.7}
-                        aria-hidden="true"
-                      >
-                        <circle cx="12" cy="8" r="3.5" />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M5 20a7 7 0 0114 0"
-                        />
-                      </svg>
-                      {unreadCount > 0 && (
-                        <span
-                          className="absolute -top-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] text-[10px] font-bold text-on-primary px-1"
-                          aria-label={`${toPersianDigits(unreadCount)} اعلان خوانده‌نشده`}
-                        >
-                          {notificationBadge}
-                        </span>
-                      )}
-                    </button>
-
-                    {isAccountMenuOpen && renderAccountDropdownContent()}
-                  </div>
-                ) : (
-                  <Link
-                    href="/profile"
-                    className="flex h-10 items-center gap-1.5 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 text-xs font-bold text-[var(--text-white)] hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] transition-colors"
+            {/* Actions */}
+            <div className="flex shrink-0 items-center gap-2">
+              {/* Account menu — desktop */}
+              {isLoggedIn ? (
+                <div ref={desktopAccountMenuRef} className="relative">
+                  <button
+                    ref={desktopAccountButtonRef}
+                    type="button"
+                    onClick={() =>
+                      setIsAccountMenuOpen((previous) => !previous)
+                    }
+                    aria-label="پروفایل"
+                    aria-haspopup="menu"
+                    aria-expanded={isAccountMenuOpen}
+                    className="relative flex h-10 w-10 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
                   >
                     <svg
-                      className="h-4 w-4"
+                      className="h-5 w-5"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth={1.8}
+                      strokeWidth={1.7}
+                      aria-hidden="true"
                     >
                       <circle cx="12" cy="8" r="3.5" />
                       <path
@@ -668,10 +635,40 @@ export const Header: React.FC<HeaderProps> = ({
                         d="M5 20a7 7 0 0114 0"
                       />
                     </svg>
-                    <span>ورود / حساب</span>
-                  </Link>
-                )}
-              </div>
+                    {unreadCount > 0 && (
+                      <span
+                        className="absolute -top-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] text-[10px] font-bold text-on-primary px-1"
+                        aria-label={`${toPersianDigits(unreadCount)} اعلان خوانده‌نشده`}
+                      >
+                        {notificationBadge}
+                      </span>
+                    )}
+                  </button>
+
+                  {isAccountMenuOpen && renderAccountDropdownContent()}
+                </div>
+              ) : (
+                <Link
+                  href="/profile"
+                  className="flex h-10 items-center gap-1.5 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 text-xs font-bold text-[var(--text-white)] hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] transition-colors"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.8}
+                  >
+                    <circle cx="12" cy="8" r="3.5" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M5 20a7 7 0 0114 0"
+                    />
+                  </svg>
+                  <span>ورود / حساب</span>
+                </Link>
+              )}
             </div>
           </div>
         </div>
