@@ -100,6 +100,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Always complete local logout even if remote logout fails
     } finally {
       clearTokens();
+      try {
+        localStorage.removeItem(AUTH_USER_KEY);
+      } catch {
+        // Ignore
+      }
       setUser(null);
     }
   }, []);
