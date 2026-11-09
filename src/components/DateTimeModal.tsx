@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { generateTenDays, DateOption } from "@/lib/dates";
 import { TimeSlotOption } from "@/lib/slots";
 import { formatPrice, toPersianDigits } from "@/lib/format";
-import { formatClock } from "@/lib/reservationUi";
+import { formatClock, formatSlotHourEnglish } from "@/lib/reservationUi";
 import { gamingCenterService } from "@/services/gamingCenterService";
 import { Icon } from "@/components/ui/Icon";
 import { CartItem } from "./CartModal";
@@ -63,7 +63,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
       .then((rawSlots) => {
         if (abortController.signal.aborted) return;
         if (Array.isArray(rawSlots)) {
-          const mapped: TimeSlotOption[] = rawSlots
+          const mapped: (TimeSlotOption & { hourNumber?: string })[] = rawSlots
             .filter((s) => Boolean(s?.startTime))
             .map((s, idx) => {
               const label =
@@ -75,6 +75,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
                 id: s.startTime || `slot-${idx}`,
                 timeLabel: label,
                 startHour: idx,
+                hourNumber: formatSlotHourEnglish(s.startTime),
                 isAvailable: isAvail,
               };
             });
@@ -262,9 +263,9 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
             </div>
 
             {isLoadingSlots && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2" aria-busy="true">
+              <div className="flex flex-wrap gap-2.5 sm:gap-3" aria-busy="true">
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="h-11 rounded-card bg-[var(--foreground)]/40 animate-pulse" />
+                  <div key={i} className="h-11 w-14 rounded-card bg-[var(--foreground)]/40 animate-pulse" />
                 ))}
               </div>
             )}
@@ -282,28 +283,32 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
             )}
 
             {!isLoadingSlots && !slotsError && timeSlots.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
                 {timeSlots.map((slot) => {
                   const isSelected = selectedSlotIds.includes(slot.id);
                   const isAvailable = slot.isAvailable !== false;
+                  const hourNum = (slot as { hourNumber?: string }).hourNumber || slot.timeLabel;
                   return (
                     <button
                       key={slot.id}
                       type="button"
                       disabled={!isAvailable}
                       onClick={() => handleToggleSlot(slot.id)}
-                      className={`h-11 rounded-card flex items-center justify-between px-3 text-xs font-bold border transition-all ${
+                      title={isAvailable ? `${hourNum}:00 (${slot.timeLabel})` : "ساعت ناموجود"}
+                      className={`relative flex h-11 min-w-[3.25rem] items-center justify-center px-3.5 text-base font-bold rounded-card border transition-all ${
                         !isAvailable
                           ? "bg-[var(--foreground)]/20 border-transparent text-[var(--text-subtle)] line-through cursor-not-allowed opacity-50"
                           : isSelected
-                            ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-bold shadow-md cursor-pointer"
-                            : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)] cursor-pointer"
+                            ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-black shadow-md cursor-pointer"
+                            : "bg-[var(--foreground)]/50 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--primary)] hover:text-[var(--primary)] cursor-pointer"
                       }`}
                     >
-                      <span>{slot.timeLabel}</span>
+                      <span dir="ltr" className="font-mono text-base font-bold">
+                        {hourNum}
+                      </span>
                       {isSelected && (
-                        <span className="w-4 h-4 rounded-full bg-[#101014] text-[var(--primary)] text-xs flex items-center justify-center font-bold">
-                          <Icon name="check" size={12} />
+                        <span className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-[#101014] text-[var(--primary)] text-xs flex items-center justify-center font-bold">
+                          <Icon name="check" size={10} />
                         </span>
                       )}
                     </button>

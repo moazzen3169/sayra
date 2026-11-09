@@ -6,7 +6,7 @@ import { isAbortError } from "@/lib/api/client";
 import { generateDays, mapCalendarDaysToDateOptions } from "@/lib/dates";
 import type { DateOption } from "@/lib/dates";
 import { formatPrice, toEnglishDigits, toPersianDigits } from "@/lib/format";
-import { formatClock, getErrorMessage } from "@/lib/reservationUi";
+import { formatClock, formatSlotHourEnglish, getErrorMessage } from "@/lib/reservationUi";
 import { calendarService } from "@/services/calendarService";
 import { gamingCenterService } from "@/services/gamingCenterService";
 import type { AvailabilitySlot } from "@/services/gamingCenterService";
@@ -25,6 +25,7 @@ interface SlotView {
   endTime?: string;
   startLabel: string;
   endLabel?: string;
+  hourNumber: string;
 }
 
 type RawSlot = SlotView & { available: boolean };
@@ -48,6 +49,7 @@ function mapSlots(raw: AvailabilitySlot[]): RawSlot[] {
       endTime: s.endTime || undefined,
       startLabel: formatClock(s.startTime, true),
       endLabel: s.endTime ? formatClock(s.endTime, true) : undefined,
+      hourNumber: formatSlotHourEnglish(s.startTime),
       available:
         s.isAvailable !== false &&
         (s.status === undefined || s.status === "AVAILABLE"),
@@ -207,6 +209,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
                 endTime: s.endTime,
                 startLabel: s.startLabel,
                 endLabel: s.endLabel,
+                  hourNumber: s.hourNumber,
               });
             }
           }
@@ -512,13 +515,13 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
 
                 {loading && (
                   <div
-                    className="grid grid-cols-3 gap-2 sm:grid-cols-4"
+                    className="flex flex-wrap gap-2.5 sm:gap-3"
                     aria-busy="true"
                   >
                     {Array.from({ length: 12 }).map((_, i) => (
                       <div
                         key={i}
-                        className="h-16 animate-pulse rounded-card bg-[var(--foreground)]/40"
+                        className="h-12 w-14 animate-pulse rounded-card bg-[var(--foreground)]/40"
                       />
                     ))}
                   </div>
@@ -550,7 +553,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
                   <div
                     role="group"
                     aria-label="ساعت‌های موجود"
-                    className="grid grid-cols-3 gap-2 sm:grid-cols-4"
+                    className="flex flex-wrap items-center gap-2.5 sm:gap-3"
                   >
                     {slots.map((s) => {
                       const ok = isBookable(s.key);
@@ -562,38 +565,27 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
                           aria-pressed={active}
                           disabled={!ok || isSubmitting}
                           onClick={() => toggleSlot(s.key)}
+                          title={ok ? `${s.hourNumber}:00 (${s.startLabel})` : "ساعت ناموجود"}
                           className={cn(
-                            "relative flex h-16 flex-col items-center justify-center gap-0.5 rounded-card border transition-colors active:scale-[0.97]",
+                            "relative flex h-12 min-w-[3.5rem] items-center justify-center px-4 rounded-card border text-base font-bold transition-all active:scale-[0.96]",
                             !ok
-                              ? "cursor-not-allowed border-[var(--border-subtle)] bg-[var(--bg-card)]/50 text-[var(--text-muted)] opacity-60"
+                              ? "cursor-not-allowed border-[var(--border-subtle)] bg-[var(--bg-card)]/40 text-[var(--text-subtle)] line-through opacity-50"
                               : active
-                                ? "border-[var(--primary)] bg-[var(--primary)] text-on-primary"
-                                : "border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] hover:border-[var(--border-color)]"
+                                ? "border-[var(--primary)] bg-[var(--primary)] text-on-primary shadow-md font-black"
+                                : "border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] hover:border-[var(--primary)] hover:text-[var(--primary)] cursor-pointer"
                           )}
                         >
+                          <span dir="ltr" className="font-mono text-base font-bold">
+                            {s.hourNumber}
+                          </span>
                           {active && (
                             <span
                               aria-hidden="true"
-                              className="absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--bg-body)] text-[var(--primary)]"
+                              className="absolute -top-1.5 -left-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--bg-body)] text-[var(--primary)] shadow"
                             >
-                              <Icon name="check" size={16} />
+                              <Icon name="check" size={10} />
                             </span>
                           )}
-                          <span
-                            className={cn(
-                              "text-sm font-bold",
-                              !ok && "line-through"
-                            )}
-                          >
-                            {s.startLabel}
-                          </span>
-                          <span className="text-xs">
-                            {!ok
-                              ? "ناموجود"
-                              : s.endLabel
-                                ? `تا ${s.endLabel}`
-                                : ""}
-                          </span>
                         </button>
                       );
                     })}

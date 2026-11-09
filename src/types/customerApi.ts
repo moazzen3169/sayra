@@ -129,6 +129,8 @@ export interface GameStation {
 export interface AvailabilitySlot {
   startTime: string;
   endTime?: string;
+  durationMinutes?: number;
+  stationId?: string;
   isAvailable?: boolean;
   status?: "AVAILABLE" | "UNAVAILABLE" | string;
 }

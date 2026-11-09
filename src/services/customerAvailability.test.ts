@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
 import { gamingCenterService } from "./gamingCenterService";
 import { allocateItems, isSlotBookable, type AvailabilityMap, type BookingLine, type DeviceGroup } from "@/lib/devices";
-import { formatClock, formatDayLabel } from "@/lib/reservationUi";
+import { formatClock, formatDayLabel, formatSlotHourEnglish } from "@/lib/reservationUi";
+import { normalizeAvailabilitySlots } from "./gamingCenterService";
 
 describe("Phase 8: Customer Booking Calendar and Availability", () => {
   const originalFetch = globalThis.fetch;
@@ -122,6 +123,87 @@ describe("Phase 8: Customer Booking Calendar and Availability", () => {
       // 20:45:00 UTC on Nov 5 is 00:15:00 Tehran on Nov 6
       const clock = formatClock("2026-11-05T20:45:00Z", true);
       expect(clock).toBe("۰۰:۱۵");
+    });
+
+    it("formats slot hours in English digits (12 13 14 15 16 17) based on Asia/Tehran timezone", () => {
+      // UTC 06:30Z = Tehran 10:00
+      expect(formatSlotHourEnglish("2026-11-09T06:30:00.000Z")).toBe("10");
+      // UTC 08:30Z = Tehran 12:00
+      expect(formatSlotHourEnglish("2026-11-09T08:30:00.000Z")).toBe("12");
+      // UTC 09:30Z = Tehran 13:00
+      expect(formatSlotHourEnglish("2026-11-09T09:30:00.000Z")).toBe("13");
+      // UTC 10:30Z = Tehran 14:00
+      expect(formatSlotHourEnglish("2026-11-09T10:30:00.000Z")).toBe("14");
+      // UTC 11:30Z = Tehran 15:00
+      expect(formatSlotHourEnglish("2026-11-09T11:30:00.000Z")).toBe("15");
+      // UTC 12:30Z = Tehran 16:00
+      expect(formatSlotHourEnglish("2026-11-09T12:30:00.000Z")).toBe("16");
+      // UTC 13:30Z = Tehran 17:00
+      expect(formatSlotHourEnglish("2026-11-09T13:30:00.000Z")).toBe("17");
+    });
+  });
+
+  describe("3.1 Nested Station Slots Response Normalization", () => {
+    it("correctly normalizes nested station slots response payload from OpenAPI", async () => {
+      const nestedPayload = [
+        {
+          date: "2026-11-09",
+          gamingCenter: {
+            id: "cmw2lzu520017123lfuvfmtcd",
+            name: "گیمنت کیان",
+            slug: "kian",
+            timeZone: "Asia/Tehran",
+          },
+          station: {
+            id: "cmw2m1m7f001k123lzfbz1wd6",
+            name: "PC #۱",
+            stationType: "PC",
+            hourlyPrice: 10000000,
+          },
+          slots: [
+            {
+              startTime: "2026-11-09T06:30:00.000Z",
+              endTime: "2026-11-09T07:30:00.000Z",
+              durationMinutes: 60,
+              stationId: "cmw2m1m7f001k123lzfbz1wd6",
+              isAvailable: true,
+            },
+            {
+              startTime: "2026-11-09T07:30:00.000Z",
+              endTime: "2026-11-09T08:30:00.000Z",
+              durationMinutes: 60,
+              stationId: "cmw2m1m7f001k123lzfbz1wd6",
+              isAvailable: true,
+            },
+            {
+              startTime: "2026-11-09T08:30:00.000Z",
+              endTime: "2026-11-09T09:30:00.000Z",
+              durationMinutes: 60,
+              stationId: "cmw2m1m7f001k123lzfbz1wd6",
+              isAvailable: true,
+            },
+          ],
+        },
+      ];
+
+      setupMockFetch(() => {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: nestedPayload,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      });
+
+      const slots = await gamingCenterService.getAvailabilitySlots("kian", "2026-11-09", "cmw2m1m7f001k123lzfbz1wd6");
+      expect(slots.length).toBe(3);
+      expect(slots[0].startTime).toBe("2026-11-09T06:30:00.000Z");
+      expect(slots[0].stationId).toBe("cmw2m1m7f001k123lzfbz1wd6");
+      expect(slots[0].isAvailable).toBe(true);
+
+      const hours = slots.map((s) => formatSlotHourEnglish(s.startTime));
+      expect(hours).toEqual(["10", "11", "12"]);
     });
   });
 
