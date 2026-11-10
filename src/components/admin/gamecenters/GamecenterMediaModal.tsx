@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/Icon";
 import { AdminGamecenter } from "@/types/admin";
 import { adminService } from "@/services/adminService";
 import { normalizeMediaUrl } from "@/lib/media";
+import { AppImage } from "@/components/common/AppImage";
 
 interface GamecenterMediaModalProps {
   isOpen: boolean;
@@ -227,12 +228,13 @@ export const GamecenterMediaModal: React.FC<GamecenterMediaModalProps> = ({
                   className="group relative rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-card)] flex flex-col"
                 >
                   <div className="relative aspect-video w-full bg-[var(--foreground)]/30 overflow-hidden">
-                    <img
+                    <AppImage
                       src={normalizeMediaUrl(m.url)}
                       alt={m.altText || "تصویر گیمنت"}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      objectFit="cover"
                     />
-                    <span className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-black/70 text-white">
+                    <span className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-black/70 text-white z-10">
                       {m.purpose === "COVER" ? "کاور" : m.purpose === "LOGO" ? "لوگو" : "گالری"}
                     </span>
                   </div>

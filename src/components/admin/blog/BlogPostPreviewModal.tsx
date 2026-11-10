@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { BlogArticleContent } from "@/components/blog/BlogArticleContent";
+import { AppImage } from "@/components/common/AppImage";
 import type { BlogPostDetail } from "@/types/blog";
 
 interface BlogPostPreviewModalProps {
@@ -91,14 +92,12 @@ export const BlogPostPreviewModal: React.FC<BlogPostPreviewModalProps> = ({
         {/* Cover Image */}
         {post.coverUrl && (
           <div className="relative w-full h-64 md:h-80 rounded-card overflow-hidden bg-[var(--foreground)] border border-[var(--border-subtle)]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <AppImage
               src={post.coverUrl}
+              fallbackSrc="/img/gamnet-1.webp"
               alt={post.title}
               className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = "none";
-              }}
+              objectFit="cover"
             />
           </div>
         )}

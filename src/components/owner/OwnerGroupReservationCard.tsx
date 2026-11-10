@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/carousel";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatReservationWhen, getPaymentLabel, stationImageFor } from "@/lib/reservationUi";
+import { AppImage } from "@/components/common/AppImage";
 import type { OwnerGroupBookingItem } from "@/lib/ownerGroupReservationGrouping";
 
 interface OwnerGroupReservationCardProps {
@@ -120,17 +121,12 @@ export const OwnerGroupReservationCard: React.FC<OwnerGroupReservationCardProps>
                     </span>
 
                     <div className="w-full aspect-[4/3] rounded-child bg-[var(--foreground)]/40 border border-[var(--border-subtle)] flex items-center justify-center p-1.5 overflow-hidden">
-                      <img
+                      <AppImage
                         src={imgSrc}
+                        fallbackSrc={fallback}
                         alt={device.stationName}
                         className="w-full h-full object-contain"
-                        loading="lazy"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          if (target.src !== fallback) {
-                            target.src = fallback;
-                          }
-                        }}
+                        objectFit="contain"
                       />
                     </div>
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatReservationWhen, mapsUrl, stationImageFor } from "@/lib/reservationUi";
+import { AppImage } from "@/components/common/AppImage";
 import type { Reservation } from "@/types/reservation";
 
 interface ReservationHistoryCardProps {
@@ -66,10 +67,12 @@ export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({ 
       <div className="flex items-center justify-between gap-3 min-w-0">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-11 h-11 shrink-0 rounded-card bg-[var(--foreground)]/50 border border-[var(--border-subtle)] flex items-center justify-center p-1.5 overflow-hidden">
-            <img
+            <AppImage
               src={stationImageFor(reservation.stationSnapshot?.stationType)}
+              fallbackSrc={stationImageFor(reservation.stationSnapshot?.stationType)}
               alt={reservation.stationSnapshot?.name ?? "ایستگاه"}
               className="w-full h-full object-contain"
+              objectFit="contain"
             />
           </div>
           <div className="flex flex-col min-w-0">

@@ -15,6 +15,7 @@ import type {
 } from "@/types/blog";
 import type { TagDto, AuthorProfileDto } from "@/types/blogApi";
 import { adminService } from "@/services/adminService";
+import { AppImage } from "@/components/common/AppImage";
 
 interface BlogPostFormModalProps {
   isOpen: boolean;
@@ -868,14 +869,12 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
 
               {coverUrl && (
                 <div className="w-28 h-20 rounded-card overflow-hidden bg-[var(--foreground)] border border-[var(--border-subtle)] shrink-0 relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <AppImage
                     src={coverUrl}
+                    fallbackSrc="/img/gamnet-1.webp"
                     alt="پیش‌نمایش تصویر"
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = "none";
-                    }}
+                    objectFit="cover"
                   />
                 </div>
               )}

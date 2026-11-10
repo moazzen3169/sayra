@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
+import { AppImage } from "@/components/common/AppImage";
 import { useOwner } from "@/context/OwnerContext";
 import { isAbortError } from "@/lib/api/client";
 import { formatPrice, toPersianDigits } from "@/lib/format";
@@ -912,15 +913,12 @@ export default function OwnerDiscountsPage() {
                 <div className="w-full flex flex-col bg-[var(--bg-card)] rounded-card overflow-hidden border border-[var(--primary)]/50 shadow-xl relative">
                   {/* Image & Badges Container */}
                   <div className="relative w-full aspect-[16/10] bg-[#151518] overflow-hidden">
-                    <img
+                    <AppImage
                       src="/context/sayra-slide-1.jpg"
-                      onError={(e) => {
-                        // Fallback image if local context photo is missing
-                        (e.target as HTMLImageElement).src =
-                          "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=800&auto=format&fit=crop";
-                      }}
+                      fallbackSrc="/img/gamnet-1.webp"
                       alt={center?.name ?? "گیمنت"}
                       className="w-full h-full object-cover"
+                      objectFit="cover"
                     />
 
                     {/* Discount Badge (Top-Left) */}
