@@ -391,6 +391,7 @@ export interface PaymentVerifyPostPayload {
 export interface PaymentVerifyResponse {
   success?: boolean;
   paymentState?: "UNPAID" | "PENDING" | "PARTIALLY_PAID" | "PAID" | "REFUNDED" | "OVERPAID" | "FAILED" | "CANCELED";
+  paymentStatus?: "INITIATED" | "PAID" | "FAILED" | "CANCELLED" | "EXPIRED" | string;
   reservationStatus?: string;
   transactionId?: string;
   trackingCode?: string;
@@ -398,6 +399,9 @@ export interface PaymentVerifyResponse {
   refId?: string;
   cardPan?: string;
   message?: string;
+  reservationId?: string;
+  groupBookingId?: string;
+  holdId?: string;
   [key: string]: unknown;
 }
 

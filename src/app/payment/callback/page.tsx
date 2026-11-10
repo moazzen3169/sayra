@@ -29,6 +29,10 @@ function PaymentCallbackContent() {
       searchParams.get("Status") ||
       searchParams.get("status") ||
       "";
+    const paramPaymentId =
+      searchParams.get("paymentId") ||
+      searchParams.get("id") ||
+      "";
     const paramReservationId =
       searchParams.get("reservationId") ||
       searchParams.get("orderId") ||
@@ -39,6 +43,7 @@ function PaymentCallbackContent() {
       "";
 
     const draft = bookingDraftStorage.get();
+    const paymentId = paramPaymentId || draft?.paymentId;
     const reservationId = paramReservationId || draft?.reservationId;
     const gamingCenterId = paramGamingCenterId || draft?.gamingCenterId;
 
@@ -46,15 +51,14 @@ function PaymentCallbackContent() {
     if (status && status.toUpperCase() === "NOK") {
       router.replace(
         `/payment/failed?status=CANCELLED&reservationId=${encodeURIComponent(
-          reservationId || ""
+          reservationId || draft?.holdId || ""
         )}&message=${encodeURIComponent("پرداخت توسط کاربر لغو گردید.")}`
       );
       return;
     }
 
-    if (!reservationId || !gamingCenterId) {
-      // اگر اطلاعات شناسایی رزرو پیدا نشد
-      setErrorText("اطلاعات رزرو جهت تأیید تراکنش یافت نشد.");
+    if (!paymentId && (!reservationId || !gamingCenterId)) {
+      setErrorText("اطلاعات پرداخت یا رزرو جهت تأیید تراکنش یافت نشد.");
       return;
     }
 
@@ -62,72 +66,141 @@ function PaymentCallbackContent() {
       try {
         setStatusText("در حال تأیید تراکنش با درگاه بانکی...");
 
-        // فراخوانی متد رسمی GET /gamingCenters/{id}/reservation/{id}/payments/verify طبق OpenAPI
-        const verifyRes = await paymentService.verifyPaymentRedirect({
-          gamingCenterId,
-          reservationId,
-          authority: authority || undefined,
-          status: status || undefined,
-        });
+        // در معماری جدید Payment-First:
+        // فراخوانی اندپوینت POST /api/v1/payments/:paymentId/verify
+        if (paymentId) {
+          const verifyRes = await paymentService.verifyPayment(paymentId, {
+            authority: authority || undefined,
+            status: status || undefined,
+          });
 
-        const paymentState = (verifyRes.paymentState || "PAID").toUpperCase();
+          const pState = (
+            verifyRes.paymentStatus ||
+            verifyRes.paymentState ||
+            "PAID"
+          ).toUpperCase();
 
-        if (paymentState === "PAID") {
-          // پاک کردن درفت موقت
-          bookingDraftStorage.clear();
-          const trk = verifyRes.trackingCode || verifyRes.transactionId || verifyRes.refId || "";
-          router.replace(
-            `/payment/success?reservationId=${encodeURIComponent(
-              reservationId
-            )}&trackingCode=${encodeURIComponent(trk)}&amount=${encodeURIComponent(
-              String(verifyRes.amount || draft?.grandTotal || "")
-            )}`
-          );
-        } else if (paymentState === "PENDING") {
-          router.replace(
-            `/payment/failed?status=PENDING&reservationId=${encodeURIComponent(
-              reservationId
-            )}&message=${encodeURIComponent(
-              "تراکنش در انتظار تایید نهایی درگاه بانکی است."
-            )}`
-          );
-        } else {
-          router.replace(
-            `/payment/failed?status=${paymentState}&reservationId=${encodeURIComponent(
-              reservationId
-            )}&message=${encodeURIComponent(
-              verifyRes.message || "پرداخت ناموفق بود یا توسط بانک تایید نشد."
-            )}`
-          );
+          if (pState === "PAID" || verifyRes.success === true) {
+            bookingDraftStorage.clear();
+            const resId =
+              verifyRes.reservationId ||
+              verifyRes.groupBookingId ||
+              reservationId ||
+              draft?.holdId ||
+              "";
+            const trk =
+              verifyRes.trackingCode ||
+              verifyRes.transactionId ||
+              verifyRes.refId ||
+              "";
+            router.replace(
+              `/payment/success?reservationId=${encodeURIComponent(
+                resId
+              )}&trackingCode=${encodeURIComponent(trk)}&amount=${encodeURIComponent(
+                String(verifyRes.amount || draft?.grandTotal || "")
+              )}`
+            );
+            return;
+          } else if (pState === "PENDING" || pState === "INITIATED") {
+            router.replace(
+              `/payment/failed?status=PENDING&reservationId=${encodeURIComponent(
+                reservationId || ""
+              )}&message=${encodeURIComponent(
+                "تراکنش در انتظار تایید نهایی درگاه بانکی است."
+              )}`
+            );
+            return;
+          } else {
+            router.replace(
+              `/payment/failed?status=${pState}&reservationId=${encodeURIComponent(
+                reservationId || ""
+              )}&message=${encodeURIComponent(
+                verifyRes.message || "پرداخت ناموفق بود یا توسط بانک تایید نشد."
+              )}`
+            );
+            return;
+          }
+        }
+
+        // fallback قدیمی برای رزروهای مستقیم گذشته:
+        // فراخوانی متد GET /gamingCenters/{id}/reservation/{id}/payments/verify طبق OpenAPI
+        if (gamingCenterId && reservationId) {
+          const verifyRes = await paymentService.verifyPaymentRedirect({
+            gamingCenterId,
+            reservationId,
+            authority: authority || undefined,
+            status: status || undefined,
+          });
+
+          const paymentState = (verifyRes.paymentState || "PAID").toUpperCase();
+
+          if (paymentState === "PAID") {
+            bookingDraftStorage.clear();
+            const trk =
+              verifyRes.trackingCode ||
+              verifyRes.transactionId ||
+              verifyRes.refId ||
+              "";
+            router.replace(
+              `/payment/success?reservationId=${encodeURIComponent(
+                reservationId
+              )}&trackingCode=${encodeURIComponent(
+                trk
+              )}&amount=${encodeURIComponent(
+                String(verifyRes.amount || draft?.grandTotal || "")
+              )}`
+            );
+            return;
+          } else if (paymentState === "PENDING") {
+            router.replace(
+              `/payment/failed?status=PENDING&reservationId=${encodeURIComponent(
+                reservationId
+              )}&message=${encodeURIComponent(
+                "تراکنش در انتظار تایید نهایی درگاه بانکی است."
+              )}`
+            );
+            return;
+          } else {
+            router.replace(
+              `/payment/failed?status=${paymentState}&reservationId=${encodeURIComponent(
+                reservationId
+              )}&message=${encodeURIComponent(
+                verifyRes.message || "پرداخت ناموفق بود یا توسط بانک تایید نشد."
+              )}`
+            );
+            return;
+          }
         }
       } catch (err: any) {
         console.error("Payment verify error:", err);
         const errMessage = getErrorMessage(err);
 
-        // استعلام مجدد وضعیت از طریق status endpoint
-        try {
-          const statusRes = await paymentService.getPaymentStatus(
-            gamingCenterId,
-            reservationId
-          );
-          if (statusRes.paymentState === "PAID") {
-            bookingDraftStorage.clear();
-            router.replace(
-              `/payment/success?reservationId=${encodeURIComponent(
-                reservationId
-              )}&trackingCode=${encodeURIComponent(
-                statusRes.trackingCode || ""
-              )}&amount=${encodeURIComponent(String(statusRes.amount || ""))}`
+        // در صورت وجود گیم‌نت و شناسه رزرو، استعلام وضعیت قدیمی بررسی می‌شود
+        if (gamingCenterId && reservationId) {
+          try {
+            const statusRes = await paymentService.getPaymentStatus(
+              gamingCenterId,
+              reservationId
             );
-            return;
+            if (statusRes.paymentState === "PAID") {
+              bookingDraftStorage.clear();
+              router.replace(
+                `/payment/success?reservationId=${encodeURIComponent(
+                  reservationId
+                )}&trackingCode=${encodeURIComponent(
+                  statusRes.trackingCode || ""
+                )}&amount=${encodeURIComponent(String(statusRes.amount || ""))}`
+              );
+              return;
+            }
+          } catch {
+            // ignore status fallback failure
           }
-        } catch {
-          // ignore status fallback failure
         }
 
         router.replace(
           `/payment/failed?status=UNKNOWN&reservationId=${encodeURIComponent(
-            reservationId
+            reservationId || ""
           )}&message=${encodeURIComponent(
             errMessage || "عدم امکان تعیین قطعی نتیجه پرداخت"
           )}`

@@ -124,7 +124,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
 
-  const { submit, isSubmitting, error: apiError } =
+  const { checkout, submit, isSubmitting, error: apiError } =
     useGroupReservation(gamingCenterSlug);
 
   const isActionBusy = isSubmitting || isPaying;
@@ -457,45 +457,66 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
     };
 
     try {
-      // ۱. ثبت رزرو گروهی در بک‌اند
-      const res = await submit(payload);
+      // طبق مدل جدید Payment-First:
+      // هیچ رزرو واقعی با وضعیت UNPAID ثبت نمی‌شود.
+      // ابتدا checkout فراخوانی می‌شود تا BookingHold با وضعیت ACTIVE ثبت و توکن و paymentUrl درگاه بانکی بازگردانده شود.
+      try {
+        const checkoutRes = await checkout(payload);
 
-      // ذخیره شناسه رزرو در درفت
-      bookingDraftStorage.update({
-        reservationId: res.id,
-        gamingCenterId: res.gamingCenterId || gamingCenterId,
-      });
+        // ذخیره شناسه هولد و پرداخت در درفت جهت بازیابی و تأیید در بازگشت از درگاه
+        bookingDraftStorage.update({
+          holdId: checkoutRes.holdId,
+          paymentId: checkoutRes.paymentId,
+          paymentUrl: checkoutRes.paymentUrl,
+          holdExpiresAt: checkoutRes.expiresAt,
+          gamingCenterId: checkoutRes.gamingCenterId || gamingCenterId,
+          grandTotal: checkoutRes.amount || estimate,
+        });
 
-      // ۲. ایجاد پرداخت طبق OpenAPI: POST /gamingCenters/{id}/reservation/{id}/payments/init
-      const resolvedCenterId = res.gamingCenterId || gamingCenterId;
-      if (resolvedCenterId) {
-        setIsPaying(true);
-        const idempotencyKey = createIdempotencyKey();
-
-        try {
-          const payRes = await paymentService.initPayment(
-            resolvedCenterId,
-            res.id,
-            idempotencyKey
-          );
-
-          if (payRes.paymentUrl) {
-            // انتقال به درگاه پرداخت
-            window.location.href = payRes.paymentUrl;
-            return;
-          }
-        } catch (payErr: any) {
-          // اگر پرداخت آنلاین با خطا مواجه شد، کاربر را به صفحه رزرو ایجادشده می‌بریم تا تلاش مجدد کند
-          console.error("Payment init error:", payErr);
-          router.push(`/reservations/${encodeURIComponent(res.id)}?paymentError=1`);
+        if (checkoutRes.paymentUrl) {
+          setIsPaying(true);
+          window.location.href = checkoutRes.paymentUrl;
           return;
-        } finally {
-          setIsPaying(false);
         }
-      }
+      } catch (checkoutErr: any) {
+        // در صورتی که اندپوینت جدید با 404 مواجه شود، با رعایت سازگاری عقب‌رو به سیستم سابق فال‌بک می‌شود
+        if (checkoutErr?.status !== 404 && checkoutErr?.code !== "NOT_FOUND") {
+          throw checkoutErr;
+        }
 
-      // در صورتی که پرداخت بدون URL بود یا پرداخت نقدی/حضوری پشتیبانی شد
-      onSuccess(res);
+        // fallback قدیمی: ثبت مستقیم رزرو و init پرداخت
+        const res = await submit(payload);
+        bookingDraftStorage.update({
+          reservationId: res.id,
+          gamingCenterId: res.gamingCenterId || gamingCenterId,
+        });
+
+        const resolvedCenterId = res.gamingCenterId || gamingCenterId;
+        if (resolvedCenterId) {
+          setIsPaying(true);
+          const idempotencyKey = createIdempotencyKey();
+          try {
+            const payRes = await paymentService.initPayment(
+              resolvedCenterId,
+              res.id,
+              idempotencyKey
+            );
+            if (payRes.paymentUrl) {
+              window.location.href = payRes.paymentUrl;
+              return;
+            }
+          } catch (payErr: any) {
+            console.error("Payment init error:", payErr);
+            router.push(`/reservations/${encodeURIComponent(res.id)}?paymentError=1`);
+            return;
+          } finally {
+            setIsPaying(false);
+          }
+        }
+
+        onSuccess(res);
+        return;
+      }
     } catch (err: any) {
       if (err?.status === 401 || err?.code === "UNAUTHORIZED") {
         setIsAuthModalOpen(true);

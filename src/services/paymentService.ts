@@ -98,6 +98,33 @@ export const paymentService = {
   },
 
   /**
+   * تأیید و اعتبارسنجی پرداخت متمرکز سمت سرور (Authoritative Verification)
+   * POST /api/v1/payments/:paymentId/verify
+   * در معماری جدید، فرانت‌اند پس از بازگشت از درگاه این اندپوینت را صدا می‌زند.
+   * سرور مستقیماً با وب‌سرویس زیبال/زرین‌پال تراکنش و مبلغ را تأیید کرده و
+   * در صورت موفقیت، BookingHold به رزرو قطعی تبدیل می‌گردد.
+   */
+  async verifyPayment(
+    paymentId: string,
+    payload?: { authority?: string; status?: string; trackId?: string },
+    signal?: AbortSignal
+  ): Promise<PaymentVerifyResponse> {
+    if (!paymentId?.trim()) throw new Error("شناسه پرداخت (paymentId) نامعتبر است.");
+
+    const response = await apiClient.post<PaymentVerifyResponse | { data?: PaymentVerifyResponse }>(
+      ENDPOINTS.payment.verifyPayment(paymentId.trim()),
+      payload ?? {},
+      { signal }
+    );
+
+    const resData = response.data;
+    if (resData && typeof resData === "object" && "data" in resData && (resData as { data?: PaymentVerifyResponse }).data) {
+      return (resData as { data: PaymentVerifyResponse }).data;
+    }
+    return resData as PaymentVerifyResponse;
+  },
+
+  /**
    * استعلام وضعیت فعلی پرداخت رزرو
    * GET /gamingCenters/{gamingCenterId}/reservation/{reservationId}/payments/status
    */

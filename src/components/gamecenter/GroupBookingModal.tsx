@@ -85,7 +85,7 @@ export const GroupBookingModal: React.FC<GroupBookingModalProps> = ({
     }
   }, [user]);
 
-  const { submit, isSubmitting, error: apiError } = useGroupReservation(gamingCenterSlug);
+  const { checkout, submit, isSubmitting, error: apiError } = useGroupReservation(gamingCenterSlug);
 
   // Station duration constraints analysis
   const durationConstraints = useMemo(() => {
@@ -205,8 +205,21 @@ export const GroupBookingModal: React.FC<GroupBookingModalProps> = ({
     };
 
     try {
-      const res = await submit(payload);
-      onSuccess(res);
+      try {
+        const checkoutRes = await checkout(payload);
+        if (checkoutRes.paymentUrl) {
+          window.location.href = checkoutRes.paymentUrl;
+          return;
+        }
+      } catch (checkoutErr: any) {
+        if (checkoutErr?.status !== 404 && checkoutErr?.code !== "NOT_FOUND") {
+          throw checkoutErr;
+        }
+        // Fallback for legacy environments
+        const res = await submit(payload);
+        onSuccess(res);
+        return;
+      }
     } catch (err: any) {
       if (err?.status === 401 || err?.code === "UNAUTHORIZED") {
         setIsAuthModalOpen(true);
