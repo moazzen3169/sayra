@@ -21,75 +21,9 @@ import {
   formatReservationWhen,
   stationImageFor,
 } from "@/lib/reservationUi";
+import { AppImage } from "@/components/common/AppImage";
 
 import type { GroupBookingItem } from "@/types/reservation";
-
-// =====================================================
-// Device Image Component
-// Prevents infinite image loading errors.
-// =====================================================
-
-interface DeviceImageProps {
-  src: string;
-  fallback: string;
-  alt: string;
-}
-
-const normalizeImageSrc = (src: string) => {
-  if (!src) return "";
-
-  return src.replace(
-    /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(?=\/)/i,
-    ""
-  );
-};
-
-const DeviceImage: React.FC<DeviceImageProps> = ({
-  src,
-  fallback,
-  alt,
-}) => {
-  const normalizedSrc = normalizeImageSrc(src);
-  const normalizedFallback = normalizeImageSrc(fallback);
-
-  const [currentSrc, setCurrentSrc] = useState(normalizedSrc);
-  const [fallbackUsed, setFallbackUsed] = useState(false);
-  const [failed, setFailed] = useState(!normalizedSrc);
-
-  const handleImageError = () => {
-    // Prevent infinite retry attempts.
-    if (
-      fallbackUsed ||
-      !normalizedFallback ||
-      normalizedFallback === currentSrc
-    ) {
-      setFailed(true);
-      return;
-    }
-
-    // Try fallback image only once.
-    setFallbackUsed(true);
-    setCurrentSrc(normalizedFallback);
-  };
-
-  if (failed) {
-    return (
-      <div className="w-full h-full flex items-center justify-center text-center text-[10px] text-[var(--text-muted)]">
-        تصویر در دسترس نیست
-      </div>
-    );
-  }
-
-  return (
-    <img
-      src={currentSrc}
-      alt={alt}
-      className="w-full h-full object-contain"
-      loading="lazy"
-      onError={handleImageError}
-    />
-  );
-};
 
 // =====================================================
 // Group Reservation Card
@@ -277,11 +211,12 @@ export const GroupReservationCard: React.FC<
                     {/* Device Image */}
 
                     <div className="w-full aspect-[4/3] rounded-child bg-[var(--foreground)]/40 border border-[var(--border-subtle)] flex items-center justify-center p-2 overflow-hidden">
-                      <DeviceImage
-                        key={`${device.key}-${imgSrc}`}
+                      <AppImage
                         src={imgSrc}
-                        fallback={fallback}
+                        fallbackSrc={fallback}
                         alt={device.stationName}
+                        className="w-full h-full object-contain"
+                        objectFit="contain"
                       />
                     </div>
 

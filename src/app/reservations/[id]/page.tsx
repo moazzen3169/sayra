@@ -17,6 +17,7 @@ import {
   mapsUrl,
   stationImageFor,
 } from "@/lib/reservationUi";
+import { AppImage } from "@/components/common/AppImage";
 import { reservationService } from "@/services/reservationService";
 import type { Reservation, ReservationStatus, ReservationTimeProposal } from "@/types/reservation";
 
@@ -480,10 +481,12 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-10 h-10 shrink-0 rounded-child bg-[var(--foreground)]/50 border border-[var(--border-subtle)] flex items-center justify-center p-1.5 overflow-hidden">
-                          <img
+                          <AppImage
                             src={item.coverImageUrl || stationImageFor(item.stationType)}
+                            fallbackSrc={stationImageFor(item.stationType)}
                             alt={item.stationName ?? "ایستگاه"}
                             className="w-full h-full object-contain"
+                            objectFit="contain"
                           />
                         </div>
                         <div className="flex flex-col min-w-0">
@@ -508,10 +511,12 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
               ) : (
                 <div className="flex items-center gap-3.5 min-w-0 pb-2">
                   <div className="w-14 h-14 shrink-0 rounded-card bg-[var(--foreground)]/50 border border-[var(--border-subtle)] flex items-center justify-center p-2 overflow-hidden">
-                    <img
+                    <AppImage
                       src={stationImageFor(reservation.stationSnapshot?.stationType)}
+                      fallbackSrc={stationImageFor(reservation.stationSnapshot?.stationType)}
                       alt={reservation.stationSnapshot?.name ?? "ایستگاه"}
                       className="w-full h-full object-contain"
+                      objectFit="contain"
                     />
                   </div>
                   <div className="flex flex-col gap-1 min-w-0">

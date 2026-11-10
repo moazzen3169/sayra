@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { toPersianDigits } from "@/lib/format";
 import { customerNotificationService } from "@/services/customerNotificationService";
+import { AppImage } from "@/components/common/AppImage";
 import { CityModal } from "./CityModal";
 import { NotificationModal } from "./NotificationModal";
 import { SearchModal } from "./SearchModal";
@@ -392,10 +393,12 @@ export const Header: React.FC<HeaderProps> = ({
                 className="flex shrink-0 items-center"
                 aria-label="صفحه اصلی سایرا"
               >
-                <img
+                <AppImage
                   src="/design/sayra.svg"
                   alt="سایرا"
                   className="h-5 w-auto sm:h-6"
+                  loading="eager"
+                  priority
                 />
               </Link>
 
@@ -550,7 +553,13 @@ export const Header: React.FC<HeaderProps> = ({
               className="flex shrink-0 items-center ml-4"
               aria-label="صفحه اصلی سایرا"
             >
-              <img src="/design/sayra.svg" alt="سایرا" className="h-8 w-auto" />
+              <AppImage
+                src="/design/sayra.svg"
+                alt="سایرا"
+                className="h-8 w-auto"
+                loading="eager"
+                priority
+              />
             </Link>
 
             {/* Navigation */}

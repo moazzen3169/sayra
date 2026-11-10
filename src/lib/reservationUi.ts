@@ -123,11 +123,11 @@ export function formatReservationWhen(startIso: string, endIso: string): string 
 export function stationImageFor(stationType?: string): string {
   switch (stationType) {
     case "PLAYSTATION":
-      return "/img/PS5.webp";
+      return "/img/ps5.png";
     case "XBOX":
-      return "/img/xbox.webp";
+      return "/img/xbox.png";
     default:
-      return "/img/pc.webp";
+      return "/img/pc.png";
   }
 }
 

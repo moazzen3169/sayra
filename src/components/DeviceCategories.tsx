@@ -70,30 +70,22 @@ export function mapCatalogDeviceToCategory(device: DeviceCatalogItem): DeviceCat
   };
 }
 
+import { AppImage } from "@/components/common/AppImage";
+
 const CategoryIcon: React.FC<{
   iconType?: DeviceCategory["iconType"];
   imageUrl?: string | null;
 }> = ({ iconType, imageUrl }) => {
   const fallbackSrc = iconType ? imageMap[iconType] : "/img/pc.png";
-  const [imgSrc, setImgSrc] = React.useState<string>(imageUrl || fallbackSrc);
-
-  React.useEffect(() => {
-    setImgSrc(imageUrl || fallbackSrc);
-  }, [imageUrl, fallbackSrc]);
 
   return (
-    <img
-      src={imgSrc}
+    <AppImage
+      src={imageUrl || fallbackSrc}
+      fallbackSrc={fallbackSrc}
       alt=""
       aria-hidden="true"
-      loading="lazy"
-      decoding="async"
-      onError={() => {
-        if (imgSrc !== fallbackSrc) {
-          setImgSrc(fallbackSrc);
-        }
-      }}
       className="h-full w-full object-contain drop-shadow-xl"
+      objectFit="contain"
     />
   );
 };
