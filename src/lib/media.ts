@@ -56,8 +56,12 @@ export function getMediaBaseOrigin(): string {
  */
 export function normalizeMediaUrl(rawUrl?: string | null): string {
   if (!rawUrl || typeof rawUrl !== "string") return "";
-  const trimmed = rawUrl.trim();
+  let trimmed = rawUrl.trim();
   if (!trimmed) return "";
+
+  // Normalize Windows-style backslashes or relative paths like .\public\img\... or ./public/img/...
+  trimmed = trimmed.replace(/\\/g, "/");
+  trimmed = trimmed.replace(/^(\.\/|\/)?public\//, "/");
 
   if (
     trimmed.startsWith("http://") ||

@@ -541,10 +541,28 @@ export const ownerService = {
       }
     }
 
-    const { data } = await apiClient.get<GameStationInfo[]>(ENDPOINTS.owner.stations(centerId), {
+    const { data } = await apiClient.get<any>(ENDPOINTS.owner.stations(centerId), {
       query: Object.keys(query).length > 0 ? query : undefined,
       signal,
     });
+
+    if (Array.isArray(data)) {
+      return data as GameStationInfo[];
+    }
+    if (data && typeof data === "object") {
+      if (Array.isArray(data.data)) {
+        return data.data as GameStationInfo[];
+      }
+      if (data.data && typeof data.data === "object" && Array.isArray(data.data.data)) {
+        return data.data.data as GameStationInfo[];
+      }
+      if (Array.isArray(data.stations)) {
+        return data.stations as GameStationInfo[];
+      }
+      if (Array.isArray(data.items)) {
+        return data.items as GameStationInfo[];
+      }
+    }
     return asArray<GameStationInfo>(data);
   },
 

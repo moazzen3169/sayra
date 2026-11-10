@@ -121,6 +121,89 @@ describe("ownerService: Station & Games Management", () => {
     }
   });
 
+  it("extracts stations from nested pagination envelope ({ data: { data: [...] } })", async () => {
+    const originalGet = apiClient.get;
+    const samplePayload = {
+      data: [
+        {
+          id: "cmw9tkgif000zk9bmr9ek3z85",
+          gamingCenterId: "cmw2lzu520017123lfuvfmtcd",
+          name: "asdasda #1",
+          stationType: "XBOX",
+          deviceTypeId: null,
+          catalogDeviceId: "cmw680iug000hhm6eo0jejtuf",
+          coverImageUrl: "/uploads/7f0815fc-bd2c-4279-9f9c-7a825f7ab207.png",
+          isVip: false,
+          hourlyPrice: 10101010,
+          minRentHours: 1,
+          maxRentHours: 8,
+          defaultDurationHours: 1,
+          incrementMinutes: 30,
+          isActive: true,
+          createdAt: "2026-11-09T22:15:03.832Z",
+          updatedAt: "2026-11-09T22:15:03.832Z",
+        },
+        {
+          id: "cmw8ikyqh002p8quhtmsd9zh2",
+          gamingCenterId: "cmw2lzu520017123lfuvfmtcd",
+          name: "بیلیارد #3",
+          stationType: "PC",
+          deviceTypeId: null,
+          catalogDeviceId: "cmw6874xe000rhm6ep3789a3k",
+          coverImageUrl: "/uploads/cbea77da-e313-4eab-8797-07521b86dadb.png",
+          isVip: false,
+          hourlyPrice: 200000,
+          minRentHours: 1,
+          maxRentHours: 8,
+          defaultDurationHours: 1,
+          incrementMinutes: 30,
+          isActive: true,
+          createdAt: "2026-11-09T00:19:45.498Z",
+          updatedAt: "2026-11-09T00:19:45.498Z",
+        },
+        {
+          id: "cmw7tasit0008bp5ih2bzfc03",
+          gamingCenterId: "cmw2lzu520017123lfuvfmtcd",
+          name: "mamadps #4",
+          stationType: "PLAYSTATION",
+          deviceTypeId: null,
+          catalogDeviceId: "cmw67yses000chm6eh0bwm2o1",
+          coverImageUrl: ".\\public\\img\\ps5.png",
+          isVip: false,
+          hourlyPrice: 185000,
+          minRentHours: 1,
+          maxRentHours: 8,
+          defaultDurationHours: 1,
+          incrementMinutes: 30,
+          isActive: true,
+          createdAt: "2026-11-08T12:32:00.484Z",
+          updatedAt: "2026-11-08T12:32:00.484Z",
+        },
+      ],
+      meta: {
+        total: 15,
+        page: 1,
+        limit: 10,
+        totalPages: 2,
+      },
+    };
+
+    apiClient.get = (async () => ({
+      data: samplePayload,
+    })) as any;
+
+    try {
+      const res = await ownerService.listStations(centerId);
+      expect(res.length).toBe(3);
+      expect(res[0].id).toBe("cmw9tkgif000zk9bmr9ek3z85");
+      expect(res[0].name).toBe("asdasda #1");
+      expect(res[1].name).toBe("بیلیارد #3");
+      expect(res[2].name).toBe("mamadps #4");
+    } finally {
+      apiClient.get = originalGet;
+    }
+  });
+
   it("removes a game and saves the updated games list via PATCH /gamingCenters/{id}", async () => {
     let capturedUrl = "";
     let capturedBody: any = null;
