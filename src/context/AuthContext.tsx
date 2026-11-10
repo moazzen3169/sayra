@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { AUTH_USER_KEY } from "@/lib/api/config";
 import { authService, AuthUser } from "@/services/authService";
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "@/lib/token";
+import { cleanPhoneNumber } from "@/lib/format";
 import { isAbortError } from "@/lib/api/client";
 
 export interface UserProfile {
@@ -118,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const resolvedRole = role || parseJwtRole(currentToken) || "USER";
       const newUser: UserProfile = {
         fullName: fullName || "کاربر سایرا",
-        phone,
+        phone: cleanPhoneNumber(phone),
         role: resolvedRole,
         token: currentToken || undefined,
       };
@@ -149,7 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const updated: UserProfile = {
             id: me.id,
             fullName: me.fullName || prev?.fullName || "",
-            phone: me.phone || prev?.phone || "",
+            phone: cleanPhoneNumber(me.phone || prev?.phone || ""),
             role: resolvedRole,
             token,
           };
@@ -196,7 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const updated: UserProfile = {
               id: me.id,
               fullName: me.fullName || prev?.fullName || "",
-              phone: me.phone || prev?.phone || "",
+              phone: cleanPhoneNumber(me.phone || prev?.phone || ""),
               role: resolvedRole,
               token,
             };
@@ -228,7 +229,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     const updated: UserProfile = {
                       id: freshMe.id,
                       fullName: freshMe.fullName || prev?.fullName || "",
-                      phone: freshMe.phone || prev?.phone || "",
+                      phone: cleanPhoneNumber(freshMe.phone || prev?.phone || ""),
                       role: resolvedRole,
                       token: refreshed.accessToken,
                     };

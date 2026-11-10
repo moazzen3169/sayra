@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
+import { cleanPhoneNumber, isValidIranPhone } from "@/lib/format";
 import type {
   GroupReservation,
   GroupReservationPayload,
@@ -59,8 +60,9 @@ export const groupReservationApi = {
       throw new Error("نام و نام خانوادگی مشتری باید حداقل ۲ کاراکتر باشد.");
     }
 
-    if (!payload.customer?.phone || payload.customer.phone.trim().length < 10) {
-      throw new Error("شماره تلفن مشتری باید حداقل ۱۰ رقم باشد.");
+    const cleanCustomerPhone = cleanPhoneNumber(payload.customer?.phone);
+    if (!isValidIranPhone(cleanCustomerPhone)) {
+      throw new Error("شماره تلفن مشتری باید ۱۱ رقم و با ۰۹ شروع شود.");
     }
 
     const requestBody: Record<string, unknown> = {
@@ -69,7 +71,7 @@ export const groupReservationApi = {
       items: payload.items.map((it) => ({ stationId: it.stationId })),
       customer: {
         fullName: payload.customer.fullName.trim(),
-        phone: payload.customer.phone.trim(),
+        phone: cleanCustomerPhone,
         ...(payload.customer.email?.trim() ? { email: payload.customer.email.trim() } : {}),
       },
       ...(payload.note?.trim() ? { note: payload.note.trim() } : {}),

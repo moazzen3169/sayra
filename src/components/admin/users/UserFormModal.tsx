@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { AdminUser, AdminUserInput } from "@/types/admin";
 import { adminService } from "@/services/adminService";
+import { cleanPhoneNumber, isValidIranPhone } from "@/lib/format";
 
 interface UserFormModalProps {
   isOpen: boolean;
@@ -83,10 +84,10 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
       newErrors.fullName = "نام و نام خانوادگی باید حداقل ۲ کاراکتر باشد";
     }
 
-    const cleanPhone = formData.phone.trim();
+    const cleanPhone = cleanPhoneNumber(formData.phone);
     if (!cleanPhone) {
       newErrors.phone = "شماره همراه را وارد کنید";
-    } else if (!/^09\d{9}$/.test(cleanPhone)) {
+    } else if (!isValidIranPhone(cleanPhone)) {
       newErrors.phone = "شماره همراه باید ۱۱ رقم و با ۰۹ شروع شود";
     }
 
@@ -107,11 +108,16 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
     setIsSubmitting(true);
     setSubmitError(null);
 
+    const payload = {
+      ...formData,
+      phone: cleanPhoneNumber(formData.phone),
+    };
+
     try {
       if (isEdit && initialData) {
-        await adminService.updateUser(initialData.id, formData);
+        await adminService.updateUser(initialData.id, payload);
       } else {
-        await adminService.createUser(formData);
+        await adminService.createUser(payload);
       }
       onSuccess();
       onClose();
