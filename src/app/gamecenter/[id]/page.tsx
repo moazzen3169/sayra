@@ -589,8 +589,10 @@ export default function GameCenterDetailPage({
       {/* مودال تمام‌صفحه‌ی انتخاب روز و ساعت + ثبت رزرو گروهی */}
       {isSheetOpen && detail && selectedStations.length > 0 && (
         <GroupBookingSheet
+          gamingCenterId={detail.center.id}
           gamingCenterSlug={gamingCenterSlug}
           gamingCenterName={detail.center.name}
+          gamingCenterAddress={detail.address}
           stations={selectedStations}
           initialCustomer={
             user ? { fullName: user.fullName, phone: user.phone } : undefined
