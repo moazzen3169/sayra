@@ -106,6 +106,30 @@ export interface PublicGamingCenter {
   raiting?: number;
   comment_count?: number;
   addresses?: GamingCenterAddress[];
+
+  // کاور و تصاویر گیمنت
+  coverImageUrl?: string | null;
+  coverImages?: string[] | null;
+  banner?: string | null;
+
+  // اطلاعات تخفیف و قیمت‌گذاری
+  hasDiscount?: boolean;
+  has_discount?: boolean;
+  pricing?: {
+    originalPrice?: number;
+    discountPercentage?: number;
+    discountAmount?: number;
+    finalPrice?: number;
+    hasDiscount?: boolean;
+  } | null;
+  deviceCounts?: {
+    PC?: number;
+    PLAYSTATION?: number;
+    XBOX?: number;
+    SWITCH?: number;
+    VR?: number;
+    [key: string]: number | undefined;
+  } | null;
 }
 
 export type StationType = "PC" | "PLAYSTATION" | "XBOX" | "SWITCH" | "VR";

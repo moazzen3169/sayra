@@ -12,6 +12,7 @@ export interface GamecenterCardMiniProps {
   rating: number;
   reviewsCount?: number;
   hourlyPrice: number;
+  discountedHourlyPrice?: number;
   discountPercent?: number;
   durationLabel?: string;
   onClick?: (id: string) => void;
@@ -25,10 +26,23 @@ export const GamecenterCardMini: React.FC<GamecenterCardMiniProps> = ({
   rating,
   reviewsCount = 0,
   hourlyPrice,
+  discountedHourlyPrice,
   discountPercent,
-  durationLabel = "1ساعته",
+  durationLabel = "۱ساعته",
   onClick,
 }) => {
+  const hasDiscount = Boolean(
+    (discountedHourlyPrice !== undefined && hourlyPrice > 0 && discountedHourlyPrice < hourlyPrice) ||
+    (discountPercent !== undefined && discountPercent > 0)
+  );
+
+  const effectiveDiscountedPrice =
+    discountedHourlyPrice !== undefined
+      ? discountedHourlyPrice
+      : discountPercent && discountPercent > 0 && hourlyPrice > 0
+      ? Math.max(0, Math.round(hourlyPrice * (1 - discountPercent / 100)))
+      : undefined;
+
   return (
     <Link
       href={`/gamecenter/${id}`}
@@ -37,7 +51,7 @@ export const GamecenterCardMini: React.FC<GamecenterCardMiniProps> = ({
           onClick(id);
         }
       }}
-      className="w-[187px] min-w-[187px] lg:w-[220px] lg:min-w-[220px] shrink-0 bg-[var(--bg-card)] rounded-card overflow-hidden cursor-pointer flex flex-col pb-3 border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all group"
+      className="w-[187px] min-w-[187px] lg:w-[220px] lg:min-w-[220px] shrink-0 bg-[var(--bg-card)] rounded-card overflow-hidden cursor-pointer flex flex-col pb-3 border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all group select-none shadow-sm hover:shadow-md"
     >
       <div className="relative w-full h-[120px] lg:h-[140px] bg-[var(--foreground)] overflow-hidden">
         <SafeImage
@@ -53,7 +67,7 @@ export const GamecenterCardMini: React.FC<GamecenterCardMiniProps> = ({
         ) : null}
       </div>
 
-      <div className="px-3 pt-2.5 flex flex-col gap-1.5">
+      <div className="px-3 pt-2.5 flex flex-col gap-1.5 flex-1">
         <div className="flex items-center gap-1 text-xs text-[var(--primary)] font-bold">
           <span>★ {toPersianDigits(rating.toFixed(1))}</span>
           <span className="text-[var(--text-muted)] font-normal">({toPersianDigits(reviewsCount)})</span>
@@ -63,9 +77,22 @@ export const GamecenterCardMini: React.FC<GamecenterCardMiniProps> = ({
       </div>
 
       <div className="mx-3 mt-3 h-9 rounded-full bg-[var(--foreground)]/50 px-3 flex items-center justify-between text-xs">
-        <span className="font-bold text-[var(--text-white)]">
-          {formatPrice(hourlyPrice)} تومان
-        </span>
+        {hasDiscount && effectiveDiscountedPrice !== undefined ? (
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-[var(--primary)]">
+              {formatPrice(effectiveDiscountedPrice)} تومان
+            </span>
+            {hourlyPrice > 0 && hourlyPrice !== effectiveDiscountedPrice && (
+              <span className="text-xs line-through text-[var(--text-subtle)] font-medium">
+                {formatPrice(hourlyPrice)}
+              </span>
+            )}
+          </div>
+        ) : (
+          <span className="font-bold text-[var(--text-white)]">
+            {formatPrice(hourlyPrice)} تومان
+          </span>
+        )}
         <span className="text-[var(--text-muted)]">/ {durationLabel}</span>
       </div>
     </Link>
