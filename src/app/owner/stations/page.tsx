@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
-import { GamesSection } from "@/components/owner/stations/GamesSection";
+import { StationCategoryGrid } from "@/components/owner/stations/StationCategoryGrid";
 import {
   AddStationModal,
   DeleteStationModal,
@@ -14,20 +14,17 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
-import { SafeImage } from "@/components/ui/SafeImage";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useOwner } from "@/context/OwnerContext";
 import { isAbortError } from "@/lib/api/client";
 import { toPersianDigits } from "@/lib/format";
-import { PLACEHOLDERS } from "@/lib/media";
 import {
   buildStationGroups,
   stationGroupKey,
   stationTypeLabel,
 } from "@/lib/ownerStations";
-import { getErrorMessage, stationImageFor } from "@/lib/reservationUi";
-import { cn } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/reservationUi";
 import { catalogService } from "@/services/catalogService";
 import { normalizeFilterText } from "@/services/gamecentersPageService";
 import type { GameStationInfo } from "@/services/gamingCenterService";
@@ -35,7 +32,8 @@ import { ownerService } from "@/services/ownerService";
 import type { DeviceCatalogItem } from "@/types/catalog";
 
 export default function OwnerStationsPage() {
-  const { centerId, isCenterLoading, verificationStatus } = useOwner();
+  // گیمنت از روی توکن کاربر توسط OwnerContext تشخیص داده می‌شود
+  const { centerId, center, isCenterLoading, verificationStatus } = useOwner();
   const canEdit = verificationStatus === "APPROVED";
 
   // داده‌ها
@@ -48,17 +46,18 @@ export default function OwnerStationsPage() {
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [catalogReload, setCatalogReload] = useState(0);
 
-  // فیلتر و رابط
+  // رابط
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const tableRef = useRef<HTMLElement>(null);
 
   // مودال‌ها (هر لحظه فقط یکی)
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<GameStationInfo | null>(null);
   const [deleting, setDeleting] = useState<GameStationInfo | null>(null);
 
-  // لیست دستگاه‌های گیمنت از GET /gamingCenters/{id}/stations
+  // دستگاه‌های گیمنت: GET /gamingCenters/{id}/stations
   useEffect(() => {
     if (!centerId) return;
     const controller = new AbortController();
@@ -82,7 +81,7 @@ export default function OwnerStationsPage() {
     };
   }, [centerId, reload]);
 
-  // کاتالوگ دستگاه‌ها از GET /catalog/devices (نام و تصویر دسته‌ها + گزینه‌های افزودن)
+  // کاتالوگ: برای نام و تصویر دسته‌ها و گزینه‌های افزودن
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
@@ -115,6 +114,13 @@ export default function OwnerStationsPage() {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  // با انتخاب دسته، صفحه به جدول می‌رود (برای موبایل)
+  useEffect(() => {
+    if (selectedKey) {
+      tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selectedKey]);
+
   const groups = useMemo(
     () => buildStationGroups(stations ?? [], catalogDevices),
     [stations, catalogDevices]
@@ -124,23 +130,39 @@ export default function OwnerStationsPage() {
     [groups, selectedKey]
   );
 
-  const visibleStations = useMemo(() => {
-    let list = stations ?? [];
-    if (selectedGroup) {
-      list = list.filter((s) => stationGroupKey(s) === selectedGroup.key);
-    }
-    const q = normalizeFilterText(search);
-    if (q) {
-      list = list.filter((s) =>
-        normalizeFilterText(`${s.name} ${stationTypeLabel(s.stationType)}`).includes(q)
-      );
-    }
-    return list;
-  }, [stations, selectedGroup, search]);
+  const groupStations = useMemo(
+    () =>
+      selectedGroup
+        ? (stations ?? []).filter((s) => stationGroupKey(s) === selectedGroup.key)
+        : [],
+    [stations, selectedGroup]
+  );
 
-  const hasFilter = !!selectedGroup || !!search.trim();
+  const visibleStations = useMemo(() => {
+    const q = normalizeFilterText(search);
+    if (!q) return groupStations;
+    return groupStations.filter((s) =>
+      normalizeFilterText(`${s.name} ${stationTypeLabel(s.stationType)}`).includes(q)
+    );
+  }, [groupStations, search]);
 
   const refresh = useCallback(() => setReload((v) => v + 1), []);
+
+  const retryCatalog = () => {
+    setCatalogLoading(true);
+    setCatalogReload((v) => v + 1);
+  };
+
+  const retryStations = () => {
+    setStations(null);
+    setStationsError(null);
+    refresh();
+  };
+
+  const handleSelect = (key: string | null) => {
+    setSelectedKey(key);
+    setSearch("");
+  };
 
   const handleSaved = (message: string) => {
     setAddOpen(false);
@@ -150,25 +172,14 @@ export default function OwnerStationsPage() {
     refresh();
   };
 
-  const retryStations = () => {
-    setStations(null);
-    setStationsError(null);
-    refresh();
-  };
-
-  const clearFilters = () => {
-    setSelectedKey(null);
-    setSearch("");
-  };
-
   if (!centerId && !isCenterLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-[var(--bg-body)] text-[var(--text-white)]">
-        <OwnerPageHeader title="دستگاه‌ها و بازی‌ها" backUrl="/owner" />
+        <OwnerPageHeader title="دستگاه‌ها" backUrl="/owner" />
         <main className="mt-16 flex-1 px-4 py-8">
           <EmptyState
             title="گیمنتی پیدا نشد"
-            description="ابتدا گیمنت خود را ثبت کنید، سپس دستگاه‌ها و بازی‌ها را مدیریت کنید."
+            description="ابتدا گیمنت خود را ثبت کنید، سپس دستگاه‌ها را مدیریت کنید."
           />
         </main>
       </div>
@@ -176,11 +187,11 @@ export default function OwnerStationsPage() {
   }
 
   const showSkeleton = stations === null && !stationsError;
-  const hasStations = (stations?.length ?? 0) > 0;
+  const hasStations = (stations?.length ?? 0) > 0 && !stationsError;
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-12 text-[var(--text-white)]">
-      <OwnerPageHeader title="دستگاه‌ها و بازی‌ها" backUrl="/owner" />
+      <OwnerPageHeader title="دستگاه‌ها" backUrl="/owner" />
 
       {toast && (
         <div className="pointer-events-none fixed inset-x-4 top-20 z-60 mx-auto max-w-md">
@@ -196,105 +207,11 @@ export default function OwnerStationsPage() {
       )}
 
       <main className="mx-auto mt-16 flex w-full max-w-[var(--max-mini-app-width)] flex-1 flex-col gap-8 px-4 py-4 lg:px-0">
-        {/* ===== کاتالوگ دستگاه‌ها ===== */}
-        <section className="flex flex-col gap-3">
+        {/* ===== مرحله ۱: دسته‌های دستگاه ===== */}
+        <section className="flex flex-col gap-4">
           <SectionTitle
-            title="کاتالوگ دستگاه‌ها"
-            subtitle="یک کاتالوگ را انتخاب کنید تا دستگاه‌هایش در جدول پایین نمایش داده شود"
-          />
-
-          {catalogError && (
-            <div className="flex items-center justify-between gap-3 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-3 text-xs text-[var(--text-muted)]">
-              <span>نام و تصویر بعضی کاتالوگ‌ها بارگذاری نشد.</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setCatalogLoading(true);
-                  setCatalogReload((v) => v + 1);
-                }}
-                className="h-11 shrink-0 px-2 font-bold text-[var(--primary)] underline"
-              >
-                تلاش دوباره
-              </button>
-            </div>
-          )}
-
-          {showSkeleton && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" aria-busy="true">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-[72px]" />
-              ))}
-            </div>
-          )}
-
-          {hasStations && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              <button
-                type="button"
-                aria-pressed={!selectedGroup}
-                onClick={() => setSelectedKey(null)}
-                className={cn(
-                  "flex items-center gap-3 rounded-card border p-3 text-right transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
-                  !selectedGroup
-                    ? "border-[var(--primary)] bg-[var(--primary-muted)]"
-                    : "border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-color)]"
-                )}
-              >
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-card bg-[var(--foreground)]/50 text-[var(--text-muted)]">
-                  <Icon name="monitor" size={24} />
-                </span>
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="truncate text-sm font-bold">همه دستگاه‌ها</span>
-                  <span className="text-xs text-[var(--text-muted)]">
-                    {toPersianDigits(stations?.length ?? 0)} دستگاه
-                  </span>
-                </span>
-              </button>
-
-              {groups.map((g) => {
-                const active = selectedGroup?.key === g.key;
-                return (
-                  <button
-                    key={g.key}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setSelectedKey(active ? null : g.key)}
-                    className={cn(
-                      "flex items-center gap-3 rounded-card border p-3 text-right transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
-                      active
-                        ? "border-[var(--primary)] bg-[var(--primary-muted)]"
-                        : "border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-color)]"
-                    )}
-                  >
-                    <span className="h-12 w-12 shrink-0 overflow-hidden rounded-card bg-[var(--foreground)]/50">
-                      <SafeImage
-                        src={g.coverImageUrl || stationImageFor(g.deviceType)}
-                        alt=""
-                        fallbackSrc={PLACEHOLDERS.center}
-                        loading="lazy"
-                        className="h-full w-full object-contain p-1"
-                      />
-                    </span>
-                    <span className="flex min-w-0 flex-col gap-0.5">
-                      <span className="truncate text-sm font-bold">{g.name}</span>
-                      <span className="text-xs text-[var(--text-muted)]">
-                        {toPersianDigits(g.count)} دستگاه
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* ===== جدول دستگاه‌ها ===== */}
-        <section className="flex flex-col gap-3">
-          <SectionTitle
-            title={selectedGroup ? `دستگاه‌های «${selectedGroup.name}»` : "همه دستگاه‌ها"}
-            subtitle={
-              stations ? `${toPersianDigits(visibleStations.length)} دستگاه` : undefined
-            }
+            title="دسته‌های دستگاه"
+            subtitle={center?.name ? `دستگاه‌های ${center.name}` : undefined}
             action={
               <Button onClick={() => setAddOpen(true)} disabled={!canEdit}>
                 <span className="flex items-center gap-1.5">
@@ -311,19 +228,23 @@ export default function OwnerStationsPage() {
             </p>
           )}
 
-          {hasStations && (
-            <Input
-              aria-label="جستجوی دستگاه"
-              placeholder="جستجوی نام دستگاه"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          {catalogError && (
+            <div className="flex items-center justify-between gap-3 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-3 text-xs text-[var(--text-muted)]">
+              <span>نام و تصویر بعضی دسته‌ها بارگذاری نشد.</span>
+              <button
+                type="button"
+                onClick={retryCatalog}
+                className="h-11 shrink-0 px-2 font-bold text-[var(--primary)] underline"
+              >
+                تلاش دوباره
+              </button>
+            </div>
           )}
 
           {showSkeleton && (
-            <div className="flex flex-col gap-2" aria-busy="true">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" aria-busy="true">
               {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-14" />
+                <Skeleton key={i} className="h-48" />
               ))}
             </div>
           )}
@@ -343,26 +264,61 @@ export default function OwnerStationsPage() {
             />
           )}
 
-          {hasStations && !stationsError && visibleStations.length === 0 && (
-            <EmptyState
-              title="دستگاهی پیدا نشد"
-              description="فیلتر یا عبارت جستجو را تغییر دهید."
-              actionLabel={hasFilter ? "حذف فیلتر" : undefined}
-              onAction={hasFilter ? clearFilters : undefined}
-            />
-          )}
-
-          {visibleStations.length > 0 && !stationsError && (
-            <StationsTable
-              stations={visibleStations}
-              onEdit={setEditing}
-              onDelete={setDeleting}
+          {hasStations && (
+            <StationCategoryGrid
+              groups={groups}
+              selectedKey={selectedGroup?.key ?? null}
+              onSelect={handleSelect}
             />
           )}
         </section>
 
-        {/* ===== بازی‌های گیمنت ===== */}
-        {centerId && <GamesSection centerId={centerId} onNotify={setToast} />}
+        {/* ===== مرحله ۲: جدول دستگاه‌های دسته‌ی انتخاب‌شده ===== */}
+        {hasStations && (
+          <section ref={tableRef} className="flex scroll-mt-20 flex-col gap-4">
+            {selectedGroup ? (
+              <>
+                <SectionTitle
+                  title={`دستگاه‌های «${selectedGroup.name}»`}
+                  subtitle={`${toPersianDigits(groupStations.length)} دستگاه`}
+                  action={
+                    <Button variant="ghost" onClick={() => handleSelect(null)}>
+                      بستن جدول
+                    </Button>
+                  }
+                />
+
+                {groupStations.length > 5 && (
+                  <Input
+                    aria-label="جستجوی دستگاه"
+                    placeholder="جستجوی نام دستگاه"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                )}
+
+                {visibleStations.length === 0 ? (
+                  <EmptyState
+                    title="دستگاهی پیدا نشد"
+                    description="عبارت جستجو را تغییر دهید."
+                    actionLabel={search ? "پاک کردن جستجو" : undefined}
+                    onAction={search ? () => setSearch("") : undefined}
+                  />
+                ) : (
+                  <StationsTable
+                    stations={visibleStations}
+                    onEdit={setEditing}
+                    onDelete={setDeleting}
+                  />
+                )}
+              </>
+            ) : (
+              <p className="rounded-card border border-dashed border-[var(--border-color)] p-6 text-center text-xs leading-6 text-[var(--text-muted)]">
+                یکی از دسته‌های بالا را انتخاب کنید تا دستگاه‌های آن نمایش داده شود.
+              </p>
+            )}
+          </section>
+        )}
       </main>
 
       {addOpen && centerId && (
@@ -371,10 +327,7 @@ export default function OwnerStationsPage() {
           catalogDevices={catalogDevices}
           catalogLoading={catalogLoading}
           catalogError={catalogError}
-          onRetryCatalog={() => {
-            setCatalogLoading(true);
-            setCatalogReload((v) => v + 1);
-          }}
+          onRetryCatalog={retryCatalog}
           initialMode={selectedGroup && !selectedGroup.catalogId ? "custom" : "catalog"}
           initialCatalogId={selectedGroup?.catalogId ?? undefined}
           initialStationType={selectedGroup?.deviceType}

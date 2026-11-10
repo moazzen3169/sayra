@@ -1,5 +1,10 @@
+import { OwnerAccessGuard } from "@/components/owner/OwnerAccessGuard";
 import { OwnerProvider } from "@/context/OwnerContext";
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
-  return <OwnerProvider>{children}</OwnerProvider>;
+  return (
+    <OwnerAccessGuard>
+      <OwnerProvider>{children}</OwnerProvider>
+    </OwnerAccessGuard>
+  );
 }
