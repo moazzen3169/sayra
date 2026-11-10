@@ -26,7 +26,7 @@ export const BookingStepper: React.FC<BookingStepperProps> = ({
   className = "",
 }) => {
   return (
-    <div className={`w-full py-2.5 px-3 bg-[var(--bg-card)]/70 backdrop-blur-sm border-b border-[var(--border-subtle)] ${className}`} dir="rtl">
+    <div className={`w-full py-2.5 px-6  ${className}`} dir="rtl">
       <div className="max-w-[720px] mx-auto flex items-center justify-between relative">
         {STEPS.map((step, index) => {
           const isDone = step.id < currentStep;
@@ -50,7 +50,7 @@ export const BookingStepper: React.FC<BookingStepperProps> = ({
                 type="button"
                 disabled={!isClickable}
                 onClick={() => isClickable && onStepClick(step.id)}
-                className={`flex flex-col items-center gap-1 group focus:outline-none transition-all ${
+                className={`flex flex-col items-center gap-3 group focus:outline-none transition-all ${
                   isClickable ? "cursor-pointer" : "cursor-default"
                 }`}
                 aria-current={isCurrent ? "step" : undefined}

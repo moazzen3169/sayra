@@ -291,7 +291,7 @@ export default function ProfilePage() {
             <UnifiedAuthForm
               onSuccess={handleAuthSuccess}
               title="ورود یا ثبت‌نام در حساب کاربری"
-              description="جهت استفاده از خدمات، رزرو نوبت و مدیریت حساب کاربری، با پیامک یک‌بار مصرف (OTP) وارد شوید یا ثبت‌نام کنید."
+              description=""
             />
           </div>
         )}
@@ -364,7 +364,6 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-[var(--primary)]">ثبت و ایجاد گیم‌نت جدید</span>
-                    <span className="text-xs text-[var(--text-muted)]">معرفی مجموعه و راه‌اندازی سامانه رزرو آنلاین</span>
                   </div>
                 </div>
                 <svg className="w-5 h-5 text-[var(--primary)] transform rotate-180 group-hover:translate-x-[-2px] transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -385,7 +384,6 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-[var(--text-white)]">پشتیبانی</span>
-                    <span className="text-xs text-[var(--text-muted)]">ارتباط با کارشناسان و پاسخ به سوالات</span>
                   </div>
                 </div>
                 <svg className="w-5 h-5 text-[var(--text-subtle)] transform rotate-180 group-hover:translate-x-[-2px] transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -407,7 +405,6 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-[var(--text-white)]">کیف پول</span>
-                    <span className="text-xs text-[var(--text-muted)]">افزایش موجودی و مدیریت تراکنش‌ها</span>
                   </div>
                 </div>
                 <svg className="w-5 h-5 text-[var(--text-subtle)] transform rotate-180 group-hover:translate-x-[-2px] transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -429,7 +426,6 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-[var(--accent-red)]">خروج از حساب</span>
-                    <span className="text-xs text-[var(--text-muted)]">خروج از حساب کاربری فعلی</span>
                   </div>
                 </div>
                 <svg className="w-5 h-5 text-[var(--accent-red)]/60 transform rotate-180 group-hover:translate-x-[-2px] transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -35,10 +35,10 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
   };
 
   return (
-    <header className="fixed top-0 inset-x-0 z-40 h-16 bg-[var(--bg-card)] max-w-[var(--max-app-width)]  mx-auto border-b border-[var(--border-subtle)] shadow-sm">
-      <div className="mx-auto flex h-full w-full max-w-[var(--max-app-width)] items-center justify-between px-4 lg:px-8 gap-2">
+    <header className="fixed top-0 inset-x-0 z-40 max-w-[var(--max-app-width)] h-16 bg-[var(--bg-card)] max-w-[var(--max-app-width)]  mx-auto border-b border-[var(--border-subtle)] shadow-sm">
+      <div className="mx-auto flex h-full w-full  max-w-[var(--max-mini-app-width)]  items-center justify-between px-4 lg:px-0 gap-2">
         {/* Right Section: Back Button + Welcome & Owner Name */}
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex  items-center gap-2.5 min-w-0">
           <button
             type="button"
             onClick={handleBackClick}

@@ -377,7 +377,7 @@ export default function GameCenterDetailPage({
         onCityChange={(city) => setSelectedCity(city)}
       />
 
-      <main className="flex-1 pt-[var(--header-h)] flex flex-col gap-6 pt-3">
+      <main className="flex-1 desk:pt-[var(--header-h)] pt-[var(--header-m-h)] flex flex-col gap-6 pt-3">
         {/* Loading (Zero Layout Shift Skeleton) */}
         {!detail && !loadError && <GameCenterDetailSkeleton />}
 

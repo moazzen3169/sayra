@@ -73,7 +73,7 @@ export const GroupReservationCard: React.FC<
       onKeyDown={(e) => {
         if (e.key === "Enter") handleCardClick();
       }}
-      className="group relative p-4 desk:p-5 flex flex-col gap-4 bg-[var(--bg-card)] border-y-4 border-[var(--border-subtle)] lg:rounded-card transition-all duration-200 hover:border-[var(--border-color)] cursor-pointer active:scale-[0.995]"
+      className="group relative p-4 desk:p-5 flex flex-col gap-4 bg-[var(--bg-card)]  lg:rounded-card transition-all duration-200 hover:border-[var(--border-color)] cursor-pointer active:scale-[0.995]"
     >
       {/* =========================================
           1. Header

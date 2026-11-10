@@ -304,7 +304,7 @@ export default function OwnerDashboardPage() {
 
           <Link
             href="/owner/edit"
-            className="flex h-11 items-center px-3 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--primary)] hover:border-[var(--primary)] active:scale-95 transition-all shrink-0"
+            className="flex h-11 items-center px-3 rounded-card  text-xs font-bold text-[var(--primary)] hover:border-[var(--primary)] active:scale-95 transition-all shrink-0"
           >
             ویرایش گیم‌نت
           </Link>

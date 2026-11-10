@@ -34,7 +34,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
   return (
     <header className="fixed max-w-[var(--max-app-width)] mx-auto top-0 inset-x-0 z-40 h-16 bg-[var(--bg-card)] border-b border-[var(--border-subtle)] shadow-sm">
-      <div className="mx-auto flex h-full  items-center justify-between px-4 lg:px-8 gap-2">
+      <div className="mx-auto  max-w-[var(--max-mini-app-width)] flex h-full  items-center justify-between px-4 lg:px-0 gap-2">
         {/* Right Section: Back Button + Welcome & User Name */}
         <div className="flex items-center gap-2.5 min-w-0">
           <button

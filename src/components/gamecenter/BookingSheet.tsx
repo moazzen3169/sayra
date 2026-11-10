@@ -355,7 +355,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
 
               <div
                 ref={dateListRef}
-                className="-mx-4 flex snap-x gap-2 overflow-x-auto scroll-smooth px-4 pb-1"
+                className="-mx-4 flex snap-x gap-2 overflow-x-auto scroll-smooth px-8 pb-1"
               >
                 {dates.map((d) => {
                   const active = d.id === dateId;

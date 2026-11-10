@@ -704,7 +704,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
                   </div>
 
                   {loading && (
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 md:grid-cols-6">
                       {Array.from({ length: 8 }).map((_, i) => (
                         <div
                           key={i}
@@ -736,7 +736,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
                   )}
 
                   {!loading && !loadError && slots.length > 0 && (
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 md:grid-cols-6">
                       {slots.map((s) => {
                         const active = selectedKeys.includes(s.key);
                         const bookable = isBookable(s.key);

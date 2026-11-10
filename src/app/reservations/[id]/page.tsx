@@ -23,11 +23,11 @@ import type { Reservation, ReservationStatus, ReservationTimeProposal } from "@/
 
 /* ---------- Stepper Component ---------- */
 
-const STEPS: { status: ReservationStatus; label: string; subLabel: string }[] = [
-  { status: "PENDING", label: "ثبت رزرو", subLabel: "در انتظار تأیید" },
-  { status: "CONFIRMED", label: "تأیید گیمنت", subLabel: "تأیید شده" },
-  { status: "IN_PROGRESS", label: "شروع رزرو", subLabel: "درحال انجام" },
-  { status: "COMPLETED", label: "پایان رزرو", subLabel: "تکمیل شده" },
+const STEPS: { status: ReservationStatus; label: string }[] = [
+  { status: "PENDING", label: "ثبت رزرو" },
+  { status: "CONFIRMED", label: "تأیید گیمنت"},
+  { status: "IN_PROGRESS", label: "شروع رزرو" },
+  { status: "COMPLETED", label: "پایان رزرو"},
 ];
 
 function StatusStepper({ status }: { status: ReservationStatus }) {
@@ -77,7 +77,7 @@ function StatusStepper({ status }: { status: ReservationStatus }) {
       </div>
 
       {/* Step Labels */}
-      <div className="grid grid-cols-4 text-center text-xs gap-1" dir="rtl">
+      <div className="flex justify-between text-center text-xs gap-1" dir="rtl">
         {STEPS.map((step, i) => {
           const isCurrent = i === currentIndex;
           const isDone = i < currentIndex;
@@ -510,13 +510,13 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                 </div>
               ) : (
                 <div className="flex items-center gap-3.5 min-w-0 pb-2">
-                  <div className="w-14 h-14 shrink-0 rounded-card bg-[var(--foreground)]/50 border border-[var(--border-subtle)] flex items-center justify-center p-2 overflow-hidden">
+                  <div className="w-30 aspect-[4/3] shrink-0 flex items-center justify-center ">
                     <AppImage
                       src={stationImageFor(reservation.stationSnapshot?.stationType)}
                       fallbackSrc={stationImageFor(reservation.stationSnapshot?.stationType)}
                       alt={reservation.stationSnapshot?.name ?? "ایستگاه"}
-                      className="w-full h-full object-contain"
-                      objectFit="contain"
+                      className="w-full h-full object-cover"
+                      objectFit="cover"
                     />
                   </div>
                   <div className="flex flex-col gap-1 min-w-0">

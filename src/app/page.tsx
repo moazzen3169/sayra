@@ -140,7 +140,7 @@ export default function HomePage() {
 
   const skeletonRow = (
     <div className="flex gap-2 overflow-hidden pb-2" aria-busy="true">
-      {Array.from({ length: 4 }).map((_, idx) => (
+      {Array.from({ length: 6 }).map((_, idx) => (
         <div
           key={idx}
           className="animate-pulse bg-[var(--bg-card)] rounded-card border border-[var(--border-subtle)] h-[280px] w-[220px] min-w-[220px] shrink-0 sm:w-[240px] sm:min-w-[240px] lg:w-[260px] lg:min-w-[260px]"
@@ -156,7 +156,7 @@ export default function HomePage() {
         onCityChange={(city) => setSelectedCity(city)}
       />
 
-      <main className="flex-1 p-4 flex flex-col gap-6 lg:gap-8 pt-[var(--header-h)]">
+      <main className="flex-1 p-4 flex flex-col gap-6 lg:gap-8 pt-[var(--header-m-h)]  desk:pt-[var(--header-h)]">
         {/* ۱. بخش اسلایدر بنرهای تبلیغاتی */}
         <section>
           <BannerSlider banners={banners} isLoading={bannersLoading} />

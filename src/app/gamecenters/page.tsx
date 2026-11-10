@@ -202,7 +202,7 @@ function GamecentersContent() {
         }}
       />
 
-      <main className="flex-1 px-4 desk:px-6 lg:px-8 flex flex-col gap-6 lg:gap-8 pt-[var(--header-h)] max-w-[var(--max-app-width)] w-full mx-auto">
+      <main className="flex-1 px-4 desk:px-6 lg:px-8 flex flex-col gap-6 lg:gap-8  desk:pt-[var(--header-h)] pt-[var(--header-m-h)] max-w-[var(--max-app-width)] w-full mx-auto">
         {/* Page Heading & Search Controls */}
         <section className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
@@ -215,55 +215,6 @@ function GamecentersContent() {
             </p>
           </div>
 
-          {/* Search Input */}
-          <form onSubmit={handleSearchSubmit} className="relative w-full">
-            <div className="relative flex items-center">
-              <input
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="جست‌وجوی نام گیمنت، آدرس یا امکانات..."
-                className="p-4 pr-10  w-full rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)]  text-xs text-[var(--text-white)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]"
-              />
-              <span className="absolute right-3 text-[var(--primary)] pointer-events-none">
-                <Icon name="search" size={18} />
-              </span>
-
-              <div className="absolute left-2 flex items-center gap-1">
-                {searchInput && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchInput("");
-                      updateQueryParams({ q: null });
-                    }}
-                    className="h-7 px-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-white)] rounded"
-                  >
-                    پاک کردن
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  className="h-8 w-8  flex items-center justify-center rounded bg-[var(--primary)] text-on-primary text-xs font-bold hover:bg-[var(--primary-hover)] transition-colors"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth="1.5"
-                    stroke="currentColor"
-                    className="size-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </form>
 
           {/* Category Filter Chips */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">

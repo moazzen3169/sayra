@@ -176,7 +176,7 @@ export default function SupportPage() {
       {/* App Shell Header */}
       <ProfileHeader title="پشتیبانی و پاسخگویی" isSubpage={true} />
 
-      <main className="flex-1 pt-20  py-4 flex flex-col gap-6 w-full max-w-[var(--max-mini-app-width)] mx-auto">
+      <main className="flex-1 pt-20  p-4  flex flex-col gap-6 w-full max-w-[var(--max-mini-app-width)] mx-auto">
 
         {/* Overview Banner */}
         <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
@@ -186,11 +186,9 @@ export default function SupportPage() {
             </div>
             <div className="flex flex-col gap-1">
               <h2 className="text-sm font-bold text-[var(--text-white)]">
-                مرکز پشتیبانی کاربران و صاحبین گیم‌نت
+                مرکز پشتیبانی کاربران
               </h2>
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                تیم پشتیبانی ۷ روز هفته برای پیگیری تیکت‌ها، رفع سوالات و راهنمایی همراه شماست.
-              </p>
+
             </div>
           </div>
         </div>

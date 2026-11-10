@@ -272,7 +272,7 @@ function Content() {
               key={f.id}
               type="button"
               onClick={() => setFilter(f.id)}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+              className={`shrink-0 px-4 py-3 rounded-card text-xs font-bold border transition-colors ${
                 filter === f.id
                   ? "bg-[var(--primary)] text-on-primary border-[var(--primary)]"
                   : "bg-[var(--bg-card)] border-[var(--border-subtle)]"

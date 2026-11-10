@@ -29,7 +29,7 @@ type OtpStep = "phone" | "otp" | "centerSelect";
 export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
   onSuccess,
   title = "ورود یا ثبت‌نام در سایرا",
-  description = "ورود و ثبت‌نام با پیامک یک‌بار مصرف (OTP) بدون نیاز به رمز عبور",
+  description = " ",
   initialMode = "otp",
   initialPhone = "",
 }) => {
@@ -328,7 +328,7 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
                 : "text-[var(--text-muted)] hover:text-[var(--text-white)]"
             }`}
           >
-            ورود و ثبت‌نام سریع (پیامک OTP)
+           تایید شماره
           </button>
           <button
             type="button"

@@ -40,8 +40,8 @@ export const OwnerVerificationBadge: React.FC<{ size?: "sm" | "md" }> = ({ size 
 
   return (
     <div
-      className={`inline-flex items-center gap-1.5 border rounded-full font-bold ${info.colorClass} ${
-        size === "md" ? "px-3 py-1 text-xs" : "px-2.5 py-0.5 text-xs"
+      className={`inline-flex items-center gap-1.5 border rounded-card font-bold ${info.colorClass} ${
+        size === "md" ? "px-3 py-1 text-xs" : "px-4.5 py-0.5 h-[36px] text-xs"
       }`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${info.dotClass}`} />

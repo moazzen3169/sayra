@@ -8,27 +8,27 @@ import type { PaymentState, ReservationStatus } from "@/types/reservation";
 export const STATUS_UI: Record<ReservationStatus, { label: string; className: string }> = {
   PENDING: {
     label: "در انتظار تأیید",
-    className: "bg-[var(--primary-muted)] text-[var(--primary)] border border-[var(--primary)]/30",
+    className: "py-2.5 px-3 bg-[var(--primary-muted)] text-[var(--primary)] border border-[var(--primary)]/30",
   },
   CONFIRMED: {
     label: "تأیید شده",
-    className: "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30",
+    className: "py-2.5 px-3 bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30",
   },
   IN_PROGRESS: {
     label: "در حال انجام",
-    className: "bg-[var(--primary)] text-on-primary border border-[var(--primary)]",
+    className: "py-2.5 px-3 bg-[var(--primary)] text-on-primary border border-[var(--primary)]",
   },
   COMPLETED: {
     label: "انجام شده",
-    className: "bg-[var(--foreground)] text-[var(--text-white)] border border-[var(--border-color)]",
+    className: "py-2.5 px-3 bg-[var(--foreground)] text-[var(--text-white)] border border-[var(--border-color)]",
   },
   CANCELED: {
     label: "لغو شده",
-    className: "bg-[var(--accent-red)]/15 text-[var(--accent-red)] border border-[var(--accent-red)]/30",
+    className: "py-2.5 px-3 bg-[var(--accent-red)]/15 text-[var(--accent-red)] border border-[var(--accent-red)]/30",
   },
   NO_SHOW: {
     label: "عدم حضور",
-    className: "bg-[var(--foreground)] text-[var(--accent-red)] border border-[var(--border-color)]",
+    className: "py-2.5 px-3 bg-[var(--foreground)] text-[var(--accent-red)] border border-[var(--border-color)]",
   },
 };
 
