@@ -135,6 +135,13 @@ export interface AvailabilitySlot {
   status?: "AVAILABLE" | "UNAVAILABLE" | string;
 }
 
+export interface AvailabilitySlotsParams {
+  slug: string;
+  date: string;
+  stationId?: string;
+  signal?: AbortSignal;
+}
+
 export interface PublicMediaItem {
   id: string;
   gamingCenterId?: string;

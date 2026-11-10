@@ -222,12 +222,12 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
       try {
         const results = await Promise.all(
           stationIds.map(async (stId) => {
-            const raw = await gamingCenterService.getAvailabilitySlots(
-              gamingCenterSlug,
-              stId,
-              date.fullDate,
-              controller.signal,
-            );
+            const raw = await gamingCenterService.getAvailabilitySlots({
+              slug: gamingCenterSlug,
+              date: date.fullDate,
+              stationId: stId,
+              signal: controller.signal,
+            });
             return { stId, slots: mapSlots(raw) };
           }),
         );
