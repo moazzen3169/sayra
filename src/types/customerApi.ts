@@ -356,13 +356,52 @@ export interface SendCustomerTicketMessagePayload {
 }
 
 // ---------------------------------------------------------------------------
-// Payments (/gamingCenters/{id}/reservation/{id}/payments/init)
+// Payments (/gamingCenters/{id}/reservation/{id}/payments/*)
 // ---------------------------------------------------------------------------
 
 export interface PaymentInitResponse {
   paymentUrl?: string;
+  authority?: string;
   transactionId?: string;
   trackingCode?: string;
+  amount?: number;
+  reservationId?: string;
+  [key: string]: unknown;
+}
+
+export interface PaymentVerifyGetParams {
+  gamingCenterId: string;
+  reservationId: string;
+  authority?: string;
+  status?: string;
+}
+
+export interface PaymentVerifyPostPayload {
+  authority?: string;
+  paymentId?: string;
+}
+
+export interface PaymentVerifyResponse {
+  success?: boolean;
+  paymentState?: "UNPAID" | "PENDING" | "PARTIALLY_PAID" | "PAID" | "REFUNDED" | "OVERPAID" | "FAILED" | "CANCELED";
+  reservationStatus?: string;
+  transactionId?: string;
+  trackingCode?: string;
+  amount?: number;
+  refId?: string;
+  cardPan?: string;
+  message?: string;
+  [key: string]: unknown;
+}
+
+export interface PaymentStatusResponse {
+  status?: string;
+  paymentState?: "UNPAID" | "PENDING" | "PARTIALLY_PAID" | "PAID" | "REFUNDED" | "OVERPAID" | "FAILED" | "CANCELED";
+  transactionId?: string;
+  trackingCode?: string;
+  amount?: number;
+  paidAt?: string;
+  authority?: string;
   [key: string]: unknown;
 }
 
