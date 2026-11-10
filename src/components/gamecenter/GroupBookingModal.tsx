@@ -6,7 +6,7 @@ import type {
   GroupReservation,
   GroupReservationPayload,
 } from "@/types/gaming-center/group-reservation.types";
-import { cleanPhoneNumber, formatPrice, isValidIranPhone, toEnglishDigits, toPersianDigits } from "@/lib/format";
+import { cleanPhoneNumber, formatPrice, isValidIranPhone, toPersianDigits, toEnglishDigits } from "@/lib/format";
 import { useGroupReservation } from "@/hooks/gaming-center/use-group-reservation";
 import { useAuth } from "@/context/AuthContext";
 import { AuthModal } from "@/components/AuthModal";

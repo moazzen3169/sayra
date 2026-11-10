@@ -124,18 +124,15 @@ export default function ProfilePage() {
     // Scenario B: Phone number is the same, only updating name
     setEditLoading(true);
     try {
-      // Try backend endpoint if available
-      try {
-        await authService.updateProfile({
-          fullName: cleanFullName,
-          phone: cleanCurrentPhone,
-        });
-      } catch {
-        // Ignored if unsupported on backend
-      }
+      // Real API request to PATCH /api/v1/customer/me
+      const updatedUser = await authService.updateProfile({
+        fullName: cleanFullName,
+      });
+
+      const resolvedName = updatedUser?.fullName || cleanFullName;
 
       login(
-        cleanFullName,
+        resolvedName,
         cleanCurrentPhone,
         user?.token,
         undefined,
@@ -212,14 +209,15 @@ export default function ProfilePage() {
         resolvedRole
       );
 
-      // Best effort update on backend if endpoint exists
-      try {
-        await authService.updateProfile({
-          fullName: newFullName,
-          phone: normalizedPhone,
-        });
-      } catch {
-        // ignore
+      // If full name was updated during phone change, update profile via API
+      if (editFullName.trim()) {
+        try {
+          await authService.updateProfile({
+            fullName: editFullName.trim(),
+          });
+        } catch {
+          // ignore error if secondary to OTP verification
+        }
       }
 
       setEditSuccess(true);

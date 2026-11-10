@@ -131,24 +131,17 @@ export const authService = {
   },
 
   /**
-   * ویرایش مشخصات پروفایل مشتری (نام، تلفن، و ...)
-   * در نسخه v1.0-LOCKED هیچ متد PATCH یا PUT برای /customer/me وجود ندارد.
+   * ویرایش مشخصات پروفایل مشتری لاگین‌شده
+   * PATCH /customer/me
+   * Body: { fullName: string }
    */
-  async updateProfile(_data: { fullName?: string; phone?: string }): Promise<never> {
-    throw new ContractGapError(
-      "CustomerProfileUpdate",
-      "PATCH /customer/me is not supported in OpenAPI v1.0-LOCKED."
-    );
-  },
-
-  /**
-   * ویرایش مشخصات پروفایل مشتری (سازگاری با تست‌ها)
-   */
-  updateProfileUnsupported(): never {
-    throw new ContractGapError(
-      "CustomerProfileUpdate",
-      "PATCH /customer/me is not supported in OpenAPI v1.0-LOCKED."
-    );
+  async updateProfile(data: { fullName?: string }): Promise<AuthUser> {
+    const payload: { fullName?: string } = {};
+    if (data.fullName !== undefined) {
+      payload.fullName = data.fullName.trim();
+    }
+    const response = await apiClient.patch<AuthUser>(ENDPOINTS.auth.me, payload);
+    return response.data;
   },
 
   /**

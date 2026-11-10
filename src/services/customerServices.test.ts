@@ -103,8 +103,34 @@ describe("Customer API Services Foundation (Mocked Network)", () => {
       expect(requests[0].headers.get("Authorization")).toBe("Bearer test-customer-token");
     });
 
-    it("explicitly throws ContractGapError on updateProfileUnsupported and walletUnsupported", () => {
-      expect(() => authService.updateProfileUnsupported()).toThrow(ContractGapError);
+    it("updates customer profile via PATCH /customer/me with Bearer token", async () => {
+      setTokens({ accessToken: "test-customer-token" });
+      setupMockFetch((url, init) => {
+        expect(url).toContain("/customer/me");
+        expect(init?.method).toBe("PATCH");
+        const body = JSON.parse(init?.body as string);
+        expect(body).toEqual({ fullName: "نام جدید کاربر" });
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              id: "cust-1",
+              phone: "09121111111",
+              fullName: "نام جدید کاربر",
+              role: "CUSTOMER",
+            },
+          }),
+          { status: 200 }
+        );
+      });
+
+      const updated = await authService.updateProfile({ fullName: "نام جدید کاربر" });
+      expect(updated.fullName).toBe("نام جدید کاربر");
+      expect(requests[0].headers.get("Authorization")).toBe("Bearer test-customer-token");
+    });
+
+    it("explicitly throws ContractGapError on walletUnsupported", () => {
       expect(() => authService.walletUnsupported()).toThrow(ContractGapError);
     });
   });

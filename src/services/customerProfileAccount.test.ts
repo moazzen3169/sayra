@@ -188,22 +188,51 @@ describe("Phase 15: Customer Profile and Account Data", () => {
     });
   });
 
-  describe("4. OpenAPI v1.0-LOCKED Contract Gaps & Unsupported Mutations", () => {
-    it("throws ContractGapError on updateProfile because PATCH /customer/me is missing in OpenAPI v1.0", async () => {
-      await expect(
-        authService.updateProfile({ fullName: "نام جدید", phone: "09121111111" })
-      ).rejects.toThrow(ContractGapError);
+  describe("4. Customer Profile Update via PATCH /customer/me & Unsupported Mutations", () => {
+    it("updates fullName via PATCH /customer/me with authenticated Bearer token", async () => {
+      setTokens({ accessToken: "active-customer-jwt" });
+
+      setupMockFetch((url, init) => {
+        expect(url).toContain("/customer/me");
+        expect(init?.method).toBe("PATCH");
+        const body = JSON.parse(init?.body as string);
+        expect(body).toEqual({ fullName: "نام و نام خانوادگی جدید" });
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              id: "cust-101",
+              phone: "09121112233",
+              fullName: "نام و نام خانوادگی جدید",
+              role: "CUSTOMER",
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      });
+
+      const updated = await authService.updateProfile({ fullName: "نام و نام خانوادگی جدید" });
+      expect(updated.fullName).toBe("نام و نام خانوادگی جدید");
+      expect(requests.length).toBe(1);
+      expect(requests[0].method).toBe("PATCH");
+      expect(requests[0].headers.get("Authorization")).toBe("Bearer active-customer-jwt");
     });
 
-    it("throws ContractGapError on updateProfileUnsupported with exact code and message", () => {
-      expect(() => authService.updateProfileUnsupported()).toThrow(ContractGapError);
-      try {
-        authService.updateProfileUnsupported();
-      } catch (err: any) {
-        expect(err.code).toBe("CONTRACT_GAP");
-        expect(err.message).toContain("CustomerProfileUpdate");
-        expect(err.message).toContain("PATCH /customer/me is not supported");
-      }
+    it("propagates error on PATCH /customer/me failure without local mock fallback", async () => {
+      setTokens({ accessToken: "active-customer-jwt" });
+
+      setupMockFetch(() => {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: { code: "SERVER_ERROR", message: "خطا در بروزرسانی پروفایل" },
+          }),
+          { status: 500 }
+        );
+      });
+
+      await expect(authService.updateProfile({ fullName: "نام تست" })).rejects.toThrow();
     });
 
     it("throws ContractGapError on wallet operations because customer wallet is missing in OpenAPI v1.0", () => {
