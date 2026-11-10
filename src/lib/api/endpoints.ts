@@ -10,7 +10,7 @@ export const ENDPOINTS = {
     otpVerify: "/auth/customer/otp/verify",
     refresh: "/auth/refresh",
     logout: "/auth/logout",
-    me: "/customer/me",
+    me: "/auth/me",
     // Staff / Manager Auth APIs
     userOtpRequest: "/auth/customer/otp/request",
     userOtpVerify: "/auth/customer/otp/verify",
