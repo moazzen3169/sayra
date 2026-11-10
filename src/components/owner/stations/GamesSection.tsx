@@ -260,13 +260,15 @@ const GamePickerModal: React.FC<GamePickerModalProps> = ({
 
 interface GamesSectionProps {
   centerId: string;
+  canEdit?: boolean;
   onNotify: (message: string) => void;
 }
 
-export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, onNotify }) => {
+export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, canEdit = true, onNotify }) => {
   const [games, setGames] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [catalogGames, setCatalogGames] = useState<GameCatalogItem[]>([]);
+  const [search, setSearch] = useState("");
   const [reload, setReload] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [deletingTitle, setDeletingTitle] = useState<string | null>(null);
@@ -317,11 +319,21 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, onNotify }
 
   const rows = useMemo(() => {
     const byTitle = new Map(catalogGames.map((g) => [normalizeFilterText(g.title), g]));
-    return (games ?? []).map((title) => ({
+    const allRows = (games ?? []).map((title) => ({
       title,
       catalog: byTitle.get(normalizeFilterText(title)),
     }));
-  }, [games, catalogGames]);
+    const q = normalizeFilterText(search);
+    if (!q) return allRows;
+    return allRows.filter((r) => {
+      const matchTitle = normalizeFilterText(r.title).includes(q);
+      const matchGenre = r.catalog?.genre ? normalizeFilterText(r.catalog.genre).includes(q) : false;
+      const matchPlatforms = r.catalog?.supportedPlatforms
+        ? normalizeFilterText(r.catalog.supportedPlatforms.join(" ")).includes(q)
+        : false;
+      return matchTitle || matchGenre || matchPlatforms;
+    });
+  }, [games, catalogGames, search]);
 
   const addedTitles = useMemo(
     () => new Set((games ?? []).map((g) => normalizeFilterText(g))),
@@ -358,12 +370,12 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, onNotify }
   };
 
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-4">
       <SectionTitle
-        title="بازی‌های گیمنت"
-        subtitle={games ? `${toPersianDigits(games.length)} بازی` : undefined}
+        title="بازی‌های گیم‌نت"
+        subtitle={games ? `${toPersianDigits(games.length)} بازی پشتیبانی‌شده` : undefined}
         action={
-          <Button variant="secondary" onClick={() => setPickerOpen(true)}>
+          <Button onClick={() => setPickerOpen(true)} disabled={!canEdit}>
             <span className="flex items-center gap-1.5">
               <Icon name="plus" size={16} />
               <span>افزودن بازی</span>
@@ -371,6 +383,21 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, onNotify }
           </Button>
         }
       />
+
+      {!canEdit && (
+        <p className="text-xs text-[var(--text-muted)]">
+          افزودن و ویرایش بازی‌ها بعد از تأیید احراز هویت گیم‌نت فعال می‌شود.
+        </p>
+      )}
+
+      {games && games.length > 5 && (
+        <Input
+          aria-label="جستجوی بازی"
+          placeholder="جستجوی نام بازی، ژانر یا پلتفرم..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      )}
 
       {games === null && !error && (
         <div className="flex flex-col gap-2" aria-busy="true">
@@ -435,12 +462,13 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, onNotify }
                   <td className="px-4 py-3 text-left">
                     <button
                       type="button"
+                      disabled={!canEdit}
                       onClick={() => {
                         setDeleteError(null);
                         setDeletingTitle(title);
                       }}
                       aria-label={`حذف ${title}`}
-                      className="flex h-9 w-9 items-center justify-center rounded-card text-[var(--text-muted)] hover:bg-[var(--foreground)] hover:text-[var(--accent-red)] transition-colors"
+                      className="flex h-9 w-9 items-center justify-center rounded-card text-[var(--text-muted)] hover:bg-[var(--foreground)] hover:text-[var(--accent-red)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Icon name="trash" size={18} />
                     </button>

@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
+import { GamesSection } from "@/components/owner/stations/GamesSection";
 import { StationCategoryGrid } from "@/components/owner/stations/StationCategoryGrid";
 import {
   AddStationModal,
@@ -331,6 +332,15 @@ export default function OwnerStationsPage() {
               </p>
             )}
           </section>
+        )}
+
+        {/* ===== مرحله ۳: کاتالوگ و جدول بازی‌های گیم‌نت ===== */}
+        {centerId && (
+          <GamesSection
+            centerId={centerId}
+            canEdit={canEdit}
+            onNotify={(msg) => setToast(msg)}
+          />
         )}
       </main>
 

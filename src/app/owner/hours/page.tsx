@@ -190,40 +190,7 @@ export default function OwnerHoursPage() {
               </div>
             )}
 
-            {/* Shift Presets Bar */}
-            <div className="p-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-3 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[var(--text-white)] flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[var(--primary)]" />
-                  الگوهای شیفت متداول
-                </span>
-                <span className="text-[11px] text-[var(--text-muted)]">انتخاب سریع با یک کلیک</span>
-              </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {SHIFT_PRESETS.map((p) => {
-                  const isActive = start === p.start && end === p.end;
-                  return (
-                    <button
-                      key={p.label}
-                      type="button"
-                      onClick={() => {
-                        setStart(p.start);
-                        setEnd(p.end);
-                      }}
-                      className={`p-2.5 rounded-card text-right flex flex-col gap-1 transition-all border ${
-                        isActive
-                          ? "bg-[var(--primary)]/15 border-[var(--primary)] text-[var(--text-white)]"
-                          : "bg-[var(--foreground)]/20 hover:bg-[var(--foreground)]/50 border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-white"
-                      }`}
-                    >
-                      <span className="text-xs font-bold">{p.label}</span>
-                      <span className="text-[11px] text-[var(--text-subtle)] font-normal">{p.desc}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
             {/* Time Pickers Section */}
             <div className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-5 shadow-sm">
@@ -311,7 +278,6 @@ export default function OwnerHoursPage() {
               <label className="flex items-center justify-between p-3 rounded-card bg-[var(--foreground)]/20 hover:bg-[var(--foreground)]/30 border border-[var(--border-subtle)] cursor-pointer transition-colors">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-xs font-bold text-[var(--text-white)]">امکان ثبت رزرو آنلاین توسط کاربران</span>
-                  <span className="text-[11px] text-[var(--text-muted)]">در صورت غیرفعال بودن، کاربران تنها می‌توانند مشخصات گیم‌نت را ببینند.</span>
                 </div>
                 <input
                   type="checkbox"
@@ -326,7 +292,6 @@ export default function OwnerHoursPage() {
               <label className="flex items-center justify-between p-3 rounded-card bg-[var(--foreground)]/20 hover:bg-[var(--foreground)]/30 border border-[var(--border-subtle)] cursor-pointer transition-colors">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-xs font-bold text-[var(--text-white)]">تأیید خودکار رزروها (Auto Confirm)</span>
-                  <span className="text-[11px] text-[var(--text-muted)]">رزروهای جدید بدون نیاز به تایید دستی مدیر بلافاصله ثبت شوند.</span>
                 </div>
                 <input
                   type="checkbox"
@@ -341,7 +306,6 @@ export default function OwnerHoursPage() {
               <label className="flex items-center justify-between p-3 rounded-card bg-[var(--foreground)]/20 hover:bg-[var(--foreground)]/30 border border-[var(--border-subtle)] cursor-pointer transition-colors">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-xs font-bold text-[var(--text-white)]">جلوگیری از هم‌پوشانی نوبت‌ها (Prevent Overlaps)</span>
-                  <span className="text-[11px] text-[var(--text-muted)]">سیستم از رزرو همزمان یک سیستم در ساعات یکسان جلوگیری کند.</span>
                 </div>
                 <input
                   type="checkbox"
@@ -353,18 +317,6 @@ export default function OwnerHoursPage() {
               </label>
             </div>
 
-            {/* Note on Holidays and API Contract */}
-            <div className="p-4 rounded-card bg-[var(--foreground)]/15 border border-[var(--border-subtle)] text-[var(--text-muted)] flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-[var(--text-white)] text-xs font-bold">
-                <Icon name="info" size={16} className="text-[var(--primary)]" />
-                <span>تقویم تعطیلات و روزهای غیرکاری</span>
-              </div>
-              <p className="text-[11px] leading-relaxed">
-                طبق نسخه جاری قرارداد بک‌اند (OpenAPI v1.0-LOCKED)، ساعات کاری و شیفت از طریق مسیر{" "}
-                <code className="text-xs font-mono text-[var(--primary)]">PUT/PATCH /gamingCenters/{centerId}/settings</code>{" "}
-                به صورت بلادرنگ در سرور ذخیره می‌شود. ماژول تعطیلات اختصاصی هفتگی و تقویم رسمی نیز طبق برنامه در آپدیت آتی بک‌اند اضافه خواهد شد.
-              </p>
-            </div>
 
             {/* Submit Action Button */}
             <button
