@@ -23,7 +23,7 @@ import type { Reservation, ReservationStatus, ReservationTimeProposal } from "@/
 
 /* ---------- Stepper Component ---------- */
 
-const STEPS: { status: ReservationStatus; label: string }[] = [
+const STEPS: { status: ReservationStatus; label: string; subLabel?: string }[] = [
   { status: "PENDING", label: "ثبت رزرو" },
   { status: "CONFIRMED", label: "تأیید گیمنت"},
   { status: "IN_PROGRESS", label: "شروع رزرو" },

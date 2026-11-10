@@ -33,6 +33,8 @@ export const ENDPOINTS = {
     publicStations: (slug: string) => `/gamingCenters/${enc(slug)}/stations`,
     deviceCategories: (slug: string) => `/gamingCenters/${enc(slug)}/device-categories`,
     groupReservations: (slug: string) => `/public/gamingCenters/${enc(slug)}/group-reservations`,
+    groupReservationCheckout: (slug: string) =>
+      `/public/gamingCenters/${enc(slug)}/group-reservations/checkout`,
     page: (slug: string, pageSlug: string) =>
       `/public/gamingCenters/${enc(slug)}/pages/${enc(pageSlug)}`,
   },
@@ -56,6 +58,9 @@ export const ENDPOINTS = {
       `/gamingCenters/${enc(gamingCenterId)}/reservation/${enc(reservationId)}/payments/verify`,
     verifyPost: (gamingCenterId: string, reservationId: string) =>
       `/gamingCenters/${enc(gamingCenterId)}/reservation/${enc(reservationId)}/payments/verify`,
+    // روند جدید اعتبارسنجی پرداخت متمرکز: POST /payments/:paymentId/verify
+    verifyPayment: (paymentId: string) => `/payments/${enc(paymentId)}/verify`,
+    webhook: "/payments/webhook",
     status: (gamingCenterId: string, reservationId: string) =>
       `/gamingCenters/${enc(gamingCenterId)}/reservation/${enc(reservationId)}/payments/status`,
   },

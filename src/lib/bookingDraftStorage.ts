@@ -39,6 +39,10 @@ export interface PersistedBookingDraft {
   };
   note?: string;
   reservationId?: string;
+  holdId?: string;
+  paymentId?: string;
+  paymentUrl?: string;
+  holdExpiresAt?: string;
   grandTotal?: number;
   lastUpdated: number;
 }
