@@ -5,7 +5,7 @@ import { getMockGamecenterDetail } from "@/lib/mocks/gamecenter.mock";
 import { gamingCenterService as coreGamingCenterService } from "@/services/gamingCenterService";
 import { catalogService } from "@/services/catalogService";
 import { extractMediaItems, normalizeMediaUrl } from "@/lib/media";
-import { normalizeAvailabilitySlots } from "@/services/gamingCenterService";
+import { normalizeAvailabilitySlots, validateAvailabilityParams } from "@/services/gamingCenterService";
 import type { GamecenterDetail, GamecenterImage, GamecenterReview, GameItem } from "@/types/gamecenter";
 import type {
   PublicAddress,
@@ -13,6 +13,7 @@ import type {
   PublicMediaItem,
   PublicRating,
   PublicSocialLink,
+  AvailabilitySlotsParams,
 } from "@/types/customerApi";
 
 export type GamingCenterInfo = PublicGamingCenter;
@@ -142,15 +143,28 @@ export const gamingCenterService = {
   },
 
   async getAvailabilitySlots(
-    slug: string,
-    date: string,
-    stationId?: string,
-    signal?: AbortSignal
+    paramsOrSlug: AvailabilitySlotsParams | string,
+    legacyDate?: string,
+    legacyStationId?: string,
+    legacySignal?: AbortSignal
   ): Promise<AvailabilitySlot[]> {
+    const isObjectParam = typeof paramsOrSlug === "object" && paramsOrSlug !== null;
+    const slug = isObjectParam ? paramsOrSlug.slug : paramsOrSlug;
+    const date = isObjectParam ? paramsOrSlug.date : (legacyDate as string);
+    const stationId = isObjectParam ? paramsOrSlug.stationId : legacyStationId;
+    const signal = isObjectParam ? paramsOrSlug.signal : legacySignal;
+
+    validateAvailabilityParams({ slug, date, stationId });
+
+    const query: Record<string, string> = { date };
+    if (stationId) {
+      query.stationId = stationId;
+    }
+
     const { data } = await apiClient.get<unknown>(
       ENDPOINTS.gamingCenter.availabilitySlots(slug),
       {
-        query: { date, stationId },
+        query,
         signal,
       }
     );

@@ -11,7 +11,41 @@ import {
   PublicAddress,
   PublicSocialLink,
   ContractGapError,
+  AvailabilitySlotsParams,
 } from "@/types/customerApi";
+
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const CUID_OR_SLUG_ID_REGEX = /^[a-z0-9_-]+$/i;
+
+/**
+ * اعتبارسنجی پارامترهای درخواست اسلات‌های زمانی در لایه کلاینت
+ * از ارسال تاریخ نادرست یا جابجایی stationId و date به بک‌اند جلوگیری می‌کند.
+ */
+export function validateAvailabilityParams(params: {
+  slug: string;
+  date: string;
+  stationId?: string;
+}): void {
+  const { slug, date, stationId } = params;
+  if (!slug || typeof slug !== "string" || !slug.trim()) {
+    throw new Error("Invalid gaming center slug.");
+  }
+
+  if (!date || typeof date !== "string" || !DATE_REGEX.test(date.trim())) {
+    throw new Error("Date must be formatted as YYYY-MM-DD");
+  }
+
+  if (stationId !== undefined && stationId !== null) {
+    if (typeof stationId !== "string" || !stationId.trim()) {
+      throw new Error("Invalid station ID format");
+    }
+    const cleanStationId = stationId.trim();
+    // جلوگیری از جابجایی ناخواسته date و stationId
+    if (DATE_REGEX.test(cleanStationId)) {
+      throw new Error("Invalid station ID format: stationId appears to be a date string");
+    }
+  }
+}
 
 /**
  * نرمال‌سازی پاسخ اندپوینت /availability/slots
@@ -90,7 +124,7 @@ export interface GameStationInfo extends GameStation {
   maxExtraControllers?: number;
 }
 
-export type { AvailabilitySlot };
+export type { AvailabilitySlot, AvailabilitySlotsParams };
 
 export const gamingCenterService = {
   /**
@@ -151,20 +185,35 @@ export const gamingCenterService = {
   /**
    * دریافت اسلات‌های زمانی در دسترس
    * GET /public/gamingCenters/{slug}/availability/slots?date=...&stationId=...
+   * پشتیبانی همزمان از آبجکت پارامتر Type-Safe یا آرگومان‌های پوزیشنی
    */
   async getAvailabilitySlots(
-    slug: string,
-    date: string,
-    stationId?: string,
-    signal?: AbortSignal
+    paramsOrSlug: AvailabilitySlotsParams | string,
+    legacyDate?: string,
+    legacyStationId?: string,
+    legacySignal?: AbortSignal
   ): Promise<AvailabilitySlot[]> {
+    const isObjectParam = typeof paramsOrSlug === "object" && paramsOrSlug !== null;
+    const slug = isObjectParam ? paramsOrSlug.slug : paramsOrSlug;
+    const date = isObjectParam ? paramsOrSlug.date : (legacyDate as string);
+    const stationId = isObjectParam ? paramsOrSlug.stationId : legacyStationId;
+    const signal = isObjectParam ? paramsOrSlug.signal : legacySignal;
+
+    validateAvailabilityParams({ slug, date, stationId });
+
     if (USE_MOCK_RESERVATIONS) {
       return buildMockAvailabilitySlots(date);
     }
+
+    const query: Record<string, string> = { date };
+    if (stationId) {
+      query.stationId = stationId;
+    }
+
     const { data } = await apiClient.get<unknown>(
       ENDPOINTS.gamingCenter.availabilitySlots(slug),
       {
-        query: { date, stationId },
+        query,
         signal,
       }
     );

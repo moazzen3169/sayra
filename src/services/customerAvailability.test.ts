@@ -66,6 +66,103 @@ describe("Phase 8: Customer Booking Calendar and Availability", () => {
       expect(requestedUrl).toContain("date=2026-11-05");
       expect(requestedUrl).not.toContain("stationId=");
     });
+
+    it("supports type-safe parameter object and verifies exact query parameter serialization", async () => {
+      let requestedUrl = "";
+      setupMockFetch((url) => {
+        requestedUrl = url.toString();
+        return new Response(
+          JSON.stringify({ success: true, data: [] }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      });
+
+      await gamingCenterService.getAvailabilitySlots({
+        slug: "kian",
+        date: "2026-11-11",
+        stationId: "cmw7tasit0006bp5i6jwqlm56",
+      });
+
+      const parsedUrl = new URL(requestedUrl);
+      expect(parsedUrl.pathname).toContain("/public/gamingCenters/kian/availability/slots");
+      expect(parsedUrl.searchParams.get("date")).toBe("2026-11-11");
+      expect(parsedUrl.searchParams.get("stationId")).toBe("cmw7tasit0006bp5i6jwqlm56");
+    });
+
+    it("handles multiple stations requested concurrently without parameter crosstalk", async () => {
+      const requestedUrls: string[] = [];
+      setupMockFetch((url) => {
+        requestedUrls.push(url.toString());
+        return new Response(
+          JSON.stringify({ success: true, data: [] }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      });
+
+      const stationIds = ["cmw7tasit0001", "cmw7tasit0002", "cmw7tasit0003"];
+      await Promise.all(
+        stationIds.map((stId) =>
+          gamingCenterService.getAvailabilitySlots({
+            slug: "kian",
+            date: "2026-11-11",
+            stationId: stId,
+          })
+        )
+      );
+
+      expect(requestedUrls.length).toBe(3);
+      stationIds.forEach((stId, index) => {
+        const u = new URL(requestedUrls[index]);
+        expect(u.searchParams.get("date")).toBe("2026-11-11");
+        expect(u.searchParams.get("stationId")).toBe(stId);
+      });
+    });
+
+    it("rejects invalid date format before dispatching network request", async () => {
+      let fetchCalled = false;
+      setupMockFetch(() => {
+        fetchCalled = true;
+        return new Response(JSON.stringify({ success: true, data: [] }), { status: 200 });
+      });
+
+      await expect(
+        gamingCenterService.getAvailabilitySlots("kian", "invalid-date", "cmw7tasit0006bp5i6jwqlm56")
+      ).rejects.toThrow("Date must be formatted as YYYY-MM-DD");
+
+      await expect(
+        gamingCenterService.getAvailabilitySlots({
+          slug: "kian",
+          date: "cmw7tasit0006bp5i6jwqlm56", // CUID passed as date
+          stationId: "2026-11-11",
+        })
+      ).rejects.toThrow("Date must be formatted as YYYY-MM-DD");
+
+      expect(fetchCalled).toBe(false);
+    });
+
+    it("rejects request if date and stationId are swapped or if stationId is formatted as a date", async () => {
+      let fetchCalled = false;
+      setupMockFetch(() => {
+        fetchCalled = true;
+        return new Response(JSON.stringify({ success: true, data: [] }), { status: 200 });
+      });
+
+      // Swapped: stationId passed as date and date passed as stationId
+      await expect(
+        gamingCenterService.getAvailabilitySlots("kian", "cmw7tasit0006bp5i6jwqlm56", "2026-11-11")
+      ).rejects.toThrow("Date must be formatted as YYYY-MM-DD");
+
+      // Valid date but stationId formatted as a date
+      await expect(
+        gamingCenterService.getAvailabilitySlots({
+          slug: "kian",
+          date: "2026-11-11",
+          stationId: "2026-12-12",
+        })
+      ).rejects.toThrow("Invalid station ID format: stationId appears to be a date string");
+
+      expect(fetchCalled).toBe(false);
+    });
   });
 
   describe("2. Available and Unavailable Slots Representation", () => {
