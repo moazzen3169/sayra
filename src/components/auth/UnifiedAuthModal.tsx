@@ -9,6 +9,7 @@ export interface UnifiedAuthModalProps {
   onSuccess: (data: UnifiedAuthSuccessData) => void;
   title?: string;
   description?: string;
+  initialPhone?: string;
 }
 
 export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
@@ -17,6 +18,7 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
   onSuccess,
   title = "ورود یا ثبت‌نام",
   description = "ورود و ثبت‌نام سریع با پیامک یک‌بار مصرف (OTP)",
+  initialPhone = "",
 }) => {
   if (!isOpen) return null;
 
@@ -52,6 +54,7 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
           onSuccess={onSuccess}
           title=""
           description={description}
+          initialPhone={initialPhone}
         />
       </div>
     </div>

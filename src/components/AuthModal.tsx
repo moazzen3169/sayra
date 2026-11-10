@@ -7,12 +7,14 @@ import type { UnifiedAuthSuccessData } from "@/components/auth/UnifiedAuthForm";
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialPhone?: string;
   onSuccess: (fullName: string, phone: string, token?: string, refreshToken?: string, gamingCenterId?: string, role?: string) => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
+  initialPhone,
   onSuccess,
 }) => {
   const handleSuccess = (data: UnifiedAuthSuccessData) => {
@@ -33,6 +35,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       onSuccess={handleSuccess}
       title="ورود یا ثبت‌نام"
       description="ورود و ثبت‌نام سریع با پیامک یک‌بار مصرف (OTP)"
+      initialPhone={initialPhone}
     />
   );
 };

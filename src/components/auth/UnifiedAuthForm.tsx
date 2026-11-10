@@ -20,6 +20,7 @@ export interface UnifiedAuthFormProps {
   title?: string;
   description?: string;
   initialMode?: "otp" | "password";
+  initialPhone?: string;
 }
 
 type AuthMode = "otp" | "password";
@@ -30,19 +31,20 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
   title = "ورود یا ثبت‌نام در سایرا",
   description = "ورود و ثبت‌نام با پیامک یک‌بار مصرف (OTP) بدون نیاز به رمز عبور",
   initialMode = "otp",
+  initialPhone = "",
 }) => {
   const [mode, setMode] = useState<AuthMode>(initialMode);
 
   // OTP Flow States
   const [otpStep, setOtpStep] = useState<OtpStep>("phone");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(initialPhone);
   const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
   const [centers, setCenters] = useState<UserGamingCenterOption[]>([]);
   const [selectedCenterId, setSelectedCenterId] = useState<string>("");
   const [timer, setTimer] = useState(120);
 
   // Password Flow States
-  const [passwordPhone, setPasswordPhone] = useState("");
+  const [passwordPhone, setPasswordPhone] = useState(initialPhone);
   const [password, setPassword] = useState("");
   const [passwordCenterId, setPasswordCenterId] = useState("");
 

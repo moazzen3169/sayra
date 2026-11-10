@@ -21,6 +21,8 @@ import { gamingCenterService } from "@/services/gamingCenterService";
 import type { AvailabilitySlot } from "@/services/gamingCenterService";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
+import { AuthModal } from "@/components/AuthModal";
 
 export interface SlotView {
   /** همان startTime برگشتی Backend؛ بدون دستکاری به API ارسال می‌شود */
@@ -85,6 +87,9 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  const { isLoggedIn, login } = useAuth();
 
   const dateListRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -140,7 +145,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
     dialogRef.current?.focus();
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !submittingRef.current) closeRef.current();
+      if (e.key === "Escape" && !submittingRef.current && !isAuthModalOpen) closeRef.current();
     };
     window.addEventListener("keydown", onKey);
 
@@ -149,7 +154,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
       window.removeEventListener("keydown", onKey);
       prevFocus?.focus();
     };
-  }, []);
+  }, [isAuthModalOpen]);
 
   // Availability همه‌ی دستگاه‌های انتخاب‌شده؛ فقط از Backend
   useEffect(() => {
@@ -596,9 +601,15 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
             <button
               type="button"
               disabled={!canSubmit}
-              onClick={() =>
-                items && onConfirm({ date, slots: selectedSlots, items })
-              }
+              onClick={() => {
+                if (!isLoggedIn) {
+                  setIsAuthModalOpen(true);
+                  return;
+                }
+                if (items) {
+                  onConfirm({ date, slots: selectedSlots, items });
+                }
+              }}
               className="h-12 w-full shrink-0 rounded-card bg-[var(--primary)] px-8 text-sm font-bold text-on-primary transition-all hover:bg-[var(--primary-hover)] active:scale-[0.98] disabled:bg-[var(--foreground)] disabled:text-[var(--text-muted)] sm:w-auto sm:min-w-[220px]"
             >
               {buttonText}
@@ -606,6 +617,18 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
           </div>
         </div>
       </footer>
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={(authFullName, authPhone, token, refreshToken, gamingCenterId, role) => {
+          login(authFullName, authPhone, token, refreshToken, role);
+          setIsAuthModalOpen(false);
+          if (items && selectedSlots.length > 0 && prepared?.isValid) {
+            onConfirm({ date, slots: selectedSlots, items });
+          }
+        }}
+      />
     </div>
   );
 };
