@@ -17,7 +17,7 @@ const secondaryLink =
 
 export const OwnerAccessGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
-  const { isLoggedIn, role } = useAuth();
+  const { isLoggedIn, role, user } = useAuth();
   const [ready, setReady] = useState(false);
 
   // تا بارگذاری وضعیت ورود از مرورگر تمام نشده چیزی نشان نمی‌دهیم تا صفحه چشمک نزند
@@ -27,7 +27,11 @@ export const OwnerAccessGuard: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const isOpenPath = OPEN_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  const hasAccess = isLoggedIn && ALLOWED_ROLES.includes(String(role ?? "").toUpperCase());
+  const isCustomerActor = user?.actorType?.toUpperCase() === "CUSTOMER";
+  const hasAccess =
+    isLoggedIn &&
+    !isCustomerActor &&
+    ALLOWED_ROLES.includes(String(role ?? "").toUpperCase());
 
   if (isOpenPath) return <>{children}</>;
   if (!ready) return null;

@@ -13,6 +13,8 @@ export interface UserProfile {
   phone: string;
   role?: string;
   token?: string;
+  actorType?: string;
+  gamingCenterId?: string;
 }
 
 export function parseJwtRole(token?: string | null): string | undefined {
@@ -35,7 +37,13 @@ export function parseJwtRole(token?: string | null): string | undefined {
   }
 }
 
-export function normalizeUserRole(rawRole?: string | null): "ADMIN" | "MANAGER" | "USER" {
+export function normalizeUserRole(
+  rawRole?: string | null,
+  actorType?: string | null
+): "ADMIN" | "MANAGER" | "USER" {
+  if (actorType?.toUpperCase() === "CUSTOMER") {
+    return "USER";
+  }
   if (!rawRole) return "USER";
   const upper = rawRole.toUpperCase().trim();
   if (upper === "ADMIN" || upper === "SUPER_ADMIN" || upper === "PLATFORM_ADMIN") {
@@ -146,13 +154,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const me: AuthUser = await authService.getMe();
       if (me) {
         setUser((prev) => {
-          const resolvedRole = prev?.role || parseJwtRole(token) || (me as any)?.role || "USER";
+          const resolvedActorType = me.actorType || (me as any)?.actorType;
+          let resolvedRole = (me as any)?.role;
+          if (!resolvedRole) {
+            if (resolvedActorType?.toUpperCase() === "CUSTOMER") {
+              resolvedRole = "USER";
+            } else {
+              resolvedRole = prev?.role || parseJwtRole(token) || "USER";
+            }
+          }
           const updated: UserProfile = {
             id: me.id,
             fullName: me.fullName || prev?.fullName || "",
             phone: cleanPhoneNumber(me.phone || prev?.phone || ""),
             role: resolvedRole,
             token,
+            actorType: resolvedActorType,
+            gamingCenterId: me.gamingCenterId,
           };
           try {
             localStorage.setItem(AUTH_USER_KEY, JSON.stringify(updated));
@@ -193,13 +211,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!active) return;
         if (me) {
           setUser((prev) => {
-            const resolvedRole = prev?.role || parseJwtRole(token) || (me as any)?.role || "USER";
+            const resolvedActorType = me.actorType || (me as any)?.actorType;
+            let resolvedRole = (me as any)?.role;
+            if (!resolvedRole) {
+              if (resolvedActorType?.toUpperCase() === "CUSTOMER") {
+                resolvedRole = "USER";
+              } else {
+                resolvedRole = prev?.role || parseJwtRole(token) || "USER";
+              }
+            }
             const updated: UserProfile = {
               id: me.id,
               fullName: me.fullName || prev?.fullName || "",
               phone: cleanPhoneNumber(me.phone || prev?.phone || ""),
               role: resolvedRole,
               token,
+              actorType: resolvedActorType,
+              gamingCenterId: me.gamingCenterId,
             };
             try {
               localStorage.setItem(AUTH_USER_KEY, JSON.stringify(updated));
@@ -267,7 +295,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const role = normalizeUserRole(user?.role || parseJwtRole(user?.token || (typeof window !== "undefined" ? getAccessToken() : null)));
+  const role = normalizeUserRole(
+    user?.role || parseJwtRole(user?.token || (typeof window !== "undefined" ? getAccessToken() : null)),
+    user?.actorType
+  );
 
   return (
     <AuthContext.Provider

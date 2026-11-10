@@ -63,6 +63,60 @@ describe("ownerService.getMe & center resolution", () => {
     expect(me.gamingCenterId).toBe("cm0987654321center");
   });
 
+  it("differentiates regular customer response from manager and does not grant MANAGER role", async () => {
+    // 1. Regular customer payload (actorType: CUSTOMER, without role, without gamingCenterId)
+    globalThis.fetch = (async () => {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            id: "cmwb866jf000rmmerskpdbsze",
+            actorId: "cmwb866jf000rmmerskpdbsze",
+            actorType: "CUSTOMER",
+            sessionId: "cmwb866jh000smmernexq4y6t",
+          },
+          meta: {
+            requestId: "x5c6m4r9qzdxxcd96a8e9dw4",
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }) as unknown as typeof fetch;
+
+    const customerMe = await ownerService.getMe();
+    expect(customerMe.id).toBe("cmwb866jf000rmmerskpdbsze");
+    expect(customerMe.actorType).toBe("CUSTOMER");
+    expect(customerMe.role).toBe("CUSTOMER");
+    expect(customerMe.gamingCenterId).toBeUndefined();
+
+    // 2. Gaming center owner/manager payload (actorType: USER, role: MANAGER, with gamingCenterId)
+    globalThis.fetch = (async () => {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            id: "cmw2lzu560019123lg44quti7",
+            actorId: "cmw2lzu560019123lg44quti7",
+            role: "MANAGER",
+            gamingCenterId: "cmw2lzu520017123lfuvfmtcd",
+            actorType: "USER",
+            sessionId: "cmwb9nx960018k3qzc24hl7we",
+          },
+          meta: {
+            requestId: "pe7v0njpzrhv58sw4f3r6g6c",
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }) as unknown as typeof fetch;
+
+    const managerMe = await ownerService.getMe();
+    expect(managerMe.id).toBe("cmw2lzu560019123lg44quti7");
+    expect(managerMe.actorType).toBe("USER");
+    expect(managerMe.role).toBe("MANAGER");
+    expect(managerMe.gamingCenterId).toBe("cmw2lzu520017123lfuvfmtcd");
+  });
+
   it("finds center by id with backend data envelope and custom fields", async () => {
     globalThis.fetch = (async (url: string | URL | Request) => {
       const urlStr = String(url);
