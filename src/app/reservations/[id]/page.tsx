@@ -465,29 +465,67 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
             {/* Reservation Details Card */}
             <section className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 desk:p-5 flex flex-col gap-4 shadow-sm">
               <h2 className="text-sm font-bold text-[var(--text-white)] pb-2 border-b border-[var(--border-subtle)]">
-                اطلاعات دستگاه و زمان رزرو
+                {reservation.items && reservation.items.length > 1
+                  ? "دستگاه‌های رزرو شده و زمان رزرو"
+                  : "اطلاعات دستگاه و زمان رزرو"}
               </h2>
 
-              {/* Station Info Header */}
-              <div className="flex items-center gap-3.5 min-w-0 pb-2">
-                <div className="w-14 h-14 shrink-0 rounded-card bg-[var(--foreground)]/50 border border-[var(--border-subtle)] flex items-center justify-center p-2 overflow-hidden">
-                  <img
-                    src={stationImageFor(reservation.stationSnapshot?.stationType)}
-                    alt={reservation.stationSnapshot?.name ?? "ایستگاه"}
-                    className="w-full h-full object-contain"
-                  />
+              {/* Station Info Header / Multi-Device List for Group Reservations */}
+              {reservation.items && reservation.items.length > 1 ? (
+                <div className="flex flex-col gap-2.5 pb-2">
+                  {reservation.items.map((item, idx) => (
+                    <div
+                      key={item.id || idx}
+                      className="flex items-center justify-between gap-3 bg-[var(--bg-body)]/50 p-2.5 rounded-child border border-[var(--border-subtle)]"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 shrink-0 rounded-child bg-[var(--foreground)]/50 border border-[var(--border-subtle)] flex items-center justify-center p-1.5 overflow-hidden">
+                          <img
+                            src={item.coverImageUrl || stationImageFor(item.stationType)}
+                            alt={item.stationName ?? "ایستگاه"}
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold text-[var(--text-white)] truncate">
+                            {item.stationName ?? "ایستگاه"}
+                          </span>
+                          {item.stationType && (
+                            <span className="text-[10px] text-[var(--text-muted)]">
+                              {item.stationType}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {item.totalPrice !== undefined && item.totalPrice > 0 && (
+                        <span className="text-xs font-bold text-[var(--text-muted)] shrink-0">
+                          {formatPrice(item.totalPrice)} تومان
+                        </span>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                <div className="flex flex-col gap-1 min-w-0">
-                  <span className="text-sm font-bold text-[var(--text-white)] break-words">
-                    {reservation.stationSnapshot?.name ?? "—"}
-                  </span>
-                  {reservation.stationSnapshot?.stationType && (
-                    <span className="text-xs text-[var(--text-muted)] font-medium">
-                      دستگاه: {reservation.stationSnapshot.stationType}
+              ) : (
+                <div className="flex items-center gap-3.5 min-w-0 pb-2">
+                  <div className="w-14 h-14 shrink-0 rounded-card bg-[var(--foreground)]/50 border border-[var(--border-subtle)] flex items-center justify-center p-2 overflow-hidden">
+                    <img
+                      src={stationImageFor(reservation.stationSnapshot?.stationType)}
+                      alt={reservation.stationSnapshot?.name ?? "ایستگاه"}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <span className="text-sm font-bold text-[var(--text-white)] break-words">
+                      {reservation.stationSnapshot?.name ?? "—"}
                     </span>
-                  )}
+                    {reservation.stationSnapshot?.stationType && (
+                      <span className="text-xs text-[var(--text-muted)] font-medium">
+                        دستگاه: {reservation.stationSnapshot.stationType}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Rows */}
               <div className="flex flex-col gap-2">

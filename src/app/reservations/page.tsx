@@ -5,13 +5,15 @@ import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { BottomBar } from "@/components/BottomBar";
 import { FirstReservationStrip } from "@/components/FirstReservationStrip";
 import { ReservationHistoryCard } from "@/components/ReservationHistoryCard";
+import { GroupReservationCard } from "@/components/GroupReservationCard";
 import { RatingModal } from "@/components/RatingModal";
 import { AuthModal } from "@/components/AuthModal";
 import { useAuth } from "@/context/AuthContext";
 import { isAbortError } from "@/lib/api/client";
+import { groupCustomerReservations } from "@/lib/groupReservationGrouping";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { reservationService } from "@/services/reservationService";
-import type { Reservation } from "@/types/reservation";
+import type { CustomerBookingEntry, Reservation } from "@/types/reservation";
 
 export default function ReservationsHistoryPage() {
   const { isLoggedIn, isLoading: isAuthLoading, login } = useAuth();
@@ -142,10 +144,24 @@ export default function ReservationsHistoryPage() {
 
         {/* Reservation List */}
         {isLoggedIn && items !== null && !error && items.length > 0 && (
-          <div className="flex flex-col lg:grid  mx-auto w-full  max-w-[var(--max-mini-app-width)] lg:px-8">
-            {items.map((r) => (
-              <ReservationHistoryCard key={r.id} reservation={r} onRate={setRatingTarget} />
-            ))}
+          <div className="flex flex-col lg:grid mx-auto w-full max-w-[var(--max-mini-app-width)] lg:px-8 gap-4">
+            {groupCustomerReservations(items).map((entry: CustomerBookingEntry) => {
+              if (entry.isGroup) {
+                return (
+                  <GroupReservationCard
+                    key={`group-${entry.groupBookingId}`}
+                    groupBooking={entry}
+                  />
+                );
+              }
+              return (
+                <ReservationHistoryCard
+                  key={entry.reservation.id}
+                  reservation={entry.reservation}
+                  onRate={setRatingTarget}
+                />
+              );
+            })}
           </div>
         )}
       </main>

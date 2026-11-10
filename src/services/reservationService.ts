@@ -2,6 +2,7 @@ import { apiClient } from "@/lib/api/client";
 import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { addMockReservation } from "@/lib/reservations.mock";
+import { mergeGroupReservationsIntoSingle } from "@/lib/groupReservationGrouping";
 import type { Reservation, ReservationTimeProposal } from "@/types/reservation";
 import { ContractGapError, PaymentInitResponse } from "@/types/customerApi";
 
@@ -172,17 +173,53 @@ export const reservationService = {
   /**
    * دریافت جزئیات یک رزرو متعلق به مشتری
    * GET /customer/reservation/{reservationId}
+   * اگر با خطای 404 مواجه شد (مثلاً زمانی که ID مربوط به یک رزرو گروهی یا کد رزرو است)،
+   * با جستجو در لیست رزروهای کاربر (/customer/reservation) رزرو مربوطه یا آیتم‌های گروه را پیدا و ادغام می‌کند.
    */
   async get(reservationId: string, signal?: AbortSignal): Promise<Reservation> {
-    const response = await apiClient.get<Reservation | { data?: Reservation }>(
-      ENDPOINTS.reservation.detail(reservationId),
-      { signal }
-    );
-    const resData = response.data;
-    if (resData && typeof resData === "object" && "data" in resData && (resData as any).data) {
-      return (resData as any).data as Reservation;
+    try {
+      const response = await apiClient.get<Reservation | { data?: Reservation }>(
+        ENDPOINTS.reservation.detail(reservationId),
+        { signal }
+      );
+      const resData = response.data;
+      if (resData && typeof resData === "object" && "data" in resData && (resData as any).data) {
+        return (resData as any).data as Reservation;
+      }
+      return resData as Reservation;
+    } catch (err: any) {
+      // اگر خطای 404 رخ داد، تلاش برای تطبیق با groupBookingId یا کد رزرو در لیست رزروهای مشتری
+      if (err?.status === 404) {
+        try {
+          const list = await reservationService.list(signal);
+          // ۱. جستجو بر اساس شناسه مستقیم یا کد رزرو
+          const exactMatch = list.find((r) => r.id === reservationId || r.reservationCode === reservationId);
+          if (exactMatch) {
+            // اگر بخشی از یک گروه بود، بررسی کنیم آیا رزروهای هم‌گروه دیگری هم وجود دارند
+            const groupId = exactMatch.groupBookingId || exactMatch.groupBooking?.id;
+            if (groupId) {
+              const groupSiblings = list.filter((r) => (r.groupBookingId || r.groupBooking?.id) === groupId);
+              if (groupSiblings.length > 1) {
+                return mergeGroupReservationsIntoSingle(groupId, groupSiblings);
+              }
+            }
+            return exactMatch;
+          }
+
+          // ۲. جستجو بر اساس groupBookingId
+          const groupMatches = list.filter(
+            (r) => (r.groupBookingId && r.groupBookingId === reservationId) ||
+                   (r.groupBooking?.id && r.groupBooking.id === reservationId)
+          );
+          if (groupMatches.length > 0) {
+            return mergeGroupReservationsIntoSingle(reservationId, groupMatches);
+          }
+        } catch {
+          // در صورت بروز هرگونه خطای ثانویه، همان خطای اصلی 404 بالا انداخته می‌شود
+        }
+      }
+      throw err;
     }
-    return resData as Reservation;
   },
 
   /**
