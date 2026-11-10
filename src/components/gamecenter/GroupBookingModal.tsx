@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import type { PhysicalStation } from "@/types/gaming-center/station.types";
 import type {
   GroupReservation,
@@ -8,6 +8,8 @@ import type {
 } from "@/types/gaming-center/group-reservation.types";
 import { cleanPhoneNumber, formatPrice, isValidIranPhone, toPersianDigits } from "@/lib/format";
 import { useGroupReservation } from "@/hooks/gaming-center/use-group-reservation";
+import { useAuth } from "@/context/AuthContext";
+import { AuthModal } from "@/components/AuthModal";
 
 interface GroupBookingModalProps {
   isOpen: boolean;
@@ -72,6 +74,16 @@ export const GroupBookingModal: React.FC<GroupBookingModalProps> = ({
   const [email, setEmail] = useState(initialCustomer?.email || "");
   const [note, setNote] = useState("");
   const [clientError, setClientError] = useState<string | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  const { user, isLoggedIn, login } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      if (user.fullName && !fullName) setFullName(user.fullName);
+      if (user.phone && !phone) setPhone(user.phone);
+    }
+  }, [user]);
 
   const { submit, isSubmitting, error: apiError } = useGroupReservation(gamingCenterSlug);
 
@@ -164,17 +176,29 @@ export const GroupBookingModal: React.FC<GroupBookingModalProps> = ({
       return;
     }
 
+    if (!isLoggedIn) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    await doSubmit(cleanPhone, fullName.trim(), isoString);
+  };
+
+  const doSubmit = async (targetPhone: string, targetName: string, startTimeIso?: string) => {
+    const finalStartTime = startTimeIso || constructStartTime().isoString;
+    if (!finalStartTime) return;
+
     const durationMinutes = Math.round(durationHours * 60);
 
     const payload: GroupReservationPayload = {
-      startTime: isoString,
+      startTime: finalStartTime,
       durationMinutes,
       items: selectedStations.map((st) => ({
         stationId: st.id,
       })),
       customer: {
-        fullName: fullName.trim(),
-        phone: cleanPhone,
+        fullName: targetName,
+        phone: targetPhone,
         ...(email.trim() ? { email: email.trim() } : {}),
       },
       ...(note.trim() ? { note: note.trim() } : {}),
@@ -183,8 +207,32 @@ export const GroupBookingModal: React.FC<GroupBookingModalProps> = ({
     try {
       const res = await submit(payload);
       onSuccess(res);
-    } catch {
+    } catch (err: any) {
+      if (err?.status === 401 || err?.code === "UNAUTHORIZED") {
+        setIsAuthModalOpen(true);
+      }
       // API error handled by hook state
+    }
+  };
+
+  const handleAuthSuccess = async (
+    authFullName: string,
+    authPhone: string,
+    token?: string,
+    refreshToken?: string,
+    gamingCenterId?: string,
+    role?: string
+  ) => {
+    login(authFullName, authPhone, token, refreshToken, role);
+    setIsAuthModalOpen(false);
+
+    const resolvedName = authFullName || fullName.trim() || "کاربر سایرا";
+    const resolvedPhone = toEnglishDigits(authPhone || phone).trim();
+    if (resolvedName) setFullName(resolvedName);
+    if (resolvedPhone) setPhone(resolvedPhone);
+
+    if (resolvedPhone && resolvedPhone.length >= 10) {
+      await doSubmit(resolvedPhone, resolvedName);
     }
   };
 
@@ -379,6 +427,13 @@ export const GroupBookingModal: React.FC<GroupBookingModalProps> = ({
           </button>
         </form>
       </div>
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialPhone={phone}
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   );
 };

@@ -3,6 +3,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useGroupReservation } from "@/hooks/gaming-center/use-group-reservation";
 import { isAbortError } from "@/lib/api/client";
+import { useAuth } from "@/context/AuthContext";
+import { AuthModal } from "@/components/AuthModal";
 import { generateDays, mapCalendarDaysToDateOptions } from "@/lib/dates";
 import type { DateOption } from "@/lib/dates";
 import { cleanPhoneNumber, formatPrice, isValidIranPhone, toEnglishDigits, toPersianDigits } from "@/lib/format";
@@ -85,6 +87,9 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
   const [phone, setPhone] = useState(initialCustomer?.phone ?? "");
   const [note, setNote] = useState("");
   const [clientError, setClientError] = useState<string | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  const { user, isLoggedIn, login } = useAuth();
 
   const { submit, isSubmitting, error: apiError } =
     useGroupReservation(gamingCenterSlug);
@@ -142,6 +147,18 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
 
   const totalHourly = stations.reduce((a, s) => a + (s.hourlyPrice || 0), 0);
 
+  // همگام‌سازی اطلاعات کاربر واردشده
+  useEffect(() => {
+    if (user) {
+      if (user.fullName && !fullName) {
+        setFullName(user.fullName);
+      }
+      if (user.phone && !phone) {
+        setPhone(user.phone);
+      }
+    }
+  }, [user]);
+
   // قفل اسکرول، Escape و مدیریت فوکوس
   useEffect(() => {
     const prevFocus = document.activeElement as HTMLElement | null;
@@ -150,7 +167,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
     dialogRef.current?.focus();
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !submittingRef.current) closeRef.current();
+      if (e.key === "Escape" && !submittingRef.current && !isAuthModalOpen) closeRef.current();
     };
     window.addEventListener("keydown", onKey);
 
@@ -159,7 +176,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
       window.removeEventListener("keydown", onKey);
       prevFocus?.focus();
     };
-  }, []);
+  }, [isAuthModalOpen]);
 
   // Availability همه‌ی دستگاه‌های انتخاب‌شده؛ فقط از Backend
   useEffect(() => {
@@ -325,13 +342,22 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
       return;
     }
 
+    if (!isLoggedIn) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    await doSubmitBooking(cleanPhone, fullName.trim());
+  };
+
+  const doSubmitBooking = async (targetPhone: string, targetName: string) => {
     const payload: GroupReservationPayload = {
       startTime: selectedSlots[0].startTime,
       durationMinutes,
       items: stations.map((st) => ({ stationId: st.id })),
       customer: {
-        fullName: fullName.trim(),
-        phone: cleanPhone,
+        fullName: targetName,
+        phone: targetPhone,
         ...(initialCustomer?.email ? { email: initialCustomer.email } : {}),
       },
       ...(note.trim() ? { note: note.trim() } : {}),
@@ -340,8 +366,32 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
     try {
       const res = await submit(payload);
       onSuccess(res);
-    } catch {
+    } catch (err: any) {
+      if (err?.status === 401 || err?.code === "UNAUTHORIZED") {
+        setIsAuthModalOpen(true);
+      }
       // خطای API از state هوک نمایش داده می‌شود
+    }
+  };
+
+  const handleAuthSuccess = async (
+    authFullName: string,
+    authPhone: string,
+    token?: string,
+    refreshToken?: string,
+    gamingCenterId?: string,
+    role?: string
+  ) => {
+    login(authFullName, authPhone, token, refreshToken, role);
+    setIsAuthModalOpen(false);
+
+    const resolvedName = authFullName || fullName.trim() || "کاربر سایرا";
+    const resolvedPhone = toEnglishDigits(authPhone || phone).trim();
+    if (resolvedName) setFullName(resolvedName);
+    if (resolvedPhone) setPhone(resolvedPhone);
+
+    if (has && !tooShort && resolvedPhone && /^09\d{9}$/.test(resolvedPhone)) {
+      await doSubmitBooking(resolvedPhone, resolvedName);
     }
   };
 
@@ -764,6 +814,14 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
           </div>
         </footer>
       </form>
+
+      {/* مدال احراز هویت بدون خروج از فرایند رزرو */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialPhone={phone}
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   );
 };
