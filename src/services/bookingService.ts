@@ -1,4 +1,4 @@
-import { toPersianDigits } from "@/lib/format";
+import { cleanPhoneNumber, toPersianDigits } from "@/lib/format";
 import { isSlotConflictError } from "@/lib/reservationUi";
 import type { BookingItem } from "@/lib/devices";
 import { reservationService } from "@/services/reservationService";
@@ -54,7 +54,10 @@ export async function submitBooking(params: SubmitParams): Promise<Reservation[]
             stationId: item.station.id,
             startTime: item.startTime,
             durationHours: 1,
-            customer: params.customer,
+            customer: {
+              fullName: params.customer.fullName,
+              phone: cleanPhoneNumber(params.customer.phone),
+            },
             ...(item.extraControllers > 0
               ? { note: `دسته اضافه: ${toPersianDigits(item.extraControllers)}` }
               : {}),

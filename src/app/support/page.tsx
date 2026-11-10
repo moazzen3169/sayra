@@ -507,7 +507,7 @@ export default function SupportPage() {
 
             {/* WhatsApp Channel */}
             <a
-              href="https://wa.me/989120000000"
+              href="https://wa.me/09120000000"
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary)] p-4 flex items-center justify-between gap-3 transition-all group shadow-sm"

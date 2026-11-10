@@ -6,7 +6,7 @@ import type {
   GroupReservation,
   GroupReservationPayload,
 } from "@/types/gaming-center/group-reservation.types";
-import { formatPrice, toPersianDigits } from "@/lib/format";
+import { cleanPhoneNumber, formatPrice, isValidIranPhone, toPersianDigits } from "@/lib/format";
 import { useGroupReservation } from "@/hooks/gaming-center/use-group-reservation";
 
 interface GroupBookingModalProps {
@@ -152,9 +152,9 @@ export const GroupBookingModal: React.FC<GroupBookingModalProps> = ({
       return;
     }
 
-    const cleanPhone = phone.trim();
-    if (!cleanPhone || cleanPhone.length < 10) {
-      setClientError("شماره تماس را به درستی وارد کنید (حداقل ۱۰ رقم).");
+    const cleanPhone = cleanPhoneNumber(phone);
+    if (!isValidIranPhone(cleanPhone)) {
+      setClientError("شماره موبایل را با ۱۱ رقم و با ۰۹ وارد کنید.");
       return;
     }
 
