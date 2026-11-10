@@ -18,6 +18,7 @@ export interface GamecenterCardData {
   hourlyPrice: number;
   discountedHourlyPrice?: number;
   discountPercent?: number;
+  discountAmount?: number;
   discount?: {
     valueType: "PERCENTAGE" | "FIXED_AMOUNT";
     value: number;
@@ -44,13 +45,30 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
     hourlyPrice,
     discountedHourlyPrice,
     discountPercent,
+    discountAmount,
     discount,
   } = center;
 
-  const effectiveDiscountedPrice = discountedHourlyPrice;
+  const hasDiscount = Boolean(
+    (discountedHourlyPrice !== undefined && hourlyPrice > 0 && discountedHourlyPrice < hourlyPrice) ||
+    discount ||
+    (discountPercent !== undefined && discountPercent > 0) ||
+    (discountAmount !== undefined && discountAmount > 0)
+  );
+
+  const effectiveDiscountedPrice =
+    discountedHourlyPrice !== undefined
+      ? discountedHourlyPrice
+      : discountPercent && discountPercent > 0 && hourlyPrice > 0
+      ? Math.max(0, Math.round(hourlyPrice * (1 - discountPercent / 100)))
+      : discountAmount && discountAmount > 0 && hourlyPrice > 0
+      ? Math.max(0, hourlyPrice - discountAmount)
+      : undefined;
 
   const discountBadgeText = discount
     ? formatDiscountBadge(discount.valueType, discount.value)
+    : discountAmount && discountAmount > 0
+    ? formatDiscountBadge("FIXED_AMOUNT", discountAmount)
     : discountPercent
     ? `${toPersianDigits(discountPercent)}٪`
     : null;
@@ -108,14 +126,16 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
 
       {/* Price Pill */}
       <div className="mx-3 mt-auto h-9 rounded-full bg-[var(--foreground)]/50 px-3 flex items-center justify-between text-xs">
-        {effectiveDiscountedPrice !== undefined ? (
+        {hasDiscount && effectiveDiscountedPrice !== undefined ? (
           <div className="flex items-center gap-1.5">
             <span className="font-bold text-[var(--primary)]">
               {formatPrice(effectiveDiscountedPrice)} تومان
             </span>
-            <span className="text-xs line-through text-[var(--text-subtle)] font-medium">
-              {formatPrice(hourlyPrice)}
-            </span>
+            {hourlyPrice > 0 && hourlyPrice !== effectiveDiscountedPrice && (
+              <span className="text-xs line-through text-[var(--text-subtle)] font-medium">
+                {formatPrice(hourlyPrice)}
+              </span>
+            )}
           </div>
         ) : (
           <div className="font-bold text-[var(--text-white)]">

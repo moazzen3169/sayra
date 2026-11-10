@@ -4,6 +4,7 @@ import {
   ContractGapError,
 } from "@/types/customerApi";
 import { gamingCenterService } from "./gamingCenterService";
+import { normalizeMediaUrl, PLACEHOLDERS } from "@/lib/media";
 
 export interface GamecenterListItem {
   id: string;
@@ -16,6 +17,7 @@ export interface GamecenterListItem {
   hourlyPrice: number;
   discountedHourlyPrice?: number;
   discountPercent?: number;
+  discountAmount?: number;
   discount?: {
     valueType: "PERCENTAGE" | "FIXED_AMOUNT";
     value: number;
@@ -29,6 +31,7 @@ export interface GamecenterListItem {
   isOpen?: boolean;
   pcCount?: number;
   consoleCount?: number;
+  coverImages?: string[];
   createdAt: string;
 }
 
@@ -86,6 +89,36 @@ function deriveCategories(center: PublicGamingCenter): string[] {
  * - امتیاز و تعداد نظر: raiting و comment_count
  * - دسته‌ها: ps4 / ps5 / pc / xbox
  */
+/**
+ * Resolves the cover image for a gaming center:
+ * Priority:
+ * 1. center.coverImageUrl
+ * 2. center.coverImages[0]
+ * 3. center.banner
+ * 4. Fallback default image
+ */
+export function resolveCenterCoverImage(center: PublicGamingCenter): string {
+  const candidate =
+    center.coverImageUrl ||
+    (Array.isArray(center.coverImages) && center.coverImages.length > 0 ? center.coverImages[0] : null) ||
+    center.banner;
+
+  if (candidate && typeof candidate === "string" && candidate.trim()) {
+    const normalized = normalizeMediaUrl(candidate.trim());
+    if (normalized) return normalized;
+  }
+
+  return DEFAULT_CENTER_IMAGE;
+}
+
+/**
+ * Mapping helper: Maps an OpenAPI PublicGamingCenter schema item to GamecenterListItem
+ * - آدرس: addressLine آدرس اصلی (در نبود آدرس، description)
+ * - کاور: coverImageUrl یا coverImages یا banner
+ * - قیمت و تخفیف: pricing یا hourlyRate و hasDiscount
+ * - امتیاز و تعداد نظر: raiting و comment_count
+ * - دسته‌ها: ps4 / ps5 / pc / xbox
+ */
 export function mapPublicGamingCenterToListItem(
   center: PublicGamingCenter,
   overrides?: Partial<GamecenterListItem>
@@ -98,27 +131,84 @@ export function mapPublicGamingCenterToListItem(
   const city = primary?.city?.trim() || "";
   const createdAt = center.createdAt || new Date().toISOString();
 
+  // Resolution of cover image
+  const resolvedImageUrl = resolveCenterCoverImage(center);
+
+  // Resolution of pricing and discounts
+  const pricing = center.pricing;
+  const hasDiscountFlag = Boolean(
+    center.hasDiscount ||
+    center.has_discount ||
+    (pricing && pricing.hasDiscount) ||
+    (pricing && ((pricing.discountPercentage ?? 0) > 0 || (pricing.discountAmount ?? 0) > 0))
+  );
+
+  let hourlyPrice = toNumber(center.hourlyRate);
+  let discountedHourlyPrice: number | undefined = undefined;
+  let discountPercent: number | undefined = undefined;
+  let discountAmount: number | undefined = undefined;
+  let discountObj: GamecenterListItem["discount"] = undefined;
+
+  if (pricing) {
+    if (typeof pricing.originalPrice === "number" && pricing.originalPrice > 0) {
+      hourlyPrice = pricing.originalPrice;
+    }
+
+    if (hasDiscountFlag) {
+      if (typeof pricing.finalPrice === "number" && pricing.finalPrice >= 0) {
+        discountedHourlyPrice = pricing.finalPrice;
+      }
+      if (typeof pricing.discountPercentage === "number" && pricing.discountPercentage > 0) {
+        discountPercent = pricing.discountPercentage;
+        discountObj = {
+          valueType: "PERCENTAGE",
+          value: pricing.discountPercentage,
+        };
+      } else if (typeof pricing.discountAmount === "number" && pricing.discountAmount > 0) {
+        discountAmount = pricing.discountAmount;
+        discountObj = {
+          valueType: "FIXED_AMOUNT",
+          value: pricing.discountAmount,
+        };
+      }
+    }
+  } else if (hasDiscountFlag) {
+    // If hasDiscount is true without pricing object
+    discountObj = overrides?.discount;
+    discountedHourlyPrice = overrides?.discountedHourlyPrice;
+    discountPercent = overrides?.discountPercent;
+    discountAmount = overrides?.discountAmount;
+  }
+
+  const coverImagesList = Array.isArray(center.coverImages)
+    ? center.coverImages
+        .map((img) => (typeof img === "string" ? normalizeMediaUrl(img) : ""))
+        .filter(Boolean)
+    : undefined;
+
   return {
     id,
     name,
-    imageUrl: overrides?.imageUrl || DEFAULT_CENTER_IMAGE,
+    imageUrl: overrides?.imageUrl || (resolvedImageUrl !== DEFAULT_CENTER_IMAGE ? resolvedImageUrl : DEFAULT_CENTER_IMAGE),
     location: overrides?.location !== undefined ? overrides.location : location,
     city: overrides?.city || city,
     rating: overrides?.rating ?? toNumber(center.raiting),
     reviewsCount: overrides?.reviewsCount ?? toNumber(center.comment_count),
-    hourlyPrice: overrides?.hourlyPrice ?? toNumber(center.hourlyRate),
-    discountedHourlyPrice: overrides?.discountedHourlyPrice,
-    discountPercent: overrides?.discountPercent,
-    discount: overrides?.discount,
+    hourlyPrice: overrides?.hourlyPrice ?? hourlyPrice,
+    discountedHourlyPrice: overrides?.discountedHourlyPrice !== undefined ? overrides.discountedHourlyPrice : discountedHourlyPrice,
+    discountPercent: overrides?.discountPercent !== undefined ? overrides.discountPercent : discountPercent,
+    discountAmount: overrides?.discountAmount !== undefined ? overrides.discountAmount : discountAmount,
+    discount: overrides?.discount !== undefined ? overrides.discount : discountObj,
     categories: overrides?.categories || deriveCategories(center),
     isNew: overrides?.isNew,
     isPopular: overrides?.isPopular,
-    isDiscounted: overrides?.isDiscounted,
+    isDiscounted: overrides?.isDiscounted !== undefined ? overrides.isDiscounted : hasDiscountFlag,
     isOpen: overrides?.isOpen ?? (typeof center.is_open === "boolean" ? center.is_open : undefined),
     pcCount: overrides?.pcCount ?? (typeof center.pcCount === "number" ? center.pcCount : undefined),
     consoleCount:
       overrides?.consoleCount ??
       (typeof center.consoleCount === "number" ? center.consoleCount : undefined),
+    coverImages: overrides?.coverImages ?? coverImagesList,
     createdAt,
   };
 }
