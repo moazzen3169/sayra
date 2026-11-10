@@ -179,11 +179,20 @@ export const gamingCenterService = {
     if (USE_MOCK_RESERVATIONS) {
       return getMockGamecenterDetail(gamingCenterId).stations;
     }
-    const { data } = await apiClient.get<GameStationInfo[]>(
+    const { data } = await apiClient.get<any>(
       ENDPOINTS.gamingCenter.stations(gamingCenterId),
       { signal }
     );
-    return Array.isArray(data) ? data : [];
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === "object") {
+      if (Array.isArray(data.data)) return data.data;
+      if (data.data && typeof data.data === "object" && Array.isArray(data.data.data)) {
+        return data.data.data;
+      }
+      if (Array.isArray(data.stations)) return data.stations;
+      if (Array.isArray(data.items)) return data.items;
+    }
+    return [];
   },
 
   /**

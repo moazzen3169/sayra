@@ -1,3 +1,4 @@
+import { normalizeMediaUrl } from "@/lib/media";
 import type { GameStationInfo } from "@/services/gamingCenterService";
 import type { DeviceCatalogItem } from "@/types/catalog";
 
@@ -44,7 +45,7 @@ export const stationGroupKey = (station: GameStationInfo): string =>
 
 const stationCover = (station: GameStationInfo): string | null => {
   const raw = station as unknown as { coverImageUrl?: string | null };
-  return raw.coverImageUrl || null;
+  return raw.coverImageUrl ? normalizeMediaUrl(raw.coverImageUrl) || raw.coverImageUrl : null;
 };
 
 /** دسته‌بندی کاتالوگ مستقیماً از روی دستگاه‌های واقعی ساخته می‌شود تا شمارنده و جدول همیشه یکی باشند */
@@ -69,9 +70,9 @@ export function buildStationGroups(
     groups.set(key, {
       key,
       name: catalog?.name ?? stationTypeLabel(station.stationType),
-      deviceType: String(catalog?.deviceType ?? station.stationType ?? ""),
+      deviceType: String(catalog?.deviceType ?? station.stationType ?? "OTHER"),
       catalogId: station.catalogDeviceId ?? null,
-      coverImageUrl: catalog?.coverImageUrl || stationCover(station),
+      coverImageUrl: (catalog?.coverImageUrl ? normalizeMediaUrl(catalog.coverImageUrl) : null) || stationCover(station),
       count: 1,
     });
   }

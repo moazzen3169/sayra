@@ -65,9 +65,22 @@ export default function OwnerStationsPage() {
 
     ownerService
       .listStations(centerId, controller.signal)
-      .then((data) => {
+      .then((data: any) => {
         if (!active) return;
-        setStations(Array.isArray(data) ? data : []);
+        let stationList: GameStationInfo[] = [];
+        if (Array.isArray(data)) {
+          stationList = data;
+        } else if (data && typeof data === "object") {
+          if (Array.isArray(data.data)) stationList = data.data;
+          else if (data.data && typeof data.data === "object" && Array.isArray(data.data.data)) {
+            stationList = data.data.data;
+          } else if (Array.isArray(data.stations)) {
+            stationList = data.stations;
+          } else if (Array.isArray(data.items)) {
+            stationList = data.items;
+          }
+        }
+        setStations(stationList);
         setStationsError(null);
       })
       .catch((e) => {

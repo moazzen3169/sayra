@@ -162,19 +162,37 @@ export const gamingCenterService = {
    * GET /public/gamingCenters/{slug}/stations
    */
   async getPublicStations(slug: string, signal?: AbortSignal): Promise<GameStationInfo[]> {
-    const { data } = await apiClient.get<GameStationInfo[]>(
+    const { data } = await apiClient.get<any>(
       ENDPOINTS.gamingCenter.publicStations(slug),
       { signal }
     );
-    return Array.isArray(data) ? data : [];
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === "object") {
+      if (Array.isArray(data.data)) return data.data;
+      if (data.data && typeof data.data === "object" && Array.isArray(data.data.data)) {
+        return data.data.data;
+      }
+      if (Array.isArray(data.stations)) return data.stations;
+      if (Array.isArray(data.items)) return data.items;
+    }
+    return [];
   },
 
   async getStations(gamingCenterId: string, signal?: AbortSignal): Promise<GameStationInfo[]> {
-    const { data } = await apiClient.get<GameStationInfo[]>(
+    const { data } = await apiClient.get<any>(
       ENDPOINTS.gamingCenter.stations(gamingCenterId),
       { signal }
     );
-    return Array.isArray(data) ? data : [];
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === "object") {
+      if (Array.isArray(data.data)) return data.data;
+      if (data.data && typeof data.data === "object" && Array.isArray(data.data.data)) {
+        return data.data.data;
+      }
+      if (Array.isArray(data.stations)) return data.stations;
+      if (Array.isArray(data.items)) return data.items;
+    }
+    return [];
   },
 
   async getPublicRatings(slug: string, signal?: AbortSignal): Promise<PublicRating[]> {
