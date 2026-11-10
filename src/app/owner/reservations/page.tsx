@@ -3,13 +3,21 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
+import { OwnerGroupReservationCard } from "@/components/owner/OwnerGroupReservationCard";
+import { GroupDetailsModal } from "@/components/owner/GroupDetailsModal";
+import { GroupConfirmModal } from "@/components/owner/GroupConfirmModal";
+import { GroupCancelModal } from "@/components/owner/GroupCancelModal";
+import { GroupProposeTimeModal } from "@/components/owner/GroupProposeTimeModal";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useOwner } from "@/context/OwnerContext";
 import { isAbortError } from "@/lib/api/client";
-import { generateDays, type DateOption } from "@/lib/dates";
 import { formatPrice, toEnglishDigits, toPersianDigits } from "@/lib/format";
 import { formatReservationWhen, getErrorMessage, getPaymentLabel } from "@/lib/reservationUi";
-import { generateHourlySlots, type TimeSlotOption } from "@/lib/slots";
+import {
+  groupOwnerReservations,
+  type OwnerBookingEntry,
+  type OwnerGroupBookingItem,
+} from "@/lib/ownerGroupReservationGrouping";
 import { ownerService } from "@/services/ownerService";
 import type { OwnerReservation } from "@/types/owner";
 import type { ReservationStatus } from "@/types/reservation";
@@ -27,7 +35,7 @@ type SessionAction = "start" | "stop" | "pause" | "resume";
 
 function Content() {
   const params = useSearchParams();
-  const { centerId } = useOwner();
+  const { centerId, center } = useOwner();
 
   const [items, setItems] = useState<OwnerReservation[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,14 +45,12 @@ function Content() {
   const [reloadToken, setReloadToken] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const [proposeFor, setProposeFor] = useState<OwnerReservation | null>(null);
-  const [pDateId, setPDateId] = useState<string>("day-0");
-  const [selectedSlotHours, setSelectedSlotHours] = useState<number[]>([]);
-  const [pNote, setPNote] = useState("");
-  const [proposing, setProposing] = useState(false);
-
-  const availableDays = useMemo(() => generateDays(10), []);
-  const hourlySlots = useMemo(() => generateHourlySlots(), []);
+  // Group and Single Action Modals State
+  const [detailsTarget, setDetailsTarget] = useState<OwnerBookingEntry | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<OwnerBookingEntry | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<OwnerBookingEntry | null>(null);
+  const [proposeTarget, setProposeTarget] = useState<OwnerBookingEntry | null>(null);
+  const [modalBusy, setModalBusy] = useState(false);
 
   // Fetch reservations with server-side status filtering and OpenAPI pagination envelope support
   useEffect(() => {
@@ -73,57 +79,160 @@ function Content() {
     };
   }, [centerId, filter, reloadToken]);
 
-  const visible = useMemo(() => {
+  // Group raw reservations into aggregated Group Bookings and Single Bookings
+  const groupedEntries = useMemo<OwnerBookingEntry[]>(() => {
+    return groupOwnerReservations(items ?? []);
+  }, [items]);
+
+  const visibleEntries = useMemo(() => {
     const rawQ = query.trim().toLowerCase();
     const normQ = toEnglishDigits(rawQ);
-    if (!rawQ && !normQ) {
-      return (items ?? []).filter((r) => filter === "ALL" || r.status === filter);
-    }
-    return (items ?? []).filter((r) => {
-      const codeMatch =
-        r.reservationCode &&
-        (toEnglishDigits(r.reservationCode).toLowerCase().includes(normQ) ||
-          r.reservationCode.toLowerCase().includes(rawQ));
 
-      const hay = [
-        r.id,
-        r.customer?.phone,
-        r.customer?.fullName,
-        r.customerPhone,
-        r.customerName,
-        r.stationSnapshot?.name,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+    return groupedEntries.filter((entry) => {
+      const entryStatus = entry.isGroup ? entry.status : entry.reservation.status;
+      // 1. Filter match
+      const statusMatch = filter === "ALL" || entryStatus === filter;
 
-      const textMatch = hay.includes(rawQ) || (normQ ? hay.includes(normQ) : false);
+      // 2. Query search match
+      if (!rawQ && !normQ) {
+        return statusMatch;
+      }
 
-      const isMatch = codeMatch || textMatch;
-      if (!isMatch) return false;
+      if (entry.isGroup) {
+        const codeMatch =
+          entry.reservationCode &&
+          (toEnglishDigits(entry.reservationCode).toLowerCase().includes(normQ) ||
+            entry.reservationCode.toLowerCase().includes(rawQ));
 
-      // If user typed exact or partial code, prioritize showing match regardless of filter
-      if (codeMatch) return true;
+        const hay = [
+          entry.groupBookingId,
+          entry.customerPhone,
+          entry.customerName,
+          ...entry.devices.map((d) => d.stationName),
+          ...entry.reservations.map((r) => r.id),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-      return filter === "ALL" || r.status === filter;
+        const textMatch = hay.includes(rawQ) || (normQ ? hay.includes(normQ) : false);
+        const matches = Boolean(codeMatch || textMatch);
+        if (!matches) return false;
+        if (codeMatch) return true;
+        return statusMatch;
+      } else {
+        const r = entry.reservation;
+        const codeMatch =
+          r.reservationCode &&
+          (toEnglishDigits(r.reservationCode).toLowerCase().includes(normQ) ||
+            r.reservationCode.toLowerCase().includes(rawQ));
+
+        const hay = [
+          r.id,
+          r.customer?.phone,
+          r.customer?.fullName,
+          r.customerPhone,
+          r.customerName,
+          r.stationSnapshot?.name,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        const textMatch = hay.includes(rawQ) || (normQ ? hay.includes(normQ) : false);
+        const matches = Boolean(codeMatch || textMatch);
+        if (!matches) return false;
+        if (codeMatch) return true;
+        return statusMatch;
+      }
     });
-  }, [items, filter, query]);
+  }, [groupedEntries, filter, query]);
 
-  const updateStatus = useCallback(
-    async (r: OwnerReservation, newStatus: ReservationStatus) => {
-      if (busyId) return;
-      setBusyId(r.id);
+  // Execute group or single confirmation
+  const handleConfirmAction = useCallback(async () => {
+    if (!confirmTarget || modalBusy) return;
+    setModalBusy(true);
+    setActionError(null);
+    try {
+      if (confirmTarget.isGroup) {
+        // Confirm all child reservations in the group
+        for (const res of confirmTarget.reservations) {
+          if (res.status === "PENDING") {
+            await ownerService.confirmReservation(centerId, res.id);
+          }
+        }
+      } else {
+        await ownerService.confirmReservation(centerId, confirmTarget.reservation.id);
+      }
+      setConfirmTarget(null);
+      setReloadToken((v) => v + 1);
+    } catch (e) {
+      setActionError(getErrorMessage(e));
+    } finally {
+      setModalBusy(false);
+    }
+  }, [confirmTarget, modalBusy, centerId]);
+
+  // Execute group or single cancellation
+  const handleCancelAction = useCallback(
+    async (reason?: string) => {
+      if (!cancelTarget || modalBusy) return;
+      setModalBusy(true);
       setActionError(null);
       try {
-        await ownerService.updateReservationStatus(centerId, r.id, newStatus);
+        if (cancelTarget.isGroup) {
+          // Cancel all child reservations in the group
+          for (const res of cancelTarget.reservations) {
+            if (res.status !== "CANCELED") {
+              await ownerService.cancelReservation(centerId, res.id, reason);
+            }
+          }
+        } else {
+          await ownerService.cancelReservation(centerId, cancelTarget.reservation.id, reason);
+        }
+        setCancelTarget(null);
         setReloadToken((v) => v + 1);
       } catch (e) {
         setActionError(getErrorMessage(e));
       } finally {
-        setBusyId(null);
+        setModalBusy(false);
       }
     },
-    [busyId, centerId]
+    [cancelTarget, modalBusy, centerId]
+  );
+
+  // Execute group or single time proposal
+  const handleProposeTimeAction = useCallback(
+    async (startTime: string, endTime: string, note?: string) => {
+      if (!proposeTarget || modalBusy) return;
+      setModalBusy(true);
+      setActionError(null);
+      try {
+        if (proposeTarget.isGroup) {
+          // Propose synchronized time across all child reservations in the group
+          for (const res of proposeTarget.reservations) {
+            await ownerService.proposeTime(centerId, res.id, {
+              startTime,
+              endTime,
+              note,
+            });
+          }
+        } else {
+          await ownerService.proposeTime(centerId, proposeTarget.reservation.id, {
+            startTime,
+            endTime,
+            note,
+          });
+        }
+        setProposeTarget(null);
+        setReloadToken((v) => v + 1);
+      } catch (e) {
+        setActionError(getErrorMessage(e));
+      } finally {
+        setModalBusy(false);
+      }
+    },
+    [proposeTarget, modalBusy, centerId]
   );
 
   const runSession = useCallback(
@@ -143,66 +252,7 @@ function Content() {
     [busyId, centerId]
   );
 
-  // Calculate required slot hours count to enforce reservation duration consistency (Part D)
-  const targetDurationHours = useMemo(() => {
-    if (!proposeFor) return 1;
-    if (proposeFor.totalHours && proposeFor.totalHours > 0) {
-      return Math.round(proposeFor.totalHours);
-    }
-    const start = new Date(proposeFor.startTime).getTime();
-    const end = new Date(proposeFor.endTime).getTime();
-    const diff = Math.round((end - start) / 3_600_000);
-    return diff > 0 ? diff : 1;
-  }, [proposeFor]);
-
-  const toggleSlotHour = (hour: number) => {
-    // When duration is strictly fixed, selecting a slot sets consecutive hours starting at that hour
-    if (targetDurationHours > 1) {
-      const consecutive: number[] = [];
-      for (let i = 0; i < targetDurationHours; i++) {
-        consecutive.push(hour + i);
-      }
-      setSelectedSlotHours(consecutive);
-      return;
-    }
-
-    setSelectedSlotHours((prev) =>
-      prev.includes(hour) ? prev.filter((h) => h !== hour) : [hour]
-    );
-  };
-
-  const submitProposal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!proposeFor || proposing || selectedSlotHours.length === 0) return;
-    const selectedDay = availableDays.find((d) => d.id === pDateId) ?? availableDays[0];
-    const minHour = Math.min(...selectedSlotHours);
-    const maxHour = Math.max(...selectedSlotHours) + 1;
-
-    // Use exact application timezone (Asia/Tehran +03:30) to avoid timezone shift
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const startTime = new Date(`${selectedDay.fullDate}T${pad(minHour)}:00:00+03:30`).toISOString();
-    const endTime = new Date(`${selectedDay.fullDate}T${pad(maxHour)}:00:00+03:30`).toISOString();
-
-    setProposing(true);
-    setActionError(null);
-    try {
-      await ownerService.proposeTime(centerId, proposeFor.id, {
-        startTime,
-        endTime,
-        ...(pNote.trim() ? { note: pNote.trim() } : {}),
-      });
-      setProposeFor(null);
-      setSelectedSlotHours([]);
-      setPNote("");
-      setReloadToken((v) => v + 1);
-    } catch (err) {
-      setActionError(getErrorMessage(err));
-    } finally {
-      setProposing(false);
-    }
-  };
-
-  const btn = "h-10 px-4 rounded-card text-xs font-bold disabled:opacity-50";
+  const btn = "h-9 px-3.5 rounded-card text-xs font-bold disabled:opacity-50 transition-all";
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
@@ -247,28 +297,62 @@ function Content() {
           </div>
         )}
 
-        {items && !error && visible.length === 0 && (
+        {items && !error && visibleEntries.length === 0 && (
           <p className="py-12 text-center text-xs text-[var(--text-muted)]">رزروی پیدا نشد.</p>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {visible.map((r) => {
+        {/*
+          Display exactly 1 card per row:
+          Using grid-cols-1 or flex flex-col so that each card takes the full row.
+        */}
+        <div className="flex flex-col gap-4">
+          {visibleEntries.map((entry) => {
+            if (entry.isGroup) {
+              const isBusy = modalBusy && (
+                confirmTarget === entry ||
+                cancelTarget === entry ||
+                proposeTarget === entry
+              );
+
+              return (
+                <OwnerGroupReservationCard
+                  key={`group-${entry.groupBookingId}`}
+                  groupBooking={entry}
+                  busy={isBusy}
+                  onConfirm={() => setConfirmTarget(entry)}
+                  onCancel={() => setCancelTarget(entry)}
+                  onProposeTime={() => setProposeTarget(entry)}
+                  onViewDetails={() => setDetailsTarget(entry)}
+                />
+              );
+            }
+
+            const r = entry.reservation;
             const customerName = r.customer?.fullName ?? r.customerName;
             const customerPhone = r.customer?.phone ?? r.customerPhone;
             const busy = busyId === r.id;
+
             return (
-              <article key={r.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex flex-col justify-between gap-3">
+              <article
+                key={`single-${r.id}`}
+                className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 sm:p-5 flex flex-col justify-between gap-3 transition-all duration-200 hover:border-[var(--border-color)]"
+              >
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-bold truncate">{r.stationSnapshot?.name ?? "ایستگاه"}</h3>
+                    <h3 className="text-sm font-bold truncate">
+                      {r.stationSnapshot?.name ?? "ایستگاه"}
+                    </h3>
                     <StatusBadge status={r.status} />
                   </div>
 
-                  <p className="text-xs font-bold">{formatReservationWhen(r.startTime, r.endTime)}</p>
+                  <p className="text-xs font-bold">
+                    {formatReservationWhen(r.startTime, r.endTime)}
+                  </p>
 
                   {(customerName || customerPhone) && (
                     <p className="text-xs text-[var(--text-muted)]">
-                      مشتری: {customerName ?? ""} {customerPhone ? `(${toPersianDigits(customerPhone)})` : ""}
+                      مشتری: {customerName ?? ""}{" "}
+                      {customerPhone ? `(${toPersianDigits(customerPhone)})` : ""}
                     </p>
                   )}
                 </div>
@@ -279,66 +363,103 @@ function Content() {
                       {r.reservationCode ? `کد: ${toPersianDigits(r.reservationCode)} • ` : ""}
                       {getPaymentLabel(r.paymentState)}
                     </span>
-                    <span className="font-black text-[var(--primary)]">{formatPrice(r.totalPrice)} تومان</span>
+                    <span className="font-black text-[var(--primary)]">
+                      {formatPrice(r.totalPrice)} تومان
+                    </span>
                   </div>
 
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {r.status === "PENDING" && (
-                      <>
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <div className="flex flex-wrap gap-2">
+                      {r.status === "PENDING" && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setConfirmTarget(entry)}
+                            className={`${btn} bg-[var(--primary)] text-on-primary hover:opacity-90`}
+                          >
+                            تایید رزرو
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setCancelTarget(entry)}
+                            className={`${btn} bg-[var(--accent-red)]/15 border border-[var(--accent-red)]/30 text-[var(--accent-red)] hover:bg-[var(--accent-red)]/25`}
+                          >
+                            لغو رزرو
+                          </button>
+                        </>
+                      )}
+
+                      {r.status === "CONFIRMED" && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => runSession(r, "start")}
+                            className={`${btn} bg-[var(--primary)] text-on-primary`}
+                          >
+                            شروع سانس
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setCancelTarget(entry)}
+                            className={`${btn} bg-[var(--accent-red)]/15 border border-[var(--accent-red)]/30 text-[var(--accent-red)] hover:bg-[var(--accent-red)]/25`}
+                          >
+                            لغو رزرو
+                          </button>
+                        </>
+                      )}
+
+                      {r.status === "IN_PROGRESS" && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => runSession(r, "pause")}
+                            className={`${btn} bg-[var(--foreground)]`}
+                          >
+                            توقف موقت
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => runSession(r, "resume")}
+                            className={`${btn} bg-[var(--foreground)]`}
+                          >
+                            ادامه
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => runSession(r, "stop")}
+                            className={`${btn} bg-[var(--accent-red)] text-[var(--text-white)]`}
+                          >
+                            پایان سانس
+                          </button>
+                        </>
+                      )}
+
+                      {(r.status === "PENDING" || r.status === "CONFIRMED") && (
                         <button
                           type="button"
                           disabled={busy}
-                          onClick={() => updateStatus(r, "CONFIRMED")}
-                          className={`${btn} bg-[var(--primary)] text-on-primary hover:opacity-90`}
+                          onClick={() => setProposeTarget(entry)}
+                          className={`${btn} border border-[var(--border-color)] text-[var(--text-white)] hover:border-[var(--primary)]`}
                         >
-                          تایید رزرو
+                          پیشنهاد زمان جدید
                         </button>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => updateStatus(r, "CANCELED")}
-                          className={`${btn} bg-[var(--accent-red)]/15 border border-[var(--accent-red)]/30 text-[var(--accent-red)] hover:bg-[var(--accent-red)]/25`}
-                        >
-                          لغو رزرو
-                        </button>
-                      </>
-                    )}
+                      )}
+                    </div>
 
-                    {r.status === "CONFIRMED" && (
-                      <>
-                        <button type="button" disabled={busy} onClick={() => runSession(r, "start")} className={`${btn} bg-[var(--primary)] text-on-primary`}>
-                          شروع سانس
-                        </button>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => updateStatus(r, "CANCELED")}
-                          className={`${btn} bg-[var(--accent-red)]/15 border border-[var(--accent-red)]/30 text-[var(--accent-red)] hover:bg-[var(--accent-red)]/25`}
-                        >
-                          لغو رزرو
-                        </button>
-                      </>
-                    )}
-
-                    {r.status === "IN_PROGRESS" && (
-                      <>
-                        <button type="button" disabled={busy} onClick={() => runSession(r, "pause")} className={`${btn} bg-[var(--foreground)]`}>
-                          توقف موقت
-                        </button>
-                        <button type="button" disabled={busy} onClick={() => runSession(r, "resume")} className={`${btn} bg-[var(--foreground)]`}>
-                          ادامه
-                        </button>
-                        <button type="button" disabled={busy} onClick={() => runSession(r, "stop")} className={`${btn} bg-[var(--accent-red)] text-[var(--text-white)]`}>
-                          پایان سانس
-                        </button>
-                      </>
-                    )}
-
-                    {(r.status === "PENDING" || r.status === "CONFIRMED") && (
-                      <button type="button" onClick={() => setProposeFor(r)} className={`${btn} border border-[var(--border-color)] hover:border-[var(--primary)]`}>
-                        پیشنهاد زمان جدید
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setDetailsTarget(entry)}
+                      className={`${btn} bg-[var(--foreground)] text-[var(--text-white)] hover:bg-[var(--foreground)]/80`}
+                    >
+                      مشاهده جزئیات
+                    </button>
                   </div>
                 </div>
               </article>
@@ -347,117 +468,44 @@ function Content() {
         </div>
       </main>
 
-      {proposeFor && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm sm:p-4"
-          onClick={() => !proposing && setProposeFor(null)}
-        >
-          <form
-            onSubmit={submitProposal}
-            className="w-full max-w-[520px] max-h-[90vh] overflow-y-auto bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex flex-col gap-1 border-b border-[var(--border-subtle)] pb-3">
-              <h3 className="text-base font-bold text-[var(--text-white)]">پیشنهاد تاریخ یا ساعت جدید</h3>
-              <p className="text-xs text-[var(--text-muted)]">
-                رزرو {proposeFor.stationSnapshot?.name ?? "دستگاه"} ({toPersianDigits(proposeFor.reservationCode || proposeFor.id)})
-              </p>
-            </div>
+      {/* Group Details Modal */}
+      <GroupDetailsModal
+        isOpen={Boolean(detailsTarget)}
+        onClose={() => setDetailsTarget(null)}
+        group={detailsTarget && detailsTarget.isGroup ? detailsTarget : null}
+        single={detailsTarget && !detailsTarget.isGroup ? detailsTarget.reservation : null}
+      />
 
-            {/* Step 1: Pick Date */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-[var(--text-white)]">۱. روز پیشنهادی را انتخاب کنید</label>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {availableDays.map((d) => {
-                  const active = d.id === pDateId;
-                  return (
-                    <button
-                      key={d.id}
-                      type="button"
-                      onClick={() => setPDateId(d.id)}
-                      className={`shrink-0 w-[84px] h-16 rounded-card flex flex-col items-center justify-center gap-0.5 border transition-all ${
-                        active
-                          ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-bold"
-                          : "bg-[var(--foreground)]/40 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
-                      }`}
-                    >
-                      <span className="text-xs font-bold">{d.dayName}</span>
-                      <span className={`text-[11px] ${active ? "font-bold opacity-80" : "text-[var(--text-muted)]"}`}>
-                        {d.dateStr}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+      {/* Group Confirm Modal */}
+      <GroupConfirmModal
+        isOpen={Boolean(confirmTarget)}
+        onClose={() => setConfirmTarget(null)}
+        onConfirm={handleConfirmAction}
+        group={confirmTarget && confirmTarget.isGroup ? confirmTarget : null}
+        single={confirmTarget && !confirmTarget.isGroup ? confirmTarget.reservation : null}
+        busy={modalBusy}
+      />
 
-            {/* Step 2: Pick Slot(s) */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-[var(--text-white)]">۲. ساعت‌های مورد نظر را انتخاب کنید</label>
-                {selectedSlotHours.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSlotHours([])}
-                    className="text-[11px] text-[var(--text-muted)] hover:underline"
-                  >
-                    پاک کردن انتخاب
-                  </button>
-                )}
-              </div>
+      {/* Group Cancel Modal */}
+      <GroupCancelModal
+        isOpen={Boolean(cancelTarget)}
+        onClose={() => setCancelTarget(null)}
+        onCancel={handleCancelAction}
+        group={cancelTarget && cancelTarget.isGroup ? cancelTarget : null}
+        single={cancelTarget && !cancelTarget.isGroup ? cancelTarget.reservation : null}
+        busy={modalBusy}
+      />
 
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1 border border-[var(--border-subtle)] rounded-card bg-[var(--foreground)]/20">
-                {hourlySlots.map((s) => {
-                  const active = selectedSlotHours.includes(s.startHour);
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => toggleSlotHour(s.startHour)}
-                      className={`h-11 rounded-card border text-xs font-bold transition-all ${
-                        active
-                          ? "bg-[var(--primary)] text-on-primary border-[var(--primary)]"
-                          : "bg-[var(--foreground)]/40 text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--primary)]/60"
-                      }`}
-                    >
-                      {s.timeLabel}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Optional Note */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-[var(--text-muted)]">توضیح به مشتری (اختیاری)</label>
-              <textarea
-                value={pNote}
-                onChange={(e) => setPNote(e.target.value)}
-                rows={2}
-                placeholder="علت تغییر زمان یا توضیحات تکمیلی..."
-                className="rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] p-3 text-sm outline-none resize-none text-[var(--text-white)] placeholder:text-[var(--text-muted)]"
-              />
-            </div>
-
-            <div className="flex gap-2 pt-2 border-t border-[var(--border-subtle)]">
-              <button
-                type="submit"
-                disabled={proposing || selectedSlotHours.length === 0}
-                className="flex-1 h-11 rounded-card bg-[var(--primary)] text-on-primary font-bold text-sm disabled:opacity-50 hover:opacity-90 transition-opacity"
-              >
-                {proposing ? "در حال ارسال..." : "ارسال پیشنهاد جدید"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setProposeFor(null)}
-                className="h-11 px-5 rounded-card bg-[var(--foreground)] text-xs font-bold"
-              >
-                انصراف
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {/* Group Propose Time Modal */}
+      <GroupProposeTimeModal
+        isOpen={Boolean(proposeTarget)}
+        onClose={() => setProposeTarget(null)}
+        onSubmit={handleProposeTimeAction}
+        group={proposeTarget && proposeTarget.isGroup ? proposeTarget : null}
+        single={proposeTarget && !proposeTarget.isGroup ? proposeTarget.reservation : null}
+        gamingCenterSlug={center?.slug}
+        busy={modalBusy}
+      />
     </div>
   );
 }
