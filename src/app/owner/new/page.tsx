@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
 import { useAuth } from "@/context/AuthContext";
 import { useOwner } from "@/context/OwnerContext";
-import { toPersianDigits } from "@/lib/format";
+import { cleanPhoneNumber, isValidIranPhone, toPersianDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { authService } from "@/services/authService";
 import { ownerService } from "@/services/ownerService";
@@ -162,9 +162,9 @@ export default function NewGamingCenterPage() {
   // OTP Step 1 Handlers
   const handleSendOtp = async () => {
     setOtpError(null);
-    const cleanPhone = managerPhone.trim().replace(/[^\d]/g, "");
-    if (!cleanPhone || cleanPhone.length < 10) {
-      setOtpError("لطفاً شماره تماس معتبر (مثال: ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
+    const cleanPhone = cleanPhoneNumber(managerPhone);
+    if (!isValidIranPhone(cleanPhone)) {
+      setOtpError("لطفاً شماره تماس معتبر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
       return;
     }
 
@@ -223,7 +223,11 @@ export default function NewGamingCenterPage() {
       return;
     }
 
-    const cleanPhone = managerPhone.trim().replace(/[^\d]/g, "");
+    const cleanPhone = cleanPhoneNumber(managerPhone);
+    if (!isValidIranPhone(cleanPhone)) {
+      setOtpError("لطفاً شماره تماس معتبر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
+      return;
+    }
     setIsVerifyingOtp(true);
     try {
       // Authenticate via customer OTP verification which directly verifies and returns tokens
@@ -293,9 +297,9 @@ export default function NewGamingCenterPage() {
         setErrorMsg("لطفاً نام و نام خانوادگی Manager را وارد کنید.");
         return false;
       }
-      const cleanPhone = managerPhone.trim().replace(/[^\d]/g, "");
-      if (!cleanPhone || cleanPhone.length < 10) {
-        setErrorMsg("لطفاً شماره تماس معتبر برای مدیر وارد کنید.");
+      const cleanPhone = cleanPhoneNumber(managerPhone);
+      if (!isValidIranPhone(cleanPhone)) {
+        setErrorMsg("لطفاً شماره تماس معتبر برای مدیر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
         return false;
       }
       if (!otpVerified && !isLoggedIn) {
@@ -367,7 +371,8 @@ export default function NewGamingCenterPage() {
     setSubmitProgressText("در حال آغاز ثبت اطلاعات مرکز بازی...");
 
     try {
-      const resolvedOwnerId = me?.id || user?.id || `owner-${managerPhone.replace(/[^\d]/g, "")}`;
+      const normalizedManagerPhone = cleanPhoneNumber(managerPhone);
+      const resolvedOwnerId = me?.id || user?.id || `owner-${normalizedManagerPhone}`;
       const effectiveSlug = (slug.trim() || name.trim())
         .toLowerCase()
         .replace(/[^a-zA-Z0-9\s-]/g, "")
@@ -393,13 +398,13 @@ export default function NewGamingCenterPage() {
         address: fullAddressString,
         city: city.trim(),
         province: province.trim() || undefined,
-        phone: managerPhone.trim() || undefined,
+        phone: normalizedManagerPhone || undefined,
         lat: latitude,
         lng: longitude,
       });
       await ownerService.patchCenter(centerId, {
         address: fullAddressString,
-        phone: managerPhone.trim() || undefined,
+        phone: normalizedManagerPhone || undefined,
       }).catch((err) => {
         console.warn("Center address patch warning:", err);
       });

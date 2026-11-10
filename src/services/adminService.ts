@@ -21,6 +21,7 @@ import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { formatClock, formatDayLabel } from "@/lib/reservationUi";
 import { extractMediaItems, extractMediaUrl, normalizeMediaUrl } from "@/lib/media";
+import { cleanPhoneNumber } from "@/lib/format";
 import {
   ADMIN_DASHBOARD_MOCK_DATA,
   MOCK_ADMIN_GAMECENTERS,
@@ -230,13 +231,14 @@ export const adminService = {
       raw.owner?.fullName ||
       "مدیر مرکز";
 
-    const ownerPhone =
+    const ownerPhone = cleanPhoneNumber(
       raw.ownerPhone ||
       raw.managerPhone ||
       raw.phone ||
       raw.manager?.phone ||
       raw.owner?.phone ||
-      "۰۹۱۲۰۰۰۰۰۰۰";
+      "09120000000"
+    );
 
     const logoUrl =
       raw.logoUrl ||
@@ -537,7 +539,7 @@ export const adminService = {
         name: input.name || "گیمنت",
         slug: input.slug || id,
         ownerName: input.ownerName || "مدیر",
-        ownerPhone: input.ownerPhone || "۰۹۱۲۰۰۰۰۰۰۰",
+        ownerPhone: cleanPhoneNumber(input.ownerPhone) || "09120000000",
         city: input.city || "تهران",
         address: input.address || "",
         description: input.description,

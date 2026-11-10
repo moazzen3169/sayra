@@ -6,7 +6,7 @@ import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { BottomBar } from "@/components/BottomBar";
 import { useAuth } from "@/context/AuthContext";
 import { authService } from "@/services/authService";
-import { toPersianDigits, formatPrice } from "@/lib/format";
+import { cleanPhoneNumber, isValidIranPhone, toPersianDigits, formatPrice } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { UnifiedAuthForm, UnifiedAuthSuccessData } from "@/components/auth/UnifiedAuthForm";
 
@@ -88,11 +88,11 @@ export default function ProfilePage() {
       return;
     }
 
-    const cleanInputPhone = editPhone.trim().replace(/[^\d]/g, "");
-    const cleanCurrentPhone = (user?.phone || "").trim().replace(/[^\d]/g, "");
+    const cleanInputPhone = cleanPhoneNumber(editPhone);
+    const cleanCurrentPhone = cleanPhoneNumber(user?.phone);
 
-    if (!cleanInputPhone || cleanInputPhone.length < 10) {
-      setEditError("لطفاً شماره موبایل معتبر (مثال: ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
+    if (!isValidIranPhone(cleanInputPhone)) {
+      setEditError("لطفاً شماره موبایل معتبر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
       return;
     }
 
@@ -203,9 +203,10 @@ export default function ProfilePage() {
       const newFullName = editFullName.trim() || authRes?.user?.fullName || user?.fullName || "کاربر سایرا";
       const resolvedRole = authRes?.user?.role || user?.role || "USER";
 
+      const normalizedPhone = cleanPhoneNumber(pendingPhone);
       login(
         newFullName,
-        pendingPhone,
+        normalizedPhone,
         token || user?.token,
         authRes?.refreshToken,
         resolvedRole
@@ -215,7 +216,7 @@ export default function ProfilePage() {
       try {
         await authService.updateProfile({
           fullName: newFullName,
-          phone: pendingPhone,
+          phone: normalizedPhone,
         });
       } catch {
         // ignore
@@ -551,6 +552,7 @@ export default function ProfilePage() {
                   <input
                     type="tel"
                     value={editPhone}
+                    placeholder="09123456789"
                     onChange={(e) => setEditPhone(e.target.value)}
                     dir="ltr"
                     className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm text-[var(--text-white)] outline-none text-right"

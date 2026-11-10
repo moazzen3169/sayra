@@ -5,7 +5,7 @@ import { useGroupReservation } from "@/hooks/gaming-center/use-group-reservation
 import { isAbortError } from "@/lib/api/client";
 import { generateDays, mapCalendarDaysToDateOptions } from "@/lib/dates";
 import type { DateOption } from "@/lib/dates";
-import { formatPrice, toEnglishDigits, toPersianDigits } from "@/lib/format";
+import { cleanPhoneNumber, formatPrice, isValidIranPhone, toEnglishDigits, toPersianDigits } from "@/lib/format";
 import { formatClock, formatSlotHourEnglish, getErrorMessage } from "@/lib/reservationUi";
 import { calendarService } from "@/services/calendarService";
 import { gamingCenterService } from "@/services/gamingCenterService";
@@ -319,8 +319,8 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
       setClientError("نام و نام خانوادگی را وارد کنید.");
       return;
     }
-    const cleanPhone = toEnglishDigits(phone.trim());
-    if (!/^09\d{9}$/.test(cleanPhone)) {
+    const cleanPhone = cleanPhoneNumber(phone);
+    if (!isValidIranPhone(cleanPhone)) {
       setClientError("شماره موبایل را با ۱۱ رقم و با ۰۹ وارد کنید.");
       return;
     }

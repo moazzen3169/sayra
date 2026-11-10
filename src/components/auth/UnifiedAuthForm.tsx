@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { toPersianDigits } from "@/lib/format";
+import { cleanPhoneNumber, isValidIranPhone, toPersianDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { authService, UserGamingCenterOption } from "@/services/authService";
 import { setTokens } from "@/lib/token";
@@ -65,9 +65,9 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
     e.preventDefault();
     setError("");
 
-    const cleanPhone = phone.trim().replace(/[^\d]/g, "");
-    if (!cleanPhone || cleanPhone.length < 10) {
-      setError("لطفاً شماره موبایل معتبر (مثال: ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
+    const cleanPhone = cleanPhoneNumber(phone);
+    if (!isValidIranPhone(cleanPhone)) {
+      setError("لطفاً شماره موبایل معتبر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
       return;
     }
 
@@ -134,7 +134,12 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
       return;
     }
 
-    const cleanPhone = phone.trim().replace(/[^\d]/g, "");
+    const cleanPhone = cleanPhoneNumber(phone);
+    if (!isValidIranPhone(cleanPhone)) {
+      setError("لطفاً شماره موبایل معتبر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
+      return;
+    }
+
     setLoading(true);
     try {
       // 1. Verify OTP and authenticate customer (POST /auth/customer/otp/verify)
@@ -179,11 +184,12 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
     centerIdToUse?: string,
     verifiedCode?: string
   ) => {
+    const cleanPhone = cleanPhoneNumber(targetPhone);
     setLoading(true);
     setError("");
     try {
       const loginRes = await authService.loginUserWithOtp(
-        targetPhone,
+        cleanPhone,
         centerIdToUse,
         verifiedCode || otpCode.join("")
       );
@@ -200,7 +206,7 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
       const userRole = loginRes.user?.role || "MANAGER";
       onSuccess({
         fullName: userName,
-        phone: targetPhone,
+        phone: cleanPhone,
         accessToken: token,
         refreshToken: loginRes.refreshToken,
         gamingCenterId: centerIdToUse || loginRes.user?.gamingCenterId,
@@ -219,13 +225,13 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
       setError("لطفاً یک شعبه را انتخاب نمایید.");
       return;
     }
-    const cleanPhone = phone.trim().replace(/[^\d]/g, "");
+    const cleanPhone = cleanPhoneNumber(phone);
     await finalizeOtpLogin(cleanPhone, selectedCenterId);
   };
 
   const handleResendCode = async () => {
     setError("");
-    const cleanPhone = phone.trim().replace(/[^\d]/g, "");
+    const cleanPhone = cleanPhoneNumber(phone);
     setLoading(true);
     try {
       try {
@@ -247,9 +253,9 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
     e.preventDefault();
     setError("");
 
-    const cleanPhone = passwordPhone.trim().replace(/[^\d]/g, "");
-    if (!cleanPhone || cleanPhone.length < 10) {
-      setError("لطفاً شماره موبایل معتبر (مثال: ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
+    const cleanPhone = cleanPhoneNumber(passwordPhone);
+    if (!isValidIranPhone(cleanPhone)) {
+      setError("لطفاً شماره موبایل معتبر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
       return;
     }
 
@@ -389,7 +395,7 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
             <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
               <div className="flex items-center justify-between text-xs">
                 <p className="text-[var(--text-muted)]">
-                  کد تایید به شماره <span className="text-[var(--primary)] font-bold">{toPersianDigits(phone)}</span> ارسال شد.
+                  کد تایید به شماره <span className="text-[var(--primary)] font-bold">{toPersianDigits(cleanPhoneNumber(phone))}</span> ارسال شد.
                 </p>
                 <button
                   type="button"

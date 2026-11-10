@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { AdminGamecenter, AdminGamecenterInput } from "@/types/admin";
 import { adminService } from "@/services/adminService";
+import { cleanPhoneNumber, isValidIranPhone } from "@/lib/format";
 
 interface GamecenterFormModalProps {
   isOpen: boolean;
@@ -103,10 +104,10 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
       newErrors.ownerName = "نام مسئول/مالک را وارد کنید";
     }
 
-    const cleanPhone = formData.ownerPhone.trim();
+    const cleanPhone = cleanPhoneNumber(formData.ownerPhone);
     if (!cleanPhone) {
       newErrors.ownerPhone = "شماره تماس مسئول را وارد کنید";
-    } else if (!/^09\d{9}$/.test(cleanPhone)) {
+    } else if (!isValidIranPhone(cleanPhone)) {
       newErrors.ownerPhone = "شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود";
     }
 
@@ -131,11 +132,16 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
     setIsSubmitting(true);
     setSubmitError(null);
 
+    const payload = {
+      ...formData,
+      ownerPhone: cleanPhoneNumber(formData.ownerPhone),
+    };
+
     try {
       if (isEdit && initialData) {
-        await adminService.updateGamecenter(initialData.id, formData);
+        await adminService.updateGamecenter(initialData.id, payload);
       } else {
-        await adminService.createGamecenter(formData);
+        await adminService.createGamecenter(payload);
       }
       onSuccess();
       onClose();
