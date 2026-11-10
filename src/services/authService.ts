@@ -9,6 +9,10 @@ export interface AuthUser {
   fullName?: string;
   phoneVerifiedAt?: string;
   role?: string;
+  actorType?: string;
+  actorId?: string;
+  gamingCenterId?: string;
+  sessionId?: string;
 }
 
 export interface AuthVerifyResponse {

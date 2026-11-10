@@ -148,8 +148,12 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         // Security check: Customer accounts cannot access Owner panel
         const role = profile.role?.toUpperCase();
-        if (role === "CUSTOMER") {
+        const actorType = profile.actorType?.toUpperCase();
+        if (role === "CUSTOMER" || actorType === "CUSTOMER") {
           setCenterError("حساب کاربری شما دسترسی به پنل مدیریت گیم‌نت ندارد.");
+          setCenters([]);
+          setCenter(null);
+          setCenterId("");
           setIsCenterLoading(false);
           return;
         }
@@ -192,8 +196,8 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             description: gc.description,
             isActive: gc.isActive ?? true,
           }));
-        } else {
-          // Fallback only if no direct center ID exists on User model
+        } else if (actorType === "USER" || role === "MANAGER" || role === "ADMIN") {
+          // Fallback only for manager/admin/staff users if no direct center ID is bound
           const allCenters = await ownerService.listCenters(controller.signal).catch(() => []);
           accessibleCenters = allCenters;
         }

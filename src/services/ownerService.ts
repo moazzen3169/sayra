@@ -50,6 +50,22 @@ export const ownerService = {
     // Normalize user identity and gamingCenterId
     const resolvedId = profile?.id || profile?.actorId || "";
     const resolvedGamingCenterId = profile?.gamingCenterId || profile?.centerId || "";
+    const actorType = profile?.actorType?.toUpperCase();
+
+    // Determine normalized role accurately:
+    // If actorType is CUSTOMER, role MUST be CUSTOMER (not defaulted to MANAGER)
+    // If profile.role is explicitly provided, use it
+    // If actorType is USER or gamingCenterId is present, default to MANAGER, otherwise CUSTOMER
+    let resolvedRole = profile?.role;
+    if (!resolvedRole) {
+      if (actorType === "CUSTOMER") {
+        resolvedRole = "CUSTOMER";
+      } else if (actorType === "USER" || Boolean(resolvedGamingCenterId)) {
+        resolvedRole = "MANAGER";
+      } else {
+        resolvedRole = "CUSTOMER";
+      }
+    }
 
     return {
       ...profile,
@@ -57,7 +73,7 @@ export const ownerService = {
       actorId: profile?.actorId || resolvedId,
       actorType: profile?.actorType,
       sessionId: profile?.sessionId,
-      role: profile?.role || "MANAGER",
+      role: resolvedRole,
       gamingCenterId: resolvedGamingCenterId || undefined,
       gamingCenters: Array.isArray(profile?.gamingCenters) ? profile.gamingCenters : undefined,
     };
