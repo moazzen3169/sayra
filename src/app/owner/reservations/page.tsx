@@ -256,7 +256,14 @@ function Content() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
-      <OwnerPageHeader title="رزروها" />
+      <OwnerPageHeader
+        title="مدیریت رزروها"
+        backUrl="/owner"
+        showSearch={true}
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchPlaceholder="جستجوی کد رزرو، نام مشتری یا تلفن..."
+      />
 
       <main className="flex-1 mt-16 px-4 py-4 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0 flex flex-col gap-4">
         <input

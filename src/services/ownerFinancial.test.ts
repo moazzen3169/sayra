@@ -189,7 +189,7 @@ describe("ownerService.financial data integration (Phase 8)", () => {
 
   it("requestWithdrawal raises descriptive contract gap error and refuses fake operation", async () => {
     await expect(ownerService.requestWithdrawal()).rejects.toThrow(
-      "اندپوینت ثبت درخواست برداشت در مستندات کنونی OpenAPI (v1.0-LOCKED) تعریف نشده است"
+      "قابلیت ثبت درخواست برداشت وجه در حال حاضر توسط وب‌سرویس و بک‌اند (OpenAPI v1.0) پیاده‌سازی و پشتیبانی نشده است"
     );
   });
 });

@@ -248,18 +248,30 @@ export default function SupportPage() {
             </div>
           ) : (
             <>
-          {/* DETAIL VIEW */}
+          {/* DETAIL VIEW: Full screen on mobile, elegant card on desktop */}
           {selected ? (
-            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-5 flex flex-col gap-4 shadow-lg">
-              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-                <button
-                  type="button"
-                  onClick={() => setSelected(null)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-[var(--primary)] hover:underline"
-                >
-                  <Icon name="back" size={16} />
-                  <span>بازگشت به لیست تیکت‌ها</span>
-                </button>
+            <div className="fixed inset-0 z-50 flex flex-col bg-[var(--bg-body)] md:relative md:inset-auto md:z-auto md:bg-[var(--bg-card)] md:border md:border-[var(--border-subtle)] md:rounded-card p-0 md:p-5 shadow-2xl md:shadow-lg">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] p-4 md:p-0 md:pb-3 bg-[var(--bg-card)]">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelected(null)}
+                    aria-label="بازگشت به لیست تیکت‌ها"
+                    className="w-9 h-9 flex items-center justify-center rounded-full bg-[var(--foreground)] hover:bg-[var(--border-subtle)] text-[var(--text-white)] transition-colors active:scale-95"
+                  >
+                    <Icon name="back" size={18} />
+                  </button>
+                  <div className="flex flex-col min-w-0">
+                    <h3 className="text-sm font-bold text-[var(--text-white)] truncate max-w-[200px] sm:max-w-xs">
+                      {selected.subject}
+                    </h3>
+                    <span className="text-[11px] text-[var(--text-muted)]">
+                      شناسه: <span className="font-mono">{toPersianDigits(selected.id)}</span>
+                    </span>
+                  </div>
+                </div>
+
                 <div className="flex items-center gap-2">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${STATUS_LABEL[selected.status].bg} ${STATUS_LABEL[selected.status].text}`}>
                     {STATUS_LABEL[selected.status].label}
@@ -267,27 +279,20 @@ export default function SupportPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <h3 className="text-sm font-bold text-[var(--text-white)]">{selected.subject}</h3>
-                <span className="text-xs text-[var(--text-muted)]">
-                  شناسه تیکت: <strong className="text-[var(--text-white)] font-mono">{toPersianDigits(selected.id)}</strong>
-                </span>
-              </div>
-
               {/* Conversation Messages */}
-              <div className="flex flex-col gap-3 my-2 max-h-[420px] overflow-y-auto p-1">
+              <div className="flex-1 overflow-y-auto p-4 md:p-2 flex flex-col gap-3 min-h-[300px] max-h-[calc(100vh-140px)] md:max-h-[460px]">
                 {selected.messages?.map((m) => {
                   const isUser = m.senderType === "USER";
                   return (
                     <div
                       key={m.id}
-                      className={`max-w-[85%] rounded-card p-3.5 text-xs leading-relaxed flex flex-col gap-2 ${
+                      className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-3.5 text-xs leading-relaxed flex flex-col gap-2 ${
                         isUser
-                          ? "self-start bg-[var(--primary)] text-on-primary shadow-sm"
-                          : "self-end bg-[var(--foreground)]/80 border border-[var(--border-subtle)] text-[var(--text-white)]"
+                          ? "self-start bg-[var(--primary)] text-on-primary rounded-br-none shadow-md"
+                          : "self-end bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-white)] rounded-bl-none shadow-sm"
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-4 text-[11px] opacity-80 border-b border-current/20 pb-1">
+                      <div className="flex items-center justify-between gap-4 text-[10px] opacity-80 border-b border-current/20 pb-1">
                         <span className="font-bold">{isUser ? "شما" : "پشتیبانی سایرا"}</span>
                         <span>
                           {formatDayLabel(m.createdAt)} - {formatClock(m.createdAt, true)}
@@ -312,22 +317,25 @@ export default function SupportPage() {
 
               {/* Reply Form */}
               {selected.status !== "CLOSED" ? (
-                <form onSubmit={sendReply} className="flex flex-col gap-3 pt-3 border-t border-[var(--border-subtle)]">
+                <form
+                  onSubmit={sendReply}
+                  className="p-3 md:p-0 md:pt-3 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] flex flex-col gap-2.5"
+                >
                   <textarea
-                    rows={3}
+                    rows={2}
                     value={reply}
                     onChange={(e) => setReply(e.target.value)}
-                    placeholder="پاسخ خود را بنویسید..."
-                    className="rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] p-3 text-sm text-[var(--text-white)] placeholder:text-[var(--text-subtle)] outline-none resize-none"
+                    placeholder="پیام خود را بنویسید..."
+                    className="rounded-xl bg-[var(--foreground)]/50 border border-[var(--border-subtle)] focus:border-[var(--primary)] p-3 text-sm text-[var(--text-white)] placeholder:text-[var(--text-subtle)] outline-none resize-none"
                   />
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => fileRef.current?.click()}
-                      className="h-10 px-3.5 rounded-card bg-[var(--foreground)] text-[var(--text-white)] border border-[var(--border-subtle)] hover:border-[var(--border-color)] text-xs font-bold flex items-center gap-2"
+                      className="h-10 px-3.5 rounded-xl bg-[var(--foreground)] text-[var(--text-white)] border border-[var(--border-subtle)] hover:border-[var(--border-color)] text-xs font-bold flex items-center gap-2 shrink-0"
                     >
                       <Icon name="upload" size={16} />
-                      <span className="truncate max-w-[120px]">
+                      <span className="truncate max-w-[100px] sm:max-w-[120px]">
                         {file ? file.name : "پیوست فایل"}
                       </span>
                     </button>
@@ -340,14 +348,14 @@ export default function SupportPage() {
                     <button
                       type="submit"
                       disabled={busy || !reply.trim()}
-                      className="flex-1 h-10 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs disabled:opacity-60 transition-all"
+                      className="flex-1 h-10 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs disabled:opacity-60 transition-all shadow-md active:scale-[0.98]"
                     >
                       {busy ? "در حال ارسال..." : "ارسال پیام"}
                     </button>
                   </div>
                 </form>
               ) : (
-                <div className="p-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-center text-xs text-[var(--text-muted)]">
+                <div className="p-3 m-3 md:m-0 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-center text-xs text-[var(--text-muted)]">
                   این تیکت بسته شده است. در صورت نیاز می‌توانید تیکت جدید ثبت کنید.
                 </div>
               )}

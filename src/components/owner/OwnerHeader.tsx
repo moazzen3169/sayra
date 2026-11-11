@@ -11,6 +11,11 @@ interface OwnerHeaderProps {
   isSubpage?: boolean;
   backUrl?: string;
   showBadge?: boolean;
+  showSearch?: boolean;
+  searchValue?: string;
+  onSearchChange?: (val: string) => void;
+  onSearchSubmit?: (e: React.FormEvent) => void;
+  searchPlaceholder?: string;
 }
 
 export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
@@ -18,9 +23,20 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
   isSubpage = true,
   backUrl,
   showBadge = true,
+  showSearch = false,
+  searchValue = "",
+  onSearchChange,
+  onSearchSubmit,
+  searchPlaceholder = "جستجوی کد رزرو یا مشتری...",
 }) => {
   const router = useRouter();
   const { ownerName, center } = useOwner();
+  const [internalSearchOpen, setInternalSearchOpen] = React.useState(false);
+  const [localQuery, setLocalQuery] = React.useState(searchValue);
+
+  React.useEffect(() => {
+    setLocalQuery(searchValue);
+  }, [searchValue]);
 
   const displayName = ownerName || "مدیر گیم‌نت";
 
@@ -34,11 +50,21 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
     }
   };
 
+  const handleLocalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (onSearchSubmit) {
+      onSearchSubmit(e);
+    } else {
+      const q = localQuery.trim();
+      router.push(q ? `/owner/reservations?q=${encodeURIComponent(q)}` : "/owner/reservations");
+    }
+  };
+
   return (
-    <header className="fixed top-0 inset-x-0 z-40 max-w-[var(--max-app-width)] h-16 bg-[var(--bg-card)] max-w-[var(--max-app-width)]  mx-auto border-b border-[var(--border-subtle)] shadow-sm">
-      <div className="mx-auto flex h-full w-full  max-w-[var(--max-mini-app-width)]  items-center justify-between px-4 lg:px-0 gap-2">
+    <header className="fixed top-0 inset-x-0 z-40 max-w-[var(--max-app-width)] mx-auto bg-[var(--bg-card)]/90 backdrop-blur-md border-b border-[var(--border-subtle)] shadow-sm">
+      <div className="mx-auto flex h-16 w-full max-w-[var(--max-mini-app-width)] items-center justify-between px-4 lg:px-0 gap-2">
         {/* Right Section: Back Button + Welcome & Owner Name */}
-        <div className="flex  items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0">
           <button
             type="button"
             onClick={handleBackClick}
@@ -71,16 +97,62 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
                 </span>
               )}
             </div>
+            {/* نام صاحب گیمنت لینک شده به پروفایل کاربر */}
             <div className="text-[11px] text-[var(--text-muted)] truncate">
-              {displayName} {center?.name ? `• ${center.name}` : ""}
+              <Link
+                href="/profile"
+                className="hover:text-[var(--primary)] hover:underline transition-colors font-medium"
+                title="مشاهده پروفایل صاحب گیم‌نت"
+              >
+                {displayName}
+              </Link>{" "}
+              {center?.name ? `• ${center.name}` : ""}
             </div>
           </div>
         </div>
 
-        {/* Center Section: Page Title */}
+        {/* Center / Search bar when desktop or active */}
+        {showSearch && (
+          <div className="hidden md:flex flex-1 max-w-sm mx-2">
+            <form onSubmit={handleLocalSubmit} className="relative w-full">
+              <input
+                value={onSearchChange ? searchValue : localQuery}
+                onChange={(e) => {
+                  if (onSearchChange) onSearchChange(e.target.value);
+                  else setLocalQuery(e.target.value);
+                }}
+                aria-label={searchPlaceholder}
+                placeholder={searchPlaceholder}
+                className="w-full h-10 rounded-full bg-[var(--foreground)]/50 border border-[var(--border-subtle)] px-4 pl-10 text-xs text-[var(--text-white)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-all"
+              />
+              <button
+                type="submit"
+                aria-label="جستجو"
+                className="absolute left-1 top-1 flex h-8 w-8 items-center justify-center text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
+            </form>
+          </div>
+        )}
 
-        {/* Left Section: Home Button + Verification Badge */}
+        {/* Left Section: Search Toggle (Mobile) + Badge + Home */}
         <div className="flex items-center gap-2 shrink-0">
+          {showSearch && (
+            <button
+              type="button"
+              onClick={() => setInternalSearchOpen((v) => !v)}
+              aria-label="نمایش جستجو"
+              className="md:hidden w-9 h-9 flex items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--foreground)]/40 hover:bg-[var(--foreground)] text-[var(--text-white)] transition-colors active:scale-95"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          )}
+
           {showBadge && (
             <div className="hidden sm:block">
               <OwnerVerificationBadge size="sm" />
@@ -107,6 +179,34 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
           </Link>
         </div>
       </div>
+
+      {/* Floating search drop on mobile when opened */}
+      {showSearch && internalSearchOpen && (
+        <div className="md:hidden px-4 pb-3 pt-1 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] animate-in slide-in-from-top-1">
+          <form onSubmit={handleLocalSubmit} className="relative w-full">
+            <input
+              autoFocus
+              value={onSearchChange ? searchValue : localQuery}
+              onChange={(e) => {
+                if (onSearchChange) onSearchChange(e.target.value);
+                else setLocalQuery(e.target.value);
+              }}
+              aria-label={searchPlaceholder}
+              placeholder={searchPlaceholder}
+              className="w-full h-10 rounded-full bg-[var(--foreground)]/50 border border-[var(--border-subtle)] px-4 pl-10 text-xs text-[var(--text-white)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--primary)]"
+            />
+            <button
+              type="submit"
+              aria-label="جستجو"
+              className="absolute left-1 top-1 flex h-8 w-8 items-center justify-center text-[var(--text-muted)] hover:text-[var(--primary)]"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          </form>
+        </div>
+      )}
     </header>
   );
 };
