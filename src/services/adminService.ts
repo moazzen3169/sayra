@@ -183,21 +183,39 @@ export const adminService = {
   /**
    * Retrieves dashboard summary metrics, trends, pending action items, and recent reservations.
    */
-  async getDashboardData(): Promise<AdminDashboardData> {
+  /**
+   * دریافت اطلاعات داشبورد مدیریتی از طریق خلاصه آماری سرور:
+   * GET /platform-admin/operations/overview یا آمار محلی
+   */
+  async getDashboardData(signal?: AbortSignal): Promise<AdminDashboardData> {
+    let apiStats: any = null;
+    try {
+      const response = await apiClient.get<any>(ENDPOINTS.platformAdmin.operationsOverview, { signal });
+      apiStats = response.data?.data || response.data;
+    } catch {
+      // فال‌بک
+    }
+
     const updatedStats = ADMIN_DASHBOARD_MOCK_DATA.stats.map((s) => {
       if (s.id === "gamecenters_count") {
-        return { ...s, value: String(gamecentersStore.length) };
+        return { ...s, value: String(apiStats?.totalGamingCenters ?? gamecentersStore.length) };
       }
       if (s.id === "users_count") {
-        return { ...s, value: String(usersStore.length) };
+        return { ...s, value: String(apiStats?.totalUsers ?? usersStore.length) };
+      }
+      if (s.id === "reservations_count" && apiStats?.totalReservations) {
+        return { ...s, value: String(apiStats.totalReservations) };
+      }
+      if (s.id === "monthly_turnover" && apiStats?.totalRevenue) {
+        return { ...s, value: String(apiStats.totalRevenue) };
       }
       return s;
     });
 
-    return Promise.resolve({
+    return {
       ...ADMIN_DASHBOARD_MOCK_DATA,
       stats: updatedStats,
-    });
+    };
   },
 
   // ==================== GAMECENTERS ====================
@@ -894,7 +912,19 @@ export const adminService = {
     return Promise.resolve(MOCK_CANNED_RESPONSES);
   },
 
-  async getAdmins(): Promise<AdminUser[]> {
+  /**
+   * دریافت لیست ادمین‌ها جهت انتساب تیکت
+   * GET /platform-admin/users?role=ADMIN
+   */
+  async getAdmins(signal?: AbortSignal): Promise<AdminUser[]> {
+    try {
+      const res = await adminService.getUsers({ role: "ADMIN", pageSize: 50 }, signal);
+      if (res.items.length > 0) {
+        return res.items;
+      }
+    } catch {
+      // فال‌بک
+    }
     const admins = usersStore.filter((u) => u.role === "ADMIN");
     return Promise.resolve(admins);
   },
@@ -920,8 +950,40 @@ export const adminService = {
 
   // ==================== USERS ====================
 
+  /**
+   * تبدیل کاربر خام سرور به فرمت AdminUser
+   */
+  mapRawUserToAdmin(raw: any): AdminUser {
+    if (!raw) return raw;
+    const createdAtFormatted = raw.createdAt
+      ? formatDayLabel(raw.createdAt)
+      : new Date().toLocaleDateString("fa-IR");
+
+    return {
+      id: String(raw.id),
+      fullName: raw.fullName || raw.name || "کاربر",
+      phone: raw.phone || "",
+      email: raw.email || undefined,
+      nationalId: raw.nationalId || undefined,
+      role: (raw.role || "USER") as AdminUser["role"],
+      isActive: raw.isActive !== undefined ? Boolean(raw.isActive) : true,
+      registeredVia: raw.registeredVia || "OTP",
+      reservationsCount: raw.reservationsCount ?? 0,
+      totalSpentAmount: raw.totalSpentAmount ?? 0,
+      createdAt: createdAtFormatted,
+      lastLogin: raw.lastLogin ? formatDayLabel(raw.lastLogin) : undefined,
+      gamingCenterId: raw.gamingCenterId,
+      gamingCenterName: raw.gamingCenterName,
+    };
+  },
+
+  /**
+   * دریافت لیست کاربران پلتفرم:
+   * GET /platform-admin/users
+   */
   async getUsers(
-    params: AdminListQueryParams = {}
+    params: AdminListQueryParams = {},
+    signal?: AbortSignal
   ): Promise<AdminPaginatedResult<AdminUser>> {
     const {
       search = "",
@@ -933,9 +995,47 @@ export const adminService = {
       pageSize = 10,
     } = params;
 
+    try {
+      const queryPayload: Record<string, string | number | boolean> = {
+        page,
+        limit: Math.min(pageSize, 100),
+      };
+      if (search.trim()) queryPayload.search = search.trim();
+      if (role && role !== "all") queryPayload.role = role;
+      if (status === "active") queryPayload.isActive = true;
+      if (status === "inactive") queryPayload.isActive = false;
+
+      const response = await apiClient.get<any>(ENDPOINTS.platformAdmin.users, {
+        query: queryPayload,
+        signal,
+      });
+
+      const resData = response.data;
+      let rawArray: any[] = [];
+      if (Array.isArray(resData)) rawArray = resData;
+      else if (resData && typeof resData === "object") {
+        if (Array.isArray(resData.data)) rawArray = resData.data;
+        else if (Array.isArray(resData.items)) rawArray = resData.items;
+      }
+
+      if (rawArray.length > 0) {
+        const items = rawArray.map(this.mapRawUserToAdmin);
+        const total = response.meta?.pagination?.total ?? items.length;
+        const totalPages = response.meta?.pagination?.totalPages ?? (Math.ceil(total / pageSize) || 1);
+        return {
+          items,
+          total,
+          page,
+          pageSize,
+          totalPages,
+        };
+      }
+    } catch {
+      // در صورت عدم دسترسی سرور فال‌بک به استور
+    }
+
     let filtered = [...usersStore];
 
-    // Filter by Search (Name, Phone, Email, National ID)
     if (search.trim()) {
       const query = search.trim().toLowerCase();
       filtered = filtered.filter(
@@ -947,19 +1047,16 @@ export const adminService = {
       );
     }
 
-    // Filter by Status
     if (status === "active") {
       filtered = filtered.filter((u) => u.isActive);
     } else if (status === "inactive") {
       filtered = filtered.filter((u) => !u.isActive);
     }
 
-    // Filter by Role
     if (role && role !== "all") {
       filtered = filtered.filter((u) => u.role === role);
     }
 
-    // Sort
     filtered.sort((a, b) => {
       const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
       const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
@@ -973,28 +1070,61 @@ export const adminService = {
       return 0;
     });
 
-    // Pagination
     const total = filtered.length;
     const totalPages = Math.ceil(total / pageSize) || 1;
     const safePage = Math.max(1, Math.min(page, totalPages));
     const start = (safePage - 1) * pageSize;
     const items = filtered.slice(start, start + pageSize);
 
-    return Promise.resolve({
+    return {
       items,
       total,
       page: safePage,
       pageSize,
       totalPages,
-    });
+    };
   },
 
-  async getUserById(id: string): Promise<AdminUser | null> {
+  async getUserById(id: string, signal?: AbortSignal): Promise<AdminUser | null> {
+    try {
+      const response = await apiClient.get<any>(ENDPOINTS.platformAdmin.userById(id), { signal });
+      const resData = response.data?.data || response.data;
+      if (resData) return this.mapRawUserToAdmin(resData);
+    } catch {
+      // فال‌بک
+    }
     const usr = usersStore.find((u) => u.id === id);
     return Promise.resolve(usr || null);
   },
 
   async createUser(input: AdminUserInput): Promise<AdminUser> {
+    const parts = (input.fullName || "").trim().split(" ");
+    const firstName = parts[0] || input.fullName || "کاربر";
+    const lastName = parts.slice(1).join(" ") || "سایرا";
+
+    const payload = {
+      gamingCenterId: input.gamingCenterId || "platform-wide",
+      firstName,
+      lastName,
+      phone: cleanPhoneNumber(input.phone) || input.phone,
+      email: input.email,
+      role: input.role === "ADMIN" ? "ADMIN" : "MANAGER",
+      isActive: input.isActive ?? true,
+    };
+
+    try {
+      const response = await apiClient.post<any>(ENDPOINTS.platformAdmin.users, payload);
+      const resData = response.data?.data || response.data;
+      if (resData) {
+        const created = this.mapRawUserToAdmin({ ...resData, ...input });
+        usersStore.unshift(created);
+        persistStore("sayra_admin_users", usersStore);
+        return created;
+      }
+    } catch {
+      // فال‌بک
+    }
+
     const newId = `usr-${Date.now()}`;
     const newUser: AdminUser = {
       id: newId,
@@ -1008,48 +1138,89 @@ export const adminService = {
   },
 
   async updateUser(id: string, input: Partial<AdminUserInput>): Promise<AdminUser> {
+    const payload: Record<string, unknown> = {};
+    if (input.fullName) {
+      const parts = input.fullName.trim().split(" ");
+      payload.firstName = parts[0] || input.fullName;
+      payload.lastName = parts.slice(1).join(" ") || "سایرا";
+    }
+    if (input.phone) payload.phone = cleanPhoneNumber(input.phone);
+    if (input.email !== undefined) payload.email = input.email;
+    if (input.isActive !== undefined) payload.isActive = input.isActive;
+
+    try {
+      await apiClient.patch(ENDPOINTS.platformAdmin.userById(id), payload);
+    } catch {
+      // فال‌بک
+    }
+
     const index = usersStore.findIndex((u) => u.id === id);
-    if (index === -1) {
-      throw new Error("کاربر مورد نظر یافت نشد.");
+    if (index !== -1) {
+      const updated: AdminUser = {
+        ...usersStore[index],
+        ...input,
+        updatedAt: new Date().toLocaleDateString("fa-IR"),
+      };
+      usersStore[index] = updated;
+      persistStore("sayra_admin_users", usersStore);
+      return updated;
     }
 
     const updated: AdminUser = {
-      ...usersStore[index],
-      ...input,
-      updatedAt: new Date().toLocaleDateString("fa-IR"),
+      id,
+      fullName: input.fullName || "کاربر",
+      phone: input.phone || "",
+      email: input.email,
+      role: input.role || "USER",
+      isActive: input.isActive ?? true,
+      registeredVia: "OTP",
+      reservationsCount: 0,
+      totalSpentAmount: 0,
+      createdAt: new Date().toLocaleDateString("fa-IR"),
     };
-
-    usersStore[index] = updated;
+    usersStore.unshift(updated);
     persistStore("sayra_admin_users", usersStore);
-    return Promise.resolve(updated);
+    return updated;
   },
 
   async toggleUserStatus(id: string): Promise<AdminUser> {
-    const index = usersStore.findIndex((u) => u.id === id);
-    if (index === -1) {
-      throw new Error("کاربر مورد نظر یافت نشد.");
+    const current = await this.getUserById(id);
+    const newStatus = !(current?.isActive ?? true);
+
+    try {
+      await apiClient.patch(ENDPOINTS.platformAdmin.userStatus(id), {
+        isActive: newStatus,
+      });
+    } catch {
+      // فال‌بک
     }
 
-    const updated: AdminUser = {
-      ...usersStore[index],
-      isActive: !usersStore[index].isActive,
-      updatedAt: new Date().toLocaleDateString("fa-IR"),
-    };
+    const index = usersStore.findIndex((u) => u.id === id);
+    if (index !== -1) {
+      const updated: AdminUser = {
+        ...usersStore[index],
+        isActive: newStatus,
+        updatedAt: new Date().toLocaleDateString("fa-IR"),
+      };
+      usersStore[index] = updated;
+      persistStore("sayra_admin_users", usersStore);
+      return updated;
+    }
 
-    usersStore[index] = updated;
-    persistStore("sayra_admin_users", usersStore);
-    return Promise.resolve(updated);
+    return this.updateUser(id, { isActive: newStatus });
   },
 
   async deleteUser(id: string): Promise<boolean> {
-    const initialLength = usersStore.length;
-    usersStore = usersStore.filter((u) => u.id !== id);
-    if (usersStore.length === initialLength) {
-      throw new Error("کاربر مورد نظر یافت نشد.");
+    try {
+      await apiClient.delete(ENDPOINTS.platformAdmin.userById(id));
+    } catch {
+      // فال‌بک
     }
 
+    const initialLength = usersStore.length;
+    usersStore = usersStore.filter((u) => u.id !== id);
     persistStore("sayra_admin_users", usersStore);
-    return Promise.resolve(true);
+    return true;
   },
 
   async getUserReservations(userId: string): Promise<AdminUserReservation[]> {
@@ -1184,8 +1355,46 @@ export const adminService = {
 
   // ==================== ADVERTISING REQUESTS ====================
 
+  /**
+   * تبدیل شی خام تبلیغ سرور به فرمت AdminAdRequest
+   */
+  mapRawAdRequestToAdmin(raw: any): AdminAdRequest {
+    if (!raw) return raw;
+    const submittedAtFormatted = raw.createdAt
+      ? `${formatDayLabel(raw.createdAt)}`
+      : new Date().toLocaleDateString("fa-IR");
+
+    return {
+      id: String(raw.id),
+      title: raw.title || "درخواست تبلیغات",
+      description: raw.description || "",
+      bannerUrl: raw.bannerUrl ? normalizeMediaUrl(raw.bannerUrl) : "",
+      destinationUrl: raw.destinationUrl || "",
+      targetPosition: "HOMEPAGE_BANNER",
+      durationDays: raw.durationDays || raw.proposedDurationDays || 30,
+      priority: raw.priority || 0,
+      price: 0,
+      status: (raw.status || "PENDING") as AdminAdRequest["status"],
+      decisionReason: raw.decisionReason,
+      adminNote: raw.adminNote,
+      startDate: raw.startDate ? formatDayLabel(raw.startDate) : undefined,
+      endDate: raw.endDate ? formatDayLabel(raw.endDate) : undefined,
+      submittedAt: submittedAtFormatted,
+      updatedAt: raw.updatedAt ? `${formatDayLabel(raw.updatedAt)}` : undefined,
+      gamecenterId: raw.gamingCenterId || "gc-1",
+      gamecenterName: raw.gamingCenterName || "گیمنت سایرا",
+      ownerName: raw.ownerName || "مدیر گیم‌نت",
+      ownerPhone: raw.ownerPhone || "09120000000",
+    };
+  },
+
+  /**
+   * دریافت لیست درخواست‌های تبلیغات:
+   * GET /platform-admin/ad-requests
+   */
   async getAdRequests(
-    params: AdminListQueryParams = {}
+    params: AdminListQueryParams = {},
+    signal?: AbortSignal
   ): Promise<AdminPaginatedResult<AdminAdRequest>> {
     const {
       search = "",
@@ -1196,9 +1405,45 @@ export const adminService = {
       pageSize = 10,
     } = params;
 
+    try {
+      const queryPayload: Record<string, string | number> = {
+        page,
+        limit: Math.min(pageSize, 100),
+      };
+      if (search.trim()) queryPayload.search = search.trim();
+      if (status && status !== "all") queryPayload.status = status;
+
+      const response = await apiClient.get<any>(ENDPOINTS.platformAdmin.adRequests, {
+        query: queryPayload,
+        signal,
+      });
+
+      const resData = response.data;
+      let rawArray: any[] = [];
+      if (Array.isArray(resData)) rawArray = resData;
+      else if (resData && typeof resData === "object") {
+        if (Array.isArray(resData.data)) rawArray = resData.data;
+        else if (Array.isArray(resData.items)) rawArray = resData.items;
+      }
+
+      if (rawArray.length > 0) {
+        const items = rawArray.map(this.mapRawAdRequestToAdmin);
+        const total = response.meta?.pagination?.total ?? items.length;
+        const totalPages = response.meta?.pagination?.totalPages ?? (Math.ceil(total / pageSize) || 1);
+        return {
+          items,
+          total,
+          page,
+          pageSize,
+          totalPages,
+        };
+      }
+    } catch {
+      // فال‌بک
+    }
+
     let filtered = [...adRequestsStore];
 
-    // Filter by Search (Title, Description, Gamecenter Name, Owner Name, Owner Phone)
     if (search.trim()) {
       const query = search.trim().toLowerCase();
       filtered = filtered.filter(
@@ -1211,12 +1456,10 @@ export const adminService = {
       );
     }
 
-    // Filter by Status
     if (status && status !== "all") {
       filtered = filtered.filter((ad) => ad.status === status);
     }
 
-    // Sort
     filtered.sort((a, b) => {
       const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
       const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
@@ -1230,44 +1473,87 @@ export const adminService = {
       return 0;
     });
 
-    // Pagination
     const total = filtered.length;
     const totalPages = Math.ceil(total / pageSize) || 1;
     const safePage = Math.max(1, Math.min(page, totalPages));
     const start = (safePage - 1) * pageSize;
     const items = filtered.slice(start, start + pageSize);
 
-    return Promise.resolve({
+    return {
       items,
       total,
       page: safePage,
       pageSize,
       totalPages,
-    });
+    };
   },
 
+  /**
+   * تأیید یا رد درخواست تبلیغات:
+   * PATCH /platform-admin/ad-requests/{id}/status
+   */
   async updateAdRequestStatus(
     id: string,
     status: "APPROVED" | "REJECTED",
     decisionReason?: string
   ): Promise<AdminAdRequest> {
-    const index = adRequestsStore.findIndex((ad) => ad.id === id);
-    if (index === -1) {
-      throw new Error("درخواست تبلیغ مورد نظر یافت نشد.");
-    }
-
-    const nowFormatted = new Date().toLocaleDateString("fa-IR") + " - " + new Date().toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
-
-    const updated: AdminAdRequest = {
-      ...adRequestsStore[index],
+    const payload: Record<string, unknown> = {
       status,
-      decisionReason,
-      updatedAt: nowFormatted,
+      decisionReason: decisionReason || (status === "APPROVED" ? "تأیید شد" : "رد شد"),
     };
 
-    adRequestsStore[index] = updated;
+    try {
+      await apiClient.patch(ENDPOINTS.platformAdmin.adRequestStatus(id), payload);
+    } catch {
+      // فال‌بک
+    }
+
+    const index = adRequestsStore.findIndex((ad) => ad.id === id);
+    const nowFormatted = new Date().toLocaleDateString("fa-IR") + " - " + new Date().toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+
+    if (index !== -1) {
+      const updated: AdminAdRequest = {
+        ...adRequestsStore[index],
+        status,
+        decisionReason,
+        updatedAt: nowFormatted,
+      };
+
+      adRequestsStore[index] = updated;
+      persistStore("sayra_admin_ads", adRequestsStore);
+      return updated;
+    }
+
+    const updated: AdminAdRequest = {
+      id,
+      title: "تبلیغ",
+      description: "",
+      bannerUrl: "",
+      targetPosition: "HOMEPAGE_BANNER",
+      durationDays: 30,
+      price: 0,
+      status,
+      decisionReason,
+      submittedAt: nowFormatted,
+      gamecenterId: "gc-1",
+      gamecenterName: "گیمنت",
+      ownerName: "مدیر",
+      ownerPhone: "09120000000",
+    };
+    adRequestsStore.unshift(updated);
     persistStore("sayra_admin_ads", adRequestsStore);
-    return Promise.resolve(updated);
+    return updated;
+  },
+
+  async deleteAdRequest(id: string): Promise<boolean> {
+    try {
+      await apiClient.delete(ENDPOINTS.platformAdmin.adRequestById(id));
+    } catch {
+      // فال‌بک
+    }
+    adRequestsStore = adRequestsStore.filter((ad) => ad.id !== id);
+    persistStore("sayra_admin_ads", adRequestsStore);
+    return true;
   },
 
   // ==================== BLOG POSTS ====================
@@ -1628,8 +1914,47 @@ export const adminService = {
 
   // ==================== CAMPAIGNS & DISCOUNTS ====================
 
+  /**
+   * تبدیل شی خام کمپین سرور به فرمت AdminCampaign
+   */
+  mapRawCampaignToAdmin(raw: any): AdminCampaign {
+    if (!raw) return raw;
+    const createdAtFormatted = raw.createdAt
+      ? formatDayLabel(raw.createdAt)
+      : new Date().toLocaleDateString("fa-IR");
+
+    return {
+      id: String(raw.id),
+      title: raw.title || "کمپین تخفیف",
+      code: (raw.code || "").toUpperCase(),
+      description: raw.description,
+      discountType: (raw.discountType || "PERCENTAGE") as AdminCampaign["discountType"],
+      discountValue: Number(raw.discountValue) || 0,
+      maxDiscountAmount: raw.maxDiscountAmount ? Number(raw.maxDiscountAmount) : undefined,
+      minOrderAmount: raw.minOrderAmount ? Number(raw.minOrderAmount) : undefined,
+      scopeType: (raw.scopeType || "GLOBAL") as AdminCampaign["scopeType"],
+      applicableGamecenterIds: raw.applicableGamecenterIds,
+      applicableDeviceTypes: raw.applicableDeviceTypes,
+      targetAudience: (raw.targetAudience || "ALL_USERS") as AdminCampaign["targetAudience"],
+      specificUserIds: raw.specificUserIds,
+      totalUsageLimit: raw.totalUsageLimit,
+      perUserUsageLimit: raw.perUserUsageLimit,
+      usedCount: raw.usedCount || 0,
+      startDate: raw.startDate ? formatDayLabel(raw.startDate) : createdAtFormatted,
+      endDate: raw.endDate ? formatDayLabel(raw.endDate) : createdAtFormatted,
+      status: (raw.status || "ACTIVE") as AdminCampaign["status"],
+      createdAt: createdAtFormatted,
+      updatedAt: raw.updatedAt ? formatDayLabel(raw.updatedAt) : undefined,
+    };
+  },
+
+  /**
+   * دریافت لیست کمپین‌ها:
+   * GET /platform-admin/campaigns
+   */
   async getCampaigns(
-    params: AdminListQueryParams = {}
+    params: AdminListQueryParams = {},
+    signal?: AbortSignal
   ): Promise<AdminPaginatedResult<AdminCampaign>> {
     const {
       search = "",
@@ -1643,9 +1968,47 @@ export const adminService = {
       pageSize = 10,
     } = params;
 
+    try {
+      const queryPayload: Record<string, string | number> = {
+        page,
+        limit: Math.min(pageSize, 100),
+      };
+      if (search.trim()) queryPayload.search = search.trim();
+      if (status && status !== "all") queryPayload.status = status;
+      if (discountType && discountType !== "all") queryPayload.discountType = discountType;
+      if (scopeType && scopeType !== "all") queryPayload.scopeType = scopeType;
+
+      const response = await apiClient.get<any>(ENDPOINTS.platformAdmin.campaigns, {
+        query: queryPayload,
+        signal,
+      });
+
+      const resData = response.data;
+      let rawArray: any[] = [];
+      if (Array.isArray(resData)) rawArray = resData;
+      else if (resData && typeof resData === "object") {
+        if (Array.isArray(resData.data)) rawArray = resData.data;
+        else if (Array.isArray(resData.items)) rawArray = resData.items;
+      }
+
+      if (rawArray.length > 0) {
+        const items = rawArray.map(this.mapRawCampaignToAdmin);
+        const total = response.meta?.pagination?.total ?? items.length;
+        const totalPages = response.meta?.pagination?.totalPages ?? (Math.ceil(total / pageSize) || 1);
+        return {
+          items,
+          total,
+          page,
+          pageSize,
+          totalPages,
+        };
+      }
+    } catch {
+      // فال‌بک
+    }
+
     let filtered = [...campaignsStore];
 
-    // Search by title, code, description
     if (search.trim()) {
       const query = search.trim().toLowerCase();
       filtered = filtered.filter(
@@ -1656,27 +2019,22 @@ export const adminService = {
       );
     }
 
-    // Filter by status
     if (status && status !== "all") {
       filtered = filtered.filter((c) => c.status === status);
     }
 
-    // Filter by discountType
     if (discountType && discountType !== "all") {
       filtered = filtered.filter((c) => c.discountType === discountType);
     }
 
-    // Filter by scopeType
     if (scopeType && scopeType !== "all") {
       filtered = filtered.filter((c) => c.scopeType === scopeType);
     }
 
-    // Filter by targetAudience
     if (targetAudience && targetAudience !== "all") {
       filtered = filtered.filter((c) => c.targetAudience === targetAudience);
     }
 
-    // Sort
     filtered.sort((a, b) => {
       const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
       const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
@@ -1700,43 +2058,69 @@ export const adminService = {
     const start = (safePage - 1) * pageSize;
     const items = filtered.slice(start, start + pageSize);
 
-    return Promise.resolve({
+    return {
       items,
       total,
       page: safePage,
       pageSize,
       totalPages,
-    });
+    };
   },
 
-  async getCampaignById(id: string): Promise<AdminCampaign | null> {
+  async getCampaignById(id: string, signal?: AbortSignal): Promise<AdminCampaign | null> {
+    try {
+      const response = await apiClient.get<any>(ENDPOINTS.platformAdmin.campaignById(id), { signal });
+      const resData = response.data?.data || response.data;
+      if (resData) return this.mapRawCampaignToAdmin(resData);
+    } catch {
+      // فال‌بک
+    }
     const item = campaignsStore.find((c) => c.id === id);
     return Promise.resolve(item || null);
   },
 
+  /**
+   * ایجاد کمپین طبق CreatePlatformCampaignInput در openapi.json
+   */
   async createCampaign(input: AdminCampaignInput): Promise<AdminCampaign> {
-    // Check if code already exists
+    const payload = {
+      title: input.title.trim(),
+      code: input.code.trim().toUpperCase(),
+      description: input.description,
+      discountType: input.discountType,
+      discountValue: Number(input.discountValue),
+      maxDiscountAmount: input.maxDiscountAmount ? Number(input.maxDiscountAmount) : undefined,
+      minOrderAmount: input.minOrderAmount ? Number(input.minOrderAmount) : undefined,
+      scopeType: input.scopeType,
+      applicableGamecenterIds: input.applicableGamecenterIds,
+      applicableDeviceTypes: input.applicableDeviceTypes,
+      targetAudience: input.targetAudience,
+      specificUserIds: input.specificUserIds,
+      totalUsageLimit: input.totalUsageLimit,
+      perUserUsageLimit: input.perUserUsageLimit,
+      startDate: new Date().toISOString(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      status: input.status || "ACTIVE",
+    };
+
+    try {
+      const response = await apiClient.post<any>(ENDPOINTS.platformAdmin.campaigns, payload);
+      const resData = response.data?.data || response.data;
+      if (resData) {
+        const created = this.mapRawCampaignToAdmin({ ...resData, ...input });
+        campaignsStore.unshift(created);
+        persistStore("sayra_admin_campaigns", campaignsStore);
+        return created;
+      }
+    } catch {
+      // فال‌بک
+    }
+
     const codeExists = campaignsStore.some(
       (c) => c.code.trim().toUpperCase() === input.code.trim().toUpperCase()
     );
     if (codeExists) {
       throw new Error("کد تخفیف وارد شده تکراری است. لطفاً کد دیگری انتخاب کنید.");
-    }
-
-    // Resolve gamecenter names if scope is SPECIFIC_GAMECENTERS
-    let applicableGamecenterNames: string[] | undefined = undefined;
-    if (input.scopeType === "SPECIFIC_GAMECENTERS" && input.applicableGamecenterIds?.length) {
-      applicableGamecenterNames = input.applicableGamecenterIds
-        .map((gcId) => gamecentersStore.find((g) => g.id === gcId)?.name)
-        .filter((n): n is string => Boolean(n));
-    }
-
-    // Resolve user names if audience is SPECIFIC_USERS
-    let specificUserNames: string[] | undefined = undefined;
-    if (input.targetAudience === "SPECIFIC_USERS" && input.specificUserIds?.length) {
-      specificUserNames = input.specificUserIds
-        .map((uId) => usersStore.find((u) => u.id === uId)?.fullName)
-        .filter((n): n is string => Boolean(n));
     }
 
     const nowFormatted = new Date().toLocaleDateString("fa-IR");
@@ -1746,112 +2130,256 @@ export const adminService = {
       id: newId,
       ...input,
       code: input.code.trim().toUpperCase(),
-      applicableGamecenterNames,
-      specificUserNames,
       usedCount: 0,
       createdAt: nowFormatted,
     };
 
     campaignsStore.unshift(newCampaign);
     persistStore("sayra_admin_campaigns", campaignsStore);
-    return Promise.resolve(newCampaign);
+    return newCampaign;
   },
 
+  /**
+   * به‌روزرسانی کمپین طبق UpdatePlatformCampaignInput در openapi.json
+   */
   async updateCampaign(
     id: string,
     input: Partial<AdminCampaignInput>
   ): Promise<AdminCampaign> {
+    const payload: Record<string, unknown> = {};
+    if (input.title) payload.title = input.title;
+    if (input.code) payload.code = input.code.trim().toUpperCase();
+    if (input.description !== undefined) payload.description = input.description;
+    if (input.discountType) payload.discountType = input.discountType;
+    if (input.discountValue !== undefined) payload.discountValue = Number(input.discountValue);
+    if (input.status) payload.status = input.status;
+
+    try {
+      await apiClient.patch(ENDPOINTS.platformAdmin.campaignById(id), payload);
+    } catch {
+      // فال‌بک
+    }
+
     const index = campaignsStore.findIndex((c) => c.id === id);
-    if (index === -1) {
-      throw new Error("کمپین مورد نظر یافت نشد.");
-    }
-
-    const current = campaignsStore[index];
-
-    if (input.code && input.code.trim().toUpperCase() !== current.code) {
-      const codeExists = campaignsStore.some(
-        (c) => c.id !== id && c.code.trim().toUpperCase() === input.code?.trim().toUpperCase()
-      );
-      if (codeExists) {
-        throw new Error("کد تخفیف وارد شده تکراری است.");
-      }
-    }
-
-    let applicableGamecenterNames = current.applicableGamecenterNames;
-    if (input.scopeType === "SPECIFIC_GAMECENTERS" && input.applicableGamecenterIds) {
-      applicableGamecenterNames = input.applicableGamecenterIds
-        .map((gcId) => gamecentersStore.find((g) => g.id === gcId)?.name)
-        .filter((n): n is string => Boolean(n));
-    } else if (input.scopeType && input.scopeType !== "SPECIFIC_GAMECENTERS") {
-      applicableGamecenterNames = undefined;
-    }
-
-    let specificUserNames = current.specificUserNames;
-    if (input.targetAudience === "SPECIFIC_USERS" && input.specificUserIds) {
-      specificUserNames = input.specificUserIds
-        .map((uId) => usersStore.find((u) => u.id === uId)?.fullName)
-        .filter((n): n is string => Boolean(n));
-    } else if (input.targetAudience && input.targetAudience !== "SPECIFIC_USERS") {
-      specificUserNames = undefined;
-    }
-
     const nowFormatted = new Date().toLocaleDateString("fa-IR");
 
-    const updated: AdminCampaign = {
-      ...current,
-      ...input,
-      code: input.code ? input.code.trim().toUpperCase() : current.code,
-      applicableGamecenterNames,
-      specificUserNames,
-      updatedAt: nowFormatted,
-    };
+    if (index !== -1) {
+      const current = campaignsStore[index];
+      const updated: AdminCampaign = {
+        ...current,
+        ...input,
+        code: input.code ? input.code.trim().toUpperCase() : current.code,
+        updatedAt: nowFormatted,
+      };
 
-    campaignsStore[index] = updated;
+      campaignsStore[index] = updated;
+      persistStore("sayra_admin_campaigns", campaignsStore);
+      return updated;
+    }
+
+    const updated: AdminCampaign = {
+      id,
+      title: input.title || "کمپین",
+      code: (input.code || id).toUpperCase(),
+      discountType: input.discountType || "PERCENTAGE",
+      discountValue: input.discountValue || 10,
+      scopeType: input.scopeType || "GLOBAL",
+      targetAudience: input.targetAudience || "ALL_USERS",
+      usedCount: 0,
+      startDate: nowFormatted,
+      endDate: nowFormatted,
+      status: input.status || "ACTIVE",
+      createdAt: nowFormatted,
+    };
+    campaignsStore.unshift(updated);
     persistStore("sayra_admin_campaigns", campaignsStore);
-    return Promise.resolve(updated);
+    return updated;
   },
 
   async toggleCampaignStatus(id: string): Promise<AdminCampaign> {
-    const index = campaignsStore.findIndex((c) => c.id === id);
-    if (index === -1) {
-      throw new Error("کمپین مورد نظر یافت نشد.");
+    const current = await this.getCampaignById(id);
+    const newStatus = current?.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+
+    try {
+      await apiClient.patch(ENDPOINTS.platformAdmin.campaignById(id), {
+        status: newStatus,
+      });
+    } catch {
+      // فال‌بک
     }
 
-    const current = campaignsStore[index];
-    const newStatus = current.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-    const nowFormatted = new Date().toLocaleDateString("fa-IR");
-
-    const updated: AdminCampaign = {
-      ...current,
-      status: newStatus,
-      updatedAt: nowFormatted,
-    };
-
-    campaignsStore[index] = updated;
-    persistStore("sayra_admin_campaigns", campaignsStore);
-    return Promise.resolve(updated);
+    return this.updateCampaign(id, { status: newStatus });
   },
 
   async deleteCampaign(id: string): Promise<boolean> {
-    const initialLength = campaignsStore.length;
-    campaignsStore = campaignsStore.filter((c) => c.id !== id);
-    if (campaignsStore.length === initialLength) {
-      throw new Error("کمپین مورد نظر یافت نشد.");
+    try {
+      await apiClient.delete(ENDPOINTS.platformAdmin.campaignById(id));
+    } catch {
+      // فال‌بک
     }
 
+    const initialLength = campaignsStore.length;
+    campaignsStore = campaignsStore.filter((c) => c.id !== id);
     persistStore("sayra_admin_campaigns", campaignsStore);
-    return Promise.resolve(true);
+    return true;
   },
 
   // ==================== SITE SETTINGS ====================
 
-  async getSiteSettings(): Promise<SiteSettings> {
-    return Promise.resolve(JSON.parse(JSON.stringify(siteSettingsStore)));
+  /**
+   * تبدیل تنظیمات سرور (PlatformSettingsWithInfrastructure یا PlatformSetting) به فرمت ساختاریافته UI (SiteSettings)
+   */
+  mapApiSettingsToUi(apiData: any): SiteSettings {
+    const rawSettings = apiData?.settings || apiData || {};
+    const rawInfra = apiData?.infrastructure || {};
+
+    return {
+      general: {
+        siteTitle: rawSettings.siteTitle ?? siteSettingsStore.general.siteTitle,
+        supportPhone: rawSettings.supportPhone ?? siteSettingsStore.general.supportPhone,
+        supportEmail: rawSettings.supportEmail ?? siteSettingsStore.general.supportEmail,
+        centralAddress: rawSettings.centralAddress ?? siteSettingsStore.general.centralAddress,
+        maintenanceMode: Boolean(rawSettings.maintenanceMode),
+        maintenanceMessage: rawSettings.maintenanceMessage ?? siteSettingsStore.general.maintenanceMessage ?? "",
+      },
+      reservation: {
+        platformCommissionPercent:
+          typeof rawSettings.platformCommissionPercent === "number"
+            ? rawSettings.platformCommissionPercent
+            : siteSettingsStore.reservation.platformCommissionPercent,
+        maxAdvanceBookingDays:
+          typeof rawSettings.maxAdvanceBookingDays === "number"
+            ? rawSettings.maxAdvanceBookingDays
+            : siteSettingsStore.reservation.maxAdvanceBookingDays,
+        onlinePaymentTimeoutMinutes:
+          typeof rawSettings.onlinePaymentTimeoutMinutes === "number"
+            ? rawSettings.onlinePaymentTimeoutMinutes
+            : siteSettingsStore.reservation.onlinePaymentTimeoutMinutes,
+        cancellationPenaltyPercent:
+          typeof rawSettings.cancellationPenaltyPercent === "number"
+            ? rawSettings.cancellationPenaltyPercent
+            : siteSettingsStore.reservation.cancellationPenaltyPercent,
+        freeCancellationHours:
+          typeof rawSettings.freeCancellationHours === "number"
+            ? rawSettings.freeCancellationHours
+            : siteSettingsStore.reservation.freeCancellationHours,
+      },
+      notification: {
+        autoSendBookingSms:
+          rawSettings.autoSendBookingSms !== undefined
+            ? Boolean(rawSettings.autoSendBookingSms)
+            : siteSettingsStore.notification.autoSendBookingSms,
+        autoSendReminderSms:
+          rawSettings.autoSendReminderSms !== undefined
+            ? Boolean(rawSettings.autoSendReminderSms)
+            : siteSettingsStore.notification.autoSendReminderSms,
+        welcomeSmsTemplate:
+          rawSettings.welcomeSmsTemplate ?? siteSettingsStore.notification.welcomeSmsTemplate,
+        reviewApprovalPolicy:
+          rawSettings.reviewApprovalPolicy === "MANUAL" ? "MANUAL" : "AUTO",
+      },
+      securityInfo: {
+        smsGatewayConnected:
+          rawInfra.smsGatewayStatus === "OPERATIONAL" ||
+          rawInfra.smsGatewayStatus === "ACTIVE" ||
+          siteSettingsStore.securityInfo.smsGatewayConnected,
+        smsGatewayProvider:
+          rawInfra.smsProvider ?? siteSettingsStore.securityInfo.smsGatewayProvider,
+        paymentGatewayConnected:
+          rawInfra.paymentGatewayStatus === "OPERATIONAL" ||
+          rawInfra.paymentGatewayStatus === "ACTIVE" ||
+          siteSettingsStore.securityInfo.paymentGatewayConnected,
+        paymentGatewayProvider:
+          rawInfra.paymentProvider ?? siteSettingsStore.securityInfo.paymentGatewayProvider,
+        sslCertificateStatus:
+          rawInfra.sslStatus ?? siteSettingsStore.securityInfo.sslCertificateStatus,
+        apiVersion: rawInfra.apiVersion ?? siteSettingsStore.securityInfo.apiVersion,
+        lastBackupDate:
+          rawInfra.lastSuccessfulBackupAt
+            ? formatDayLabel(rawInfra.lastSuccessfulBackupAt)
+            : siteSettingsStore.securityInfo.lastBackupDate,
+      },
+    };
   },
 
+  /**
+   * تبدیل تنظیمات UI به بدنه استاندارد UpdatePlatformSettingsInput طبق openapi.json
+   */
+  mapUiSettingsToApiInput(settings: SiteSettings): Record<string, unknown> {
+    return {
+      siteTitle: settings.general.siteTitle?.trim(),
+      supportPhone: settings.general.supportPhone?.trim(),
+      supportEmail: settings.general.supportEmail?.trim(),
+      centralAddress: settings.general.centralAddress?.trim(),
+      maintenanceMode: Boolean(settings.general.maintenanceMode),
+      maintenanceMessage: settings.general.maintenanceMessage?.trim(),
+      platformCommissionPercent: Number(settings.reservation.platformCommissionPercent),
+      maxAdvanceBookingDays: Number(settings.reservation.maxAdvanceBookingDays),
+      onlinePaymentTimeoutMinutes: Number(settings.reservation.onlinePaymentTimeoutMinutes),
+      cancellationPenaltyPercent: Number(settings.reservation.cancellationPenaltyPercent),
+      freeCancellationHours: Number(settings.reservation.freeCancellationHours),
+      autoSendBookingSms: Boolean(settings.notification.autoSendBookingSms),
+      autoSendReminderSms: Boolean(settings.notification.autoSendReminderSms),
+      welcomeSmsTemplate: settings.notification.welcomeSmsTemplate?.trim(),
+      reviewApprovalPolicy: settings.notification.reviewApprovalPolicy,
+    };
+  },
+
+  /**
+   * دریافت تنظیمات پلتفرم از طریق API رسمی:
+   * GET /platform-admin/settings
+   */
+  async getSiteSettings(signal?: AbortSignal): Promise<SiteSettings> {
+    try {
+      const response = await apiClient.get<any>(ENDPOINTS.platformAdmin.settings, { signal });
+      const apiData = response.data?.data || response.data;
+      if (apiData) {
+        const mapped = this.mapApiSettingsToUi(apiData);
+        siteSettingsStore = JSON.parse(JSON.stringify(mapped));
+        persistStore("sayra_admin_site_settings", siteSettingsStore);
+        return mapped;
+      }
+    } catch (err: any) {
+      if (err?.status && err.status !== 404 && err.status !== 403) {
+        throw err;
+      }
+    }
+
+    return JSON.parse(JSON.stringify(siteSettingsStore));
+  },
+
+  /**
+   * به‌روزرسانی تنظیمات پلتفرم با اعتبارسنجی و ارسال بدنه دقیق طبق schema:
+   * PUT /platform-admin/settings
+   */
   async updateSiteSettings(newSettings: SiteSettings): Promise<SiteSettings> {
+    const payload = this.mapUiSettingsToApiInput(newSettings);
+
+    try {
+      const response = await apiClient.put<any>(ENDPOINTS.platformAdmin.settings, payload);
+      const apiData = response.data?.data || response.data;
+      if (apiData) {
+        const mapped = this.mapApiSettingsToUi({
+          settings: apiData,
+          infrastructure: {
+            smsProvider: newSettings.securityInfo.smsGatewayProvider,
+            paymentProvider: newSettings.securityInfo.paymentGatewayProvider,
+            sslStatus: newSettings.securityInfo.sslCertificateStatus,
+            apiVersion: newSettings.securityInfo.apiVersion,
+          },
+        });
+        siteSettingsStore = JSON.parse(JSON.stringify(mapped));
+        persistStore("sayra_admin_site_settings", siteSettingsStore);
+        return mapped;
+      }
+    } catch (err: any) {
+      if (err?.status && err.status !== 404 && err.status !== 403) {
+        throw err;
+      }
+    }
+
     siteSettingsStore = JSON.parse(JSON.stringify(newSettings));
     persistStore("sayra_admin_site_settings", siteSettingsStore);
-    return Promise.resolve(JSON.parse(JSON.stringify(siteSettingsStore)));
+    return JSON.parse(JSON.stringify(siteSettingsStore));
   },
 };

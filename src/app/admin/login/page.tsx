@@ -30,8 +30,9 @@ export default function AdminLoginPage() {
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      setErrorMessage("فرمت آدرس ایمیل نامعتبر است (مثال: admin@sayra.ir).");
+    const isIranPhone = /^09\d{9}$/.test(trimmedEmail);
+    if (!emailRegex.test(trimmedEmail) && !isIranPhone) {
+      setErrorMessage("لطفاً آدرس ایمیل معتبر یا شماره موبایل (۰۹...) را وارد نمایید.");
       return;
     }
 
