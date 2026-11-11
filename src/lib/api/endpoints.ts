@@ -123,6 +123,7 @@ export const ENDPOINTS = {
   },
   wallet: {
     status: "/customer/wallet",
+    charge: "/customer/wallet/charge",
     withdraw: "/customer/wallet/withdraw",
     withdrawals: "/customer/wallet/withdrawals",
     withdrawalDetail: (id: string) => `/customer/wallet/withdrawals/${enc(id)}`,
