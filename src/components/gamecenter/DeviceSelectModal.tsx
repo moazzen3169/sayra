@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { useGamingCenterStations } from "@/hooks/gaming-center/use-gaming-center-stations";
 import { formatPrice, toPersianDigits } from "@/lib/format";
+import { getEffectiveStationPricing } from "@/lib/stationPricing";
 import type { DeviceCategory } from "@/types/gaming-center/device-category.types";
 import type { PhysicalStation } from "@/types/gaming-center/station.types";
 import { Icon } from "@/components/ui/Icon";
@@ -71,7 +72,10 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
   const selectedIds = selected.map((s) => s.id);
   const count = selected.length;
   const has = count > 0;
-  const hourly = selected.reduce((sum, s) => sum + (s.hourlyPrice || 0), 0);
+  const hourly = selected.reduce((sum, s) => {
+    const { finalHourlyPrice } = getEffectiveStationPricing(s);
+    return sum + finalHourlyPrice;
+  }, 0);
   const allSelected = stations.length > 0 && stations.every((s) => selectedIds.includes(s.id));
 
   const toggle = (st: PhysicalStation) => {
@@ -189,6 +193,13 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
               >
                 {stations.map((st) => {
                   const active = selectedIds.includes(st.id);
+                  const {
+                    originalHourlyPrice,
+                    finalHourlyPrice,
+                    discountPercentage,
+                    hasDiscount,
+                  } = getEffectiveStationPricing(st);
+
                   return (
                     <button
                       key={st.id}
@@ -215,7 +226,7 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
                         <span
                           aria-hidden="true"
                           className={cn(
-                            "absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full border transition-colors",
+                            "absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full border transition-colors z-10",
                             active
                               ? "border-[var(--primary)] bg-[var(--primary)] text-on-primary"
                               : "border-[var(--border-color)] bg-[var(--bg-body)]/60 text-transparent"
@@ -224,21 +235,41 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
                           <Icon name="check" size={16} />
                         </span>
 
-                        {st.isVip && (
-                          <span className="absolute right-2 top-2 rounded-full border border-[var(--border-subtle)] bg-[var(--foreground)] px-2.5 py-1 text-xs font-bold leading-none text-[var(--text-white)]">
-                            VIP
-                          </span>
-                        )}
+                        <div className="absolute right-2 top-2 flex flex-col gap-1 items-end z-10">
+                          {st.isVip && (
+                            <span className="rounded-full border border-[var(--border-subtle)] bg-[var(--foreground)] px-2.5 py-1 text-xs font-bold leading-none text-[var(--text-white)]">
+                              VIP
+                            </span>
+                          )}
+                          {hasDiscount && (
+                            <span className="rounded-full bg-[var(--primary)] px-2 py-0.5 text-xs font-black text-on-primary shadow-sm">
+                              {discountPercentage
+                                ? `${toPersianDigits(discountPercentage)}٪ تخفیف`
+                                : "تخفیف ویژه"}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex min-w-0 flex-col gap-1">
                         <h3 className="truncate text-sm font-bold text-[var(--text-white)]">
                           {st.name}
                         </h3>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-sm font-bold text-[var(--text-white)]">
-                            {formatPrice(st.hourlyPrice)}
-                          </span>
+                        <div className="flex flex-wrap items-baseline gap-1.5">
+                          {hasDiscount ? (
+                            <>
+                              <span className="text-sm font-black text-[var(--primary)]">
+                                {formatPrice(finalHourlyPrice)}
+                              </span>
+                              <span className="text-xs text-[var(--text-muted)] line-through">
+                                {formatPrice(originalHourlyPrice)}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-sm font-bold text-[var(--text-white)]">
+                              {formatPrice(finalHourlyPrice)}
+                            </span>
+                          )}
                           <span className="text-xs text-[var(--text-muted)]">
                             تومان / ساعت
                           </span>

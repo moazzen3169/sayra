@@ -7,6 +7,7 @@ import type {
   GroupReservationPayload,
 } from "@/types/gaming-center/group-reservation.types";
 import { cleanPhoneNumber, formatPrice, isValidIranPhone, toPersianDigits, toEnglishDigits } from "@/lib/format";
+import { getEffectiveStationPricing } from "@/lib/stationPricing";
 import { useGroupReservation } from "@/hooks/gaming-center/use-group-reservation";
 import { useAuth } from "@/context/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
@@ -97,7 +98,10 @@ export const GroupBookingModal: React.FC<GroupBookingModalProps> = ({
 
   // Price estimate calculation
   const totalHourlyPrice = useMemo(() => {
-    return selectedStations.reduce((sum, s) => sum + (s.hourlyPrice || 0), 0);
+    return selectedStations.reduce(
+      (sum, s) => sum + getEffectiveStationPricing(s).finalHourlyPrice,
+      0
+    );
   }, [selectedStations]);
 
   const estimatedTotal = totalHourlyPrice * durationHours;
@@ -281,14 +285,23 @@ export const GroupBookingModal: React.FC<GroupBookingModalProps> = ({
 
         {/* Selected Stations Pills */}
         <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1">
-          {selectedStations.map((s) => (
-            <span
-              key={s.id}
-              className="px-2.5 py-1 rounded-md text-xs font-bold bg-[var(--foreground)]/60 text-[var(--text-white)] border border-[var(--border-subtle)]"
-            >
-              {s.name} ({formatPrice(s.hourlyPrice)} ت/س)
-            </span>
-          ))}
+          {selectedStations.map((s) => {
+            const pricing = getEffectiveStationPricing(s);
+            return (
+              <span
+                key={s.id}
+                className="px-2.5 py-1 rounded-md text-xs font-bold bg-[var(--foreground)]/60 text-[var(--text-white)] border border-[var(--border-subtle)] flex items-center gap-1"
+              >
+                <span>{s.name}</span>
+                <span>({formatPrice(pricing.finalHourlyPrice)} ت/س)</span>
+                {pricing.hasDiscount && (
+                  <span className="text-[10px] text-[var(--primary)] font-black">
+                    {pricing.discountPercentage ? `[${toPersianDigits(pricing.discountPercentage)}٪]` : "[تخفیف]"}
+                  </span>
+                )}
+              </span>
+            );
+          })}
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">

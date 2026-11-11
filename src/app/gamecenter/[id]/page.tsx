@@ -26,6 +26,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useDeviceCategories } from "@/hooks/gaming-center/use-device-categories";
 import { isAbortError } from "@/lib/api/client";
 import { formatPrice, toPersianDigits } from "@/lib/format";
+import { getEffectiveStationPricing } from "@/lib/stationPricing";
 import { formatDayLabel, getErrorMessage } from "@/lib/reservationUi";
 import { loadGamecenterDetail } from "@/services/gamecenterDetailService";
 import type { GamecenterDetail } from "@/types/gamecenter";
@@ -308,7 +309,7 @@ export default function GameCenterDetailPage({
   const deviceCount = selectedStations.length;
   // برآورد ساعتی (قیمت نهایی را Backend بعد از ثبت اعلام می‌کند)
   const hourly = selectedStations.reduce(
-    (a, s) => a + (s.hourlyPrice || 0),
+    (a, s) => a + getEffectiveStationPricing(s).finalHourlyPrice,
     0,
   );
 

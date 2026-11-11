@@ -148,6 +148,14 @@ export interface GameStation {
   defaultDurationHours?: number;
   incrementMinutes?: number;
   isActive?: boolean;
+  pricing?: {
+    originalPrice?: number;
+    discountPercentage?: number;
+    discountAmount?: number;
+    finalPrice?: number;
+    hasDiscount?: boolean;
+    durationHours?: number;
+  } | null;
 }
 
 export interface AvailabilitySlot {

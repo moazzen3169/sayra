@@ -3,6 +3,7 @@
 import React from "react";
 import type { PhysicalStation } from "@/types/gaming-center/station.types";
 import { formatPrice, toPersianDigits } from "@/lib/format";
+import { getEffectiveStationPricing } from "@/lib/stationPricing";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { PLACEHOLDERS } from "@/lib/media";
 
@@ -76,6 +77,12 @@ export const PhysicalStationList: React.FC<PhysicalStationListProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         {stations.map((st) => {
           const isSelected = selectedStationIds.includes(st.id);
+          const {
+            originalHourlyPrice,
+            finalHourlyPrice,
+            discountPercentage,
+            hasDiscount,
+          } = getEffectiveStationPricing(st);
 
           return (
             <button
@@ -90,7 +97,7 @@ export const PhysicalStationList: React.FC<PhysicalStationListProps> = ({
             >
               {/* Checkbox indicator */}
               <div
-                className={`absolute top-2.5 left-2.5 w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold transition-colors ${
+                className={`absolute top-2.5 left-2.5 w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold transition-colors z-10 ${
                   isSelected
                     ? "bg-[var(--primary)] text-on-primary"
                     : "border border-[var(--border-color)] bg-[var(--foreground)]/40 text-transparent"
@@ -99,12 +106,21 @@ export const PhysicalStationList: React.FC<PhysicalStationListProps> = ({
                 ✓
               </div>
 
-              {/* VIP badge */}
-              {st.isVip && (
-                <span className="self-start px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  VIP
-                </span>
-              )}
+              {/* Badges */}
+              <div className="self-start flex flex-wrap items-center gap-1 z-10">
+                {st.isVip && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    VIP
+                  </span>
+                )}
+                {hasDiscount && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[var(--primary)] text-on-primary">
+                    {discountPercentage
+                      ? `${toPersianDigits(discountPercentage)}٪ تخفیف`
+                      : "تخفیف ویژه"}
+                  </span>
+                )}
+              </div>
 
               {/* Image or Station Icon */}
               <div className="h-20 w-full rounded-lg bg-[var(--foreground)]/40 flex items-center justify-center p-2 overflow-hidden">
@@ -122,10 +138,21 @@ export const PhysicalStationList: React.FC<PhysicalStationListProps> = ({
                   {st.name}
                 </h4>
 
-                <div className="flex items-baseline gap-1 text-xs">
-                  <span className="font-black text-[var(--primary)]">
-                    {formatPrice(st.hourlyPrice)}
-                  </span>
+                <div className="flex flex-wrap items-baseline gap-1 text-xs">
+                  {hasDiscount ? (
+                    <>
+                      <span className="font-black text-[var(--primary)]">
+                        {formatPrice(finalHourlyPrice)}
+                      </span>
+                      <span className="text-[10px] text-[var(--text-muted)] line-through">
+                        {formatPrice(originalHourlyPrice)}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="font-black text-[var(--primary)]">
+                      {formatPrice(finalHourlyPrice)}
+                    </span>
+                  )}
                   <span className="text-[var(--text-muted)]">تومان / ساعت</span>
                 </div>
 
