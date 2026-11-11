@@ -6,6 +6,7 @@ import type {
   CenterSettings,
   CommissionListParams,
   CommissionListResult,
+  CreateAdvertisementInput,
   CreateBranchAddressPayload,
   CreateClosureInput,
   CreateGamingCenterPayload,
@@ -14,6 +15,7 @@ import type {
   GamingCenterClosure,
   GamingCenterSchedule,
   MediaItem,
+  OwnerAdvertisement,
   OwnerAnalyticsSummary,
   OwnerMe,
   OwnerRating,
@@ -1163,5 +1165,126 @@ export const ownerService = {
     }
     if (typeof resData === "string") return resData;
     throw new Error("آدرس فایل پیوست در پاسخ سرور یافت نشد.");
+  },
+
+  /**
+   * دریافت لیست تبلیغات ثبت‌شده گیم‌نت:
+   * GET /gamingCenters/{gamingCenterId}/advertisements
+   */
+  async listAdvertisements(
+    gamingCenterId: string,
+    params?: { page?: number; limit?: number; status?: string; search?: string; signal?: AbortSignal }
+  ): Promise<OwnerAdvertisement[]> {
+    const query: Record<string, string | number> = {};
+    if (params?.page) query.page = params.page;
+    if (params?.limit) query.limit = params.limit;
+    if (params?.status && params.status !== "all") query.status = params.status;
+    if (params?.search?.trim()) query.search = params.search.trim();
+
+    const response = await apiClient.get<any>(
+      ENDPOINTS.owner.advertisements(gamingCenterId),
+      { query, signal: params?.signal }
+    );
+
+    const resData = response.data;
+    if (Array.isArray(resData)) return resData;
+    if (Array.isArray(resData?.data)) return resData.data;
+    if (Array.isArray(resData?.items)) return resData.items;
+    return [];
+  },
+
+  /**
+   * آپلود بنر تبلیغاتی اختصاصی گیم‌نت:
+   * POST /gamingCenters/{gamingCenterId}/advertisements/upload
+   */
+  async uploadAdvertisementBanner(
+    gamingCenterId: string,
+    file: File
+  ): Promise<{ url: string; thumbUrl?: string }> {
+    const form = new FormData();
+    // OpenAPI specifies required 'banner' property
+    form.append("banner", file);
+
+    const response = await apiClient.post<any>(
+      ENDPOINTS.owner.advertisementUpload(gamingCenterId),
+      form
+    );
+
+    const resData = response.data;
+    const dataObj = resData?.data || resData;
+
+    const url =
+      dataObj?.url ||
+      dataObj?.bannerUrl ||
+      extractMediaUrl(dataObj) ||
+      (typeof dataObj === "string" ? dataObj : "");
+
+    if (!url) {
+      throw new Error("آدرس بنر آپلودشده از سرور دریافت نشد.");
+    }
+
+    return {
+      url: normalizeMediaUrl(url),
+      thumbUrl: dataObj?.thumbUrl ? normalizeMediaUrl(dataObj.thumbUrl) : undefined,
+    };
+  },
+
+  /**
+   * ثبت درخواست تبلیغات جدید:
+   * POST /gamingCenters/{gamingCenterId}/advertisements
+   */
+  async createAdvertisement(
+    gamingCenterId: string,
+    input: CreateAdvertisementInput
+  ): Promise<OwnerAdvertisement> {
+    const payload = {
+      title: input.title.trim(),
+      description: input.description?.trim() || undefined,
+      bannerUrl: input.bannerUrl.trim(),
+      destinationUrl: input.destinationUrl?.trim() || undefined,
+      proposedDurationDays: input.proposedDurationDays ?? 30,
+    };
+
+    const response = await apiClient.post<any>(
+      ENDPOINTS.owner.advertisements(gamingCenterId),
+      payload
+    );
+
+    const resData = response.data;
+    return (resData?.data || resData) as OwnerAdvertisement;
+  },
+
+  /**
+   * دریافت جزئیات درخواست تبلیغ گیم‌نت:
+   * GET /gamingCenters/{gamingCenterId}/advertisements/{id}
+   */
+  async getAdvertisementById(
+    gamingCenterId: string,
+    id: string
+  ): Promise<OwnerAdvertisement | null> {
+    try {
+      const response = await apiClient.get<any>(
+        ENDPOINTS.owner.advertisementDetail(gamingCenterId, id)
+      );
+      const resData = response.data;
+      return (resData?.data || resData) as OwnerAdvertisement;
+    } catch (err: any) {
+      if (err?.status === 404) return null;
+      throw err;
+    }
+  },
+
+  /**
+   * حذف یا انصراف از درخواست تبلیغ:
+   * DELETE /gamingCenters/{gamingCenterId}/advertisements/{id}
+   */
+  async deleteAdvertisement(
+    gamingCenterId: string,
+    id: string
+  ): Promise<boolean> {
+    await apiClient.delete(
+      ENDPOINTS.owner.advertisementDetail(gamingCenterId, id)
+    );
+    return true;
   },
 };

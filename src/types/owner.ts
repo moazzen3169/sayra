@@ -251,3 +251,33 @@ export interface CreateLinkPayload {
   platform: string;
   url: string;
 }
+
+export interface OwnerAdvertisement {
+  id: string;
+  title: string;
+  description?: string | null;
+  bannerUrl: string;
+  mediaType?: "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT" | "FILE";
+  destinationUrl?: string | null;
+  proposedDurationDays?: number;
+  durationDays?: number;
+  priority?: number;
+  startDate?: string | null;
+  endDate?: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "ACTIVE" | "EXPIRED" | "DELETED";
+  decisionReason?: string | null;
+  adminNote?: string | null;
+  gamingCenterId: string;
+  ownerId?: string;
+  remainingDays?: number | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateAdvertisementInput {
+  title: string;
+  description?: string;
+  bannerUrl: string;
+  destinationUrl?: string;
+  proposedDurationDays?: number;
+}
