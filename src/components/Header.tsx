@@ -10,6 +10,7 @@ import { CityModal } from "./CityModal";
 import { NotificationModal } from "./NotificationModal";
 import { SearchModal } from "./SearchModal";
 import { DesktopNav } from "./DesktopNav";
+import { OwnerCenterLink } from "./OwnerCenterLink";
 
 interface HeaderProps {
   locationName?: string;
@@ -161,12 +162,20 @@ export const Header: React.FC<HeaderProps> = ({
   const reservationsHref = isOwner ? "/owner/reservations" : "/reservations";
   const reservationsLabel = isOwner ? "رزروهای گیم‌نت" : "رزروهای من";
 
+  // فقط اگر دریافت اطلاعات از API شکست بخورد از نقش ذخیره‌شده استفاده می‌شود
+  const centerLinkFallback: "admin" | "center" | "none" = isAdmin
+    ? "admin"
+    : isManager
+    ? "center"
+    : "none";
+
   /**
    * منوی دراپ‌داون پروفایل در هر اندازه صفحه هنگام لاگین بودن:
    * ۱. اطلاعات کاربر= پروفایل (/profile)
    * ۲. رزروهای من / مدیریت رزروها بر اساس نقش
    * ۳. نوتیفیکیشن
-   * ۴. صاحب گیمنت: مدیریت گیمنت (/owner یا /admin) | غیر صاحب: ساخت گیمنت جدید (/owner/new)
+   * ۴. فقط یکی از: مدیریت گیمنت (اگر کاربر گیمنت دارد) | ساخت گیمنت (اگر ندارد)
+   *    تشخیص بر اساس توکن و پاسخ API (/auth/me) انجام می‌شود، نه نقش ذخیره‌شده.
    * ۵. پشتیبانی (/support)
    * ۶. خروج از حساب
    */
@@ -265,60 +274,14 @@ export const Header: React.FC<HeaderProps> = ({
         )}
       </button>
 
-      {/* 3. اگه صاحب گیمنت بود لینک صفحه مدیریت گیمنت و اگه صاحب گیمنت نبود لینک ساخت گیمنت جدید */}
-      {isOwner ? (
-        <Link
-          href={isAdmin ? "/admin" : "/owner"}
-          role="menuitem"
-          onClick={closeAccountMenu}
-          className="flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
-        >
-          <span className="shrink-0 text-[var(--primary)]">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.7}
-              className="h-[18px] w-[18px]"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-              />
-            </svg>
-          </span>
-          <span>{isAdmin ? "پنل مدیریت سامانه" : "مدیریت گیم‌نت"}</span>
-        </Link>
-      ) : (
-        <Link
-          href="/owner/new"
-          role="menuitem"
-          onClick={closeAccountMenu}
-          className="flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
-        >
-          <span className="shrink-0 text-[var(--primary)]">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.7}
-              className="h-[18px] w-[18px]"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-          </span>
-          <span>ساخت گیم‌نت جدید</span>
-        </Link>
-      )}
+      {/* 4. فقط یک لینک: مدیریت گیمنت یا ساخت گیمنت (بر اساس پاسخ API) */}
+      <OwnerCenterLink
+        variant="menu"
+        onNavigate={closeAccountMenu}
+        fallback={centerLinkFallback}
+      />
 
-      {/* 4. پشتیبانی */}
+      {/* 5. پشتیبانی */}
       <Link
         href="/support"
         role="menuitem"
@@ -346,7 +309,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       <div className="my-1 border-t border-[var(--border-subtle)]" />
 
-      {/* 5. خروج از حساب */}
+      {/* 6. خروج از حساب */}
       <button
         type="button"
         role="menuitem"
