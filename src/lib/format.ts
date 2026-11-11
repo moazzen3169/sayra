@@ -9,8 +9,12 @@ export const toEnglishDigits = (value: string | number): string =>
     .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
 
 /** 230000 -> ۲۳۰,۰۰۰ */
-export const formatPrice = (value: number): string =>
-  toPersianDigits(value.toLocaleString("en-US"));
+export const formatPrice = (value: number | null | undefined): string => {
+  if (value === null || value === undefined || isNaN(Number(value))) {
+    return "۰";
+  }
+  return toPersianDigits(Number(value).toLocaleString("en-US"));
+};
 
 /**
  * پاکسازی و نرمال‌سازی شماره تلفن به ساختار ثابت ۱۱ رقمی (09000000000)
