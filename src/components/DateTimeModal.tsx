@@ -37,6 +37,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
   const [apiSlots, setApiSlots] = useState<TimeSlotOption[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState<boolean>(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [dateClosedNotice, setDateClosedNotice] = useState<string | null>(null);
   const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
 
   const dateListRef = useRef<HTMLDivElement>(null);
@@ -56,12 +57,38 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
     const abortController = new AbortController();
     setIsLoadingSlots(true);
     setSlotsError(null);
+    setDateClosedNotice(null);
     setSelectedSlotIds([]); // Clear selection when date or center changes to avoid stale selections
 
-    gamingCenterService
-      .getAvailabilitySlots(gamingCenterSlug, selectedDateObj.fullDate, stationId, abortController.signal)
-      .then((rawSlots) => {
+    (async () => {
+      try {
+        // واکشی موازی اسلات‌ها و بررسی تعطیلات (Closures)
+        const [rawSlots, closures, centerInfo] = await Promise.all([
+          gamingCenterService.getAvailabilitySlots(
+            gamingCenterSlug,
+            selectedDateObj.fullDate,
+            stationId,
+            abortController.signal
+          ),
+          gamingCenterService.getPublicClosures(gamingCenterSlug, abortController.signal).catch(() => []),
+          gamingCenterService.getPublicGamingCenter(gamingCenterSlug, abortController.signal).catch(() => null),
+        ]);
+
         if (abortController.signal.aborted) return;
+
+        // بررسی تعطیلی کامل روز (تعطیلات هفتگی یا مناسبتی)
+        const closedCheck = gamingCenterService.isDateFullyClosed(
+          selectedDateObj.fullDate,
+          closures,
+          centerInfo?.closedDays
+        );
+
+        if (closedCheck.isClosed) {
+          setDateClosedNotice(closedCheck.reason || "این مرکز در تاریخ انتخاب شده تعطیل است.");
+          setApiSlots([]);
+          return;
+        }
+
         if (Array.isArray(rawSlots)) {
           const mapped: (TimeSlotOption & { hourNumber?: string })[] = rawSlots
             .filter((s) => Boolean(s?.startTime))
@@ -70,7 +97,18 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
                 s.startTime && s.endTime
                   ? `${formatClock(s.startTime, true)} تا ${formatClock(s.endTime, true)}`
                   : formatClock(s.startTime, true);
-              const isAvail = s.isAvailable !== false && (s.status === undefined || s.status === "AVAILABLE");
+
+              // بررسی تداخل این اسلات با تعطیلات موقت/مناسبتی
+              const overlaps = s.startTime && s.endTime
+                ? gamingCenterService.findOverlappingClosures(s.startTime, s.endTime, closures)
+                : [];
+              const hasClosureConflict = overlaps.length > 0;
+
+              const isAvail =
+                !hasClosureConflict &&
+                s.isAvailable !== false &&
+                (s.status === undefined || s.status === "AVAILABLE");
+
               return {
                 id: s.startTime || `slot-${idx}`,
                 timeLabel: label,
@@ -83,17 +121,16 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
         } else {
           setApiSlots([]);
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         if (abortController.signal.aborted) return;
         setSlotsError(err instanceof Error ? err.message : "خطا در دریافت اسلات‌های زمانی");
         setApiSlots([]);
-      })
-      .finally(() => {
+      } finally {
         if (!abortController.signal.aborted) {
           setIsLoadingSlots(false);
         }
-      });
+      }
+    })();
 
     return () => {
       abortController.abort();
@@ -276,7 +313,15 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
               </div>
             )}
 
-            {!isLoadingSlots && !slotsError && timeSlots.length === 0 && (
+            {!isLoadingSlots && dateClosedNotice && (
+              <div className="rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-5 flex flex-col items-center gap-2 text-center">
+                <Icon name="alert" size={20} className="text-[var(--accent-red)]" />
+                <p className="text-xs font-bold text-[var(--accent-red)]">{dateClosedNotice}</p>
+                <p className="text-[11px] text-[var(--text-muted)]">لطفاً روز دیگری را جهت رزرو انتخاب نمایید.</p>
+              </div>
+            )}
+
+            {!isLoadingSlots && !slotsError && !dateClosedNotice && timeSlots.length === 0 && (
               <div className="rounded-card border border-dashed border-[var(--border-color)] p-6 text-center text-xs text-[var(--text-muted)]">
                 برای این روز ساعت خالی وجود ندارد. روز دیگری را انتخاب کنید.
               </div>

@@ -46,6 +46,8 @@ export default function ProfilePage() {
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletTab, setWalletTab] = useState<"charge" | "withdraw" | "history">("charge");
   const [walletChargeAmount, setWalletChargeAmount] = useState<number | null>(null);
+  const [customChargeAmount, setCustomChargeAmount] = useState("");
+  const [walletCharging, setWalletCharging] = useState(false);
   const [walletSuccess, setWalletSuccess] = useState("");
   const [walletError, setWalletError] = useState("");
 
@@ -325,16 +327,45 @@ export default function ProfilePage() {
   };
 
   /* --- Wallet Charge Handler --- */
-  const handleChargeWallet = () => {
+  const handleChargeWallet = async () => {
     setWalletError("");
+    setWalletSuccess("");
+
+    const targetAmount = customChargeAmount.trim()
+      ? Number(customChargeAmount.replace(/[,٬،\s]/g, ""))
+      : walletChargeAmount;
+
+    if (!targetAmount || isNaN(targetAmount) || targetAmount <= 0) {
+      setWalletError("لطفاً یک مبلغ معتبر جهت افزایش موجودی انتخاب یا وارد فرمایید.");
+      return;
+    }
+
+    if (targetAmount < 1000) {
+      setWalletError("حداقل مبلغ شارژ کیف پول ۱,۰۰۰ تومان می‌باشد.");
+      return;
+    }
+
+    setWalletCharging(true);
     try {
-      authService.walletUnsupported();
-    } catch {
-      setWalletError("درگاه و افزایش موجودی کیف پول در حال حاضر در دسترس نیست.");
-      setWalletChargeAmount(null);
-      setTimeout(() => {
-        setWalletError("");
-      }, 4000);
+      // Connect to real charge wallet flow
+      const chargeRes = await walletService.chargeWallet({
+        amount: targetAmount,
+        currency: "IRT",
+        redirectUrl: typeof window !== "undefined" ? `${window.location.origin}/profile?wallet=verify` : undefined,
+        description: `افزایش موجودی کیف پول به مبلغ ${formatPrice(targetAmount)} تومان`,
+      });
+
+      if (chargeRes?.paymentUrl) {
+        setWalletSuccess("در حال اتصال و انتقال امن به درگاه بانکی...");
+        window.location.href = chargeRes.paymentUrl;
+      } else {
+        setWalletSuccess(`پرداخت برای مبلغ ${formatPrice(targetAmount)} تومان ثبت شد.`);
+      }
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err);
+      setWalletError(msg || "امکان شارژ مستقیم کیف پول در حال حاضر در سامانه فعال نشده است.");
+    } finally {
+      setWalletCharging(false);
     }
   };
 
@@ -902,33 +933,96 @@ export default function ProfilePage() {
             {/* TAB 1: CHARGE */}
             {walletTab === "charge" && (
               <div className="flex flex-col gap-4">
+                {/* Notice banner regarding backend readiness */}
+                <div className="p-3 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] flex items-start gap-2.5 text-xs text-[var(--text-muted)]">
+                  <svg className="w-5 h-5 text-[var(--primary)] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="leading-relaxed">
+                    مبلغ دلخواه خود را وارد کنید یا از مبالغ پیشنهادی انتخاب نمایید. پس از لمس دکمه پرداخت، به درگاه شاپرک/بانکی منتقل شده و پس از بازگشت موفق، حساب شما شارژ می‌شود.
+                  </p>
+                </div>
+
+                {/* Pre-defined quick amounts */}
                 <div className="flex flex-col gap-2">
-                  <span className="text-xs font-bold text-[var(--text-white)]">انتخاب مبلغ جهت افزایش موجودی:</span>
+                  <span className="text-xs font-bold text-[var(--text-white)]">مبالغ پیشنهادی:</span>
                   <div className="grid grid-cols-3 gap-2">
-                    {[100000, 200000, 500000].map((amt) => (
-                      <button
-                        key={amt}
-                        type="button"
-                        onClick={() => setWalletChargeAmount(amt)}
-                        className={`h-11 rounded-card border text-xs font-bold transition-all ${
-                          walletChargeAmount === amt
-                            ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] shadow-md"
-                            : "bg-[var(--foreground)]/40 border-[var(--border-subtle)] text-[var(--text-white)] hover:border-[var(--primary)]/50"
-                        }`}
-                      >
-                        {formatPrice(amt)}
-                      </button>
-                    ))}
+                    {[50000, 100000, 200000, 500000, 1000000, 2000000].map((amt) => {
+                      const isSelected = walletChargeAmount === amt && !customChargeAmount;
+                      return (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => {
+                            setWalletChargeAmount(amt);
+                            setCustomChargeAmount("");
+                            setWalletError("");
+                          }}
+                          className={`h-11 rounded-card border text-xs font-bold transition-all ${
+                            isSelected
+                              ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] shadow-md"
+                              : "bg-[var(--foreground)]/40 border-[var(--border-subtle)] text-[var(--text-white)] hover:border-[var(--primary)]/50"
+                          }`}
+                        >
+                          {formatPrice(amt)} تومان
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {walletChargeAmount && (
+                {/* Custom amount input */}
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="custom-charge-amt" className="text-xs font-bold text-[var(--text-white)]">
+                    یا مبلغ دلخواه شما (تومان):
+                  </label>
+                  <div className="relative flex items-center">
+                    <input
+                      id="custom-charge-amt"
+                      type="text"
+                      inputMode="numeric"
+                      value={customChargeAmount ? formatPrice(Number(customChargeAmount.replace(/[,٬،\s]/g, ""))) : ""}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, "");
+                        setCustomChargeAmount(raw);
+                        if (raw) {
+                          setWalletChargeAmount(Number(raw));
+                        }
+                        setWalletError("");
+                      }}
+                      placeholder="مثلاً: ۱۵۰,۰۰۰"
+                      className="w-full h-11 px-3.5 pl-14 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm text-[var(--text-white)] font-mono outline-none"
+                    />
+                    <span className="absolute left-3 text-xs text-[var(--text-muted)] select-none">
+                      تومان
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-[var(--text-muted)]">
+                    حداقل مبلغ قابل شارژ: ۱,۰۰۰ تومان
+                  </span>
+                </div>
+
+                {/* Submit button */}
+                {Boolean(walletChargeAmount || customChargeAmount) && (
                   <button
                     type="button"
+                    disabled={walletCharging}
                     onClick={handleChargeWallet}
-                    className="h-11 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs shadow-lg transition-all active:scale-[0.98]"
+                    className="h-11 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs shadow-lg transition-all active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    پرداخت و شارژ {formatPrice(walletChargeAmount)} تومان
+                    {walletCharging ? (
+                      <span>در حال اتصال به درگاه پرداخت...</span>
+                    ) : (
+                      <span>
+                        انتقال به درگاه و شارژ{" "}
+                        {formatPrice(
+                          customChargeAmount
+                            ? Number(customChargeAmount.replace(/[,٬،\s]/g, ""))
+                            : (walletChargeAmount ?? 0)
+                        )}{" "}
+                        تومان
+                      </span>
+                    )}
                   </button>
                 )}
               </div>

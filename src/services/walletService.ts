@@ -9,7 +9,10 @@ import type {
   WalletTransaction,
   TransactionListParams,
   PaginatedTransactionsResult,
+  ChargeWalletPayload,
+  ChargeWalletResponse,
 } from "@/types/wallet";
+import { ContractGapError } from "@/types/customerApi";
 
 export class WalletValidationError extends Error {
   code: string;
@@ -33,6 +36,66 @@ function parseEnvelope<T>(resData: unknown): T[] {
 }
 
 export const walletService = {
+  /**
+   * افزایش موجودی کیف پول و اتصال مستقیم به درگاه پرداخت
+   * POST /customer/wallet/charge
+   */
+  async chargeWallet(
+    payload: ChargeWalletPayload,
+    idempotencyKey?: string
+  ): Promise<ChargeWalletResponse> {
+    const { amount, currency = "IRR", redirectUrl, description } = payload;
+
+    if (!Number.isInteger(amount) || amount <= 0) {
+      throw new WalletValidationError(
+        "مبلغ شارژ باید یک عدد صحیح بزرگتر از صفر باشد.",
+        "INVALID_AMOUNT"
+      );
+    }
+
+    // Minimum charge threshold (e.g. 1,000 Tomans or 10,000 Rials)
+    if (amount < 1000) {
+      throw new WalletValidationError(
+        "حداقل مبلغ شارژ کیف پول ۱,۰۰۰ تومان می‌باشد.",
+        "MINIMUM_AMOUNT"
+      );
+    }
+
+    try {
+      const headers: Record<string, string> = {};
+      if (idempotencyKey) {
+        headers["Idempotency-Key"] = idempotencyKey;
+      }
+
+      const response = await apiClient.post<unknown>(
+        ENDPOINTS.wallet.charge,
+        {
+          amount,
+          currency,
+          redirectUrl,
+          description: description || "افزایش موجودی کیف پول",
+        },
+        { headers }
+      );
+
+      const resData = response.data;
+      if (resData && typeof resData === "object" && "data" in (resData as any)) {
+        return (resData as any).data as ChargeWalletResponse;
+      }
+      return resData as ChargeWalletResponse;
+    } catch (err: unknown) {
+      // Contract gap guard: When backend responds with 404/501 or route missing, raise descriptive contract gap error
+      const status = (err as any)?.status;
+      if (status === 404 || status === 501 || !ENDPOINTS.wallet.charge) {
+        throw new ContractGapError(
+          "CustomerWalletCharge",
+          "سرویس شارژ آنلاین کیف پول در نسخه جاری بک‌اند فعال نشده است. لطفاً منتظر استقرار وب‌سرویس درگاه کیف پول باشید."
+        );
+      }
+      throw err;
+    }
+  },
+
   /**
    * دریافت وضعیت موجودی کیف پول کاربر
    * GET /customer/wallet

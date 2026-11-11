@@ -13,6 +13,7 @@ import {
   ContractGapError,
   AvailabilitySlotsParams,
 } from "@/types/customerApi";
+import type { GamingCenterClosure, GamingCenterSchedule } from "@/types/owner";
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const CUID_OR_SLUG_ID_REGEX = /^[a-z0-9_-]+$/i;
@@ -218,6 +219,116 @@ export const gamingCenterService = {
       }
     );
     return normalizeAvailabilitySlots(data);
+  },
+
+  /**
+   * دریافت تعطیلات ثبت‌شده عمومی یک گیم‌نت بر اساس slug
+   * GET /public/gamingCenters/{slug}/closures
+   */
+  async getPublicClosures(slug: string, signal?: AbortSignal): Promise<GamingCenterClosure[]> {
+    try {
+      const response = await apiClient.get<any>(
+        ENDPOINTS.gamingCenter.publicClosures(slug),
+        { signal }
+      );
+      const raw = response.data;
+      if (Array.isArray(raw)) return raw;
+      if (raw && typeof raw === "object") {
+        if (Array.isArray(raw.data)) return raw.data;
+        if (Array.isArray(raw.items)) return raw.items;
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * دریافت برنامه‌کاری عمومی گیم‌نت بر اساس slug
+   * GET /public/gamingCenters/{slug}/schedules
+   */
+  async getPublicSchedules(slug: string, signal?: AbortSignal): Promise<GamingCenterSchedule[]> {
+    try {
+      const response = await apiClient.get<any>(
+        ENDPOINTS.gamingCenter.publicSchedules(slug),
+        { signal }
+      );
+      const raw = response.data;
+      if (Array.isArray(raw)) return raw;
+      if (raw && typeof raw === "object") {
+        if (Array.isArray(raw.data)) return raw.data;
+        if (Array.isArray(raw.items)) return raw.items;
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * بررسی هم‌پوشانی بازه زمانی انتخابی با تعطیلات ثبت‌شده گیم‌نت (findOverlappingClosures)
+   */
+  findOverlappingClosures(
+    startTimeIso: string,
+    endTimeIso: string,
+    closures: GamingCenterClosure[]
+  ): GamingCenterClosure[] {
+    if (!closures || closures.length === 0) return [];
+    const targetStart = new Date(startTimeIso).getTime();
+    const targetEnd = new Date(endTimeIso).getTime();
+    if (isNaN(targetStart) || isNaN(targetEnd)) return [];
+
+    return closures.filter((c) => {
+      const cStart = new Date(c.startDate).getTime();
+      const cEnd = new Date(c.endDate).getTime();
+      if (isNaN(cStart) || isNaN(cEnd)) return false;
+      return targetStart < cEnd && targetEnd > cStart;
+    });
+  },
+
+  /**
+   * بررسی آیا یک تاریخ خاص (YYYY-MM-DD) شامل تعطیلی کامل است یا خیر
+   */
+  isDateFullyClosed(
+    dateStr: string,
+    closures: GamingCenterClosure[],
+    closedDays?: number[],
+    schedules?: GamingCenterSchedule[]
+  ): { isClosed: boolean; reason?: string } {
+    const d = new Date(dateStr + "T12:00:00Z");
+    const utcDay = d.getUTCDay();
+    const persianDayOfWeek = (utcDay + 1) % 7;
+
+    if (closedDays && closedDays.includes(persianDayOfWeek)) {
+      return { isClosed: true, reason: "تعطیلی هفتگی گیم‌نت" };
+    }
+
+    if (schedules && schedules.length > 0) {
+      const daySchedule = schedules.find((s) => s.dayOfWeek === persianDayOfWeek);
+      if (daySchedule && daySchedule.isClosed) {
+        return { isClosed: true, reason: "تعطیلی هفتگی طبق زمان‌بندی" };
+      }
+    }
+
+    if (closures && closures.length > 0) {
+      const dayStart = new Date(`${dateStr}T00:00:00.000Z`).getTime();
+      const dayEnd = new Date(`${dateStr}T23:59:59.999Z`).getTime();
+
+      const matched = closures.find((c) => {
+        const cStart = new Date(c.startDate).getTime();
+        const cEnd = new Date(c.endDate).getTime();
+        return dayStart < cEnd && dayEnd > cStart;
+      });
+
+      if (matched) {
+        return {
+          isClosed: true,
+          reason: matched.title + (matched.reason ? ` (${matched.reason})` : ""),
+        };
+      }
+    }
+
+    return { isClosed: false };
   },
 
   /**

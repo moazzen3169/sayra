@@ -87,6 +87,12 @@ export interface AdminUser {
   createdAt: string;
   updatedAt?: string;
   nationalId?: string;
+  registeredVia?: string;
+  reservationsCount?: number;
+  totalSpentAmount?: number;
+  lastLogin?: string;
+  gamingCenterId?: string;
+  gamingCenterName?: string;
 }
 
 export interface AdminUserInput {
@@ -96,6 +102,7 @@ export interface AdminUserInput {
   role: "USER" | "OWNER" | "ADMIN";
   isActive: boolean;
   nationalId?: string;
+  gamingCenterId?: string;
 }
 
 export interface AdminTicketMessage {
@@ -221,16 +228,26 @@ export interface AdminAdRequest {
   title: string;
   description: string;
   bannerUrl?: string;
+  destinationUrl?: string;
+  targetPosition?: string;
   durationDays: number;
+  priority?: number;
+  price?: number;
+  startDate?: string;
+  endDate?: string;
+  adminNote?: string;
   gamecenterId: string;
   gamecenterName: string;
-  ownerId: string;
+  ownerId?: string;
   ownerName: string;
   ownerPhone: string;
-  status: "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED";
+  status: "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED" | "ACTIVE" | "DELETED";
   submittedAt: string;
   updatedAt?: string;
   decisionReason?: string;
+  adminNote?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface AdminListQueryParams {
@@ -256,6 +273,7 @@ export type CampaignScopeType = "GLOBAL" | "SPECIFIC_GAMECENTERS" | "DEVICE_TYPE
 
 export type TargetAudienceType =
   | "ALL"
+  | "ALL_USERS"
   | "NEW_USERS"
   | "FIRST_RESERVATION"
   | "REGULAR_CUSTOMERS"

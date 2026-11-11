@@ -79,6 +79,33 @@ export interface OwnerReservationListResult {
   totalPages: number;
 }
 
+export interface GamingCenterSchedule {
+  id?: string;
+  gamingCenterId?: string;
+  dayOfWeek: number; // 0: شنبه, 1: یک‌شنبه, ..., 6: جمعه
+  startTime?: string; // HH:mm
+  endTime?: string; // HH:mm
+  isClosed: boolean;
+}
+
+export interface GamingCenterClosure {
+  id: string;
+  gamingCenterId?: string;
+  title: string;
+  reason?: string;
+  startDate: string; // ISO 8601 string / timestamptz
+  endDate: string; // ISO 8601 string / timestamptz
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateClosureInput {
+  title: string;
+  reason?: string;
+  startDate: string; // ISO 8601 string / timestamptz
+  endDate: string; // ISO 8601 string / timestamptz
+}
+
 export interface CenterSettings {
   id?: string;
   gamingCenterId?: string;
@@ -88,6 +115,8 @@ export interface CenterSettings {
   allowOnlineBooking?: boolean;
   onlineBookingAutoConfirm?: boolean;
   preventOverlaps?: boolean;
+  closedDays?: number[]; // روزهای تعطیل هفته ۰ تا ۶ (شنبه تا جمعه)
+  schedules?: GamingCenterSchedule[];
 }
 
 /**
@@ -221,4 +250,34 @@ export interface CreateBranchAddressPayload {
 export interface CreateLinkPayload {
   platform: string;
   url: string;
+}
+
+export interface OwnerAdvertisement {
+  id: string;
+  title: string;
+  description?: string | null;
+  bannerUrl: string;
+  mediaType?: "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT" | "FILE";
+  destinationUrl?: string | null;
+  proposedDurationDays?: number;
+  durationDays?: number;
+  priority?: number;
+  startDate?: string | null;
+  endDate?: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "ACTIVE" | "EXPIRED" | "DELETED";
+  decisionReason?: string | null;
+  adminNote?: string | null;
+  gamingCenterId: string;
+  ownerId?: string;
+  remainingDays?: number | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateAdvertisementInput {
+  title: string;
+  description?: string;
+  bannerUrl: string;
+  destinationUrl?: string;
+  proposedDurationDays?: number;
 }

@@ -57,6 +57,23 @@ export interface CreateWithdrawalRequestPayload {
   note?: string;
 }
 
+export interface ChargeWalletPayload {
+  amount: number;
+  currency?: "IRR" | "IRT" | string;
+  redirectUrl?: string;
+  description?: string;
+}
+
+export interface ChargeWalletResponse {
+  paymentId: string;
+  paymentUrl: string;
+  amount: number;
+  currency: string;
+  status: string;
+  trackId?: number | string;
+  expiresAt?: string;
+}
+
 export interface WithdrawalListParams {
   status?: WithdrawalRequestStatus;
   page?: number;

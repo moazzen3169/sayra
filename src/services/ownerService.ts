@@ -6,11 +6,16 @@ import type {
   CenterSettings,
   CommissionListParams,
   CommissionListResult,
+  CreateAdvertisementInput,
   CreateBranchAddressPayload,
+  CreateClosureInput,
   CreateGamingCenterPayload,
   CreateLinkPayload,
   Earning,
+  GamingCenterClosure,
+  GamingCenterSchedule,
   MediaItem,
+  OwnerAdvertisement,
   OwnerAnalyticsSummary,
   OwnerMe,
   OwnerRating,
@@ -511,6 +516,8 @@ export const ownerService = {
     if (payload.allowOnlineBooking !== undefined) sanitizedPayload.allowOnlineBooking = payload.allowOnlineBooking;
     if (payload.onlineBookingAutoConfirm !== undefined) sanitizedPayload.onlineBookingAutoConfirm = payload.onlineBookingAutoConfirm;
     if (payload.preventOverlaps !== undefined) sanitizedPayload.preventOverlaps = payload.preventOverlaps;
+    if (payload.closedDays !== undefined) sanitizedPayload.closedDays = payload.closedDays;
+    if (payload.schedules !== undefined) sanitizedPayload.schedules = payload.schedules;
 
     try {
       await apiClient.put(ENDPOINTS.owner.settings(centerId), sanitizedPayload);
@@ -538,6 +545,106 @@ export const ownerService = {
 
   async updateSiteSettings(centerId: string, payload: SiteSettings): Promise<void> {
     await apiClient.patch(ENDPOINTS.owner.siteSettings(centerId), payload);
+  },
+
+  /**
+   * دریافت لیست تعطیلات مناسبتی/موقت مرکز بازی:
+   * GET /gamingCenters/{centerId}/closures
+   */
+  async getClosures(centerId: string, signal?: AbortSignal): Promise<GamingCenterClosure[]> {
+    if (!centerId) return [];
+    try {
+      const response = await apiClient.get<any>(ENDPOINTS.owner.closures(centerId), { signal });
+      const raw = response.data;
+      if (Array.isArray(raw)) return raw;
+      if (raw && typeof raw === "object") {
+        if (Array.isArray(raw.data)) return raw.data;
+        if (Array.isArray(raw.items)) return raw.items;
+      }
+      return [];
+    } catch (err) {
+      console.warn("Failed to fetch closures from backend:", err);
+      return [];
+    }
+  },
+
+  /**
+   * ثبت تعطیلی جدید توسط مدیر گیم‌نت:
+   * POST /gamingCenters/{centerId}/closures
+   * اعتبارسنجی: شرط منطقی startDate < endDate
+   */
+  async createClosure(
+    centerId: string,
+    payload: CreateClosureInput,
+    signal?: AbortSignal
+  ): Promise<GamingCenterClosure> {
+    if (!payload.title || !payload.title.trim()) {
+      throw new Error("عنوان تعطیلی الزامی است.");
+    }
+    const startMs = Date.parse(payload.startDate);
+    const endMs = Date.parse(payload.endDate);
+    if (isNaN(startMs) || isNaN(endMs)) {
+      throw new Error("تاریخ شروع یا پایان نامعتبر است.");
+    }
+    if (startMs >= endMs) {
+      throw new Error("تاریخ شروع تعطیلی باید قبل از تاریخ پایان باشد.");
+    }
+
+    const response = await apiClient.post<any>(
+      ENDPOINTS.owner.closures(centerId),
+      {
+        title: payload.title.trim(),
+        reason: payload.reason ? payload.reason.trim() : undefined,
+        startDate: new Date(startMs).toISOString(),
+        endDate: new Date(endMs).toISOString(),
+      },
+      { signal }
+    );
+    const resData = response.data;
+    if (resData && typeof resData === "object" && resData.data) {
+      return resData.data as GamingCenterClosure;
+    }
+    return resData as GamingCenterClosure;
+  },
+
+  /**
+   * لغو یا حذف تعطیلی:
+   * DELETE /gamingCenters/{centerId}/closures/{closureId}
+   */
+  async deleteClosure(centerId: string, closureId: string, signal?: AbortSignal): Promise<void> {
+    await apiClient.delete(ENDPOINTS.owner.closureDetail(centerId, closureId), { signal });
+  },
+
+  /**
+   * دریافت برنامه هفتگی گیم‌نت:
+   * GET /gamingCenters/{centerId}/schedules
+   */
+  async getSchedules(centerId: string, signal?: AbortSignal): Promise<GamingCenterSchedule[]> {
+    if (!centerId) return [];
+    try {
+      const response = await apiClient.get<any>(ENDPOINTS.owner.schedules(centerId), { signal });
+      const raw = response.data;
+      if (Array.isArray(raw)) return raw;
+      if (raw && typeof raw === "object") {
+        if (Array.isArray(raw.data)) return raw.data;
+        if (Array.isArray(raw.items)) return raw.items;
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * بروزرسانی برنامه هفتگی و روزهای کاری گیم‌نت:
+   * PUT /gamingCenters/{centerId}/schedules
+   */
+  async updateSchedules(
+    centerId: string,
+    schedules: GamingCenterSchedule[],
+    signal?: AbortSignal
+  ): Promise<void> {
+    await apiClient.put(ENDPOINTS.owner.schedules(centerId), { schedules }, { signal });
   },
 
   async listStations(
@@ -1058,5 +1165,126 @@ export const ownerService = {
     }
     if (typeof resData === "string") return resData;
     throw new Error("آدرس فایل پیوست در پاسخ سرور یافت نشد.");
+  },
+
+  /**
+   * دریافت لیست تبلیغات ثبت‌شده گیم‌نت:
+   * GET /gamingCenters/{gamingCenterId}/advertisements
+   */
+  async listAdvertisements(
+    gamingCenterId: string,
+    params?: { page?: number; limit?: number; status?: string; search?: string; signal?: AbortSignal }
+  ): Promise<OwnerAdvertisement[]> {
+    const query: Record<string, string | number> = {};
+    if (params?.page) query.page = params.page;
+    if (params?.limit) query.limit = params.limit;
+    if (params?.status && params.status !== "all") query.status = params.status;
+    if (params?.search?.trim()) query.search = params.search.trim();
+
+    const response = await apiClient.get<any>(
+      ENDPOINTS.owner.advertisements(gamingCenterId),
+      { query, signal: params?.signal }
+    );
+
+    const resData = response.data;
+    if (Array.isArray(resData)) return resData;
+    if (Array.isArray(resData?.data)) return resData.data;
+    if (Array.isArray(resData?.items)) return resData.items;
+    return [];
+  },
+
+  /**
+   * آپلود بنر تبلیغاتی اختصاصی گیم‌نت:
+   * POST /gamingCenters/{gamingCenterId}/advertisements/upload
+   */
+  async uploadAdvertisementBanner(
+    gamingCenterId: string,
+    file: File
+  ): Promise<{ url: string; thumbUrl?: string }> {
+    const form = new FormData();
+    // OpenAPI specifies required 'banner' property
+    form.append("banner", file);
+
+    const response = await apiClient.post<any>(
+      ENDPOINTS.owner.advertisementUpload(gamingCenterId),
+      form
+    );
+
+    const resData = response.data;
+    const dataObj = resData?.data || resData;
+
+    const url =
+      dataObj?.url ||
+      dataObj?.bannerUrl ||
+      extractMediaUrl(dataObj) ||
+      (typeof dataObj === "string" ? dataObj : "");
+
+    if (!url) {
+      throw new Error("آدرس بنر آپلودشده از سرور دریافت نشد.");
+    }
+
+    return {
+      url: normalizeMediaUrl(url),
+      thumbUrl: dataObj?.thumbUrl ? normalizeMediaUrl(dataObj.thumbUrl) : undefined,
+    };
+  },
+
+  /**
+   * ثبت درخواست تبلیغات جدید:
+   * POST /gamingCenters/{gamingCenterId}/advertisements
+   */
+  async createAdvertisement(
+    gamingCenterId: string,
+    input: CreateAdvertisementInput
+  ): Promise<OwnerAdvertisement> {
+    const payload = {
+      title: input.title.trim(),
+      description: input.description?.trim() || undefined,
+      bannerUrl: input.bannerUrl.trim(),
+      destinationUrl: input.destinationUrl?.trim() || undefined,
+      proposedDurationDays: input.proposedDurationDays ?? 30,
+    };
+
+    const response = await apiClient.post<any>(
+      ENDPOINTS.owner.advertisements(gamingCenterId),
+      payload
+    );
+
+    const resData = response.data;
+    return (resData?.data || resData) as OwnerAdvertisement;
+  },
+
+  /**
+   * دریافت جزئیات درخواست تبلیغ گیم‌نت:
+   * GET /gamingCenters/{gamingCenterId}/advertisements/{id}
+   */
+  async getAdvertisementById(
+    gamingCenterId: string,
+    id: string
+  ): Promise<OwnerAdvertisement | null> {
+    try {
+      const response = await apiClient.get<any>(
+        ENDPOINTS.owner.advertisementDetail(gamingCenterId, id)
+      );
+      const resData = response.data;
+      return (resData?.data || resData) as OwnerAdvertisement;
+    } catch (err: any) {
+      if (err?.status === 404) return null;
+      throw err;
+    }
+  },
+
+  /**
+   * حذف یا انصراف از درخواست تبلیغ:
+   * DELETE /gamingCenters/{gamingCenterId}/advertisements/{id}
+   */
+  async deleteAdvertisement(
+    gamingCenterId: string,
+    id: string
+  ): Promise<boolean> {
+    await apiClient.delete(
+      ENDPOINTS.owner.advertisementDetail(gamingCenterId, id)
+    );
+    return true;
   },
 };

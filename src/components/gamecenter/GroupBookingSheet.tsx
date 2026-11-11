@@ -102,6 +102,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
   const [avail, setAvail] = useState<AvailabilityMap>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [dateClosedNotice, setDateClosedNotice] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [selectedKeys, setSelectedKeys] = useState<string[]>(() =>
     savedDraft?.slots ? savedDraft.slots.map((s) => s.key) : []
@@ -223,21 +224,41 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
     (async () => {
       setLoading(true);
       setLoadError(null);
+      setDateClosedNotice(null);
 
       try {
-        const results = await Promise.all(
-          stationIds.map(async (stId) => {
-            const raw = await gamingCenterService.getAvailabilitySlots({
-              slug: gamingCenterSlug,
-              date: date.fullDate,
-              stationId: stId,
-              signal: controller.signal,
-            });
-            return { stId, slots: mapSlots(raw) };
-          }),
-        );
+        const [results, closures, centerInfo] = await Promise.all([
+          Promise.all(
+            stationIds.map(async (stId) => {
+              const raw = await gamingCenterService.getAvailabilitySlots({
+                slug: gamingCenterSlug,
+                date: date.fullDate,
+                stationId: stId,
+                signal: controller.signal,
+              });
+              return { stId, slots: mapSlots(raw) };
+            }),
+          ),
+          gamingCenterService.getPublicClosures(gamingCenterSlug, controller.signal).catch(() => []),
+          gamingCenterService.getPublicGamingCenter(gamingCenterSlug, controller.signal).catch(() => null),
+        ]);
 
         if (!active) return;
+
+        // بررسی تعطیلی کامل تاریخ انتخابی
+        const fullyClosed = gamingCenterService.isDateFullyClosed(
+          date.fullDate,
+          closures,
+          centerInfo?.closedDays
+        );
+
+        if (fullyClosed.isClosed) {
+          setDateClosedNotice(fullyClosed.reason || "این گیم‌نت در این تاریخ تعطیل است.");
+          setSlots([]);
+          setAvail({});
+          setSelectedKeys([]);
+          return;
+        }
 
         const unionMap = new Map<string, SlotView>();
         const stAvail: AvailabilityMap = {};
@@ -245,6 +266,16 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
         for (const { stId, slots: sList } of results) {
           stAvail[stId] = {};
           for (const s of sList) {
+            // بررسی تداخل اسلات با تعطیلات موقت/مناسبتی
+            const overlaps = s.startTime
+              ? gamingCenterService.findOverlappingClosures(
+                  s.startTime,
+                  s.endTime || new Date(new Date(s.startTime).getTime() + 60 * 60 * 1000).toISOString(),
+                  closures
+                )
+              : [];
+            const hasConflict = overlaps.length > 0;
+
             if (!unionMap.has(s.key)) {
               unionMap.set(s.key, {
                 key: s.key,
@@ -255,7 +286,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
                 hourNumber: s.hourNumber,
               });
             }
-            stAvail[stId][s.key] = s.available;
+            stAvail[stId][s.key] = !hasConflict && s.available;
           }
         }
 
@@ -758,7 +789,15 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
                     </div>
                   )}
 
-                  {!loading && !loadError && slots.length === 0 && (
+                  {!loading && dateClosedNotice && (
+                    <div className="rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-6 text-center flex flex-col items-center gap-2">
+                      <Icon name="alert" size={20} className="text-[var(--accent-red)]" />
+                      <p className="text-sm font-bold text-[var(--accent-red)]">{dateClosedNotice}</p>
+                      <p className="text-xs text-[var(--text-muted)]">امکان رزرو در این روز وجود ندارد. لطفاً تاریخ دیگری را انتخاب نمایید.</p>
+                    </div>
+                  )}
+
+                  {!loading && !loadError && !dateClosedNotice && slots.length === 0 && (
                     <div className="rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-8 text-center text-sm text-[var(--text-muted)]">
                       سانسی برای این روز یافت نشد.
                     </div>
