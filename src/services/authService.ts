@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { USE_MOCK_DATA } from "@/lib/api/config";
+import { cleanPhoneNumber, isValidIranPhone } from "@/lib/format";
 import { ContractGapError } from "@/types/customerApi";
 
 export interface AuthUser {
@@ -346,15 +347,23 @@ export const authService = {
    * POST /auth/platform-admin/login
    */
   async loginPlatformAdminWithEmail(
-    email: string,
+    emailOrPhone: string,
     password: string
   ): Promise<UserLoginResponse> {
-    const trimmedEmail = email.trim().toLowerCase();
-    const payload = {
-      email: trimmedEmail,
-      phone: trimmedEmail,
+    const trimmed = emailOrPhone.trim();
+    const cleanPhone = cleanPhoneNumber(trimmed);
+    const isPhone = isValidIranPhone(cleanPhone);
+
+    const payload: Record<string, string> = {
       password,
     };
+
+    if (isPhone) {
+      payload.phone = cleanPhone;
+    } else {
+      payload.email = trimmed.toLowerCase();
+      payload.phone = trimmed.toLowerCase();
+    }
 
     const endpoint = ENDPOINTS.auth.userPasswordLogin || "/auth/platform-admin/login";
     const response = await apiClient.post<any>(endpoint, payload, {
