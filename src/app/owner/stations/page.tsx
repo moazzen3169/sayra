@@ -178,11 +178,17 @@ export default function OwnerStationsPage() {
     setSearch("");
   };
 
-  const handleSaved = (message: string) => {
+  const handleSaved = (message: string, updatedStation?: GameStationInfo) => {
     setAddOpen(false);
     setEditing(null);
     setDeleting(null);
     setToast(message);
+    // Optimistic local update so changes appear immediately
+    if (updatedStation) {
+      setStations((prev) =>
+        prev ? prev.map((s) => (s.id === updatedStation.id ? { ...s, ...updatedStation } : s)) : prev
+      );
+    }
     refresh();
   };
 

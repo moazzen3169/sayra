@@ -323,7 +323,7 @@ interface EditStationModalProps {
   centerId: string;
   station: GameStationInfo;
   onClose: () => void;
-  onSaved: (message: string) => void;
+  onSaved: (message: string, updatedStation?: GameStationInfo) => void;
 }
 
 export const EditStationModal: React.FC<EditStationModalProps> = ({
@@ -335,6 +335,7 @@ export const EditStationModal: React.FC<EditStationModalProps> = ({
   const currentPrice = getStationPrice(station);
   const [name, setName] = useState(station.name ?? "");
   const [price, setPrice] = useState(currentPrice !== null ? String(currentPrice) : "");
+  const [isVip, setIsVip] = useState(Boolean(station.isVip));
   const [active, setActive] = useState(station.isActive !== false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -345,26 +346,39 @@ export const EditStationModal: React.FC<EditStationModalProps> = ({
     if (saving) return;
 
     const errors: typeof fieldErrors = {};
-    const hourlyRate = parseAmount(price, toEnglishDigits);
+    const hourlyPrice = parseAmount(price, toEnglishDigits);
     const trimmed = name.trim();
 
     if (trimmed.length < 2) errors.name = "نام دستگاه را وارد کنید.";
-    if (hourlyRate === null || hourlyRate <= 0) {
+    if (hourlyPrice === null || hourlyPrice <= 0) {
       errors.price = "قیمت هر ساعت را به تومان و با عدد وارد کنید.";
     }
     setFieldErrors(errors);
     setError(null);
-    if (Object.keys(errors).length > 0 || hourlyRate === null) return;
+    if (Object.keys(errors).length > 0 || hourlyPrice === null) return;
 
     setSaving(true);
     try {
-      // فقط فیلدهای مستند PATCH؛ نوع دستگاه عمداً ارسال نمی‌شود تا تغییر نکند
-      await ownerService.updateStation(centerId, station.id, {
+      // ارسال همزمان فیلدهای متداول برای سازگاری کامل با بک‌اند
+      const res = await ownerService.updateStation(centerId, station.id, {
         name: trimmed,
-        hourlyRate,
+        hourlyPrice,
+        hourlyRate: hourlyPrice,
+        isVip,
+        stationType: station.stationType,
         isActive: active,
       });
-      onSaved(`تغییرات «${trimmed}» ذخیره شد.`);
+
+      const updatedStation: GameStationInfo = {
+        ...station,
+        ...(res || {}),
+        name: trimmed,
+        hourlyPrice,
+        isVip,
+        isActive: active,
+      };
+
+      onSaved(`تغییرات «${trimmed}» با موفقیت ثبت و اعمال شد.`, updatedStation);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -392,6 +406,14 @@ export const EditStationModal: React.FC<EditStationModalProps> = ({
           onChange={(e) => setPrice(e.target.value)}
           inputMode="numeric"
           error={fieldErrors.price}
+          disabled={saving}
+        />
+
+        <CheckField
+          id="edit-station-vip"
+          label="این دستگاه VIP است"
+          checked={isVip}
+          onChange={setIsVip}
           disabled={saving}
         />
 

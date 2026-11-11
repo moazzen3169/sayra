@@ -595,15 +595,42 @@ export const ownerService = {
     stationId: string,
     payload: {
       name?: string;
-      type?: "PC" | "CONSOLE" | "VR";
+      type?: "PC" | "CONSOLE" | "VR" | string;
+      stationType?: string;
       hourlyRate?: number;
+      hourlyPrice?: number;
       hardwareSpecs?: Record<string, unknown>;
+      isVip?: boolean;
       isActive?: boolean;
     }
   ): Promise<GameStationInfo> {
+    // برای سازگاری کامل با بک‌اندهای مختلف:
+    // هم hourlyRate و هم hourlyPrice را متقارن ارسال می‌کنیم
+    // تا چه بک‌اند فیلد طرح جدید hourlyPrice را بخواند و چه طرح قدیم hourlyRate را، تغییرات ذخیره شوند.
+    const priceVal =
+      payload.hourlyPrice !== undefined
+        ? payload.hourlyPrice
+        : payload.hourlyRate;
+
+    const requestBody: Record<string, unknown> = {
+      ...payload,
+    };
+
+    if (priceVal !== undefined) {
+      requestBody.hourlyRate = priceVal;
+      requestBody.hourlyPrice = priceVal;
+    }
+
+    if (payload.stationType && !requestBody.type) {
+      const st = String(payload.stationType).toUpperCase();
+      if (st.includes("PC")) requestBody.type = "PC";
+      else if (st.includes("VR")) requestBody.type = "VR";
+      else requestBody.type = "CONSOLE";
+    }
+
     const { data } = await apiClient.patch<GameStationInfo>(
       ENDPOINTS.owner.stationDetail(centerId, stationId),
-      payload
+      requestBody
     );
     return data;
   },
@@ -956,9 +983,14 @@ export const ownerService = {
    * بررسی و گزارش فقدان اندپوینت تسویه و برداشت در قرارداد کنونی OpenAPI:
    * مطابق الزامات امنیت مالی و Phase 8، هیچ متد کلاینتی برای ارسال برداشت فرضی ایجاد نمی‌شود.
    */
-  async requestWithdrawal(): Promise<never> {
+  async requestWithdrawal(_payload?: {
+    centerId?: string;
+    amount?: number;
+    accountHolder?: string;
+    iban?: string;
+  }): Promise<never> {
     throw new Error(
-      "اندپوینت ثبت درخواست برداشت در مستندات کنونی OpenAPI (v1.0-LOCKED) تعریف نشده است و امکان ثبت درخواست برداشت تا زمان توسعه توسط بک‌اند وجود ندارد (مستند شده در docs/OWNER_WITHDRAWAL_API_CONTRACT.md)."
+      "قابلیت ثبت درخواست برداشت وجه در حال حاضر توسط وب‌سرویس و بک‌اند (OpenAPI v1.0) پیاده‌سازی و پشتیبانی نشده است. درخواست برداشت پس از راه‌اندازی اندپوینت‌های مالی بک‌اند فعال خواهد شد."
     );
   },
 

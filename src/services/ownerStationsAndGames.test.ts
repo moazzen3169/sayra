@@ -29,6 +29,7 @@ describe("ownerService: Station & Games Management", () => {
         name: "PS5 VIP #1",
         type: "CONSOLE",
         hourlyRate: 180000,
+        hourlyPrice: 180000,
         isActive: true,
       });
 
@@ -37,6 +38,7 @@ describe("ownerService: Station & Games Management", () => {
         name: "PS5 VIP #1",
         type: "CONSOLE",
         hourlyRate: 180000,
+        hourlyPrice: 180000,
         isActive: true,
       });
       expect(res.name).toBe("PS5 VIP #1");

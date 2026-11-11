@@ -353,6 +353,27 @@ export default function ProfilePage() {
 
             {/* Menu Options Group */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card overflow-hidden divide-y divide-[var(--border-subtle)] shadow-lg">
+              {/* بخش صاحب گیم‌نت */}
+              <Link
+                href="/owner"
+                className="w-full p-4 flex items-center justify-between hover:bg-[var(--foreground)]/30 transition-colors text-right group bg-[var(--primary)]/10"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-card bg-[var(--primary)] text-black flex items-center justify-center transition-colors group-hover:scale-105">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-[var(--primary)]">صاحب گیم‌نت</span>
+                    <span className="text-xs text-[var(--text-muted)]">ورود به پنل مدیریت مجموعه بازی و نظارت</span>
+                  </div>
+                </div>
+                <svg className="w-5 h-5 text-[var(--primary)] transform rotate-180 group-hover:translate-x-[-2px] transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+
               {/* ۰. ثبت و راه‌اندازی گیم‌نت */}
               <Link
                 href="/owner/new"

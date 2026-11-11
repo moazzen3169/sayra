@@ -7,8 +7,14 @@ export const OwnerPageHeader: React.FC<{
   title: string;
   isSubpage?: boolean;
   backUrl?: string;
-}> = ({ title, isSubpage = true, backUrl }) => {
-  return <OwnerHeader title={title} isSubpage={isSubpage} backUrl={backUrl} />;
+  showBadge?: boolean;
+  showSearch?: boolean;
+  searchValue?: string;
+  onSearchChange?: (val: string) => void;
+  onSearchSubmit?: (e: React.FormEvent) => void;
+  searchPlaceholder?: string;
+}> = (props) => {
+  return <OwnerHeader {...props} />;
 };
 
 export { OwnerHeader };

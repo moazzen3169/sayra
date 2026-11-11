@@ -253,7 +253,7 @@ export default function OwnerDashboardPage() {
   if (isCenterLoading) {
     return (
       <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
-        <OwnerHeader title="پنل مدیریت" isSubpage={false} />
+        <OwnerHeader title="پنل مدیریت" isSubpage={false} showSearch={false} />
         <main className="flex-1 px-4 pt-20 flex flex-col gap-5 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0">
           <div className="h-12 rounded-card bg-[var(--bg-card)] animate-pulse" />
           <div className="h-44 rounded-card bg-[var(--bg-card)] animate-pulse" />
@@ -269,7 +269,15 @@ export default function OwnerDashboardPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
-      <OwnerHeader title="پنل مدیریت" isSubpage={false} />
+      <OwnerHeader
+        title="پنل مدیریت"
+        isSubpage={false}
+        showSearch={isApproved}
+        searchValue={query}
+        onSearchChange={setQuery}
+        onSearchSubmit={handleSearch}
+        searchPlaceholder="جستجوی کد رزرو مشتری..."
+      />
 
       <main className="flex-1 px-4 pt-20 flex flex-col gap-5 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0">
         {centerError && (
@@ -441,13 +449,13 @@ export default function OwnerDashboardPage() {
 
         {/* محتوای قفل‌شده تا زمان تأیید */}
         <div className={!isApproved ? "pointer-events-none opacity-40 flex flex-col gap-5 select-none" : "flex flex-col gap-5"}>
-          {/* جستجو */}
-          <form onSubmit={handleSearch} className="relative">
+          {/* جستجو در هدر شناور بالا قرار گرفته است و در اینجا نیز به عنوان میانبر در دسترس است */}
+          <form onSubmit={handleSearch} className="relative md:hidden">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               aria-label="جستجوی کد رزرو مشتری"
-              placeholder="جستجوی کد رزرو مشتری"
+              placeholder="جستجوی کد رزرو مشتری..."
               className="w-full h-12 rounded-card bg-[var(--foreground)]/60 px-4 pl-12 text-sm text-[var(--text-white)] placeholder:text-[var(--text-muted)] outline-none focus:ring-1 focus:ring-[var(--primary)]"
             />
             <button type="submit" aria-label="جستجو" className="absolute left-0 top-0 flex h-12 w-12 items-center justify-center text-[var(--text-muted)]">
