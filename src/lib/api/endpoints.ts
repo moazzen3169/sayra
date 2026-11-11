@@ -246,5 +246,12 @@ export const ENDPOINTS = {
     discounts: (c: string) => `/gamingCenters/${enc(c)}/discounts`,
     discount: (c: string, id: string) => `/gamingCenters/${enc(c)}/discounts/${enc(id)}`,
     discountStatus: (c: string, id: string) => `/gamingCenters/${enc(c)}/discounts/${enc(id)}/status`,
+    // Advertisements (OpenAPI: /gamingCenters/{gamingCenterId}/advertisements)
+    advertisements: (c: string) => `/gamingCenters/${enc(c)}/advertisements`,
+    advertisementDetail: (c: string, id: string) => `/gamingCenters/${enc(c)}/advertisements/${enc(id)}`,
+    advertisementUpload: (c: string) => `/gamingCenters/${enc(c)}/advertisements/upload`,
+  },
+  advertisements: {
+    publicSlider: "/public/advertisements/slider",
   },
 } as const;

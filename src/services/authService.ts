@@ -381,7 +381,7 @@ export const authService = {
       refreshToken,
       user: {
         id: user?.id || "admin-user",
-        phone: user?.phone || trimmedEmail,
+        phone: user?.phone || (isPhone ? cleanPhone : trimmed),
         fullName: user?.fullName || user?.name || "مدیر سامانه",
         role: user?.role || "ADMIN",
         gamingCenterId: user?.gamingCenterId,

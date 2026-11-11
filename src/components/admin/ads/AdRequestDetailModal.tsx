@@ -161,9 +161,18 @@ export const AdRequestDetailModal: React.FC<AdRequestDetailModalProps> = ({
               <div>
                 <span className="text-[var(--text-muted)] block mb-0.5">توضیحات و پیام تبلیغاتی:</span>
                 <p className="p-3 rounded-card bg-[var(--bg-body)] border border-[var(--border-subtle)] text-[var(--text-white)] leading-relaxed">
-                  {adRequest.description}
+                  {adRequest.description || "بدون توضیحات تکمیلی"}
                 </p>
               </div>
+
+              {adRequest.destinationUrl && (
+                <div>
+                  <span className="text-[var(--text-muted)] block mb-0.5">آدرس مقصد کلیک (صفحه گیم‌نت):</span>
+                  <div className="p-2.5 rounded-card bg-[var(--bg-body)] border border-[var(--border-subtle)] text-[var(--primary)] font-mono text-xs dir-ltr">
+                    {adRequest.destinationUrl}
+                  </div>
+                </div>
+              )}
 
               {adRequest.bannerUrl ? (
                 <div className="space-y-1.5 pt-1">
