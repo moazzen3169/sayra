@@ -6,7 +6,9 @@ import { useOwner } from "@/context/OwnerContext";
 import { formatPrice } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService, pickNumber } from "@/services/ownerService";
+import { walletService } from "@/services/walletService";
 import type { Earning } from "@/types/owner";
+import type { WithdrawalRequest, CustomerWallet } from "@/types/wallet";
 
 const STATUS_LABEL: Record<Earning["status"], string> = {
   PENDING: "در انتظار",
@@ -16,15 +18,30 @@ const STATUS_LABEL: Record<Earning["status"], string> = {
   REFUNDED: "بازگشت‌شده",
 };
 
+const WITHDRAW_STATUS_LABEL: Record<string, { label: string; color: string }> = {
+  PENDING: { label: "در انتظار بررسی", color: "text-[var(--primary)] bg-[var(--primary)]/10 border-[var(--primary)]/30" },
+  APPROVED: { label: "تأیید شده", color: "text-[var(--accent-blue)] bg-[var(--accent-blue)]/10 border-[var(--accent-blue)]/30" },
+  PROCESSING: { label: "در حال انتقال", color: "text-[var(--accent-blue)] bg-[var(--accent-blue)]/10 border-[var(--accent-blue)]/30" },
+  PAID: { label: "پرداخت موفق", color: "text-[var(--accent-green)] bg-[var(--accent-green)]/10 border-[var(--accent-green)]/30" },
+  REJECTED: { label: "رد شده", color: "text-[var(--accent-red)] bg-[var(--accent-red)]/10 border-[var(--accent-red)]/30" },
+  FAILED: { label: "خطای انتقال", color: "text-[var(--accent-red)] bg-[var(--accent-red)]/10 border-[var(--accent-red)]/30" },
+  CANCELLED: { label: "لغو شده", color: "text-[var(--text-muted)] bg-[var(--foreground)]/30 border-[var(--border-subtle)]" },
+};
+
 export default function OwnerWithdrawPage() {
   const { centerId } = useOwner();
   const [amount, setAmount] = useState<number | null>(null);
   const [earnings, setEarnings] = useState<Earning[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [wallet, setWallet] = useState<CustomerWallet | null>(null);
+  const [recentWithdrawals, setRecentWithdrawals] = useState<WithdrawalRequest[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // فرم برداشت
   const [accountHolder, setAccountHolder] = useState("");
   const [iban, setIban] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [bankName, setBankName] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -56,19 +73,56 @@ export default function OwnerWithdrawPage() {
       return;
     }
 
+    if (wallet?.lastWithdrawalRequestAt) {
+      const lastTime = new Date(wallet.lastWithdrawalRequestAt).getTime();
+      const now = Date.now();
+      if (now < lastTime + 24 * 60 * 60 * 1000) {
+        setFormError("هر کاربر در هر ۲۴ ساعت صرفاً مجاز به ثبت یک درخواست برداشت است.");
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
-      if (!centerId) {
-        throw new Error("شناسه گیم‌نت مشخص نیست.");
+      // 1. اول از وب‌سرویس جدید درخواست برداشت مشتری/مدیر استفاده می‌شود
+      try {
+        await walletService.requestWithdrawal(
+          {
+            amount: parsedAmt,
+            bankDetails: {
+              sheba: cleanIban,
+              accountHolderName: cleanHolder,
+              cardNumber: cardNumber.trim() || undefined,
+              bankName: bankName.trim() || undefined,
+            },
+          },
+          wallet || undefined
+        );
+      } catch (custWalletErr) {
+        // در صورتی که مرکز سنتر محور بود، متد ownerService نیز فراخوانی می‌شود
+        if (centerId) {
+          try {
+            await ownerService.requestWithdrawal({
+              centerId,
+              amount: parsedAmt,
+              accountHolder: cleanHolder,
+              iban: `IR${cleanIban}`,
+            });
+          } catch {
+            throw custWalletErr;
+          }
+        } else {
+          throw custWalletErr;
+        }
       }
-      await ownerService.requestWithdrawal({
-        centerId,
-        amount: parsedAmt,
-        accountHolder: cleanHolder,
-        iban: `IR${cleanIban}`,
-      });
+
       setFormSuccess("درخواست برداشت وجه با موفقیت ثبت شد و در صف بررسی مالی قرار گرفت.");
       setWithdrawAmount("");
+      // تازه سازی تاریخچه
+      walletService.getWithdrawals({ page: 1, pageSize: 20 }).then((res) => {
+        setRecentWithdrawals(res.items);
+      }).catch(() => {});
+      walletService.getWallet().then(setWallet).catch(() => {});
     } catch (err: unknown) {
       setFormError(getErrorMessage(err));
     } finally {
@@ -79,11 +133,29 @@ export default function OwnerWithdrawPage() {
   useEffect(() => {
     let active = true;
     setError(null);
+    setHistoryLoading(true);
+
+    // دریافت تاریخچه برداشت‌ها و اطلاعات کیف پول
+    Promise.allSettled([
+      walletService.getWallet(),
+      walletService.getWithdrawals({ page: 1, pageSize: 20 }),
+    ]).then(([wRes, histRes]) => {
+      if (!active) return;
+      if (wRes.status === "fulfilled") {
+        setWallet(wRes.value);
+      }
+      if (histRes.status === "fulfilled") {
+        setRecentWithdrawals(histRes.value.items);
+      }
+      setHistoryLoading(false);
+    });
 
     if (!centerId) {
       setAmount(null);
       setEarnings([]);
-      return;
+      return () => {
+        active = false;
+      };
     }
 
     Promise.allSettled([
@@ -170,7 +242,7 @@ export default function OwnerWithdrawPage() {
 
             <div className="flex flex-col gap-1">
               <label htmlFor="w-iban" className="text-xs font-bold text-[var(--text-muted)]">
-                شماره شبا (IBAN) بدون IR
+                شماره شبا (IBAN) بدون IR <span className="text-[var(--accent-red)]">*</span>
               </label>
               <div className="relative flex items-center">
                 <span className="absolute left-3 text-xs font-mono font-bold text-[var(--text-muted)] select-none">
@@ -190,6 +262,35 @@ export default function OwnerWithdrawPage() {
               <span className="text-[10px] text-[var(--text-muted)]">
                 شماره شبا باید به نام صاحب گیم‌نت یا نماینده قانونی تایید شده باشد.
               </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="w-card" className="text-xs font-bold text-[var(--text-muted)]">
+                  شماره کارت (اختیاری)
+                </label>
+                <input
+                  id="w-card"
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(e.target.value)}
+                  dir="ltr"
+                  maxLength={16}
+                  placeholder="۶۰۳۷..."
+                  className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-xs text-[var(--text-white)] font-mono outline-none text-left"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="w-bank" className="text-xs font-bold text-[var(--text-muted)]">
+                  نام بانک (اختیاری)
+                </label>
+                <input
+                  id="w-bank"
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
+                  placeholder="مثلاً: ملت"
+                  className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-xs text-[var(--text-white)] outline-none"
+                />
+              </div>
             </div>
 
             <div className="flex flex-col gap-1">
@@ -219,12 +320,39 @@ export default function OwnerWithdrawPage() {
 
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || (wallet?.canWithdrawIn24h === false)}
               className="mt-1 h-11 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs shadow-md disabled:opacity-60 transition-all active:scale-[0.98]"
             >
               {submitting ? "در حال ارسال درخواست..." : "ثبت درخواست برداشت وجه"}
             </button>
           </form>
+        </section>
+
+        {/* لیست درخواست‌های برداشت اخیر */}
+        <section className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 flex flex-col gap-3 shadow-sm">
+          <h2 className="text-sm font-bold text-[var(--text-white)]">درخواست‌های تسویه اخیر</h2>
+          {historyLoading && <div className="h-16 rounded-card bg-[var(--foreground)]/30 animate-pulse" />}
+          {!historyLoading && recentWithdrawals.length === 0 && (
+            <p className="py-4 text-center text-xs text-[var(--text-muted)]">هیچ درخواست برداشتی ثبت نشده است.</p>
+          )}
+          {!historyLoading && recentWithdrawals.length > 0 && (
+            <div className="flex flex-col gap-2 max-h-56 overflow-y-auto">
+              {recentWithdrawals.map((w) => {
+                const st = WITHDRAW_STATUS_LABEL[w.status] || { label: w.status, color: "text-[var(--text-muted)]" };
+                return (
+                  <div key={w.id} className="p-3 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] flex items-center justify-between text-xs">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-bold text-[var(--text-white)]">{formatPrice(w.amount)} تومان</span>
+                      <span className="text-[10px] text-[var(--text-muted)] dir-ltr text-right">{w.bankDetails?.sheba || "IR..."}</span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${st.color}`}>
+                      {st.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         <h2 className="text-sm font-bold mt-2">کمیسیون‌های رزرو</h2>

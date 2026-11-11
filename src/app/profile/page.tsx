@@ -6,9 +6,21 @@ import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { BottomBar } from "@/components/BottomBar";
 import { useAuth } from "@/context/AuthContext";
 import { authService } from "@/services/authService";
+import { walletService } from "@/services/walletService";
+import type { CustomerWallet, WithdrawalRequest, WalletTransaction } from "@/types/wallet";
 import { cleanPhoneNumber, isValidIranPhone, toPersianDigits, formatPrice } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { UnifiedAuthForm, UnifiedAuthSuccessData } from "@/components/auth/UnifiedAuthForm";
+
+const WITHDRAW_STATUS_LABEL: Record<string, { label: string; color: string }> = {
+  PENDING: { label: "در انتظار بررسی", color: "text-[var(--primary)] bg-[var(--primary)]/10 border-[var(--primary)]/30" },
+  APPROVED: { label: "تأیید شده", color: "text-[var(--accent-blue)] bg-[var(--accent-blue)]/10 border-[var(--accent-blue)]/30" },
+  PROCESSING: { label: "در حال انتقال", color: "text-[var(--accent-blue)] bg-[var(--accent-blue)]/10 border-[var(--accent-blue)]/30" },
+  PAID: { label: "پرداخت موفق", color: "text-[var(--accent-green)] bg-[var(--accent-green)]/10 border-[var(--accent-green)]/30" },
+  REJECTED: { label: "رد شده", color: "text-[var(--accent-red)] bg-[var(--accent-red)]/10 border-[var(--accent-red)]/30" },
+  FAILED: { label: "خطای انتقال", color: "text-[var(--accent-red)] bg-[var(--accent-red)]/10 border-[var(--accent-red)]/30" },
+  CANCELLED: { label: "لغو شده", color: "text-[var(--text-muted)] bg-[var(--foreground)]/30 border-[var(--border-subtle)]" },
+};
 
 export default function ProfilePage() {
   const { isLoggedIn, isLoading, user, login, logout } = useAuth();
@@ -30,10 +42,65 @@ export default function ProfilePage() {
   const [editSuccess, setEditSuccess] = useState(false);
 
   // Wallet State
-  const [walletBalance] = useState(0);
+  const [wallet, setWallet] = useState<CustomerWallet | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletTab, setWalletTab] = useState<"charge" | "withdraw" | "history">("charge");
   const [walletChargeAmount, setWalletChargeAmount] = useState<number | null>(null);
-  const [walletSuccess] = useState("");
+  const [walletSuccess, setWalletSuccess] = useState("");
   const [walletError, setWalletError] = useState("");
+
+  // Withdrawal form states
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawHolder, setWithdrawHolder] = useState("");
+  const [withdrawSheba, setWithdrawSheba] = useState("");
+  const [withdrawCardNumber, setWithdrawCardNumber] = useState("");
+  const [withdrawBankName, setWithdrawBankName] = useState("");
+  const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Fetch wallet data when user is logged in
+  const fetchWalletData = React.useCallback(async () => {
+    if (!isLoggedIn) return;
+    setWalletLoading(true);
+    try {
+      const data = await walletService.getWallet();
+      setWallet(data);
+    } catch {
+      // Best effort - keep default zero state
+    } finally {
+      setWalletLoading(false);
+    }
+  }, [isLoggedIn]);
+
+  React.useEffect(() => {
+    fetchWalletData();
+  }, [fetchWalletData]);
+
+  // Fetch history when tab is opened
+  const fetchWalletHistory = React.useCallback(async () => {
+    if (!isLoggedIn) return;
+    setHistoryLoading(true);
+    try {
+      const [wRes, tRes] = await Promise.allSettled([
+        walletService.getWithdrawals({ page: 1, pageSize: 20 }),
+        walletService.getTransactions({ page: 1, pageSize: 20 }),
+      ]);
+      if (wRes.status === "fulfilled") setWithdrawals(wRes.value.items);
+      if (tRes.status === "fulfilled") setTransactions(tRes.value.items);
+    } catch {
+      // silent
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [isLoggedIn]);
+
+  React.useEffect(() => {
+    if (isWalletModalOpen && walletTab === "history") {
+      fetchWalletHistory();
+    }
+  }, [isWalletModalOpen, walletTab, fetchWalletHistory]);
 
   // Countdown timer for edit profile phone OTP
   React.useEffect(() => {
@@ -271,6 +338,71 @@ export default function ProfilePage() {
     }
   };
 
+  /* --- Customer Withdrawal Handler --- */
+  const handleWithdrawSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setWalletError("");
+    setWalletSuccess("");
+
+    const parsedAmt = Number(withdrawAmount.replace(/[,٬،\s]/g, ""));
+    const cleanHolder = withdrawHolder.trim();
+    const cleanSheba = withdrawSheba.trim().toUpperCase().replace(/^IR/i, "").replace(/[^0-9]/g, "");
+
+    if (!cleanHolder) {
+      setWalletError("لطفاً نام و نام خانوادگی صاحب حساب را وارد کنید.");
+      return;
+    }
+    if (cleanSheba.length !== 24) {
+      setWalletError("شماره شبا باید دقیقا ۲۴ رقم عددی معتبر (بدون IR) باشد.");
+      return;
+    }
+    if (!parsedAmt || isNaN(parsedAmt) || parsedAmt <= 0) {
+      setWalletError("لطفاً مبلغ معتبری برای برداشت وارد کنید.");
+      return;
+    }
+
+    if (wallet && parsedAmt > wallet.availableBalance) {
+      setWalletError("مبلغ درخواستی بیشتر از موجودی قابل برداشت شما است.");
+      return;
+    }
+
+    if (wallet?.lastWithdrawalRequestAt) {
+      const lastTime = new Date(wallet.lastWithdrawalRequestAt).getTime();
+      const now = Date.now();
+      if (now < lastTime + 24 * 60 * 60 * 1000) {
+        setWalletError("هر کاربر در هر ۲۴ ساعت صرفاً مجاز به ثبت یک درخواست برداشت است.");
+        return;
+      }
+    }
+
+    setWithdrawSubmitting(true);
+    try {
+      await walletService.requestWithdrawal(
+        {
+          amount: parsedAmt,
+          bankDetails: {
+            sheba: cleanSheba,
+            accountHolderName: cleanHolder,
+            cardNumber: withdrawCardNumber.trim() || undefined,
+            bankName: withdrawBankName.trim() || undefined,
+          },
+        },
+        wallet || undefined
+      );
+
+      setWalletSuccess("درخواست برداشت وجه با موفقیت ثبت شد و در صف بررسی مدیر پلتفرم قرار گرفت.");
+      setWithdrawAmount("");
+      await fetchWalletData();
+      if (walletTab === "history") {
+        await fetchWalletHistory();
+      }
+    } catch (err: unknown) {
+      setWalletError(getErrorMessage(err));
+    } finally {
+      setWithdrawSubmitting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
       <ProfileHeader title="حساب کاربری" isSubpage={false} />
@@ -337,9 +469,17 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-xs text-[var(--text-muted)] font-bold">موجودی کیف پول</span>
-                  <span className="text-sm font-black text-[var(--text-white)]">
-                    {formatPrice(walletBalance)} <span className="text-xs text-[var(--text-muted)] font-normal">تومان</span>
-                  </span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-sm font-black text-[var(--text-white)]">
+                      {formatPrice(wallet?.walletBalance ?? 0)}
+                    </span>
+                    <span className="text-xs text-[var(--text-muted)] font-normal">تومان</span>
+                    {wallet && wallet.reservedBalance > 0 ? (
+                      <span className="text-[10px] text-[var(--text-muted)] mr-1">
+                        ({formatPrice(wallet.reservedBalance)} رزروشده)
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
               <button
@@ -347,7 +487,7 @@ export default function ProfilePage() {
                 onClick={() => setIsWalletModalOpen(true)}
                 className="h-9 px-3.5 rounded-card bg-[var(--primary)]/10 hover:bg-[var(--primary)] hover:text-on-primary text-[var(--primary)] border border-[var(--primary)]/30 text-xs font-bold transition-all active:scale-95"
               >
-                + افزایش
+                مدیریت
               </button>
             </div>
 
@@ -675,7 +815,7 @@ export default function ProfilePage() {
       {/* Wallet Modal */}
       {isWalletModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm animate-fadeIn p-0 sm:p-4" onClick={() => setIsWalletModalOpen(false)}>
-          <div className="w-full max-w-[440px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-[480px] max-h-[90vh] overflow-y-auto bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-card bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
@@ -688,53 +828,258 @@ export default function ProfilePage() {
               <button type="button" onClick={() => setIsWalletModalOpen(false)} className="w-8 h-8 text-[var(--text-muted)] hover:text-[var(--text-white)] flex items-center justify-center text-lg">✕</button>
             </div>
 
+            {/* Tab navigation */}
+            <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-2 text-xs">
+              <button
+                type="button"
+                onClick={() => { setWalletTab("charge"); setWalletError(""); setWalletSuccess(""); }}
+                className={`flex-1 py-2 rounded-card font-bold transition-all ${
+                  walletTab === "charge"
+                    ? "bg-[var(--primary)] text-on-primary shadow-sm"
+                    : "bg-[var(--foreground)]/30 text-[var(--text-muted)] hover:text-[var(--text-white)]"
+                }`}
+              >
+                افزایش موجودی
+              </button>
+              <button
+                type="button"
+                onClick={() => { setWalletTab("withdraw"); setWalletError(""); setWalletSuccess(""); }}
+                className={`flex-1 py-2 rounded-card font-bold transition-all ${
+                  walletTab === "withdraw"
+                    ? "bg-[var(--primary)] text-on-primary shadow-sm"
+                    : "bg-[var(--foreground)]/30 text-[var(--text-muted)] hover:text-[var(--text-white)]"
+                }`}
+              >
+                درخواست برداشت
+              </button>
+              <button
+                type="button"
+                onClick={() => { setWalletTab("history"); setWalletError(""); setWalletSuccess(""); }}
+                className={`flex-1 py-2 rounded-card font-bold transition-all ${
+                  walletTab === "history"
+                    ? "bg-[var(--primary)] text-on-primary shadow-sm"
+                    : "bg-[var(--foreground)]/30 text-[var(--text-muted)] hover:text-[var(--text-white)]"
+                }`}
+              >
+                تاریخچه
+              </button>
+            </div>
+
             {walletSuccess && (
-              <div className="p-3 rounded-card bg-[var(--accent-green)]/15 border border-[var(--accent-green)]/30 text-[var(--accent-green)] text-xs font-bold text-center">
+              <div className="p-3 rounded-card bg-[var(--accent-green)]/15 border border-[var(--accent-green)]/30 text-[var(--accent-green)] text-xs font-bold text-center leading-relaxed">
                 {walletSuccess}
               </div>
             )}
 
             {walletError && (
-              <div className="p-3 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold text-center">
+              <div className="p-3 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold text-center leading-relaxed">
                 {walletError}
               </div>
             )}
 
-            <div className="bg-[var(--foreground)]/40 p-4 rounded-card border border-[var(--border-subtle)] flex flex-col gap-1 items-center justify-center text-center">
-              <span className="text-xs text-[var(--text-muted)] font-bold">موجودی فعلی حساب شما</span>
-              <span className="text-xl font-black text-[var(--primary)]">
-                {formatPrice(walletBalance)} <span className="text-xs text-[var(--text-white)] font-normal">تومان</span>
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-bold text-[var(--text-white)]">انتخاب مبلغ جهت افزایش موجودی:</span>
-              <div className="grid grid-cols-3 gap-2">
-                {[100000, 200000, 500000].map((amt) => (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => setWalletChargeAmount(amt)}
-                    className={`h-11 rounded-card border text-xs font-bold transition-all ${
-                      walletChargeAmount === amt
-                        ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] shadow-md"
-                        : "bg-[var(--foreground)]/40 border-[var(--border-subtle)] text-[var(--text-white)] hover:border-[var(--primary)]/50"
-                    }`}
-                  >
-                    {formatPrice(amt)}
-                  </button>
-                ))}
+            {/* Balances Card */}
+            <div className="bg-[var(--foreground)]/40 p-4 rounded-card border border-[var(--border-subtle)] flex flex-col gap-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[var(--text-muted)] font-bold">موجودی کل کیف پول:</span>
+                <span className="font-bold text-[var(--text-white)]">
+                  {walletLoading ? "..." : formatPrice(wallet?.walletBalance ?? 0)} تومان
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[var(--text-muted)]">موجودی رزروشده (در حال تسویه):</span>
+                <span className="font-bold text-[var(--accent-red)]">
+                  {walletLoading ? "..." : formatPrice(wallet?.reservedBalance ?? 0)} تومان
+                </span>
+              </div>
+              <div className="border-t border-[var(--border-subtle)] pt-2 flex items-center justify-between">
+                <span className="text-xs font-bold text-[var(--text-muted)]">موجودی قابل برداشت:</span>
+                <span className="text-lg font-black text-[var(--primary)]">
+                  {walletLoading ? "..." : formatPrice(wallet?.availableBalance ?? 0)} <span className="text-xs text-[var(--text-white)] font-normal">تومان</span>
+                </span>
               </div>
             </div>
 
-            {walletChargeAmount && (
-              <button
-                type="button"
-                onClick={handleChargeWallet}
-                className="h-11 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs shadow-lg mt-1 transition-all active:scale-[0.98]"
-              >
-                پرداخت و شارژ {formatPrice(walletChargeAmount)} تومان
-              </button>
+            {/* TAB 1: CHARGE */}
+            {walletTab === "charge" && (
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-bold text-[var(--text-white)]">انتخاب مبلغ جهت افزایش موجودی:</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[100000, 200000, 500000].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setWalletChargeAmount(amt)}
+                        className={`h-11 rounded-card border text-xs font-bold transition-all ${
+                          walletChargeAmount === amt
+                            ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] shadow-md"
+                            : "bg-[var(--foreground)]/40 border-[var(--border-subtle)] text-[var(--text-white)] hover:border-[var(--primary)]/50"
+                        }`}
+                      >
+                        {formatPrice(amt)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {walletChargeAmount && (
+                  <button
+                    type="button"
+                    onClick={handleChargeWallet}
+                    className="h-11 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs shadow-lg transition-all active:scale-[0.98]"
+                  >
+                    پرداخت و شارژ {formatPrice(walletChargeAmount)} تومان
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: WITHDRAW */}
+            {walletTab === "withdraw" && (
+              <form onSubmit={handleWithdrawSubmit} className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="cw-holder" className="text-xs font-bold text-[var(--text-muted)]">
+                    نام و نام خانوادگی صاحب حساب <span className="text-[var(--accent-red)]">*</span>
+                  </label>
+                  <input
+                    id="cw-holder"
+                    value={withdrawHolder}
+                    onChange={(e) => setWithdrawHolder(e.target.value)}
+                    placeholder="مثلاً: محمد رضایی"
+                    className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm text-[var(--text-white)] outline-none"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="cw-sheba" className="text-xs font-bold text-[var(--text-muted)]">
+                    شماره شبا (IBAN) بدون IR <span className="text-[var(--accent-red)]">*</span>
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-xs font-mono font-bold text-[var(--text-muted)] select-none">
+                      IR
+                    </span>
+                    <input
+                      id="cw-sheba"
+                      value={withdrawSheba}
+                      onChange={(e) => setWithdrawSheba(e.target.value)}
+                      dir="ltr"
+                      inputMode="numeric"
+                      maxLength={24}
+                      placeholder="000000000000000000000000"
+                      className="w-full h-11 px-3.5 pl-10 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm text-[var(--text-white)] font-mono outline-none text-left"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="cw-card" className="text-xs font-bold text-[var(--text-muted)]">
+                      شماره کارت (اختیاری)
+                    </label>
+                    <input
+                      id="cw-card"
+                      value={withdrawCardNumber}
+                      onChange={(e) => setWithdrawCardNumber(e.target.value)}
+                      dir="ltr"
+                      maxLength={16}
+                      placeholder="۶۰۳۷..."
+                      className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-xs text-[var(--text-white)] font-mono outline-none text-left"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="cw-bank" className="text-xs font-bold text-[var(--text-muted)]">
+                      نام بانک (اختیاری)
+                    </label>
+                    <input
+                      id="cw-bank"
+                      value={withdrawBankName}
+                      onChange={(e) => setWithdrawBankName(e.target.value)}
+                      placeholder="مثلاً: ملت"
+                      className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-xs text-[var(--text-white)] outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="cw-amt" className="text-xs font-bold text-[var(--text-muted)]">
+                      مبلغ برداشت (تومان) <span className="text-[var(--accent-red)]">*</span>
+                    </label>
+                    {wallet && wallet.availableBalance > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setWithdrawAmount(String(wallet.availableBalance))}
+                        className="text-[11px] font-bold text-[var(--primary)] hover:underline"
+                      >
+                        کل موجودی قابل برداشت
+                      </button>
+                    ) : null}
+                  </div>
+                  <input
+                    id="cw-amt"
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    inputMode="numeric"
+                    placeholder="مثلاً: ۵۰۰۰۰۰"
+                    className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm text-[var(--text-white)] outline-none"
+                  />
+                  <span className="text-[10px] text-[var(--text-muted)]">
+                    توجه: هر کاربر در هر ۲۴ ساعت تقویمی صرفاً مجاز به ثبت ۱ درخواست برداشت است.
+                  </span>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={withdrawSubmitting || (wallet?.canWithdrawIn24h === false)}
+                  className="mt-1 h-11 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs shadow-md disabled:opacity-50 transition-all active:scale-[0.98]"
+                >
+                  {withdrawSubmitting ? "در حال ثبت درخواست..." : "ثبت درخواست برداشت"}
+                </button>
+              </form>
+            )}
+
+            {/* TAB 3: HISTORY */}
+            {walletTab === "history" && (
+              <div className="flex flex-col gap-3">
+                <span className="text-xs font-bold text-[var(--text-white)]">درخواست‌های برداشت اخیر:</span>
+                {historyLoading && <div className="h-20 rounded-card bg-[var(--foreground)]/30 animate-pulse" />}
+                {!historyLoading && withdrawals.length === 0 && (
+                  <p className="py-4 text-center text-xs text-[var(--text-muted)]">درخواست برداشتی یافت نشد.</p>
+                )}
+                {!historyLoading && (
+                  <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+                    {withdrawals.map((w) => {
+                      const st = WITHDRAW_STATUS_LABEL[w.status] || { label: w.status, color: "text-[var(--text-muted)]" };
+                      return (
+                        <div key={w.id} className="p-3 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] flex items-center justify-between text-xs">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-bold text-[var(--text-white)]">{formatPrice(w.amount)} تومان</span>
+                            <span className="text-[10px] text-[var(--text-muted)] dir-ltr text-right">{w.bankDetails?.sheba || "IR..."}</span>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${st.color}`}>
+                            {st.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <span className="text-xs font-bold text-[var(--text-white)] mt-2">تراکنش‌های کیف پول:</span>
+                {!historyLoading && transactions.length === 0 && (
+                  <p className="py-4 text-center text-xs text-[var(--text-muted)]">تراکنشی ثبت نشده است.</p>
+                )}
+                {!historyLoading && (
+                  <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+                    {transactions.map((t) => (
+                      <div key={t.id} className="p-2.5 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)] flex items-center justify-between text-xs">
+                        <span className="text-[var(--text-muted)]">{t.description || t.type}</span>
+                        <span className="font-bold text-[var(--text-white)]">{formatPrice(t.amount)} تومان</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             <button type="button" onClick={() => setIsWalletModalOpen(false)} className="h-11 w-full rounded-card bg-[var(--foreground)] text-[var(--text-white)] font-bold text-xs mt-1">

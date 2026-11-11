@@ -119,6 +119,21 @@ export const ENDPOINTS = {
     acceptOffer: (offerId: string) => `/customer/waitlist/offers/${enc(offerId)}/accept`,
     rejectOffer: (offerId: string) => `/customer/waitlist/offers/${enc(offerId)}/reject`,
   },
+  wallet: {
+    status: "/customer/wallet",
+    withdraw: "/customer/wallet/withdraw",
+    withdrawals: "/customer/wallet/withdrawals",
+    withdrawalDetail: (id: string) => `/customer/wallet/withdrawals/${enc(id)}`,
+    transactions: "/customer/wallet/transactions",
+    transactionDetail: (id: string) => `/customer/wallet/transactions/${enc(id)}`,
+    // Platform Admin endpoints
+    adminWithdrawals: "/platform-admin/withdrawals",
+    adminOverdueWithdrawals: "/platform-admin/withdrawals/overdue",
+    adminWithdrawalDetail: (id: string) => `/platform-admin/withdrawals/${enc(id)}`,
+    adminApproveWithdrawal: (id: string) => `/platform-admin/withdrawals/${enc(id)}/approve`,
+    adminRejectWithdrawal: (id: string) => `/platform-admin/withdrawals/${enc(id)}/reject`,
+    adminWithdrawalPayment: (id: string) => `/platform-admin/withdrawals/${enc(id)}/payment`,
+  },
   catalog: {
     devices: "/catalog/devices",
     deviceById: (id: string) => `/catalog/devices/${enc(id)}`,
