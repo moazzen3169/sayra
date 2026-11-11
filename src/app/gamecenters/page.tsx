@@ -488,7 +488,7 @@ function GamecentersContent() {
         )}
       </main>
 
-      <BottomBar activeTab="home" />
+      <BottomBar activeTab="gamecenters" />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOwner } from "@/context/OwnerContext";
 import { OwnerHeader } from "@/components/owner/OwnerHeader";
+import { BottomBar } from "@/components/BottomBar";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService } from "@/services/ownerService";
@@ -252,7 +253,7 @@ export default function OwnerDashboardPage() {
 
   if (isCenterLoading) {
     return (
-      <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
+      <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
         <OwnerHeader title="پنل مدیریت" isSubpage={false} showSearch={false} />
         <main className="flex-1 px-4 pt-20 flex flex-col gap-5 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0">
           <div className="h-12 rounded-card bg-[var(--bg-card)] animate-pulse" />
@@ -263,12 +264,13 @@ export default function OwnerDashboardPage() {
             ))}
           </div>
         </main>
+        <BottomBar />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-10">
+    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
       <OwnerHeader
         title="پنل مدیریت"
         isSubpage={false}
@@ -708,6 +710,9 @@ export default function OwnerDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* App Shell BottomBar for Mobile Navigation */}
+      <BottomBar />
     </div>
   );
 }

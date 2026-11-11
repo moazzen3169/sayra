@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export type TabType =
   | "home"
@@ -93,9 +94,23 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode; href: string }[
   },
 ];
 
-export const BottomBar: React.FC<BottomBarProps> = ({ activeTab = "home", onTabChange }) => {
+export function getActiveTabFromPathname(pathname: string | null | undefined): TabType | null {
+  if (!pathname) return null;
+  if (pathname === "/") return "home";
+  if (pathname === "/gamecenters" || pathname.startsWith("/gamecenters/")) return "gamecenters";
+  if (pathname === "/blog" || pathname.startsWith("/blog/")) return "news";
+  if (pathname === "/reservations" || pathname.startsWith("/reservations/")) return "reservations";
+  return null;
+}
+
+export const BottomBar: React.FC<BottomBarProps> = ({ activeTab, onTabChange }) => {
+  const pathname = usePathname();
+  const routeTab = getActiveTabFromPathname(pathname);
+
+  // If activeTab is explicitly provided, respect it; otherwise derive from pathname (defaulting to "home")
+  const resolvedTab = activeTab ?? routeTab ?? "home";
   const normalizedActiveTab =
-    activeTab === "history" ? "reservations" : activeTab;
+    resolvedTab === "history" ? "reservations" : resolvedTab;
 
   return (
     <nav

@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/Header";
+import { BottomBar } from "@/components/BottomBar";
 import { BlogHeroSlider } from "@/components/blog/BlogHeroSlider";
 import {
   BlogPostCard,
@@ -148,7 +149,7 @@ export const BlogListView: React.FC = () => {
     : "هنوز مقاله‌ای منتشر نشده است";
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-10 text-[var(--text-white)]">
+    <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-28 lg:pb-10 text-[var(--text-white)]">
       <Header
         locationName={city}
         onCityChange={setCity}
@@ -241,6 +242,8 @@ export const BlogListView: React.FC = () => {
           onClose={() => setSortOpen(false)}
         />
       )}
+
+      <BottomBar activeTab="news" />
     </div>
   );
 };

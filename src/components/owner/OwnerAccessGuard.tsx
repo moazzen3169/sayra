@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Icon } from "@/components/ui/Icon";
+import { BottomBar } from "@/components/BottomBar";
 
 /** مسیرهایی که برای ساخت گیمنت آزاد هستند */
 const OPEN_PATHS = ["/owner/new"];
@@ -66,7 +67,7 @@ export const OwnerAccessGuard: React.FC<{
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[var(--bg-body)] px-4 py-8 text-[var(--text-white)]">
+    <main className="flex min-h-screen items-center justify-center bg-[var(--bg-body)] px-4 py-8 pb-28 lg:pb-8 text-[var(--text-white)]">
       <div className="flex w-full max-w-[420px] flex-col items-center gap-5 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6 text-center">
 
         <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--foreground)]/40 text-[var(--text-muted)]">
@@ -117,6 +118,7 @@ export const OwnerAccessGuard: React.FC<{
           )}
         </div>
       </div>
+      <BottomBar />
     </main>
   );
 };
