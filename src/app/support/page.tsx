@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { UnifiedAuthModal } from "@/components/auth/UnifiedAuthModal";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
-import { BottomBar } from "@/components/BottomBar";
 import { Icon } from "@/components/ui/Icon";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -172,7 +171,7 @@ export default function SupportPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-12">
+    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-12">
       {/* App Shell Header */}
       <ProfileHeader title="پشتیبانی و پاسخگویی" isSubpage={true} />
 
@@ -565,9 +564,6 @@ export default function SupportPage() {
           setReload((v) => v + 1);
         }}
       />
-
-      {/* App Shell BottomBar for Mobile Navigation */}
-      <BottomBar activeTab="profile" />
     </div>
   );
 }
