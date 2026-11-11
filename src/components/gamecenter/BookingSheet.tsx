@@ -85,6 +85,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
   const [avail, setAvail] = useState<AvailabilityMap>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [dateClosedNotice, setDateClosedNotice] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -164,6 +165,7 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
     const timer = setTimeout(() => {
       setLoading(true);
       setLoadError(null);
+      setDateClosedNotice(null);
       setSlots([]);
       setAvail({});
       setSelectedKeys([]);
@@ -171,24 +173,43 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
 
     (async () => {
       try {
-        const entries = await Promise.all(
-          stations.map(async (s) => {
-            try {
-              const raw = await gamingCenterService.getAvailabilitySlots(
-                gamingCenterSlug,
-                date.fullDate,
-                s.id,
-                controller.signal,
-              );
-              return { id: s.id, list: mapSlots(raw) };
-            } catch (e) {
-              if (isAbortError(e)) throw e;
-              return { id: s.id, list: [] as RawSlot[] };
-            }
-          }),
-        );
+        // دریافت موازی اسلات‌ها و تعطیلات ثبت‌شده
+        const [entries, closures, centerInfo] = await Promise.all([
+          Promise.all(
+            stations.map(async (s) => {
+              try {
+                const raw = await gamingCenterService.getAvailabilitySlots(
+                  gamingCenterSlug,
+                  date.fullDate,
+                  s.id,
+                  controller.signal,
+                );
+                return { id: s.id, list: mapSlots(raw) };
+              } catch (e) {
+                if (isAbortError(e)) throw e;
+                return { id: s.id, list: [] as RawSlot[] };
+              }
+            }),
+          ),
+          gamingCenterService.getPublicClosures(gamingCenterSlug, controller.signal).catch(() => []),
+          gamingCenterService.getPublicGamingCenter(gamingCenterSlug, controller.signal).catch(() => null),
+        ]);
 
         if (!active) return;
+
+        // بررسی تعطیلی کامل این روز
+        const fullyClosed = gamingCenterService.isDateFullyClosed(
+          date.fullDate,
+          closures,
+          centerInfo?.closedDays
+        );
+
+        if (fullyClosed.isClosed) {
+          setDateClosedNotice(fullyClosed.reason || "این گیم‌نت در این تاریخ تعطیل است.");
+          setSlots([]);
+          setAvail({});
+          return;
+        }
 
         const nextAvail: AvailabilityMap = {};
         const meta = new Map<string, SlotView>();
@@ -196,14 +217,25 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
         for (const e of entries) {
           nextAvail[e.id] = {};
           for (const s of e.list) {
-            nextAvail[e.id][s.key] = s.available;
+            // بررسی تداخل این اسلات با تعطیلات موقت/مناسبتی
+            // اگر تداخل داشته باشد، وضعیت اسلات به صورت ناموجود علامت‌گذاری می‌شود
+            const overlaps = s.startTime && s.endLabel
+              ? gamingCenterService.findOverlappingClosures(
+                  s.startTime,
+                  new Date(new Date(s.startTime).getTime() + 60 * 60 * 1000).toISOString(),
+                  closures
+                )
+              : [];
+            const hasConflict = overlaps.length > 0;
+
+            nextAvail[e.id][s.key] = !hasConflict && s.available;
             if (!meta.has(s.key)) {
               meta.set(s.key, {
                 key: s.key,
                 startTime: s.startTime,
                 startLabel: s.startLabel,
                 endLabel: s.endLabel,
-                  hourNumber: s.hourNumber,
+                hourNumber: s.hourNumber,
               });
             }
           }
@@ -461,7 +493,15 @@ export const BookingSheet: React.FC<BookingSheetProps> = ({
                 </div>
               )}
 
-              {!loading && !loadError && slots.length === 0 && (
+              {!loading && dateClosedNotice && (
+                <div className="rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-6 text-center flex flex-col items-center gap-2">
+                  <Icon name="alert" size={20} className="text-[var(--accent-red)]" />
+                  <p className="text-xs font-bold text-[var(--accent-red)]">{dateClosedNotice}</p>
+                  <p className="text-[11px] text-[var(--text-muted)]">امکان رزرو در این روز وجود ندارد. لطفاً تاریخ دیگری را انتخاب کنید.</p>
+                </div>
+              )}
+
+              {!loading && !loadError && !dateClosedNotice && slots.length === 0 && (
                 <div className="rounded-card border border-dashed border-[var(--border-color)] p-8 text-center text-xs leading-6 text-[var(--text-muted)]">
                   برای این روز ساعت خالی وجود ندارد. روز دیگری را انتخاب کنید.
                 </div>

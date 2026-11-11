@@ -105,6 +105,11 @@ export interface PublicGamingCenter {
   /** املای فیلد در API همین است */
   raiting?: number;
   comment_count?: number;
+
+  // فیلدهای روزهای تعطیل و ساعات کاری
+  closedDays?: number[];
+  openingTime?: string;
+  closingTime?: string;
   addresses?: GamingCenterAddress[];
 
   // کاور و تصاویر گیمنت

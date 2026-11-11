@@ -245,6 +245,9 @@ export interface AdminAdRequest {
   submittedAt: string;
   updatedAt?: string;
   decisionReason?: string;
+  adminNote?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface AdminListQueryParams {
