@@ -157,9 +157,19 @@ export default function HomePage() {
       />
 
       <main className="flex-1 p-4 flex flex-col gap-6 lg:gap-8 pt-[var(--header-m-h)]  desk:pt-[var(--header-h)]">
-        {/* ۱. بخش اسلایدر بنرهای تبلیغاتی */}
+        {/* ۱. بخش اسلایدر بنرهای تبلیغاتی
+            فقط در دسکتاپ (lg): کانتینر تمام‌عرض می‌ماند ولی هر اسلاید ۵۶٪ عرض می‌گیرد
+            و اسلایدهای کناری هم دیده می‌شوند. برای ثابت ماندن ارتفاع،
+            نسبت اسلاید از 4/1 به 2.24/1 (= 4 × 0.56) تغییر کرده است.
+            موبایل و تبلت بدون تغییر هستند. */}
         <section>
-          <BannerSlider banners={banners} isLoading={bannersLoading} />
+          <BannerSlider
+            banners={banners}
+            isLoading={bannersLoading}
+            centerOnDesktop
+            desktopSlideBasisClass="lg:basis-[70%]"
+            aspectClassName="aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[3/1]"
+          />
         </section>
 
         {/* ۲. بخش انواع دستگاه‌ها و پلتفرم‌های بازی (از API) */}

@@ -16,6 +16,7 @@ import { normalizeMediaUrl, PLACEHOLDERS } from "@/lib/media";
 import { SafeImage } from "@/components/ui/SafeImage";
 
 const DEFAULT_ASPECT = "aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[4/1]";
+const DEFAULT_DESKTOP_BASIS = "lg:basis-full";
 
 export interface BannerSliderProps {
   banners?: BannerItem[];
@@ -24,6 +25,14 @@ export interface BannerSliderProps {
   className?: string;
   /** کلاس‌های aspect-ratio اسلاید؛ برای گالری صفحه جزئیات کوتاه‌تر می‌شود */
   aspectClassName?: string;
+  /**
+   * عرض هر اسلاید فقط در اندازه دسکتاپ (lg و بالاتر).
+   * پیش‌فرض: lg:basis-full (رفتار قبلی). موبایل و تبلت تغییر نمی‌کنند.
+   * مثال: "lg:basis-[56%]"
+   */
+  desktopSlideBasisClass?: string;
+  /** اگر true باشد در دسکتاپ اسلاید فعال وسط قرار می‌گیرد و همسایه‌ها دیده می‌شوند */
+  centerOnDesktop?: boolean;
   ariaLabel?: string;
   /** آدرس تصویر پیش‌فرض زمانی که تصویر بارگذاری نمی‌شود یا خالی است */
   fallbackSrc?: string;
@@ -41,6 +50,8 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
   autoplayDelay = 5000,
   className = "",
   aspectClassName = DEFAULT_ASPECT,
+  desktopSlideBasisClass = DEFAULT_DESKTOP_BASIS,
+  centerOnDesktop = false,
   ariaLabel = "بنرهای تبلیغاتی",
   fallbackSrc = PLACEHOLDERS.banner,
 }) => {
@@ -70,14 +81,17 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
       loop: slidesCount >= 3,
       rewind: slidesCount === 2,
       direction: "rtl" as const,
-      align: "start" as const,
+      // در حالت مرکزچین، اسلاید فعال وسط قرار می‌گیرد و دو اسلاید کناری دیده می‌شوند.
+      // در موبایل هر اسلاید ۹۲٪ عرض دارد؛ مرکزچین کردن آن هم بصری قابل قبول است
+      // ولی برای اینکه رفتار موبایل دقیقاً مثل قبل بماند، فقط وقتی فعال است که پراپ داده شود.
+      align: (centerOnDesktop ? "center" : "start") as "center" | "start",
       duration: 30,
       dragFree: false,
       skipSnaps: false,
       containScroll: false as const,
       watchDrag: !isSingle,
     };
-  }, [slidesCount]);
+  }, [slidesCount, centerOnDesktop]);
 
   const plugins = useMemo(() => {
     if (slidesCount <= 1) return [];
@@ -295,7 +309,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
                 <CarouselItem
                   key={item.id}
                   aria-label={`${toPersianDigits(index + 1)} از ${toPersianDigits(slidesCount)}`}
-                  className="basis-[92%] sm:basis-[80%] lg:basis-full pr-3 lg:pr-4"
+                  className={`basis-[92%] sm:basis-[80%] ${desktopSlideBasisClass} pr-3 lg:pr-4`}
                 >
                   <div className={`rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-card)] w-full ${aspectClassName}`}>
                     {framed}
