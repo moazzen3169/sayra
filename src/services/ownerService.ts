@@ -7,9 +7,12 @@ import type {
   CommissionListParams,
   CommissionListResult,
   CreateBranchAddressPayload,
+  CreateClosureInput,
   CreateGamingCenterPayload,
   CreateLinkPayload,
   Earning,
+  GamingCenterClosure,
+  GamingCenterSchedule,
   MediaItem,
   OwnerAnalyticsSummary,
   OwnerMe,
@@ -511,6 +514,8 @@ export const ownerService = {
     if (payload.allowOnlineBooking !== undefined) sanitizedPayload.allowOnlineBooking = payload.allowOnlineBooking;
     if (payload.onlineBookingAutoConfirm !== undefined) sanitizedPayload.onlineBookingAutoConfirm = payload.onlineBookingAutoConfirm;
     if (payload.preventOverlaps !== undefined) sanitizedPayload.preventOverlaps = payload.preventOverlaps;
+    if (payload.closedDays !== undefined) sanitizedPayload.closedDays = payload.closedDays;
+    if (payload.schedules !== undefined) sanitizedPayload.schedules = payload.schedules;
 
     try {
       await apiClient.put(ENDPOINTS.owner.settings(centerId), sanitizedPayload);
@@ -538,6 +543,106 @@ export const ownerService = {
 
   async updateSiteSettings(centerId: string, payload: SiteSettings): Promise<void> {
     await apiClient.patch(ENDPOINTS.owner.siteSettings(centerId), payload);
+  },
+
+  /**
+   * دریافت لیست تعطیلات مناسبتی/موقت مرکز بازی:
+   * GET /gamingCenters/{centerId}/closures
+   */
+  async getClosures(centerId: string, signal?: AbortSignal): Promise<GamingCenterClosure[]> {
+    if (!centerId) return [];
+    try {
+      const response = await apiClient.get<any>(ENDPOINTS.owner.closures(centerId), { signal });
+      const raw = response.data;
+      if (Array.isArray(raw)) return raw;
+      if (raw && typeof raw === "object") {
+        if (Array.isArray(raw.data)) return raw.data;
+        if (Array.isArray(raw.items)) return raw.items;
+      }
+      return [];
+    } catch (err) {
+      console.warn("Failed to fetch closures from backend:", err);
+      return [];
+    }
+  },
+
+  /**
+   * ثبت تعطیلی جدید توسط مدیر گیم‌نت:
+   * POST /gamingCenters/{centerId}/closures
+   * اعتبارسنجی: شرط منطقی startDate < endDate
+   */
+  async createClosure(
+    centerId: string,
+    payload: CreateClosureInput,
+    signal?: AbortSignal
+  ): Promise<GamingCenterClosure> {
+    if (!payload.title || !payload.title.trim()) {
+      throw new Error("عنوان تعطیلی الزامی است.");
+    }
+    const startMs = Date.parse(payload.startDate);
+    const endMs = Date.parse(payload.endDate);
+    if (isNaN(startMs) || isNaN(endMs)) {
+      throw new Error("تاریخ شروع یا پایان نامعتبر است.");
+    }
+    if (startMs >= endMs) {
+      throw new Error("تاریخ شروع تعطیلی باید قبل از تاریخ پایان باشد.");
+    }
+
+    const response = await apiClient.post<any>(
+      ENDPOINTS.owner.closures(centerId),
+      {
+        title: payload.title.trim(),
+        reason: payload.reason ? payload.reason.trim() : undefined,
+        startDate: new Date(startMs).toISOString(),
+        endDate: new Date(endMs).toISOString(),
+      },
+      { signal }
+    );
+    const resData = response.data;
+    if (resData && typeof resData === "object" && resData.data) {
+      return resData.data as GamingCenterClosure;
+    }
+    return resData as GamingCenterClosure;
+  },
+
+  /**
+   * لغو یا حذف تعطیلی:
+   * DELETE /gamingCenters/{centerId}/closures/{closureId}
+   */
+  async deleteClosure(centerId: string, closureId: string, signal?: AbortSignal): Promise<void> {
+    await apiClient.delete(ENDPOINTS.owner.closureDetail(centerId, closureId), { signal });
+  },
+
+  /**
+   * دریافت برنامه هفتگی گیم‌نت:
+   * GET /gamingCenters/{centerId}/schedules
+   */
+  async getSchedules(centerId: string, signal?: AbortSignal): Promise<GamingCenterSchedule[]> {
+    if (!centerId) return [];
+    try {
+      const response = await apiClient.get<any>(ENDPOINTS.owner.schedules(centerId), { signal });
+      const raw = response.data;
+      if (Array.isArray(raw)) return raw;
+      if (raw && typeof raw === "object") {
+        if (Array.isArray(raw.data)) return raw.data;
+        if (Array.isArray(raw.items)) return raw.items;
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * بروزرسانی برنامه هفتگی و روزهای کاری گیم‌نت:
+   * PUT /gamingCenters/{centerId}/schedules
+   */
+  async updateSchedules(
+    centerId: string,
+    schedules: GamingCenterSchedule[],
+    signal?: AbortSignal
+  ): Promise<void> {
+    await apiClient.put(ENDPOINTS.owner.schedules(centerId), { schedules }, { signal });
   },
 
   async listStations(

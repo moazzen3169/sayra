@@ -37,6 +37,8 @@ export const ENDPOINTS = {
       `/public/gamingCenters/${enc(slug)}/group-reservations/checkout`,
     page: (slug: string, pageSlug: string) =>
       `/public/gamingCenters/${enc(slug)}/pages/${enc(pageSlug)}`,
+    publicClosures: (slug: string) => `/public/gamingCenters/${enc(slug)}/closures`,
+    publicSchedules: (slug: string) => `/public/gamingCenters/${enc(slug)}/schedules`,
   },
   reservation: {
     create: (gamingCenterSlug: string) => `/public/gamingCenters/${enc(gamingCenterSlug)}/reservation`,
@@ -225,6 +227,10 @@ export const ENDPOINTS = {
       `/gamingCenters/${enc(c)}/reservation/${enc(r)}/sessions/${action}`,
     settings: (c: string) => `/gamingCenters/${enc(c)}/settings`,
     siteSettings: (c: string) => `/gamingCenters/${enc(c)}/site-settings`,
+    closures: (c: string) => `/gamingCenters/${enc(c)}/closures`,
+    closureDetail: (c: string, closureId: string) =>
+      `/gamingCenters/${enc(c)}/closures/${enc(closureId)}`,
+    schedules: (c: string) => `/gamingCenters/${enc(c)}/schedules`,
     stations: (c: string) => `/gamingCenters/${enc(c)}/stations`,
     stationsFromCatalog: (c: string) => `/gamingCenters/${enc(c)}/stations/from-catalog`,
     gamesFromCatalog: (c: string) => `/gamingCenters/${enc(c)}/stations/games/from-catalog`,
