@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
 import { apiClient } from "@/lib/api/client";
 import { walletService, WalletValidationError } from "@/services/walletService";
+import { ContractGapError } from "@/types/customerApi";
 import type { CustomerWallet } from "@/types/wallet";
 
 describe("Customer Wallet & Withdrawal Service (walletService)", () => {
@@ -292,3 +293,88 @@ describe("Customer Wallet & Withdrawal Service (walletService)", () => {
     });
   });
 });
+
+  describe("5. Wallet Charge via POST /customer/wallet/charge", () => {
+    it("validates positive integer amount for charging", async () => {
+      await expect(
+        walletService.chargeWallet({
+          amount: 0,
+        })
+      ).rejects.toThrow(WalletValidationError);
+
+      await expect(
+        walletService.chargeWallet({
+          amount: -10000,
+        })
+      ).rejects.toThrow("مبلغ شارژ باید یک عدد صحیح بزرگتر از صفر باشد.");
+    });
+
+    it("enforces minimum charge threshold of 1,000 Tomans", async () => {
+      await expect(
+        walletService.chargeWallet({
+          amount: 500,
+        })
+      ).rejects.toThrow("حداقل مبلغ شارژ کیف پول ۱,۰۰۰ تومان می‌باشد.");
+    });
+
+    it("initiates charge successfully when backend supports it and returns payment URL", async () => {
+      let capturedPath = "";
+      let capturedBody: any = null;
+      let capturedHeaders: any = null;
+
+      apiClient.post = mock(async (path: string, body: any, opts?: any) => {
+        capturedPath = path;
+        capturedBody = body;
+        capturedHeaders = opts?.headers;
+        return {
+          status: 201,
+          data: {
+            paymentId: "pay_wlt_12345",
+            paymentUrl: "https://gateway.zibal.ir/start/987654",
+            amount: 200000,
+            currency: "IRT",
+            status: "INITIATED",
+          },
+        };
+      }) as any;
+
+      const res = await walletService.chargeWallet(
+        {
+          amount: 200000,
+          currency: "IRT",
+          redirectUrl: "https://sayra.ir/profile?wallet=verify",
+          description: "شارژ کیف پول",
+        },
+        "idem-wlt-uuid-99"
+      );
+
+      expect(capturedPath).toBe("/customer/wallet/charge");
+      expect(capturedBody.amount).toBe(200000);
+      expect(capturedBody.currency).toBe("IRT");
+      expect(capturedBody.redirectUrl).toBe("https://sayra.ir/profile?wallet=verify");
+      expect(capturedHeaders?.["Idempotency-Key"]).toBe("idem-wlt-uuid-99");
+      expect(res.paymentId).toBe("pay_wlt_12345");
+      expect(res.paymentUrl).toBe("https://gateway.zibal.ir/start/987654");
+    });
+
+    it("throws ContractGapError when backend responds with 404/501 (missing backend implementation)", async () => {
+      apiClient.post = mock(async () => {
+        const err: any = new Error("Not Found");
+        err.status = 404;
+        throw err;
+      }) as any;
+
+      await expect(
+        walletService.chargeWallet({
+          amount: 50000,
+        })
+      ).rejects.toThrow(ContractGapError);
+
+      try {
+        await walletService.chargeWallet({ amount: 50000 });
+      } catch (e: any) {
+        expect(e.code).toBe("CONTRACT_GAP");
+        expect(e.message).toContain("سرویس شارژ آنلاین کیف پول");
+      }
+    });
+  });
