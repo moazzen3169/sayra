@@ -313,39 +313,7 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
         {description && <p className="text-xs text-[var(--text-muted)] leading-relaxed">{description}</p>}
       </div>
 
-      {/* Tab Toggle (OTP vs Password) */}
-      {otpStep === "phone" && (
-        <div className="flex bg-[var(--foreground)]/50 p-1 rounded-card border border-[var(--border-subtle)]">
-          <button
-            type="button"
-            onClick={() => {
-              setMode("otp");
-              setError("");
-            }}
-            className={`flex-1 py-2 text-xs font-bold rounded-card transition-all ${
-              mode === "otp"
-                ? "bg-[var(--primary)] text-on-primary shadow-sm"
-                : "text-[var(--text-muted)] hover:text-[var(--text-white)]"
-            }`}
-          >
-           تایید شماره
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode("password");
-              setError("");
-            }}
-            className={`flex-1 py-2 text-xs font-bold rounded-card transition-all ${
-              mode === "password"
-                ? "bg-[var(--primary)] text-on-primary shadow-sm"
-                : "text-[var(--text-muted)] hover:text-[var(--text-white)]"
-            }`}
-          >
-            ورود با رمز عبور
-          </button>
-        </div>
-      )}
+
 
       {error && (
         <div className="p-3 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold leading-relaxed">

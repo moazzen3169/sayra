@@ -438,7 +438,7 @@ export default function ProfilePage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
       <ProfileHeader title="حساب کاربری" isSubpage={false} />
 
-      <main className="flex-1 pt-20 px-4 py-4 flex flex-col gap-5">
+      <main className="flex-1 pt-24 px-4 py-4 flex flex-col gap-5">
         {/* Loading State */}
         {isLoading && (
           <div className="w-full max-w-md lg:max-w-xl mx-auto p-6 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse flex flex-col gap-4">
@@ -450,7 +450,7 @@ export default function ProfilePage() {
 
         {/* Unauthenticated State: Unified Login Form */}
         {!isLoading && !isLoggedIn && (
-          <div className="w-full max-w-md lg:max-w-xl mx-auto bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-6 flex flex-col gap-5 shadow-xl">
+          <div className="w-full max-w-md lg:max-w-xl mx-auto  flex flex-col gap-5 shadow-xl">
             <UnifiedAuthForm
               onSuccess={handleAuthSuccess}
               title="ورود یا ثبت‌نام در حساب کاربری"
