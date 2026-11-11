@@ -97,7 +97,14 @@ export function calculateItemBreakdown(
     };
   }
 
-  const hourlyPrice = station.hourlyPrice;
+  // If station has active discount in pricing, prioritize finalPrice
+  let effectiveHourlyPrice = station.hourlyPrice;
+  const pricing = (station as { pricing?: { finalPrice?: number; hasDiscount?: boolean } }).pricing;
+  if (pricing && pricing.hasDiscount && typeof pricing.finalPrice === "number" && pricing.finalPrice >= 0) {
+    effectiveHourlyPrice = pricing.finalPrice;
+  }
+
+  const hourlyPrice = effectiveHourlyPrice;
   const stationBasePrice = hourlyPrice * durationHours;
 
   const extraCount = item.extraControllers;

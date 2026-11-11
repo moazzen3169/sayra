@@ -10,6 +10,7 @@ import { generateDays, mapCalendarDaysToDateOptions } from "@/lib/dates";
 import type { DateOption } from "@/lib/dates";
 import { cleanPhoneNumber, formatPrice, isValidIranPhone, toEnglishDigits, toPersianDigits } from "@/lib/format";
 import { formatClock, formatSlotHourEnglish, getErrorMessage } from "@/lib/reservationUi";
+import { getEffectiveStationPricing } from "@/lib/stationPricing";
 import { calendarService } from "@/services/calendarService";
 import { gamingCenterService } from "@/services/gamingCenterService";
 import type { AvailabilitySlot } from "@/services/gamingCenterService";
@@ -181,7 +182,11 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
   }, [stations]);
 
   const totalHourly = useMemo(
-    () => stations.reduce((a, s) => a + (s.hourlyPrice || 0), 0),
+    () =>
+      stations.reduce((a, s) => {
+        const { finalHourlyPrice } = getEffectiveStationPricing(s);
+        return a + finalHourlyPrice;
+      }, 0),
     [stations],
   );
 
@@ -353,12 +358,15 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
         gamingCenterName,
         gamingCenterAddress,
         selectedStationIds: stationIds,
-        stationSnapshots: stations.map((s) => ({
-          id: s.id,
-          name: s.name,
-          hourlyPrice: s.hourlyPrice,
-          stationType: s.stationType,
-        })),
+        stationSnapshots: stations.map((s) => {
+          const pricing = getEffectiveStationPricing(s);
+          return {
+            id: s.id,
+            name: s.name,
+            hourlyPrice: pricing.finalHourlyPrice,
+            stationType: s.stationType,
+          };
+        }),
         date: {
           id: date.id,
           dayName: date.dayName,
@@ -956,7 +964,10 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
 
                 <div className="flex flex-col gap-2.5">
                   {stations.map((st) => {
-                    const stPrice = Math.round((st.hourlyPrice || 0) * durationHours);
+                    const pricing = getEffectiveStationPricing(st);
+                    const stPrice = Math.round(pricing.finalHourlyPrice * durationHours);
+                    const originalTotal = Math.round(pricing.originalHourlyPrice * durationHours);
+
                     return (
                       <div
                         key={st.id}
@@ -968,8 +979,20 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
                           {st.stationType && (
                             <span className="text-[var(--text-muted)]">({st.stationType})</span>
                           )}
+                          {pricing.hasDiscount && (
+                            <span className="rounded bg-[var(--primary)]/15 px-1.5 py-0.5 text-[10px] font-bold text-[var(--primary)]">
+                              {pricing.discountPercentage
+                                ? `${toPersianDigits(pricing.discountPercentage)}٪ تخفیف`
+                                : "تخفیف"}
+                            </span>
+                          )}
                         </div>
-                        <div className="flex items-center gap-1 shrink-0 font-bold text-[var(--text-white)]">
+                        <div className="flex items-center gap-1.5 shrink-0 font-bold text-[var(--text-white)]">
+                          {pricing.hasDiscount && (
+                            <span className="text-[10px] text-[var(--text-muted)] line-through">
+                              {formatPrice(originalTotal)}
+                            </span>
+                          )}
                           <span>{formatPrice(stPrice)}</span>
                           <span className="text-[10px] text-[var(--text-muted)] font-normal">تومان</span>
                         </div>

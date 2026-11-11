@@ -10,6 +10,7 @@ import type { DeviceCategory } from "@/types/gaming-center/device-category.types
 import type { PhysicalStation } from "@/types/gaming-center/station.types";
 import type { GroupReservation } from "@/types/gaming-center/group-reservation.types";
 import { toPersianDigits, formatPrice } from "@/lib/format";
+import { getEffectiveStationPricing } from "@/lib/stationPricing";
 
 interface GameNetGroupReservationFlowProps {
   gamingCenterSlug: string;
@@ -87,7 +88,10 @@ export const GameNetGroupReservationFlow: React.FC<GameNetGroupReservationFlowPr
   };
 
   const selectedStationIds = selectedStations.map((s) => s.id);
-  const totalHourlyRate = selectedStations.reduce((sum, s) => sum + s.hourlyPrice, 0);
+  const totalHourlyRate = selectedStations.reduce(
+    (sum, s) => sum + getEffectiveStationPricing(s).finalHourlyPrice,
+    0
+  );
 
   return (
     <div className="flex flex-col gap-6">

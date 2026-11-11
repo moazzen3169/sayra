@@ -69,7 +69,13 @@ export function groupStations(stations: GameStationInfo[]): DeviceGroup[] {
   }
 
   return Array.from(map.entries()).map(([key, list]) => {
-    const prices = list.map((s) => s.hourlyPrice);
+    const prices = list.map((s) => {
+      const pricing = (s as { pricing?: { finalPrice?: number; hasDiscount?: boolean } }).pricing;
+      if (pricing && pricing.hasDiscount && typeof pricing.finalPrice === "number" && pricing.finalPrice >= 0) {
+        return pricing.finalPrice;
+      }
+      return s.hourlyPrice;
+    });
     const meta = META[key] ?? { label: key, image: "/img/pc.png" };
     const stationWithCover = list.find((s) => Boolean(s.coverImageUrl));
     const coverImage = stationWithCover?.coverImageUrl || meta.image;
@@ -127,8 +133,14 @@ export function allocateItems(
 }
 
 /** برآورد قیمت یک آیتم؛ قیمت نهایی را Backend بعد از ثبت اعلام می‌کند */
-export const estimateItemPrice = (item: BookingItem): number =>
-  item.station.hourlyPrice + item.extraControllers * item.extraUnitPrice;
+export const estimateItemPrice = (item: BookingItem): number => {
+  const pricing = (item.station as { pricing?: { finalPrice?: number; hasDiscount?: boolean } }).pricing;
+  const effectiveHourly =
+    pricing && pricing.hasDiscount && typeof pricing.finalPrice === "number" && pricing.finalPrice >= 0
+      ? pricing.finalPrice
+      : item.station.hourlyPrice;
+  return effectiveHourly + item.extraControllers * item.extraUnitPrice;
+};
 
 export const estimateItemsTotal = (items: BookingItem[]): number =>
   items.reduce((sum, it) => sum + estimateItemPrice(it), 0);

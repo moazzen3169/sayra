@@ -3,6 +3,15 @@
  * Based on GET /api/v1/public/gamingCenters/:gamingCenterSlug/stations
  */
 
+export interface StationPricing {
+  originalPrice?: number;
+  discountPercentage?: number;
+  discountAmount?: number;
+  finalPrice?: number;
+  hasDiscount?: boolean;
+  durationHours?: number;
+}
+
 export interface PhysicalStation {
   id: string;
   gamingCenterId: string;
@@ -20,6 +29,7 @@ export interface PhysicalStation {
   extraControllerPrice?: number;
   defaultControllers?: number;
   maxExtraControllers?: number;
+  pricing?: StationPricing | null;
 }
 
 export interface PhysicalStationsFilter {
