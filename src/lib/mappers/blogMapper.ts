@@ -207,12 +207,13 @@ function blockToPlainText(block: BlogContentBlock): string {
   }
 }
 
-/**
- * Validate a block before it is sent to the API.
- * This prevents malformed content_blocks from reaching the backend.
- */
+
+
+
 function validateApiBlock(block: RawBlock, index: number): void {
   const type = asString(block.type);
+  const data = block.data;
+
   const prefix = `بلوک شماره ${index + 1} (${type || "نامشخص"})`;
 
   if (typeof block.id !== "string" || !block.id.trim()) {
@@ -235,29 +236,34 @@ function validateApiBlock(block: RawBlock, index: number): void {
     throw new Error(`${prefix}: فیلد order معتبر نیست.`);
   }
 
+  if (!isRecord(data)) {
+    throw new Error(`${prefix}: فیلد data باید یک JSON Object باشد.`);
+  }
+
   const requireString = (field: string) => {
     if (
-      typeof block[field] !== "string" ||
-      !(block[field] as string).trim()
+      typeof data[field] !== "string" ||
+      !(data[field] as string).trim()
     ) {
-      throw new Error(`${prefix}: فیلد ${field} الزامی است.`);
+      throw new Error(`${prefix}: فیلد data.${field} الزامی است.`);
     }
   };
 
   const requireArray = (field: string) => {
-    if (!Array.isArray(block[field])) {
-      throw new Error(`${prefix}: فیلد ${field} باید آرایه باشد.`);
+    if (!Array.isArray(data[field])) {
+      throw new Error(`${prefix}: فیلد data.${field} باید آرایه باشد.`);
     }
   };
 
   switch (type) {
     case "heading":
       requireString("text");
+
       if (
-        typeof block.level !== "number" ||
-        !Number.isInteger(block.level) ||
-        block.level < 1 ||
-        block.level > 6
+        typeof data.level !== "number" ||
+        !Number.isInteger(data.level) ||
+        data.level < 1 ||
+        data.level > 6
       ) {
         throw new Error(`${prefix}: level باید عددی بین ۱ تا ۶ باشد.`);
       }
@@ -268,7 +274,7 @@ function validateApiBlock(block: RawBlock, index: number): void {
       break;
 
     case "image":
-      if (!isPositiveInteger(block.media_id)) {
+      if (!isPositiveInteger(data.media_id)) {
         throw new Error(
           `${prefix}: media_id باید شناسه رسانه معتبر و مثبت باشد.`
         );
@@ -277,9 +283,10 @@ function validateApiBlock(block: RawBlock, index: number): void {
 
     case "gallery":
       requireArray("media_ids");
+
       if (
-        !(block.media_ids as unknown[]).every(isPositiveInteger) ||
-        (block.media_ids as unknown[]).length === 0
+        !(data.media_ids as unknown[]).every(isPositiveInteger) ||
+        (data.media_ids as unknown[]).length === 0
       ) {
         throw new Error(
           `${prefix}: media_ids باید شامل حداقل یک شناسه رسانه معتبر باشد.`
@@ -294,11 +301,12 @@ function validateApiBlock(block: RawBlock, index: number): void {
     case "table":
       requireArray("headers");
       requireArray("rows");
+
       if (
-        !(block.headers as unknown[]).every(
+        !(data.headers as unknown[]).every(
           (item) => typeof item === "string"
         ) ||
-        !(block.rows as unknown[]).every(
+        !(data.rows as unknown[]).every(
           (row) =>
             Array.isArray(row) &&
             row.every((cell) => typeof cell === "string")
@@ -316,8 +324,8 @@ function validateApiBlock(block: RawBlock, index: number): void {
 
     case "divider":
       if (
-        block.style !== undefined &&
-        !["solid", "dashed", "dots"].includes(String(block.style))
+        data.style !== undefined &&
+        !["solid", "dashed", "dots"].includes(String(data.style))
       ) {
         throw new Error(`${prefix}: style معتبر نیست.`);
       }
@@ -325,9 +333,11 @@ function validateApiBlock(block: RawBlock, index: number): void {
 
     case "video":
       if (
-        !isPositiveInteger(block.media_id) &&
-        !(typeof block.external_url === "string" &&
-          block.external_url.trim())
+        !isPositiveInteger(data.media_id) &&
+        !(
+          typeof data.external_url === "string" &&
+          data.external_url.trim()
+        )
       ) {
         throw new Error(
           `${prefix}: باید media_id یا external_url معتبر داشته باشد.`
@@ -346,8 +356,9 @@ function validateApiBlock(block: RawBlock, index: number): void {
 
     case "accordion":
       requireArray("items");
+
       if (
-        !(block.items as unknown[]).every(
+        !(data.items as unknown[]).every(
           (item) =>
             isRecord(item) &&
             typeof item.title === "string" &&
@@ -362,8 +373,9 @@ function validateApiBlock(block: RawBlock, index: number): void {
 
     case "faq":
       requireArray("questions");
+
       if (
-        !(block.questions as unknown[]).every(
+        !(data.questions as unknown[]).every(
           (item) =>
             isRecord(item) &&
             typeof item.q === "string" &&
@@ -379,12 +391,12 @@ function validateApiBlock(block: RawBlock, index: number): void {
     case "location": {
       requireString("title");
 
-      const address = block.address;
-      const coordinates = block.coordinates;
-      const geo = block.geo;
-      const contact = block.contact;
-      const openingHours = block.opening_hours;
-      const map = block.map;
+      const address = data.address;
+      const coordinates = data.coordinates;
+      const geo = data.geo;
+      const contact = data.contact;
+      const openingHours = data.opening_hours;
+      const map = data.map;
 
       if (!isRecord(address)) {
         throw new Error(`${prefix}: address الزامی است.`);
@@ -442,14 +454,16 @@ function validateApiBlock(block: RawBlock, index: number): void {
       ) {
         throw new Error(`${prefix}: map معتبر نیست.`);
       }
+
       break;
     }
 
     case "timeline":
       requireString("title");
       requireArray("events");
+
       if (
-        !(block.events as unknown[]).every(
+        !(data.events as unknown[]).every(
           (event) =>
             isRecord(event) &&
             typeof event.id === "string" &&
@@ -470,8 +484,9 @@ function validateApiBlock(block: RawBlock, index: number): void {
 
     case "related_articles":
       requireArray("article_ids");
+
       if (
-        !(block.article_ids as unknown[]).every(isPositiveInteger)
+        !(data.article_ids as unknown[]).every(isPositiveInteger)
       ) {
         throw new Error(
           `${prefix}: article_ids باید شامل شناسه‌های عددی مثبت باشد.`
@@ -485,6 +500,8 @@ function validateApiBlock(block: RawBlock, index: number): void {
       );
   }
 }
+
+
 
 /* ==========================================================================
    STATUS MAPPING
@@ -581,6 +598,7 @@ export function mapCategoryToUi(
    BLOCKS: API -> UI
    ========================================================================== */
 
+
 export function mapBlocksToUi(
   blocks?: Record<string, unknown>[],
   contentBlocks?: Record<string, unknown>[],
@@ -640,7 +658,34 @@ export function mapBlocksToUi(
   return sourceBlocks
     .filter(isRecord)
     .map((source, index): BlogContentBlock => {
-      const block = normalizeBlockBase(source, index);
+      /**
+       * New API format:
+       * {
+       *   id,
+       *   version,
+       *   order,
+       *   type,
+       *   data: { ... }
+       * }
+       *
+       * Legacy flattened blocks are also supported.
+       */
+      const payload = isRecord(source.data)
+        ? source.data
+        : {};
+
+      const block = normalizeBlockBase(
+        {
+          ...source,
+          ...payload,
+          id: source.id,
+          version: source.version,
+          order: source.order,
+          type: source.type ?? source.block_type,
+        },
+        index
+      );
+
       const type =
         typeof block.type === "string"
           ? block.type
@@ -648,10 +693,7 @@ export function mapBlocksToUi(
             ? block.block_type
             : "";
 
-      if (
-        type === "header" ||
-        /^h[1-6]$/.test(type)
-      ) {
+      if (type === "header" || /^h[1-6]$/.test(type)) {
         const levelFromType = /^h[1-6]$/.test(type)
           ? Number(type.slice(1))
           : 2;
@@ -731,14 +773,18 @@ export function mapBlocksToUi(
 
       /**
        * Unknown block:
-       * Preserve the entire original payload instead of dropping it.
+       * Preserve the original envelope, including its data.
        */
       return {
-        id: String(block.id),
+        id: String(source.id ?? createBlockId()),
         version:
-          typeof block.version === "number" ? block.version : 1,
+          typeof source.version === "number"
+            ? source.version
+            : 1,
         order:
-          typeof block.order === "number" ? block.order : index,
+          typeof source.order === "number"
+            ? source.order
+            : index,
         type: "unsupported",
         originalType: type || "unknown",
         raw: { ...source },
@@ -764,24 +810,56 @@ export function mapBlocksToApi(blocks?: BlogContentBlock[]): {
   const contentBlocks: ArticleContentBlockDto[] = [];
   const contentPieces: string[] = [];
 
+  /**
+   * UI model is flattened.
+   * API model stores block-specific fields inside data.
+   */
   const append = (raw: RawBlock) => {
-    const normalized = {
+    const normalized: RawBlock = {
       ...raw,
       id:
         typeof raw.id === "string" && raw.id.trim()
           ? raw.id
           : createBlockId(),
       version:
-        typeof raw.version === "number" && raw.version > 0
+        typeof raw.version === "number" &&
+        Number.isInteger(raw.version) &&
+        raw.version > 0
           ? raw.version
           : 1,
       order: contentBlocks.length,
     };
 
-    validateApiBlock(normalized, contentBlocks.length);
+    const {
+      id,
+      version,
+      order,
+      type,
+      data: existingData,
+      ...rest
+    } = normalized;
+
+    /**
+     * Support both flattened UI objects and already enveloped blocks.
+     * Existing data is merged first, then flattened fields override it.
+     */
+    const payload: RawBlock = {
+      ...(isRecord(existingData) ? existingData : {}),
+      ...rest,
+    };
+
+    const envelope: RawBlock = {
+      id,
+      version,
+      order,
+      type,
+      data: payload,
+    };
+
+    validateApiBlock(envelope, contentBlocks.length);
 
     contentBlocks.push(
-      normalized as unknown as ArticleContentBlockDto
+      envelope as unknown as ArticleContentBlockDto
     );
   };
 
@@ -792,39 +870,45 @@ export function mapBlocksToApi(blocks?: BlogContentBlock[]): {
 
     if (block.type === "unsupported") {
       /**
-       * Unknown blocks are retained, not silently discarded.
-       * Their original payload is sent back unchanged except for
-       * normalized id/version/order.
+       * Keep unknown blocks intact.
+       * The raw value may already be an API envelope.
        */
       const raw = { ...block.raw };
 
-      raw.id =
-        typeof block.id === "string" && block.id.trim()
-          ? block.id
-          : typeof raw.id === "string"
-            ? raw.id
-            : createBlockId();
+      const rawData = isRecord(raw.data)
+        ? raw.data
+        : {};
 
-      raw.version =
-        typeof block.version === "number"
-          ? block.version
-          : typeof raw.version === "number"
-            ? raw.version
-            : 1;
+      const originalType =
+        block.originalType ||
+        raw.type;
 
-      raw.type = block.originalType;
-      raw.order = contentBlocks.length;
-
-      if (!SUPPORTED_BLOCK_TYPES.has(String(raw.type))) {
+      if (!SUPPORTED_BLOCK_TYPES.has(String(originalType))) {
         throw new Error(
-          `نوع بلوک «${String(raw.type)}» در قرارداد فعلی بک‌اند تعریف نشده است. برای جلوگیری از ارسال داده نامعتبر، ذخیره مقاله متوقف شد.`
+          `نوع بلوک «${String(originalType)}» در قرارداد فعلی بک‌اند تعریف نشده است. برای جلوگیری از ارسال داده نامعتبر، ذخیره مقاله متوقف شد.`
         );
       }
 
-      validateApiBlock(raw, contentBlocks.length);
-      contentBlocks.push(
-        raw as unknown as ArticleContentBlockDto
-      );
+      append({
+        ...rawData,
+        ...raw,
+        ...block,
+        id:
+          typeof block.id === "string" && block.id.trim()
+            ? block.id
+            : typeof raw.id === "string"
+              ? raw.id
+              : createBlockId(),
+        version:
+          typeof block.version === "number"
+            ? block.version
+            : typeof raw.version === "number"
+              ? raw.version
+              : 1,
+        type: String(originalType),
+        data: rawData,
+      });
+
       continue;
     }
 
@@ -860,34 +944,31 @@ export function mapBlocksToApi(blocks?: BlogContentBlock[]): {
       ...(block as unknown as RawBlock),
     };
 
-    raw.id =
-      typeof block.id === "string" && block.id.trim()
-        ? block.id
-        : createBlockId();
-
-    raw.version =
-      typeof block.version === "number" && block.version > 0
-        ? block.version
-        : 1;
-
-    raw.order = contentBlocks.length;
-
     /**
-     * Paragraph compatibility:
-     * Old UI content may still contain text instead of content nodes.
+     * Remove compatibility-only fields from the API payload.
      */
-    if (
-      block.type === "paragraph" &&
-      !Array.isArray(raw.content)
-    ) {
-      const text = asString(raw.text);
+    delete raw.text;
 
-      raw.content = text
-        ? [{ type: "text", value: text }]
-        : [];
+    if (block.type === "paragraph") {
+      const paragraph = block as Extract<
+        BlogContentBlock,
+        { type: "paragraph" }
+      >;
+
+      const content = Array.isArray(paragraph.content)
+        ? paragraph.content
+        : [
+            {
+              type: "text",
+              value: paragraph.text || "",
+            },
+          ];
+
+      raw.content = content;
     }
 
     append(raw);
+
     contentPieces.push(blockToPlainText(block));
   }
 
@@ -896,6 +977,7 @@ export function mapBlocksToApi(blocks?: BlogContentBlock[]): {
     content_blocks: contentBlocks,
   };
 }
+
 
 /* ==========================================================================
    ARTICLE SUMMARY / DETAIL

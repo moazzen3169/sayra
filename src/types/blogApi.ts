@@ -217,14 +217,15 @@ export interface ArticleMediaDto {
 }
 
 /* ==========================================================================
-   CONTENT BLOCK DTOs
-   ========================================================================== */
+  CONTENT BLOCK DTOs
+  ========================================================================== */
 
 export interface ArticleContentBlockBaseDto {
   id: string;
   version: number;
   order: number;
   type: string;
+  data: Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -257,26 +258,19 @@ export interface ArticleRichTextNodeDto {
   [key: string]: unknown;
 }
 
-/* Heading */
+/* Payload definitions */
 
-export interface ArticleHeadingBlockDto extends ArticleContentBlockBaseDto {
-  type: "heading";
+export interface ArticleHeadingDataDto {
   level: number;
   text: string;
   anchor_id?: string;
 }
 
-/* Paragraph */
-
-export interface ArticleParagraphBlockDto extends ArticleContentBlockBaseDto {
-  type: "paragraph";
+export interface ArticleParagraphDataDto {
   content: ArticleRichTextNodeDto[];
 }
 
-/* Image */
-
-export interface ArticleImageBlockDto extends ArticleContentBlockBaseDto {
-  type: "image";
+export interface ArticleImageDataDto {
   media_id: number;
   caption?: string;
   alt?: string;
@@ -291,51 +285,33 @@ export interface ArticleImageBlockDto extends ArticleContentBlockBaseDto {
   responsive_behavior?: string | Record<string, unknown>;
 }
 
-/* Gallery */
-
-export interface ArticleGalleryBlockDto extends ArticleContentBlockBaseDto {
-  type: "gallery";
+export interface ArticleGalleryDataDto {
   media_ids: number[];
   layout?: "grid" | "slider";
   aspect_ratio?: string;
 }
 
-/* Quote */
-
-export interface ArticleQuoteBlockDto extends ArticleContentBlockBaseDto {
-  type: "quote";
+export interface ArticleQuoteDataDto {
   text: string;
   citation?: string;
 }
 
-/* Table */
-
-export interface ArticleTableBlockDto extends ArticleContentBlockBaseDto {
-  type: "table";
+export interface ArticleTableDataDto {
   headers: string[];
   rows: string[][];
 }
 
-/* Code */
-
-export interface ArticleCodeBlockDto extends ArticleContentBlockBaseDto {
-  type: "code";
+export interface ArticleCodeDataDto {
   code: string;
   language?: string;
   show_line_numbers?: boolean;
 }
 
-/* Divider */
-
-export interface ArticleDividerBlockDto extends ArticleContentBlockBaseDto {
-  type: "divider";
+export interface ArticleDividerDataDto {
   style?: "solid" | "dashed" | "dots";
 }
 
-/* Video */
-
-export interface ArticleVideoBlockDto extends ArticleContentBlockBaseDto {
-  type: "video";
+export interface ArticleVideoDataDto {
   media_id?: number;
   provider?: "local" | "youtube" | "vimeo";
   external_url?: string;
@@ -343,27 +319,19 @@ export interface ArticleVideoBlockDto extends ArticleContentBlockBaseDto {
   controls?: boolean;
 }
 
-/* Embed */
-
-export interface ArticleEmbedBlockDto extends ArticleContentBlockBaseDto {
-  type: "embed";
+export interface ArticleEmbedDataDto {
   url: string;
   embed_type?: "twitter" | "instagram" | "iframe";
   width?: number;
   height?: number;
 }
 
-/* Button */
-
-export interface ArticleButtonBlockDto extends ArticleContentBlockBaseDto {
-  type: "button";
+export interface ArticleButtonDataDto {
   label: string;
   url: string;
   target?: "_blank" | "_self";
   style_preset?: string;
 }
-
-/* Accordion */
 
 export interface ArticleAccordionItemDto {
   title: string;
@@ -371,12 +339,9 @@ export interface ArticleAccordionItemDto {
   [key: string]: unknown;
 }
 
-export interface ArticleAccordionBlockDto extends ArticleContentBlockBaseDto {
-  type: "accordion";
+export interface ArticleAccordionDataDto {
   items: ArticleAccordionItemDto[];
 }
-
-/* FAQ */
 
 export interface ArticleFaqItemDto {
   q: string;
@@ -384,12 +349,9 @@ export interface ArticleFaqItemDto {
   [key: string]: unknown;
 }
 
-export interface ArticleFaqBlockDto extends ArticleContentBlockBaseDto {
-  type: "faq";
+export interface ArticleFaqDataDto {
   questions: ArticleFaqItemDto[];
 }
-
-/* Location */
 
 export interface ArticleLocationAddressDto {
   country: string;
@@ -424,8 +386,7 @@ export interface ArticleLocationMapDto {
   [key: string]: unknown;
 }
 
-export interface ArticleLocationBlockDto extends ArticleContentBlockBaseDto {
-  type: "location";
+export interface ArticleLocationDataDto {
   title: string;
   address: ArticleLocationAddressDto;
   coordinates: ArticleLocationCoordinatesDto;
@@ -436,8 +397,6 @@ export interface ArticleLocationBlockDto extends ArticleContentBlockBaseDto {
   description?: string;
   media_id?: number;
 }
-
-/* Timeline */
 
 export interface ArticleTimelineDateDto {
   type: "year" | "date" | "range";
@@ -455,44 +414,90 @@ export interface ArticleTimelineEventDto {
   [key: string]: unknown;
 }
 
-export interface ArticleTimelineBlockDto extends ArticleContentBlockBaseDto {
-  type: "timeline";
+export interface ArticleTimelineDataDto {
   title: string;
   events: ArticleTimelineEventDto[];
   orientation?: "vertical" | "horizontal";
 }
 
-/* Related articles */
-
-export interface ArticleRelatedArticlesBlockDto extends ArticleContentBlockBaseDto {
-  type: "related_articles";
+export interface ArticleRelatedArticlesDataDto {
   article_ids: number[];
 }
 
 /**
- * تمام ۱۶ نوع بلوک رسمی API.
+ * هر بلوک API دارای envelope مشترک است:
+ * id, version, order, type, data
+ *
+ * فیلدهای اختصاصی هر نوع بلوک داخل data قرار می‌گیرند.
  */
 export type ArticleContentBlockDto =
-  | ArticleHeadingBlockDto
-  | ArticleParagraphBlockDto
-  | ArticleImageBlockDto
-  | ArticleGalleryBlockDto
-  | ArticleQuoteBlockDto
-  | ArticleTableBlockDto
-  | ArticleCodeBlockDto
-  | ArticleDividerBlockDto
-  | ArticleVideoBlockDto
-  | ArticleEmbedBlockDto
-  | ArticleButtonBlockDto
-  | ArticleAccordionBlockDto
-  | ArticleFaqBlockDto
-  | ArticleLocationBlockDto
-  | ArticleTimelineBlockDto
-  | ArticleRelatedArticlesBlockDto;
+  | (ArticleContentBlockBaseDto & {
+      type: "heading";
+      data: ArticleHeadingDataDto;
+    })
+  | (ArticleContentBlockBaseDto & {
+      type: "paragraph";
+      data: ArticleParagraphDataDto;
+    })
+  | (ArticleContentBlockBaseDto & {
+      type: "image";
+      data: ArticleImageDataDto;
+    })
+  | (ArticleContentBlockBaseDto & {
+      type: "gallery";
+      data: ArticleGalleryDataDto;
+    })
+  | (ArticleContentBlockBaseDto & {
+      type: "quote";
+      data: ArticleQuoteDataDto;
+    })
+  | (ArticleContentBlockBaseDto & {
+      type: "table";
+      data: ArticleTableDataDto;
+    })
+  | (ArticleContentBlockBaseDto & {
+      type: "code";
+      data: ArticleCodeDataDto;
+    })
+  | (ArticleContentBlockBaseDto & {
+      type: "divider";
+      data: ArticleDividerDataDto;
+    })
+  | (ArticleContentBlockBaseDto & {
+      type: "video";
+      data: ArticleVideoDataDto;
+    })
+  | (ArticleContentBlockBaseDto & {
+      type: "embed";
+      data: ArticleEmbedDataDto;
+    })
+  | (ArticleContentBlockBaseDto & {
+      type: "button";
+      data: ArticleButtonDataDto;
+    })
+  | (ArticleContentBlockBaseDto & {
+      type: "accordion";
+      data: ArticleAccordionDataDto;
+    })
+  | (ArticleContentBlockBaseDto & {
+      type: "faq";
+      data: ArticleFaqDataDto;
+    })
+  | (ArticleContentBlockBaseDto & {
+      type: "location";
+      data: ArticleLocationDataDto;
+    })
+  | (ArticleContentBlockBaseDto & {
+      type: "timeline";
+      data: ArticleTimelineDataDto;
+    })
+  | (ArticleContentBlockBaseDto & {
+      type: "related_articles";
+      data: ArticleRelatedArticlesDataDto;
+    });
 
 /**
  * تعریف بلوک‌هایی که از endpoint block-definitions برمی‌گردند.
- * schema در این endpoint پویا است و به همین دلیل unknown باقی می‌ماند.
  */
 export interface BlockDefinitionDto {
   id?: string;

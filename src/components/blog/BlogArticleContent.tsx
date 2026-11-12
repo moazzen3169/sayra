@@ -735,7 +735,7 @@ function BlockRenderer({ block }: { block: UnknownRecord }) {
 
     case "paragraph":
       return (
-        <p className="whitespace-pre-wrap text-sm leading-8 text-[var(--text-white)]/90">
+        <p className="whitespace-pre-wrap text-md leading text-[var(--text-white)]/90">
           <ParagraphContent block={block} />
         </p>
       );
