@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -18,10 +17,7 @@ import type {
   BlogBlockType,
 } from "@/types/blog";
 
-import type {
-  TagDto,
-  AuthorProfileDto,
-} from "@/types/blogApi";
+import type { TagDto, AuthorProfileDto } from "@/types/blogApi";
 
 import { adminService } from "@/services/adminService";
 
@@ -74,7 +70,7 @@ function createBlockId(): string {
 
 function createDefaultBlock(
   type: BlogBlockType,
-  order: number
+  order: number,
 ): BlogContentBlock {
   const base = {
     id: createBlockId(),
@@ -252,16 +248,10 @@ function createDefaultBlock(
 }
 
 function getBlockLabel(type: string): string {
-  return (
-    BLOCK_OPTIONS.find((item) => item.type === type)?.label ||
-    type
-  );
+  return BLOCK_OPTIONS.find((item) => item.type === type)?.label || type;
 }
 
-function getBlockKey(
-  block: BlogContentBlock,
-  index: number
-): string {
+function getBlockKey(block: BlogContentBlock, index: number): string {
   return block.id || `block-index-${index}`;
 }
 
@@ -273,13 +263,11 @@ function serializeBlock(block: BlogContentBlock): string {
   return JSON.stringify(block, null, 2);
 }
 
-
-
 /**
  * حذف بلوک‌های خالی و نرمال‌سازی محتوای مقاله قبل از ارسال به API
  */
 const normalizeContentBlocks = (
-  blocks: BlogContentBlock[]
+  blocks: BlogContentBlock[],
 ): BlogContentBlock[] => {
   return blocks.reduce<BlogContentBlock[]>((result, block) => {
     if (block.type === "paragraph") {
@@ -341,7 +329,6 @@ const normalizeContentBlocks = (
   }, []);
 };
 
-
 const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
   isOpen,
   onClose,
@@ -354,69 +341,56 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<
-    Record<string, string>
-  >({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [title, setTitle] = useState(initialData?.title || "");
   const [slug, setSlug] = useState(initialData?.slug || "");
-  const [category, setCategory] = useState(
-    initialData?.category || "1"
-  );
+  const [category, setCategory] = useState(initialData?.category || "1");
   const [authorName, setAuthorName] = useState(
-    initialData?.authorName || "تحریریه‌ی سایرا"
+    initialData?.authorName || "تحریریه‌ی سایرا",
   );
   const [readingMinutes, setReadingMinutes] = useState(
-    initialData?.readingMinutes || 5
+    initialData?.readingMinutes || 5,
   );
-  const [featured, setFeatured] = useState(
-    Boolean(initialData?.featured)
-  );
-  const [excerpt, setExcerpt] = useState(
-    initialData?.excerpt || ""
-  );
+  const [featured, setFeatured] = useState(Boolean(initialData?.featured));
+  const [excerpt, setExcerpt] = useState(initialData?.excerpt || "");
   const [coverUrl, setCoverUrl] = useState(
-    initialData?.coverUrl || "/img/gamnet-1.webp"
+    initialData?.coverUrl || "/img/gamnet-1.webp",
   );
-  const [coverImageId, setCoverImageId] = useState<
-    string | number | null
-  >(null);
+  const [coverImageId, setCoverImageId] = useState<string | number | null>(
+    null,
+  );
 
   const [status, setStatus] = useState<BlogPostStatus>(
-    initialData?.status || "DRAFT"
+    initialData?.status || "DRAFT",
   );
 
-const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
-  initialData?.content && initialData.content.length > 0
-    ? normalizeContentBlocks(initialData.content)
-    : [{ type: "paragraph", text: "" }]
-);
+  const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
+    initialData?.content && initialData.content.length > 0
+      ? normalizeContentBlocks(initialData.content)
+      : [{ type: "paragraph", text: "" }],
+  );
 
   /**
    * JSON drafts allow editing nested block properties without
    * losing fields that the current UI does not explicitly render.
    */
-  const [blockDrafts, setBlockDrafts] = useState<
-    Record<string, string>
-  >({});
+  const [blockDrafts, setBlockDrafts] = useState<Record<string, string>>({});
 
   const [blockJsonErrors, setBlockJsonErrors] = useState<
     Record<string, string>
   >({});
 
-  const [newBlockType, setNewBlockType] =
-    useState<BlogBlockType>("paragraph");
+  const [newBlockType, setNewBlockType] = useState<BlogBlockType>("paragraph");
 
-  const [selectedTagNames, setSelectedTagNames] = useState<
-    string[]
-  >(initialData?.tags || []);
+  const [selectedTagNames, setSelectedTagNames] = useState<string[]>(
+    initialData?.tags || [],
+  );
 
   const [newTagInput, setNewTagInput] = useState("");
 
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
-  const [mediaUploadError, setMediaUploadError] = useState<
-    string | null
-  >(null);
+  const [mediaUploadError, setMediaUploadError] = useState<string | null>(null);
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
@@ -443,15 +417,11 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
         setTitle(fresh.title || "");
         setSlug(fresh.slug || "");
         setCategory(fresh.category || "1");
-        setAuthorName(
-          fresh.authorName || "تحریریه‌ی سایرا"
-        );
+        setAuthorName(fresh.authorName || "تحریریه‌ی سایرا");
         setReadingMinutes(fresh.readingMinutes || 5);
         setFeatured(Boolean(fresh.featured));
         setExcerpt(fresh.excerpt || "");
-        setCoverUrl(
-          fresh.coverUrl || "/img/gamnet-1.webp"
-        );
+        setCoverUrl(fresh.coverUrl || "/img/gamnet-1.webp");
         setSelectedTagNames(fresh.tags || []);
         setStatus(fresh.status || "DRAFT");
 
@@ -520,10 +490,7 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
      ----------------------------------------------------------------------- */
 
   const handleAddBlock = () => {
-    const block = createDefaultBlock(
-      newBlockType,
-      contentBlocks.length
-    );
+    const block = createDefaultBlock(newBlockType, contentBlocks.length);
 
     setContentBlocks((previous) => [...previous, block]);
   };
@@ -533,7 +500,7 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
     const removedKey = getBlockKey(removed, index);
 
     setContentBlocks((previous) =>
-      previous.filter((_, itemIndex) => itemIndex !== index)
+      previous.filter((_, itemIndex) => itemIndex !== index),
     );
 
     setBlockDrafts((previous) => {
@@ -549,35 +516,22 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
     });
   };
 
-  const handleMoveBlock = (
-    index: number,
-    direction: "up" | "down"
-  ) => {
+  const handleMoveBlock = (index: number, direction: "up" | "down") => {
     setContentBlocks((previous) => {
       const next = [...previous];
-      const targetIndex =
-        direction === "up" ? index - 1 : index + 1;
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
 
-      if (
-        targetIndex < 0 ||
-        targetIndex >= next.length
-      ) {
+      if (targetIndex < 0 || targetIndex >= next.length) {
         return previous;
       }
 
-      [next[index], next[targetIndex]] = [
-        next[targetIndex],
-        next[index],
-      ];
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
 
       return next;
     });
   };
 
-  const handleBlockJsonChange = (
-    key: string,
-    value: string
-  ) => {
+  const handleBlockJsonChange = (key: string, value: string) => {
     setBlockDrafts((previous) => ({
       ...previous,
       [key]: value,
@@ -590,10 +544,7 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
     });
   };
 
-  const handleBlockJsonBlur = (
-    blockIndex: number,
-    key: string
-  ) => {
+  const handleBlockJsonBlur = (blockIndex: number, key: string) => {
     const draft = blockDrafts[key];
 
     if (draft === undefined) return;
@@ -601,14 +552,8 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
     try {
       const parsed: unknown = JSON.parse(draft);
 
-      if (
-        !parsed ||
-        typeof parsed !== "object" ||
-        Array.isArray(parsed)
-      ) {
-        throw new Error(
-          "ساختار بلوک باید یک JSON Object باشد."
-        );
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("ساختار بلوک باید یک JSON Object باشد.");
       }
 
       const parsedBlock = parsed as Record<string, unknown>;
@@ -616,9 +561,7 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
       setContentBlocks((previous) => {
         const next = [...previous];
 
-        if (
-          next[blockIndex]?.type === "unsupported"
-        ) {
+        if (next[blockIndex]?.type === "unsupported") {
           const current = next[blockIndex];
 
           next[blockIndex] = {
@@ -626,8 +569,7 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
             raw: parsedBlock,
           };
         } else {
-          next[blockIndex] =
-            parsedBlock as unknown as BlogContentBlock;
+          next[blockIndex] = parsedBlock as unknown as BlogContentBlock;
         }
 
         return next;
@@ -646,9 +588,7 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
       });
     } catch (err) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "ساختار JSON معتبر نیست.";
+        err instanceof Error ? err.message : "ساختار JSON معتبر نیست.";
 
       setBlockJsonErrors((previous) => ({
         ...previous,
@@ -657,19 +597,20 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
     }
   };
 
-  /**
-   * Parse all unsaved JSON drafts before submit.
-   * This avoids silently sending an older valid block when the user
-   * has an invalid JSON draft visible in the editor.
-   */
   const getContentBlocksForSave = (): BlogContentBlock[] => {
-    if (Object.keys(blockJsonErrors).length > 0) {
-      throw new Error(
-        "ابتدا خطاهای JSON بلوک‌ها را برطرف کنید."
-      );
-    }
-
     return contentBlocks.map((block, index) => {
+      // پاراگراف متن عادی است و نباید JSON.parse شود.
+      if (block.type === "paragraph") {
+        const text = (block.text ?? "").trim();
+
+        return {
+          ...block,
+          text,
+          content: [{ type: "text", value: text }],
+        } as BlogContentBlock;
+      }
+
+      // سایر بلوک‌ها همچنان با JSON پردازش می‌شوند.
       const key = getBlockKey(block, index);
       const draft = blockDrafts[key];
 
@@ -682,18 +623,12 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
       try {
         parsed = JSON.parse(draft);
       } catch {
-        throw new Error(
-          `ساختار JSON بلوک شماره ${index + 1} معتبر نیست.`
-        );
+        throw new Error(`ساختار JSON بلوک شماره ${index + 1} معتبر نیست.`);
       }
 
-      if (
-        !parsed ||
-        typeof parsed !== "object" ||
-        Array.isArray(parsed)
-      ) {
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
         throw new Error(
-          `محتوای بلوک شماره ${index + 1} باید یک JSON Object باشد.`
+          `محتوای بلوک شماره ${index + 1} باید یک JSON Object باشد.`,
         );
       }
 
@@ -709,7 +644,6 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
       return parsedBlock as unknown as BlogContentBlock;
     });
   };
-
   /* -----------------------------------------------------------------------
      TAGS
      ----------------------------------------------------------------------- */
@@ -719,14 +653,11 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
     if (!trimmed) return;
 
     setSelectedTagNames((previous) =>
-      previous.some(
-        (item) => item.toLowerCase() === trimmed.toLowerCase()
-      )
+      previous.some((item) => item.toLowerCase() === trimmed.toLowerCase())
         ? previous.filter(
-            (item) =>
-              item.toLowerCase() !== trimmed.toLowerCase()
+            (item) => item.toLowerCase() !== trimmed.toLowerCase(),
           )
-        : [...previous, trimmed]
+        : [...previous, trimmed],
     );
   };
 
@@ -736,7 +667,7 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
 
     if (
       selectedTagNames.some(
-        (tag) => tag.toLowerCase() === trimmed.toLowerCase()
+        (tag) => tag.toLowerCase() === trimmed.toLowerCase(),
       )
     ) {
       setNewTagInput("");
@@ -745,17 +676,12 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
 
     const existing = allAvailableTags.find(
       (tag) =>
-        tag.name.trim().toLowerCase() ===
-          trimmed.toLowerCase() ||
-        tag.slug.trim().toLowerCase() ===
-          trimmed.toLowerCase()
+        tag.name.trim().toLowerCase() === trimmed.toLowerCase() ||
+        tag.slug.trim().toLowerCase() === trimmed.toLowerCase(),
     );
 
     if (existing) {
-      setSelectedTagNames((previous) => [
-        ...previous,
-        existing.name,
-      ]);
+      setSelectedTagNames((previous) => [...previous, existing.name]);
       setNewTagInput("");
       return;
     }
@@ -768,28 +694,18 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
         .replace(/-+/g, "-")
         .trim();
 
-      const tagSlug =
-        rawSlug || `tag-${Date.now().toString(36)}`;
+      const tagSlug = rawSlug || `tag-${Date.now().toString(36)}`;
 
       const created = await adminService.createTag({
         name: trimmed,
         slug: tagSlug,
       });
 
-      setAllAvailableTags((previous) => [
-        ...previous,
-        created,
-      ]);
+      setAllAvailableTags((previous) => [...previous, created]);
 
-      setSelectedTagNames((previous) => [
-        ...previous,
-        created.name,
-      ]);
+      setSelectedTagNames((previous) => [...previous, created.name]);
     } catch {
-      setSelectedTagNames((previous) => [
-        ...previous,
-        trimmed,
-      ]);
+      setSelectedTagNames((previous) => [...previous, trimmed]);
     }
 
     setNewTagInput("");
@@ -797,7 +713,7 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
 
   const handleRemoveSelectedTag = (tagName: string) => {
     setSelectedTagNames((previous) =>
-      previous.filter((tag) => tag !== tagName)
+      previous.filter((tag) => tag !== tagName),
     );
   };
 
@@ -806,7 +722,7 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
      ----------------------------------------------------------------------- */
 
   const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -814,18 +730,14 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
     setMediaUploadError(null);
 
     if (!file.type.startsWith("image/")) {
-      setMediaUploadError(
-        "فقط فایل‌های تصویری مجاز هستند."
-      );
+      setMediaUploadError("فقط فایل‌های تصویری مجاز هستند.");
       return;
     }
 
     const maxSize = 10 * 1024 * 1024;
 
     if (file.size > maxSize) {
-      setMediaUploadError(
-        "حجم تصویر نمی‌تواند بیشتر از ۱۰ مگابایت باشد."
-      );
+      setMediaUploadError("حجم تصویر نمی‌تواند بیشتر از ۱۰ مگابایت باشد.");
       return;
     }
 
@@ -847,9 +759,7 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
       }
     } catch (err) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "خطا در آپلود تصویر.";
+        err instanceof Error ? err.message : "خطا در آپلود تصویر.";
 
       setMediaUploadError(message);
     } finally {
@@ -865,133 +775,126 @@ const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
      SAVE
      ----------------------------------------------------------------------- */
 
-  
-const handleSave = async (submitStatus: BlogPostStatus) => {
-  if (isSubmitting) return;
+  const handleSave = async (submitStatus: BlogPostStatus) => {
+    if (isSubmitting) return;
 
-  setError(null);
-  setFieldErrors({});
+    setError(null);
+    setFieldErrors({});
 
-  const newFieldErrors: { [key: string]: string } = {};
+    const newFieldErrors: { [key: string]: string } = {};
 
-  // اعتبارسنجی عنوان
-  if (!title.trim()) {
-    newFieldErrors.title = "لطفاً عنوان مقاله را وارد کنید.";
-  }
-
-  // اعتبارسنجی Slug
-  const normalizedSlug = slug.trim();
-
-  if (!normalizedSlug) {
-    newFieldErrors.slug = "لطفاً شناسه (Slug) مقاله را وارد کنید.";
-  } else if (!/^[-a-zA-Z0-9_]+$/.test(normalizedSlug)) {
-    newFieldErrors.slug =
-      "شناسه مقاله فقط می‌تواند شامل حروف انگلیسی، اعداد، خط فاصله (-) و زیرخط (_) باشد.";
-  }
-
-  // اعتبارسنجی خلاصه مقاله
-  if (!excerpt.trim()) {
-    newFieldErrors.excerpt = "لطفاً خلاصه / چکیده مقاله را وارد کنید.";
-  }
-
-  // اعتبارسنجی زمان مطالعه
-  const normalizedReadingMinutes = Math.max(
-    1,
-    Number(readingMinutes) || 5
-  );
-
-  if (Object.keys(newFieldErrors).length > 0) {
-    setFieldErrors(newFieldErrors);
-    setError("لطفاً خطاهای مشخص‌شده در فرم را بررسی نمایید.");
-    return;
-  }
-
-  /**
-   * بسیار مهم:
-   * بلوک‌های خالی قبل از ساخت payload حذف می‌شوند.
-   * در نتیجه پاراگراف خالی به API ارسال نخواهد شد.
-   */
-  const normalizedContentBlocks = normalizeContentBlocks(contentBlocks);
-
-  // به‌روزرسانی محتوای فرم با نسخه پاک‌سازی‌شده
-  setContentBlocks(normalizedContentBlocks);
-
-  setIsSubmitting(true);
-
-  try {
-    const payload: AdminBlogPostInput = {
-      title: title.trim(),
-      slug: normalizedSlug,
-      category,
-      authorName: authorName.trim() || "تحریریه‌ی سایرا",
-      readingMinutes: normalizedReadingMinutes,
-      featured,
-      excerpt: excerpt.trim(),
-      coverUrl: coverUrl.trim() || "/img/gamnet-1.webp",
-      coverImageId: coverImageId != null ? coverImageId : undefined,
-      tags: selectedTagNames
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0),
-      status: submitStatus,
-
-      // فقط بلوک‌های معتبر و غیرخالی ارسال می‌شوند
-      content: normalizedContentBlocks,
-    };
-
-    let result: BlogPostDetail;
-
-    if (initialData) {
-      result = await adminService.updateBlogPost(
-        initialData.slug || initialData.id,
-        payload
-      );
-    } else {
-      result = await adminService.createBlogPost(payload);
+    // اعتبارسنجی عنوان
+    if (!title.trim()) {
+      newFieldErrors.title = "لطفاً عنوان مقاله را وارد کنید.";
     }
 
-    onSuccess(result);
-    onClose();
-  } catch (err: unknown) {
-    const e = err as Error & {
-      details?: Record<string, unknown>;
-      status?: number;
-    };
+    // اعتبارسنجی Slug
+    const normalizedSlug = slug.trim();
 
-    if (e.status === 403) {
-      setError(
-        "شما دسترسی لازم برای ویرایش یا ایجاد مقاله را ندارید (403 Forbidden)."
-      );
-    } else if (e.status === 401) {
-      setError(
-        "نشست کاربری شما منقضی شده است. لطفاً مجدداً وارد شوید."
-      );
-    } else if (e.details && typeof e.details === "object") {
-      const detailsObj = e.details as Record<
-        string,
-        string[] | string | unknown
-      >;
+    if (!normalizedSlug) {
+      newFieldErrors.slug = "لطفاً شناسه (Slug) مقاله را وارد کنید.";
+    } else if (!/^[-a-zA-Z0-9_]+$/.test(normalizedSlug)) {
+      newFieldErrors.slug =
+        "شناسه مقاله فقط می‌تواند شامل حروف انگلیسی، اعداد، خط فاصله (-) و زیرخط (_) باشد.";
+    }
 
-      const mappedErrors: { [key: string]: string } = {};
+    // اعتبارسنجی خلاصه مقاله
+    if (!excerpt.trim()) {
+      newFieldErrors.excerpt = "لطفاً خلاصه / چکیده مقاله را وارد کنید.";
+    }
 
-      for (const [key, value] of Object.entries(detailsObj)) {
-        mappedErrors[key] = Array.isArray(value)
-          ? value.join(" ")
-          : String(value);
+    // اعتبارسنجی زمان مطالعه
+    const normalizedReadingMinutes = Math.max(1, Number(readingMinutes) || 5);
+
+    if (Object.keys(newFieldErrors).length > 0) {
+      setFieldErrors(newFieldErrors);
+      setError("لطفاً خطاهای مشخص‌شده در فرم را بررسی نمایید.");
+      return;
+    }
+
+    /**
+     * بسیار مهم:
+     * بلوک‌های خالی قبل از ساخت payload حذف می‌شوند.
+     * در نتیجه پاراگراف خالی به API ارسال نخواهد شد.
+     */
+    const normalizedContentBlocks = normalizeContentBlocks(contentBlocks);
+
+    // به‌روزرسانی محتوای فرم با نسخه پاک‌سازی‌شده
+    setContentBlocks(normalizedContentBlocks);
+
+    setIsSubmitting(true);
+
+    try {
+      const payload: AdminBlogPostInput = {
+        title: title.trim(),
+        slug: normalizedSlug,
+        category,
+        authorName: authorName.trim() || "تحریریه‌ی سایرا",
+        readingMinutes: normalizedReadingMinutes,
+        featured,
+        excerpt: excerpt.trim(),
+        coverUrl: coverUrl.trim() || "/img/gamnet-1.webp",
+        coverImageId: coverImageId != null ? coverImageId : undefined,
+        tags: selectedTagNames
+          .map((tag) => tag.trim())
+          .filter((tag) => tag.length > 0),
+        status: submitStatus,
+
+        // فقط بلوک‌های معتبر و غیرخالی ارسال می‌شوند
+        content: normalizedContentBlocks,
+      };
+
+      let result: BlogPostDetail;
+
+      if (initialData) {
+        result = await adminService.updateBlogPost(
+          initialData.slug || initialData.id,
+          payload,
+        );
+      } else {
+        result = await adminService.createBlogPost(payload);
       }
 
-      setFieldErrors(mappedErrors);
-      setError(e.message || "خطای اعتبارسنجی فیلدهای ارسالی.");
-    } else {
-      setError(
-        e.message ||
-          "خطا در برقراری ارتباط با سرور. اطلاعات فرم حفظ شده است."
-      );
-    }
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      onSuccess(result);
+      onClose();
+    } catch (err: unknown) {
+      const e = err as Error & {
+        details?: Record<string, unknown>;
+        status?: number;
+      };
 
+      if (e.status === 403) {
+        setError(
+          "شما دسترسی لازم برای ویرایش یا ایجاد مقاله را ندارید (403 Forbidden).",
+        );
+      } else if (e.status === 401) {
+        setError("نشست کاربری شما منقضی شده است. لطفاً مجدداً وارد شوید.");
+      } else if (e.details && typeof e.details === "object") {
+        const detailsObj = e.details as Record<
+          string,
+          string[] | string | unknown
+        >;
+
+        const mappedErrors: { [key: string]: string } = {};
+
+        for (const [key, value] of Object.entries(detailsObj)) {
+          mappedErrors[key] = Array.isArray(value)
+            ? value.join(" ")
+            : String(value);
+        }
+
+        setFieldErrors(mappedErrors);
+        setError(e.message || "خطای اعتبارسنجی فیلدهای ارسالی.");
+      } else {
+        setError(
+          e.message ||
+            "خطا در برقراری ارتباط با سرور. اطلاعات فرم حفظ شده است.",
+        );
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   /* -----------------------------------------------------------------------
      PREVIEW
@@ -1003,18 +906,17 @@ const handleSave = async (submitStatus: BlogPostStatus) => {
     slug: slug || "preview-slug",
     category,
     categoryLabel:
-      categories.find((item) => item.id === category)?.label ||
-      "عمومی",
+      categories.find((item) => item.id === category)?.label || "عمومی",
     authorName: authorName || "تحریریه‌ی سایرا",
     readingMinutes: Number(readingMinutes) || 5,
-    publishedAt:
-      initialData?.publishedAt || new Date().toISOString(),
+    publishedAt: initialData?.publishedAt || new Date().toISOString(),
     excerpt: excerpt || "خلاصه مقاله برای پیش‌نمایش",
     coverUrl: coverUrl || "/img/gamnet-1.webp",
     tags: selectedTagNames,
     featured,
     status,
-content: contentBlocks,  };
+    content: contentBlocks,
+  };
 
   /* -----------------------------------------------------------------------
      RENDER
@@ -1025,11 +927,7 @@ content: contentBlocks,  };
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        title={
-          initialData
-            ? "ویرایش مقاله وبلاگ"
-            : "ایجاد مقاله جدید"
-        }
+        title={initialData ? "ویرایش مقاله وبلاگ" : "ایجاد مقاله جدید"}
         className="max-w-[900px] max-h-[90vh] overflow-y-auto"
       >
         <div className="flex flex-col gap-6 py-2">
@@ -1055,9 +953,7 @@ content: contentBlocks,  };
 
                 <select
                   value={category}
-                  onChange={(event) =>
-                    setCategory(event.target.value)
-                  }
+                  onChange={(event) => setCategory(event.target.value)}
                   className="w-full h-11 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)]"
                 >
                   {categories.map((item) => (
@@ -1086,9 +982,7 @@ content: contentBlocks,  };
                 {authors.length > 0 ? (
                   <select
                     value={authorName}
-                    onChange={(event) =>
-                      setAuthorName(event.target.value)
-                    }
+                    onChange={(event) => setAuthorName(event.target.value)}
                     className="w-full h-11 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none"
                   >
                     {authors.map((author) => (
@@ -1102,8 +996,7 @@ content: contentBlocks,  };
                     ))}
 
                     {!authors.some(
-                      (author) =>
-                        author.display_name === authorName
+                      (author) => author.display_name === authorName,
                     ) && (
                       <option
                         value={authorName}
@@ -1116,9 +1009,7 @@ content: contentBlocks,  };
                 ) : (
                   <Input
                     value={authorName}
-                    onChange={(event) =>
-                      setAuthorName(event.target.value)
-                    }
+                    onChange={(event) => setAuthorName(event.target.value)}
                     placeholder="نام نویسنده"
                   />
                 )}
@@ -1135,7 +1026,7 @@ content: contentBlocks,  };
                   value={readingMinutes}
                   onChange={(event) =>
                     setReadingMinutes(
-                      Math.max(1, Number(event.target.value) || 1)
+                      Math.max(1, Number(event.target.value) || 1),
                     )
                   }
                 />
@@ -1145,9 +1036,7 @@ content: contentBlocks,  };
                 <input
                   type="checkbox"
                   checked={featured}
-                  onChange={(event) =>
-                    setFeatured(event.target.checked)
-                  }
+                  onChange={(event) => setFeatured(event.target.checked)}
                   className="w-4 h-4 accent-[var(--primary)]"
                 />
                 مقاله ویژه
@@ -1169,9 +1058,7 @@ content: contentBlocks,  };
 
               <Input
                 value={title}
-                onChange={(event) =>
-                  setTitle(event.target.value)
-                }
+                onChange={(event) => setTitle(event.target.value)}
                 placeholder="عنوان کامل مقاله"
                 error={fieldErrors.title}
               />
@@ -1200,9 +1087,7 @@ content: contentBlocks,  };
 
               <Input
                 value={slug}
-                onChange={(event) =>
-                  setSlug(event.target.value)
-                }
+                onChange={(event) => setSlug(event.target.value)}
                 placeholder="article-slug"
                 error={fieldErrors.slug}
               />
@@ -1229,21 +1114,17 @@ content: contentBlocks,  };
             </div>
 
             <div className="text-xs leading-6 text-[var(--text-muted)]">
-              ساختار هر بلوک مطابق قرارداد API است. برای ویرایش
-              فیلدهای اختصاصی، JSON همان بلوک را تغییر بده.
-              فیلدهای id، version و type را حفظ کن.
+              ساختار هر بلوک مطابق قرارداد API است. برای ویرایش فیلدهای اختصاصی،
+              JSON همان بلوک را تغییر بده. فیلدهای id، version و type را حفظ کن.
             </div>
 
             {contentBlocks.map((block, index) => {
               const key = getBlockKey(block, index);
 
-              const draft =
-                blockDrafts[key] ?? serializeBlock(block);
+              const draft = blockDrafts[key] ?? serializeBlock(block);
 
               const blockType =
-                block.type === "unsupported"
-                  ? block.originalType
-                  : block.type;
+                block.type === "unsupported" ? block.originalType : block.type;
 
               return (
                 <div
@@ -1269,28 +1150,18 @@ content: contentBlocks,  };
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
-                        onClick={() =>
-                          handleMoveBlock(index, "up")
-                        }
+                        onClick={() => handleMoveBlock(index, "up")}
                         disabled={index === 0}
                         className="p-1 text-[var(--text-subtle)] disabled:opacity-30"
                         title="انتقال به بالا"
                       >
-                        <Icon
-                          name="chevron"
-                          size={16}
-                          className="rotate-180"
-                        />
+                        <Icon name="chevron" size={16} className="rotate-180" />
                       </button>
 
                       <button
                         type="button"
-                        onClick={() =>
-                          handleMoveBlock(index, "down")
-                        }
-                        disabled={
-                          index === contentBlocks.length - 1
-                        }
+                        onClick={() => handleMoveBlock(index, "down")}
+                        disabled={index === contentBlocks.length - 1}
                         className="p-1 text-[var(--text-subtle)] disabled:opacity-30"
                         title="انتقال به پایین"
                       >
@@ -1299,9 +1170,7 @@ content: contentBlocks,  };
 
                       <button
                         type="button"
-                        onClick={() =>
-                          handleRemoveBlock(index)
-                        }
+                        onClick={() => handleRemoveBlock(index)}
                         className="p-1 text-[var(--accent-red)]"
                         title="حذف بلوک"
                       >
@@ -1312,31 +1181,62 @@ content: contentBlocks,  };
 
                   {block.type === "unsupported" && (
                     <div className="p-2 rounded bg-[var(--accent-red)]/10 text-[var(--accent-red)] text-xs">
-                      این بلوک در مدل فعلی شناخته‌شده نیست.
-                      اطلاعات اصلی آن حفظ شده است؛ نوع آن را بدون
-                      بررسی قرارداد تغییر نده.
+                      این بلوک در مدل فعلی شناخته‌شده نیست. اطلاعات اصلی آن حفظ
+                      شده است؛ نوع آن را بدون بررسی قرارداد تغییر نده.
                     </div>
                   )}
 
-                  <textarea
-                    value={draft}
-                    onChange={(event) =>
-                      handleBlockJsonChange(
-                        key,
-                        event.target.value
-                      )
-                    }
-                    onBlur={() =>
-                      handleBlockJsonBlur(index, key)
-                    }
-                    spellCheck={false}
-                    rows={Math.min(
-                      24,
-                      Math.max(7, draft.split("\n").length + 1)
-                    )}
-                    className="w-full p-3 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] resize-y leading-6 font-mono"
-                    dir="ltr"
-                  />
+                  {block.type === "paragraph" ? (
+                    <textarea
+                      value={block.text ?? ""}
+                      onChange={(event) => {
+                        const value = event.target.value;
+
+                        setContentBlocks((previous) =>
+                          previous.map((item, itemIndex) =>
+                            itemIndex === index && item.type === "paragraph"
+                              ? ({
+                                  ...item,
+                                  text: value,
+                                  content: [{ type: "text", value }],
+                                } as BlogContentBlock)
+                              : item,
+                          ),
+                        );
+
+                        setBlockDrafts((previous) => {
+                          const next = { ...previous };
+                          delete next[key];
+                          return next;
+                        });
+
+                        setBlockJsonErrors((previous) => {
+                          const next = { ...previous };
+                          delete next[key];
+                          return next;
+                        });
+                      }}
+                      rows={6}
+                      placeholder="متن پاراگراف را اینجا بنویسید..."
+                      className="w-full p-3 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] text-sm text-[var(--text-white)] outline-none focus:border-[var(--primary)] resize-y leading-7"
+                      dir="auto"
+                    />
+                  ) : (
+                    <textarea
+                      value={draft}
+                      onChange={(event) =>
+                        handleBlockJsonChange(key, event.target.value)
+                      }
+                      onBlur={() => handleBlockJsonBlur(index, key)}
+                      spellCheck={false}
+                      rows={Math.min(
+                        24,
+                        Math.max(7, draft.split("\n").length + 1),
+                      )}
+                      className="w-full p-3 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] resize-y leading-6 font-mono"
+                      dir="ltr"
+                    />
+                  )}
 
                   {blockJsonErrors[key] && (
                     <p className="text-xs text-[var(--accent-red)]">
@@ -1353,9 +1253,7 @@ content: contentBlocks,  };
               <select
                 value={newBlockType}
                 onChange={(event) =>
-                  setNewBlockType(
-                    event.target.value as BlogBlockType
-                  )
+                  setNewBlockType(event.target.value as BlogBlockType)
                 }
                 className="flex-1 min-w-0 h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)]"
               >
@@ -1395,9 +1293,7 @@ content: contentBlocks,  };
 
               <textarea
                 value={excerpt}
-                onChange={(event) =>
-                  setExcerpt(event.target.value)
-                }
+                onChange={(event) => setExcerpt(event.target.value)}
                 rows={3}
                 placeholder="خلاصه مقاله برای کارت‌ها و نتایج جستجو"
                 className="w-full p-3 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] resize-y leading-relaxed"
@@ -1419,9 +1315,7 @@ content: contentBlocks,  };
                   {tag}
                   <button
                     type="button"
-                    onClick={() =>
-                      handleRemoveSelectedTag(tag)
-                    }
+                    onClick={() => handleRemoveSelectedTag(tag)}
                     title="حذف تگ"
                   >
                     <Icon name="close" size={12} />
@@ -1440,9 +1334,7 @@ content: contentBlocks,  };
               <div className="flex-1">
                 <Input
                   value={newTagInput}
-                  onChange={(event) =>
-                    setNewTagInput(event.target.value)
-                  }
+                  onChange={(event) => setNewTagInput(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
@@ -1468,18 +1360,14 @@ content: contentBlocks,  };
               <div className="flex flex-wrap gap-1.5">
                 {allAvailableTags.map((tag) => {
                   const selected = selectedTagNames.some(
-                    (name) =>
-                      name.toLowerCase() ===
-                      tag.name.toLowerCase()
+                    (name) => name.toLowerCase() === tag.name.toLowerCase(),
                   );
 
                   return (
                     <button
                       key={tag.id}
                       type="button"
-                      onClick={() =>
-                        handleToggleTag(tag.name)
-                      }
+                      onClick={() => handleToggleTag(tag.name)}
                       className={`px-2 py-1 rounded-lg border text-xs ${
                         selected
                           ? "bg-[var(--primary)] text-on-primary border-[var(--primary)]"
@@ -1530,15 +1418,11 @@ content: contentBlocks,  };
                   type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={() =>
-                    fileInputRef.current?.click()
-                  }
+                  onClick={() => fileInputRef.current?.click()}
                   disabled={isUploadingMedia}
                 >
                   <Icon name="upload" size={16} />
-                  {isUploadingMedia
-                    ? "در حال آپلود..."
-                    : "آپلود تصویر"}
+                  {isUploadingMedia ? "در حال آپلود..." : "آپلود تصویر"}
                 </Button>
 
                 <label className="text-xs text-[var(--text-muted)]">
@@ -1641,9 +1525,7 @@ content: contentBlocks,  };
                 isLoading={isSubmitting}
                 disabled={isUploadingMedia}
               >
-                {initialData
-                  ? "ذخیره تغییرات"
-                  : "ذخیره مقاله"}
+                {initialData ? "ذخیره تغییرات" : "ذخیره مقاله"}
               </Button>
             </div>
           </div>
@@ -1659,18 +1541,12 @@ content: contentBlocks,  };
   );
 };
 
-export const BlogPostFormModal: React.FC<
-  BlogPostFormModalProps
-> = (props) => {
+export const BlogPostFormModal: React.FC<BlogPostFormModalProps> = (props) => {
   if (!props.isOpen) return null;
 
   return (
     <BlogPostFormContent
-      key={
-        props.initialData
-          ? props.initialData.id
-          : "new-blog-post"
-      }
+      key={props.initialData ? props.initialData.id : "new-blog-post"}
       {...props}
     />
   );

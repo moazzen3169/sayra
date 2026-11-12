@@ -25,7 +25,7 @@ import type {
   ArticleCreateUpdateRequestDto,
   PatchedArticleCreateUpdateRequestDto,
 } from "@/types/blogApi";
-
+import { BLOG_API_BASE_URL } from "@/lib/api/config";
 /* ==========================================================================
    HELPERS
    ========================================================================== */
@@ -900,15 +900,31 @@ export function mapBlocksToApi(blocks?: BlogContentBlock[]): {
 /* ==========================================================================
    ARTICLE SUMMARY / DETAIL
    ========================================================================== */
+function normalizeBlogCoverUrl(
+  media?: { url?: string; is_deleted?: boolean } | null
+): string {
+  if (
+    !media ||
+    media.is_deleted ||
+    typeof media.url !== "string" ||
+    !media.url.trim()
+  ) {
+    return "";
+  }
+
+  try {
+    return new URL(media.url.trim(), BLOG_API_BASE_URL).toString();
+  } catch {
+    return "";
+  }
+}
+
+
 
 export function mapArticleListToSummary(
   dto: ArticleListDto
 ): BlogPostSummary {
-  const coverUrl =
-    dto.cover_image &&
-    typeof dto.cover_image.url === "string"
-      ? dto.cover_image.url
-      : "";
+const coverUrl = normalizeBlogCoverUrl(dto.cover_image);
 
   const categoryName =
     typeof dto.category === "string"
