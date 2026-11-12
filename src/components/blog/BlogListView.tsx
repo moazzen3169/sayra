@@ -195,7 +195,7 @@ export const BlogListView: React.FC = () => {
               onRetry={() => setReload((v) => v + 1)}
             />
           ) : loading ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {Array.from({ length: PAGE_SIZE }).map((_, i) => (
                 <BlogPostCardSkeleton key={i} />
               ))}
@@ -213,7 +213,7 @@ export const BlogListView: React.FC = () => {
             />
           ) : (
             current && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {current.items.map((post) => (
                   <BlogPostCard key={post.id} post={post} />
                 ))}

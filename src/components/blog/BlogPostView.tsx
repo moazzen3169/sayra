@@ -278,7 +278,7 @@ useEffect(() => {
         {post && relatedItems.length > 0 && (
           <section className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-8">
             <SectionTitle title="مقاله‌های مرتبط" />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
               {relatedItems.map((item) => (
                 <BlogPostCard key={item.id} post={item} />
               ))}

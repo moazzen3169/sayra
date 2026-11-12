@@ -249,7 +249,7 @@ export default function HomePage() {
               <span className="text-xs text-[var(--text-muted)]">برترین کیفیت و امکانات</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
               {featuredCenters.map((item) => (
                 <DiscountedGamecenterCard key={item.id} center={item} />
               ))}
