@@ -32,7 +32,12 @@ export class ApiError extends Error {
   code: string;
   details?: unknown;
 
-  constructor(status: number, code: string, message: string, details?: unknown) {
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    details?: unknown,
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
@@ -43,7 +48,9 @@ export class ApiError extends Error {
 }
 
 export const isAbortError = (e: unknown): boolean =>
-  (typeof DOMException !== "undefined" && e instanceof DOMException && e.name === "AbortError") ||
+  (typeof DOMException !== "undefined" &&
+    e instanceof DOMException &&
+    e.name === "AbortError") ||
   (e instanceof Error && e.name === "AbortError");
 
 export type QueryValue = string | number | boolean | null | undefined;
@@ -54,10 +61,11 @@ export interface RequestOptions {
   body?: unknown;
   headers?: Record<string, string>;
   signal?: AbortSignal;
-  /** Whether this request should attempt token refresh on 401 */
   retryOnAuth?: boolean;
-  /** Custom Base URL override (defaults to API_BASE_URL) */
   baseUrl?: string;
+
+  // کنترل ارسال JWT
+  skipAuth?: boolean;
 }
 
 /**
@@ -85,7 +93,11 @@ export function buildQueryString(query?: Query): string {
 /**
  * Build complete request URL based on API_BASE_URL or custom baseUrl.
  */
-export function buildUrl(path: string, query?: Query, baseUrl?: string): string {
+export function buildUrl(
+  path: string,
+  query?: Query,
+  baseUrl?: string,
+): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const base = (baseUrl || API_BASE_URL).replace(/\/+$/, "");
   const qs = buildQueryString(query);
@@ -99,14 +111,22 @@ async function executeFetch<T>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
   options: RequestOptions = {},
-  overrideToken?: string | null
-): Promise<{ data: T; meta?: ApiMeta; message?: string; messagesList?: string[]; pagination?: unknown; rawEnvelope?: unknown }> {
+  overrideToken?: string | null,
+): Promise<{
+  data: T;
+  meta?: ApiMeta;
+  message?: string;
+  messagesList?: string[];
+  pagination?: unknown;
+  rawEnvelope?: unknown;
+}> {
   const targetBaseUrl = options.baseUrl || API_BASE_URL;
   if (!targetBaseUrl) {
     throw new ApiError(0, "API_BASE_URL_MISSING", "ارتباط با سرور برقرار نشد.");
   }
 
-  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+  const isFormData =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
 
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -119,9 +139,16 @@ async function executeFetch<T>(
   }
 
   // Token resolution
-  const token = overrideToken !== undefined ? overrideToken : getAccessToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  if (!options.skipAuth) {
+    const token =
+      overrideToken !== undefined ? overrideToken : getAccessToken();
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  } else {
+    // اطمینان از عدم ارسال توکن حتی در صورت وجود Header قبلی
+    delete headers.Authorization;
   }
 
   let res: Response;
@@ -133,8 +160,8 @@ async function executeFetch<T>(
         options.body === undefined
           ? undefined
           : isFormData
-          ? (options.body as FormData)
-          : JSON.stringify(options.body),
+            ? (options.body as FormData)
+            : JSON.stringify(options.body),
       signal: options.signal,
     });
   } catch (e) {
@@ -161,27 +188,41 @@ async function executeFetch<T>(
         throw new ApiError(
           res.status,
           res.status === 404 ? "NOT_FOUND" : "INVALID_RESPONSE",
-          responseText || `سرور پاسخ نامعتبر بازگرداند (${res.status}).`
+          responseText || `سرور پاسخ نامعتبر بازگرداند (${res.status}).`,
         );
       }
       throw new ApiError(
         res.status,
         "INVALID_JSON",
-        "پاسخ دریافت شده از سرور فرمت نامعتبر دارد."
+        "پاسخ دریافت شده از سرور فرمت نامعتبر دارد.",
       );
     }
   }
 
   // Handle HTTP error statuses or envelope success: false
   if (!res.ok || json?.success === false) {
-    const errorCode = json?.error?.code || (res.status === 401 ? "UNAUTHORIZED" : res.status === 403 ? "FORBIDDEN" : res.status === 404 ? "NOT_FOUND" : "HTTP_ERROR");
-    const errorMessage = json?.error?.message || (res.status === 401 ? "نشست کاربری نامعتبر است." : res.status === 403 ? "دسترسی غیرمجاز." : "خطای نامشخص از سمت سرور.");
+    const errorCode =
+      json?.error?.code ||
+      (res.status === 401
+        ? "UNAUTHORIZED"
+        : res.status === 403
+          ? "FORBIDDEN"
+          : res.status === 404
+            ? "NOT_FOUND"
+            : "HTTP_ERROR");
+    const errorMessage =
+      json?.error?.message ||
+      (res.status === 401
+        ? "نشست کاربری نامعتبر است."
+        : res.status === 403
+          ? "دسترسی غیرمجاز."
+          : "خطای نامشخص از سمت سرور.");
 
     throw new ApiError(
       res.status,
       errorCode,
       errorMessage,
-      json?.error?.details
+      json?.error?.details,
     );
   }
 
@@ -199,7 +240,9 @@ async function executeFetch<T>(
 /**
  * Direct call to refresh endpoint conforming to OpenAPI /auth/refresh
  */
-async function performTokenRefresh(refreshToken: string): Promise<{ accessToken: string } | null> {
+async function performTokenRefresh(
+  refreshToken: string,
+): Promise<{ accessToken: string } | null> {
   const base = API_BASE_URL.replace(/\/+$/, "");
   const res = await fetch(`${base}/auth/refresh`, {
     method: "POST",
@@ -227,9 +270,20 @@ async function performTokenRefresh(refreshToken: string): Promise<{ accessToken:
 async function request<T>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
-  options: RequestOptions = {}
-): Promise<{ data: T; meta?: ApiMeta; message?: string; messagesList?: string[]; pagination?: unknown; rawEnvelope?: unknown }> {
-  const shouldRetry = options.retryOnAuth !== false && path !== "/auth/refresh" && path !== "/auth/login";
+  options: RequestOptions = {},
+): Promise<{
+  data: T;
+  meta?: ApiMeta;
+  message?: string;
+  messagesList?: string[];
+  pagination?: unknown;
+  rawEnvelope?: unknown;
+}> {
+  const shouldRetry =
+    !options.skipAuth &&
+    options.retryOnAuth !== false &&
+    path !== "/auth/refresh" &&
+    path !== "/auth/login";
 
   try {
     return await executeFetch<T>(method, path, options);
@@ -243,7 +297,7 @@ async function request<T>(
           method,
           path,
           { ...options, retryOnAuth: false },
-          newToken
+          newToken,
         );
       } else {
         clearTokens();
@@ -254,14 +308,16 @@ async function request<T>(
 }
 
 export const apiClient = {
-  get: <T>(path: string, options?: RequestOptions) => request<T>("GET", path, options),
+  get: <T>(path: string, options?: RequestOptions) =>
+    request<T>("GET", path, options),
   post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>("POST", path, { ...options, body }),
   put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>("PUT", path, { ...options, body }),
   patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>("PATCH", path, { ...options, body }),
-  delete: <T>(path: string, options?: RequestOptions) => request<T>("DELETE", path, options),
+  delete: <T>(path: string, options?: RequestOptions) =>
+    request<T>("DELETE", path, options),
 };
 
 /**
@@ -269,15 +325,39 @@ export const apiClient = {
  * Dedicated API client targeting BLOG_API_BASE_URL for all blog endpoints.
  * Delegates calls through apiClient with { baseUrl: BLOG_API_BASE_URL }.
  */
+/**
+ * Blog Platform API Client
+ * Public requests do not send JWT by default.
+ */
 export const blogApiClient = {
   get: <T>(path: string, options?: RequestOptions) =>
-    apiClient.get<T>(path, { baseUrl: BLOG_API_BASE_URL, ...options }),
+    apiClient.get<T>(path, {
+      ...options,
+      baseUrl: BLOG_API_BASE_URL,
+      skipAuth: true,
+    }),
+
   post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    apiClient.post<T>(path, body, { baseUrl: BLOG_API_BASE_URL, ...options }),
+    apiClient.post<T>(path, body, {
+      ...options,
+      baseUrl: BLOG_API_BASE_URL,
+    }),
+
   put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    apiClient.put<T>(path, body, { baseUrl: BLOG_API_BASE_URL, ...options }),
+    apiClient.put<T>(path, body, {
+      ...options,
+      baseUrl: BLOG_API_BASE_URL,
+    }),
+
   patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    apiClient.patch<T>(path, body, { baseUrl: BLOG_API_BASE_URL, ...options }),
+    apiClient.patch<T>(path, body, {
+      ...options,
+      baseUrl: BLOG_API_BASE_URL,
+    }),
+
   delete: <T>(path: string, options?: RequestOptions) =>
-    apiClient.delete<T>(path, { baseUrl: BLOG_API_BASE_URL, ...options }),
+    apiClient.delete<T>(path, {
+      ...options,
+      baseUrl: BLOG_API_BASE_URL,
+    }),
 };

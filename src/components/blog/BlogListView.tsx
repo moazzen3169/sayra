@@ -155,7 +155,7 @@ export const BlogListView: React.FC = () => {
         onCityChange={setCity}
       />
 
-      <main className="flex flex-1 flex-col gap-6 px-4 pb-4 pt-[var(--header-h)] lg:gap-8 lg:px-8">
+      <main className="flex flex-1 flex-col gap-6 px-4 pb-4 pt-[var(--header-m-h)] lg:gap-8 lg:px-8">
 
 
         {showSlider && <BlogHeroSlider />}

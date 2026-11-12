@@ -36,10 +36,10 @@ interface RelatedState {
 
 type ShareState = "idle" | "copied" | "failed";
 
-const MetaItem: React.FC<{ icon: "user" | "calendar" | "clock"; text: string }> = ({
-  icon,
-  text,
-}) => (
+const MetaItem: React.FC<{
+  icon: "user" | "calendar" | "clock";
+  text: string;
+}> = ({ icon, text }) => (
   <span className="flex items-center gap-1.5">
     <Icon name={icon} size={16} />
     {text}
@@ -66,40 +66,53 @@ const DetailSkeleton: React.FC = () => (
 );
 
 export const BlogPostView: React.FC<{ slug: string }> = ({ slug }) => {
+  const decodedSlug = decodeURIComponent(slug);
+
   const router = useRouter();
   const [reload, setReload] = useState(0);
   const [state, setState] = useState<DetailState | null>(null);
   const [related, setRelated] = useState<RelatedState | null>(null);
   const [shareState, setShareState] = useState<ShareState>("idle");
 
-  const key = `${slug}|${reload}`;
+  const key = `${decodedSlug}|${reload}`;
 
-  useEffect(() => {
-    const controller = new AbortController();
-    blogService
-      .getBySlug(slug, controller.signal)
-      .then((post) => setState({ key, post }))
-      .catch((e) => {
-        if (isAbortError(e)) return;
-        setState({
-          key,
-          error: getErrorMessage(e),
-          notFound: e instanceof ApiError && e.code === "NOT_FOUND",
-        });
-      });
-    return () => controller.abort();
-  }, [slug, key]);
+useEffect(() => {
+  const controller = new AbortController();
 
-  useEffect(() => {
-    const controller = new AbortController();
-    blogService
-      .getRelated(slug, controller.signal)
-      .then((items) => setRelated({ slug, items }))
-      .catch((e) => {
-        if (!isAbortError(e)) setRelated({ slug, items: [] });
+  blogService
+    .getBySlug(decodedSlug, controller.signal)
+    .then((post) => setState({ key, post }))
+    .catch((e) => {
+      if (isAbortError(e)) return;
+
+      setState({
+        key,
+        error: getErrorMessage(e),
+        notFound: e instanceof ApiError && e.code === "NOT_FOUND",
       });
-    return () => controller.abort();
-  }, [slug]);
+    });
+
+  return () => controller.abort();
+}, [decodedSlug, key]);
+
+
+
+useEffect(() => {
+  const controller = new AbortController();
+
+  blogService
+    .getRelated(decodedSlug, controller.signal)
+    .then((items) => setRelated({ slug: decodedSlug, items }))
+    .catch((e) => {
+      if (!isAbortError(e)) {
+        setRelated({ slug: decodedSlug, items: [] });
+      }
+    });
+
+  return () => controller.abort();
+}, [decodedSlug]);
+
+
 
   const current = state && state.key === key ? state : null;
   const post = current?.post;
@@ -139,8 +152,8 @@ export const BlogPostView: React.FC<{ slug: string }> = ({ slug }) => {
     shareState === "copied"
       ? "پیوند کپی شد"
       : shareState === "failed"
-      ? "کپی انجام نشد"
-      : "اشتراک‌گذاری";
+        ? "کپی انجام نشد"
+        : "اشتراک‌گذاری";
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-12 text-[var(--text-white)]">
@@ -154,8 +167,6 @@ export const BlogPostView: React.FC<{ slug: string }> = ({ slug }) => {
       <BlogPromoBanner variant="mobile" />
 
       <main className="mx-auto flex w-full max-w-[var(--max-app-width)] flex-1 flex-col gap-8 px-4 pt-4 lg:px-8 lg:pt-[calc(var(--header-h,80px))]">
-
-
         {/* دو قسمت اصلی صفحه در دسکتاپ (قسمت اول: محتوای وبلاگ حدود ۸۰٪ ، قسمت دوم: کارت تبلیغ ۲۰٪) */}
         <div className="flex w-full flex-col items-start gap-8 lg:flex-row">
           {/* قسمت اول: جزییات و کل محتوای وبلاگ */}
@@ -185,13 +196,13 @@ export const BlogPostView: React.FC<{ slug: string }> = ({ slug }) => {
 
             {post && (
               <article className="flex w-full flex-col gap-6">
-                        <Link
-          href="/blog"
-          className="hidden h-11 items-center gap-1.5 self-start text-xs font-bold text-[var(--text-muted)] transition-colors hover:text-[var(--primary)] lg:flex"
-        >
-          <Icon name="back" size={16} />
-          <span>همه‌ی مقاله‌ها</span>
-        </Link>
+                <Link
+                  href="/blog"
+                  className="hidden h-11 items-center gap-1.5 self-start text-xs font-bold text-[var(--text-muted)] transition-colors hover:text-[var(--primary)] lg:flex"
+                >
+                  <Icon name="back" size={16} />
+                  <span>همه‌ی مقاله‌ها</span>
+                </Link>
                 <header className="flex flex-col gap-3">
                   <Link
                     href={`/blog?category=${encodeURIComponent(post.category)}`}
@@ -204,7 +215,10 @@ export const BlogPostView: React.FC<{ slug: string }> = ({ slug }) => {
                   </h1>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[var(--text-muted)]">
                     <MetaItem icon="user" text={post.authorName} />
-                    <MetaItem icon="calendar" text={formatBlogDate(post.publishedAt)} />
+                    <MetaItem
+                      icon="calendar"
+                      text={formatBlogDate(post.publishedAt)}
+                    />
                     <MetaItem
                       icon="clock"
                       text={`${formatReadingMinutes(post.readingMinutes)} مطالعه`}
@@ -243,7 +257,10 @@ export const BlogPostView: React.FC<{ slug: string }> = ({ slug }) => {
                     onClick={handleShare}
                     className="flex h-11 items-center gap-2 self-start rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)] px-4 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--border-color)]"
                   >
-                    <Icon name={shareState === "copied" ? "check" : "share"} size={16} />
+                    <Icon
+                      name={shareState === "copied" ? "check" : "share"}
+                      size={16}
+                    />
                     <span aria-live="polite">{shareLabel}</span>
                   </button>
                 </footer>
