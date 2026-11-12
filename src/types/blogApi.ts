@@ -1,9 +1,10 @@
 /**
  * Blog Platform API Type Definitions
- * Source of Truth: Blog-Platform-API.yaml (OpenAPI 3.0.3)
+ * Source:
+ * - Blog-Platform-API.yaml
+ * - GET /api/articles/block-definitions/
  *
- * Distinct from UI models in src/types/blog.ts.
- * No `any`, strict nullability, clear separation between Read DTOs and Request DTOs.
+ * UI models are defined separately in src/types/blog.ts.
  */
 
 /* ==========================================================================
@@ -216,6 +217,297 @@ export interface ArticleMediaDto {
 }
 
 /* ==========================================================================
+   CONTENT BLOCK DTOs
+   ========================================================================== */
+
+export interface ArticleContentBlockBaseDto {
+  id: string;
+  version: number;
+  order: number;
+  type: string;
+  [key: string]: unknown;
+}
+
+/* Rich text paragraph nodes */
+
+export type ArticleRichTextNodeType =
+  | "text"
+  | "strong"
+  | "code"
+  | "italic"
+  | "underline"
+  | "strike"
+  | "link"
+  | "inline_code"
+  | "emoji"
+  | "mention"
+  | "highlight"
+  | "subscript"
+  | "superscript"
+  | "keyboard"
+  | "small"
+  | "mark";
+
+export interface ArticleRichTextNodeDto {
+  type: ArticleRichTextNodeType | string;
+  value?: string;
+  href?: string;
+  title?: string;
+  children?: ArticleRichTextNodeDto[];
+  [key: string]: unknown;
+}
+
+/* Heading */
+
+export interface ArticleHeadingBlockDto extends ArticleContentBlockBaseDto {
+  type: "heading";
+  level: number;
+  text: string;
+  anchor_id?: string;
+}
+
+/* Paragraph */
+
+export interface ArticleParagraphBlockDto extends ArticleContentBlockBaseDto {
+  type: "paragraph";
+  content: ArticleRichTextNodeDto[];
+}
+
+/* Image */
+
+export interface ArticleImageBlockDto extends ArticleContentBlockBaseDto {
+  type: "image";
+  media_id: number;
+  caption?: string;
+  alt?: string;
+  lazy?: boolean;
+  link?: string;
+  target?: string;
+  object_fit?: string;
+  focal_point?: string | Record<string, unknown>;
+  loading?: string;
+  decoding?: string;
+  fetch_priority?: string;
+  responsive_behavior?: string | Record<string, unknown>;
+}
+
+/* Gallery */
+
+export interface ArticleGalleryBlockDto extends ArticleContentBlockBaseDto {
+  type: "gallery";
+  media_ids: number[];
+  layout?: "grid" | "slider";
+  aspect_ratio?: string;
+}
+
+/* Quote */
+
+export interface ArticleQuoteBlockDto extends ArticleContentBlockBaseDto {
+  type: "quote";
+  text: string;
+  citation?: string;
+}
+
+/* Table */
+
+export interface ArticleTableBlockDto extends ArticleContentBlockBaseDto {
+  type: "table";
+  headers: string[];
+  rows: string[][];
+}
+
+/* Code */
+
+export interface ArticleCodeBlockDto extends ArticleContentBlockBaseDto {
+  type: "code";
+  code: string;
+  language?: string;
+  show_line_numbers?: boolean;
+}
+
+/* Divider */
+
+export interface ArticleDividerBlockDto extends ArticleContentBlockBaseDto {
+  type: "divider";
+  style?: "solid" | "dashed" | "dots";
+}
+
+/* Video */
+
+export interface ArticleVideoBlockDto extends ArticleContentBlockBaseDto {
+  type: "video";
+  media_id?: number;
+  provider?: "local" | "youtube" | "vimeo";
+  external_url?: string;
+  autoplay?: boolean;
+  controls?: boolean;
+}
+
+/* Embed */
+
+export interface ArticleEmbedBlockDto extends ArticleContentBlockBaseDto {
+  type: "embed";
+  url: string;
+  embed_type?: "twitter" | "instagram" | "iframe";
+  width?: number;
+  height?: number;
+}
+
+/* Button */
+
+export interface ArticleButtonBlockDto extends ArticleContentBlockBaseDto {
+  type: "button";
+  label: string;
+  url: string;
+  target?: "_blank" | "_self";
+  style_preset?: string;
+}
+
+/* Accordion */
+
+export interface ArticleAccordionItemDto {
+  title: string;
+  content: string;
+  [key: string]: unknown;
+}
+
+export interface ArticleAccordionBlockDto extends ArticleContentBlockBaseDto {
+  type: "accordion";
+  items: ArticleAccordionItemDto[];
+}
+
+/* FAQ */
+
+export interface ArticleFaqItemDto {
+  q: string;
+  a: string;
+  [key: string]: unknown;
+}
+
+export interface ArticleFaqBlockDto extends ArticleContentBlockBaseDto {
+  type: "faq";
+  questions: ArticleFaqItemDto[];
+}
+
+/* Location */
+
+export interface ArticleLocationAddressDto {
+  country: string;
+  province: string;
+  city: string;
+  street: string;
+  [key: string]: unknown;
+}
+
+export interface ArticleLocationCoordinatesDto {
+  latitude: number;
+  longitude: number;
+  [key: string]: unknown;
+}
+
+export interface ArticleLocationGeoDto {
+  type: "Point";
+  coordinates: [number, number];
+  [key: string]: unknown;
+}
+
+export interface ArticleLocationOpeningHourDto {
+  day: string;
+  open: string;
+  close: string;
+  [key: string]: unknown;
+}
+
+export interface ArticleLocationMapDto {
+  provider: string;
+  zoom: number;
+  [key: string]: unknown;
+}
+
+export interface ArticleLocationBlockDto extends ArticleContentBlockBaseDto {
+  type: "location";
+  title: string;
+  address: ArticleLocationAddressDto;
+  coordinates: ArticleLocationCoordinatesDto;
+  geo: ArticleLocationGeoDto;
+  contact: Record<string, unknown>;
+  opening_hours: ArticleLocationOpeningHourDto[];
+  map: ArticleLocationMapDto;
+  description?: string;
+  media_id?: number;
+}
+
+/* Timeline */
+
+export interface ArticleTimelineDateDto {
+  type: "year" | "date" | "range";
+  value: string;
+  [key: string]: unknown;
+}
+
+export interface ArticleTimelineEventDto {
+  id: string;
+  date: ArticleTimelineDateDto;
+  title: string;
+  description: string;
+  media_id?: number;
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface ArticleTimelineBlockDto extends ArticleContentBlockBaseDto {
+  type: "timeline";
+  title: string;
+  events: ArticleTimelineEventDto[];
+  orientation?: "vertical" | "horizontal";
+}
+
+/* Related articles */
+
+export interface ArticleRelatedArticlesBlockDto extends ArticleContentBlockBaseDto {
+  type: "related_articles";
+  article_ids: number[];
+}
+
+/**
+ * تمام ۱۶ نوع بلوک رسمی API.
+ */
+export type ArticleContentBlockDto =
+  | ArticleHeadingBlockDto
+  | ArticleParagraphBlockDto
+  | ArticleImageBlockDto
+  | ArticleGalleryBlockDto
+  | ArticleQuoteBlockDto
+  | ArticleTableBlockDto
+  | ArticleCodeBlockDto
+  | ArticleDividerBlockDto
+  | ArticleVideoBlockDto
+  | ArticleEmbedBlockDto
+  | ArticleButtonBlockDto
+  | ArticleAccordionBlockDto
+  | ArticleFaqBlockDto
+  | ArticleLocationBlockDto
+  | ArticleTimelineBlockDto
+  | ArticleRelatedArticlesBlockDto;
+
+/**
+ * تعریف بلوک‌هایی که از endpoint block-definitions برمی‌گردند.
+ * schema در این endpoint پویا است و به همین دلیل unknown باقی می‌ماند.
+ */
+export interface BlockDefinitionDto {
+  id?: string;
+  type?: string;
+  name?: string;
+  label?: string;
+  version?: number;
+  required_fields?: string[];
+  optional_fields?: string[];
+  schema?: Record<string, unknown>;
+  fields?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+/* ==========================================================================
    ARTICLES
    ========================================================================== */
 
@@ -256,8 +548,14 @@ export interface ArticleDetailDto {
   readonly comments_count: number;
   readonly tags: TagDto[];
   readonly content: string;
-  readonly content_blocks: Record<string, unknown>[];
-  readonly blocks: Record<string, unknown>[];
+
+  /**
+   * پاسخ‌های قبلی API ممکن است بلوک‌های ناقص داشته باشند.
+   * اعتبارسنجی سخت‌گیرانه در زمان ارسال انجام می‌شود.
+   */
+  readonly content_blocks: Array<Record<string, unknown>>;
+  readonly blocks: Array<Record<string, unknown>>;
+
   canonical_url?: string | null;
   readonly series?: SeriesDto;
   readonly seo_title: string;
@@ -269,13 +567,17 @@ export interface ArticleDetailDto {
   readonly structured_data: Record<string, unknown>[];
 }
 
+/* ==========================================================================
+   ARTICLE CREATE / UPDATE REQUESTS
+   ========================================================================== */
+
 export interface ArticleCreateUpdateRequestDto {
   language_code?: string;
   title: string;
   excerpt: string;
   short_description?: string | null;
   content?: string | null;
-  content_blocks?: unknown;
+  content_blocks?: ArticleContentBlockDto[];
   status?: PostStatusApiEnum;
   visibility?: VisibilityApiEnum;
   is_hot?: boolean;
@@ -298,7 +600,7 @@ export interface PatchedArticleCreateUpdateRequestDto {
   excerpt?: string;
   short_description?: string | null;
   content?: string | null;
-  content_blocks?: unknown;
+  content_blocks?: ArticleContentBlockDto[];
   status?: PostStatusApiEnum;
   visibility?: VisibilityApiEnum;
   is_hot?: boolean;
@@ -325,21 +627,10 @@ export interface ArticleCountsDto {
   images?: number;
 }
 
-export interface BlockDefinitionDto {
-  id?: string;
-  type?: string;
-  name?: string;
-  label?: string;
-  schema?: Record<string, unknown>;
-  fields?: Record<string, unknown>;
-  [key: string]: unknown;
-}
-
 /* ==========================================================================
    PAGINATION & ENVELOPES
    ========================================================================== */
 
-/** DRF Standard paginated envelope */
 export interface DrfPaginatedDto<T> {
   count: number;
   next: string | null;
@@ -347,7 +638,6 @@ export interface DrfPaginatedDto<T> {
   results: T[];
 }
 
-/** Sayra standard envelope with data and messagesList */
 export interface StdEnvelopeDto<T> {
   data: T;
   messagesList?: string[];
@@ -360,7 +650,6 @@ export interface StdEnvelopeDto<T> {
   };
 }
 
-/** Unified frontend pagination result */
 export interface BlogPaginationMeta {
   page: number;
   pageSize: number;

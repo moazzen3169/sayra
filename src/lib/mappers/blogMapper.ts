@@ -1,16 +1,8 @@
-
 /**
  * Blog Platform Data Layer Mappers
  *
- * Bidirectional transformation between Backend API DTOs and UI Models.
- *
- * Content block contract:
- * - Every block must contain id, type and version.
- * - All currently supported block definitions use version 1.
- * - Heading requires level and text.
- * - Paragraph requires structured content node arrays.
- * - Quote requires text.
- * - The current API does not define a list block.
+ * Bidirectional transformation between API DTOs and UI models.
+ * Content blocks follow GET /api/articles/block-definitions/.
  */
 
 import type {
@@ -19,6 +11,7 @@ import type {
   BlogPostSummary,
   BlogCategory,
   BlogContentBlock,
+  BlogRichTextNode,
   AdminBlogPostInput,
 } from "@/types/blog";
 
@@ -28,24 +21,87 @@ import type {
   CategoryDto,
   PostStatusApiEnum,
   TagDto,
+  ArticleContentBlockDto,
   ArticleCreateUpdateRequestDto,
   PatchedArticleCreateUpdateRequestDto,
 } from "@/types/blogApi";
 
-/**
- * Generate a unique content block ID.
- */
+/* ==========================================================================
+   HELPERS
+   ========================================================================== */
+
+type RawBlock = Record<string, unknown>;
+
+const SUPPORTED_BLOCK_TYPES = new Set([
+  "heading",
+  "paragraph",
+  "image",
+  "gallery",
+  "quote",
+  "table",
+  "code",
+  "divider",
+  "video",
+  "embed",
+  "button",
+  "accordion",
+  "faq",
+  "location",
+  "timeline",
+  "related_articles",
+]);
+
 function createBlockId(): string {
-  return crypto.randomUUID();
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return `block-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2, 12)}`;
 }
 
-/**
- * Extract plain text from structured paragraph nodes.
- *
- * Paragraph nodes can contain:
- * - value
- * - children
- */
+function isRecord(value: unknown): value is RawBlock {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+  );
+}
+
+function asString(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value > 0
+  );
+}
+
+function normalizeBlockBase(
+  block: RawBlock,
+  index: number
+): RawBlock {
+  return {
+    ...block,
+    id:
+      typeof block.id === "string" && block.id.trim()
+        ? block.id
+        : createBlockId(),
+    version:
+      typeof block.version === "number" && block.version > 0
+        ? block.version
+        : 1,
+    order: index,
+  };
+}
+
 function extractParagraphText(nodes: unknown): string {
   if (typeof nodes === "string") {
     return nodes;
@@ -57,25 +113,383 @@ function extractParagraphText(nodes: unknown): string {
 
   return nodes
     .map((node: unknown) => {
-      if (!node || typeof node !== "object") {
+      if (!isRecord(node)) {
         return "";
       }
 
-      const item = node as Record<string, unknown>;
-
-      const value =
-        typeof item.value === "string" ? item.value : "";
-
-      const children = extractParagraphText(item.children);
+      const value = asString(node.value);
+      const children = extractParagraphText(node.children);
 
       return value + children;
     })
     .join("");
 }
 
+function blockToPlainText(block: BlogContentBlock): string {
+  switch (block.type) {
+    case "heading":
+      return block.text;
+
+    case "paragraph":
+      return Array.isArray(block.content)
+        ? extractParagraphText(block.content)
+        : block.text || "";
+
+    case "quote":
+      return block.text;
+
+    case "image":
+      return block.caption || block.alt || "";
+
+    case "gallery":
+      return block.caption || "";
+
+    case "table":
+      return [
+        block.headers.join(" | "),
+        ...block.rows.map((row) => row.join(" | ")),
+      ].join("\n");
+
+    case "code":
+      return block.code;
+
+    case "divider":
+      return "---";
+
+    case "video":
+      return block.external_url || "";
+
+    case "embed":
+      return block.url;
+
+    case "button":
+      return `${block.label}: ${block.url}`;
+
+    case "accordion":
+      return block.items
+        .map((item) => `${item.title}\n${item.content}`)
+        .join("\n\n");
+
+    case "faq":
+      return block.questions
+        .map((item) => `سؤال: ${item.q}\nپاسخ: ${item.a}`)
+        .join("\n\n");
+
+    case "location":
+      return [
+        block.title,
+        block.address?.country,
+        block.address?.province,
+        block.address?.city,
+        block.address?.street,
+        block.description,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+    case "timeline":
+      return [
+        block.title,
+        ...block.events.map(
+          (event) =>
+            `${event.date?.value || ""} ${event.title}\n${event.description}`
+        ),
+      ].join("\n\n");
+
+    case "related_articles":
+      return block.article_ids.join(", ");
+
+    case "list":
+      return block.items.map((item) => `• ${item}`).join("\n");
+
+    case "unsupported":
+      return "";
+  }
+}
+
 /**
- * Status mapping: Backend API -> UI
+ * Validate a block before it is sent to the API.
+ * This prevents malformed content_blocks from reaching the backend.
  */
+function validateApiBlock(block: RawBlock, index: number): void {
+  const type = asString(block.type);
+  const prefix = `بلوک شماره ${index + 1} (${type || "نامشخص"})`;
+
+  if (typeof block.id !== "string" || !block.id.trim()) {
+    throw new Error(`${prefix}: شناسه id الزامی است.`);
+  }
+
+  if (
+    typeof block.version !== "number" ||
+    !Number.isInteger(block.version) ||
+    block.version < 1
+  ) {
+    throw new Error(`${prefix}: فیلد version باید عدد صحیح مثبت باشد.`);
+  }
+
+  if (
+    typeof block.order !== "number" ||
+    !Number.isInteger(block.order) ||
+    block.order < 0
+  ) {
+    throw new Error(`${prefix}: فیلد order معتبر نیست.`);
+  }
+
+  const requireString = (field: string) => {
+    if (
+      typeof block[field] !== "string" ||
+      !(block[field] as string).trim()
+    ) {
+      throw new Error(`${prefix}: فیلد ${field} الزامی است.`);
+    }
+  };
+
+  const requireArray = (field: string) => {
+    if (!Array.isArray(block[field])) {
+      throw new Error(`${prefix}: فیلد ${field} باید آرایه باشد.`);
+    }
+  };
+
+  switch (type) {
+    case "heading":
+      requireString("text");
+      if (
+        typeof block.level !== "number" ||
+        !Number.isInteger(block.level) ||
+        block.level < 1 ||
+        block.level > 6
+      ) {
+        throw new Error(`${prefix}: level باید عددی بین ۱ تا ۶ باشد.`);
+      }
+      break;
+
+    case "paragraph":
+      requireArray("content");
+      break;
+
+    case "image":
+      if (!isPositiveInteger(block.media_id)) {
+        throw new Error(
+          `${prefix}: media_id باید شناسه رسانه معتبر و مثبت باشد.`
+        );
+      }
+      break;
+
+    case "gallery":
+      requireArray("media_ids");
+      if (
+        !(block.media_ids as unknown[]).every(isPositiveInteger) ||
+        (block.media_ids as unknown[]).length === 0
+      ) {
+        throw new Error(
+          `${prefix}: media_ids باید شامل حداقل یک شناسه رسانه معتبر باشد.`
+        );
+      }
+      break;
+
+    case "quote":
+      requireString("text");
+      break;
+
+    case "table":
+      requireArray("headers");
+      requireArray("rows");
+      if (
+        !(block.headers as unknown[]).every(
+          (item) => typeof item === "string"
+        ) ||
+        !(block.rows as unknown[]).every(
+          (row) =>
+            Array.isArray(row) &&
+            row.every((cell) => typeof cell === "string")
+        )
+      ) {
+        throw new Error(
+          `${prefix}: headers و rows باید آرایه‌های متنی معتبر باشند.`
+        );
+      }
+      break;
+
+    case "code":
+      requireString("code");
+      break;
+
+    case "divider":
+      if (
+        block.style !== undefined &&
+        !["solid", "dashed", "dots"].includes(String(block.style))
+      ) {
+        throw new Error(`${prefix}: style معتبر نیست.`);
+      }
+      break;
+
+    case "video":
+      if (
+        !isPositiveInteger(block.media_id) &&
+        !(typeof block.external_url === "string" &&
+          block.external_url.trim())
+      ) {
+        throw new Error(
+          `${prefix}: باید media_id یا external_url معتبر داشته باشد.`
+        );
+      }
+      break;
+
+    case "embed":
+      requireString("url");
+      break;
+
+    case "button":
+      requireString("label");
+      requireString("url");
+      break;
+
+    case "accordion":
+      requireArray("items");
+      if (
+        !(block.items as unknown[]).every(
+          (item) =>
+            isRecord(item) &&
+            typeof item.title === "string" &&
+            typeof item.content === "string"
+        )
+      ) {
+        throw new Error(
+          `${prefix}: هر آیتم باید title و content متنی داشته باشد.`
+        );
+      }
+      break;
+
+    case "faq":
+      requireArray("questions");
+      if (
+        !(block.questions as unknown[]).every(
+          (item) =>
+            isRecord(item) &&
+            typeof item.q === "string" &&
+            typeof item.a === "string"
+        )
+      ) {
+        throw new Error(
+          `${prefix}: هر پرسش باید فیلدهای q و a متنی داشته باشد.`
+        );
+      }
+      break;
+
+    case "location": {
+      requireString("title");
+
+      const address = block.address;
+      const coordinates = block.coordinates;
+      const geo = block.geo;
+      const contact = block.contact;
+      const openingHours = block.opening_hours;
+      const map = block.map;
+
+      if (!isRecord(address)) {
+        throw new Error(`${prefix}: address الزامی است.`);
+      }
+
+      for (const field of ["country", "province", "city", "street"]) {
+        if (
+          typeof address[field] !== "string" ||
+          !(address[field] as string).trim()
+        ) {
+          throw new Error(`${prefix}: address.${field} الزامی است.`);
+        }
+      }
+
+      if (
+        !isRecord(coordinates) ||
+        typeof coordinates.latitude !== "number" ||
+        typeof coordinates.longitude !== "number"
+      ) {
+        throw new Error(`${prefix}: coordinates معتبر نیست.`);
+      }
+
+      if (
+        !isRecord(geo) ||
+        geo.type !== "Point" ||
+        !Array.isArray(geo.coordinates) ||
+        geo.coordinates.length !== 2 ||
+        typeof geo.coordinates[0] !== "number" ||
+        typeof geo.coordinates[1] !== "number"
+      ) {
+        throw new Error(`${prefix}: geo معتبر نیست.`);
+      }
+
+      if (!isRecord(contact)) {
+        throw new Error(`${prefix}: contact باید یک object باشد.`);
+      }
+
+      if (
+        !Array.isArray(openingHours) ||
+        !openingHours.every(
+          (item) =>
+            isRecord(item) &&
+            typeof item.day === "string" &&
+            typeof item.open === "string" &&
+            typeof item.close === "string"
+        )
+      ) {
+        throw new Error(`${prefix}: opening_hours معتبر نیست.`);
+      }
+
+      if (
+        !isRecord(map) ||
+        typeof map.provider !== "string" ||
+        typeof map.zoom !== "number"
+      ) {
+        throw new Error(`${prefix}: map معتبر نیست.`);
+      }
+      break;
+    }
+
+    case "timeline":
+      requireString("title");
+      requireArray("events");
+      if (
+        !(block.events as unknown[]).every(
+          (event) =>
+            isRecord(event) &&
+            typeof event.id === "string" &&
+            typeof event.title === "string" &&
+            typeof event.description === "string" &&
+            isRecord(event.date) &&
+            ["year", "date", "range"].includes(
+              String(event.date.type)
+            ) &&
+            typeof event.date.value === "string"
+        )
+      ) {
+        throw new Error(
+          `${prefix}: هر رویداد باید id، date، title و description معتبر داشته باشد.`
+        );
+      }
+      break;
+
+    case "related_articles":
+      requireArray("article_ids");
+      if (
+        !(block.article_ids as unknown[]).every(isPositiveInteger)
+      ) {
+        throw new Error(
+          `${prefix}: article_ids باید شامل شناسه‌های عددی مثبت باشد.`
+        );
+      }
+      break;
+
+    default:
+      throw new Error(
+        `${prefix}: این نوع بلوک در قرارداد فعلی API تعریف نشده است.`
+      );
+  }
+}
+
+/* ==========================================================================
+   STATUS MAPPING
+   ========================================================================== */
+
 export function mapApiStatusToUi(
   status?: PostStatusApiEnum
 ): BlogPostStatus {
@@ -94,9 +508,6 @@ export function mapApiStatusToUi(
   }
 }
 
-/**
- * Status mapping: UI -> Backend API
- */
 export function mapUiStatusToApi(
   status?: BlogPostStatus
 ): PostStatusApiEnum {
@@ -113,13 +524,14 @@ export function mapUiStatusToApi(
   }
 }
 
-/**
- * Convert reading time from seconds to minutes.
- */
+/* ==========================================================================
+   READING TIME
+   ========================================================================== */
+
 export function secondsToMinutes(seconds?: number): number {
   if (
     typeof seconds !== "number" ||
-    isNaN(seconds) ||
+    Number.isNaN(seconds) ||
     seconds <= 0
   ) {
     return 1;
@@ -128,13 +540,10 @@ export function secondsToMinutes(seconds?: number): number {
   return Math.ceil(seconds / 60);
 }
 
-/**
- * Convert reading minutes to seconds for API payload.
- */
 export function minutesToSeconds(minutes?: number): number {
   if (
     typeof minutes !== "number" ||
-    isNaN(minutes) ||
+    Number.isNaN(minutes) ||
     minutes <= 0
   ) {
     return 60;
@@ -143,9 +552,10 @@ export function minutesToSeconds(minutes?: number): number {
   return Math.round(minutes * 60);
 }
 
-/**
- * Extract tag names from TagDto array.
- */
+/* ==========================================================================
+   TAGS & CATEGORIES
+   ========================================================================== */
+
 export function mapTagsToUi(tags?: TagDto[]): string[] {
   if (!Array.isArray(tags)) {
     return [];
@@ -153,274 +563,344 @@ export function mapTagsToUi(tags?: TagDto[]): string[] {
 
   return tags
     .map((tag) =>
-      tag && typeof tag.name === "string"
-        ? tag.name.trim()
-        : ""
+      tag && typeof tag.name === "string" ? tag.name.trim() : ""
     )
     .filter(Boolean);
 }
 
-/**
- * Map CategoryDto to UI BlogCategory.
- */
 export function mapCategoryToUi(
   category: CategoryDto
 ): BlogCategory {
   return {
     id: String(category.id),
-    label:
-      category.name ||
-      category.slug ||
-      "بدون دسته‌بندی",
+    label: category.name || category.slug || "بدون دسته‌بندی",
   };
 }
 
-/**
- * Map API content blocks to UI BlogContentBlock[].
- *
- * Supports structured paragraph content nodes.
- */
+/* ==========================================================================
+   BLOCKS: API -> UI
+   ========================================================================== */
+
 export function mapBlocksToUi(
   blocks?: Record<string, unknown>[],
   contentBlocks?: Record<string, unknown>[],
   rawContent?: string
 ): BlogContentBlock[] {
-  const result: BlogContentBlock[] = [];
-
   const sourceBlocks =
     Array.isArray(contentBlocks) && contentBlocks.length > 0
       ? contentBlocks
       : Array.isArray(blocks) && blocks.length > 0
-      ? blocks
-      : [];
+        ? blocks
+        : [];
 
-  if (sourceBlocks.length > 0) {
-    for (const block of sourceBlocks) {
-      if (!block || typeof block !== "object") {
-        continue;
-      }
+  if (sourceBlocks.length === 0) {
+    if (typeof rawContent !== "string" || !rawContent.trim()) {
+      return [];
+    }
 
+    return rawContent
+      .split(/\n{2,}/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part, index) => {
+        const id = createBlockId();
+
+        if (part.startsWith("#")) {
+          return {
+            id,
+            version: 1,
+            order: index,
+            type: "heading" as const,
+            level: 2 as const,
+            text: part.replace(/^#+\s*/, ""),
+          };
+        }
+
+        if (part.startsWith(">")) {
+          return {
+            id,
+            version: 1,
+            order: index,
+            type: "quote" as const,
+            text: part.replace(/^>\s*/, ""),
+          };
+        }
+
+        return {
+          id,
+          version: 1,
+          order: index,
+          type: "paragraph" as const,
+          content: [{ type: "text" as const, value: part }],
+          text: part,
+        };
+      });
+  }
+
+  return sourceBlocks
+    .filter(isRecord)
+    .map((source, index): BlogContentBlock => {
+      const block = normalizeBlockBase(source, index);
       const type =
         typeof block.type === "string"
           ? block.type
           : typeof block.block_type === "string"
-          ? block.block_type
-          : "";
-
-      const value =
-        block.value &&
-        typeof block.value === "object" &&
-        !Array.isArray(block.value)
-          ? (block.value as Record<string, unknown>)
-          : undefined;
-
-      if (
-        type === "heading" ||
-        type === "header" ||
-        type === "h1" ||
-        type === "h2" ||
-        type === "h3" ||
-        type === "h4" ||
-        type === "h5" ||
-        type === "h6"
-      ) {
-        const text =
-          typeof block.text === "string"
-            ? block.text
-            : typeof value?.text === "string"
-            ? value.text
+            ? block.block_type
             : "";
 
-        if (text.trim()) {
-          result.push({
-            type: "heading",
-            text,
-          });
-        }
-      } else if (
-        type === "paragraph" ||
-        type === "text" ||
-        type === "p"
+      if (
+        type === "header" ||
+        /^h[1-6]$/.test(type)
       ) {
+        const levelFromType = /^h[1-6]$/.test(type)
+          ? Number(type.slice(1))
+          : 2;
+
+        return {
+          ...block,
+          type: "heading",
+          level:
+            typeof block.level === "number"
+              ? (block.level as 1 | 2 | 3 | 4 | 5 | 6)
+              : (levelFromType as 1 | 2 | 3 | 4 | 5 | 6),
+          text: asString(block.text),
+        } as BlogContentBlock;
+      }
+
+      if (type === "text" || type === "p") {
         const text =
           typeof block.text === "string"
             ? block.text
             : typeof block.content === "string"
-            ? block.content
-            : Array.isArray(block.content)
-            ? extractParagraphText(block.content)
-            : typeof value?.text === "string"
-            ? value.text
-            : "";
+              ? block.content
+              : Array.isArray(block.content)
+                ? extractParagraphText(block.content)
+                : "";
 
-        if (text.trim()) {
-          result.push({
-            type: "paragraph",
-            text,
-          });
-        }
-      } else if (
-        type === "quote" ||
-        type === "blockquote"
-      ) {
-        const text =
-          typeof block.text === "string"
-            ? block.text
-            : typeof value?.text === "string"
-            ? value.text
-            : "";
+        return {
+          ...block,
+          type: "paragraph",
+          content: Array.isArray(block.content)
+            ? (block.content as BlogRichTextNode[])
+            : [{ type: "text", value: text }],
+          text,
+        } as BlogContentBlock;
+      }
 
-        if (text.trim()) {
-          result.push({
-            type: "quote",
-            text,
-          });
-        }
-      } else if (type === "list") {
+      if (type === "blockquote") {
+        return {
+          ...block,
+          type: "quote",
+          text: asString(block.text),
+        } as BlogContentBlock;
+      }
+
+      if (type === "list") {
         const items = Array.isArray(block.items)
-          ? block.items.map((item) => String(item))
+          ? block.items.map(String)
           : [];
 
-        if (items.length > 0) {
-          result.push({
-            type: "list",
-            items,
-          });
-        }
+        return {
+          ...block,
+          type: "list",
+          items,
+        } as BlogContentBlock;
       }
-    }
-  }
 
-  /**
-   * Fallback:
-   * If no structured blocks were recognized,
-   * parse the raw content string.
-   */
-  if (
-    result.length === 0 &&
-    typeof rawContent === "string" &&
-    rawContent.trim()
-  ) {
-    const paragraphs = rawContent
-      .split(/\n{2,}/)
-      .map((paragraph) => paragraph.trim())
-      .filter(Boolean);
+      if (type === "paragraph") {
+        const content = Array.isArray(block.content)
+          ? (block.content as BlogRichTextNode[])
+          : typeof block.content === "string"
+            ? [{ type: "text", value: block.content }]
+            : [];
 
-    for (const paragraph of paragraphs) {
-      if (paragraph.startsWith("#")) {
-        result.push({
-          type: "heading",
-          text: paragraph.replace(/^#+\s*/, ""),
-        });
-      } else if (paragraph.startsWith(">")) {
-        result.push({
-          type: "quote",
-          text: paragraph.replace(/^>\s*/, ""),
-        });
-      } else {
-        result.push({
+        return {
+          ...block,
           type: "paragraph",
-          text: paragraph,
-        });
+          content,
+          text: extractParagraphText(content),
+        } as BlogContentBlock;
       }
-    }
-  }
 
-  return result;
+      if (SUPPORTED_BLOCK_TYPES.has(type)) {
+        return {
+          ...block,
+          type,
+        } as BlogContentBlock;
+      }
+
+      /**
+       * Unknown block:
+       * Preserve the entire original payload instead of dropping it.
+       */
+      return {
+        id: String(block.id),
+        version:
+          typeof block.version === "number" ? block.version : 1,
+        order:
+          typeof block.order === "number" ? block.order : index,
+        type: "unsupported",
+        originalType: type || "unknown",
+        raw: { ...source },
+      };
+    });
 }
 
-/**
- * Map UI BlogContentBlock[] to API content and content_blocks.
- *
- * IMPORTANT:
- * The current backend contract does not define a "list" type.
- * Therefore, list items are converted into paragraph blocks.
- */
+/* ==========================================================================
+   BLOCKS: UI -> API
+   ========================================================================== */
 
 export function mapBlocksToApi(blocks?: BlogContentBlock[]): {
   content: string;
-  content_blocks: Record<string, unknown>[];
+  content_blocks: ArticleContentBlockDto[];
 } {
   if (!Array.isArray(blocks) || blocks.length === 0) {
-    return { content: "", content_blocks: [] };
+    return {
+      content: "",
+      content_blocks: [],
+    };
   }
 
+  const contentBlocks: ArticleContentBlockDto[] = [];
   const contentPieces: string[] = [];
-  const content_blocks: Record<string, unknown>[] = [];
 
-  // شماره ترتیب بلوک‌ها از صفر شروع می‌شود.
-  const addBlock = (block: Record<string, unknown>) => {
-    content_blocks.push({
-      ...block,
-      order: content_blocks.length,
-    });
+  const append = (raw: RawBlock) => {
+    const normalized = {
+      ...raw,
+      id:
+        typeof raw.id === "string" && raw.id.trim()
+          ? raw.id
+          : createBlockId(),
+      version:
+        typeof raw.version === "number" && raw.version > 0
+          ? raw.version
+          : 1,
+      order: contentBlocks.length,
+    };
+
+    validateApiBlock(normalized, contentBlocks.length);
+
+    contentBlocks.push(
+      normalized as unknown as ArticleContentBlockDto
+    );
   };
 
   for (const block of blocks) {
-    if (block.type === "heading") {
-      const text = block.text.trim();
-      if (!text) continue;
+    if (!block || typeof block !== "object") {
+      continue;
+    }
 
-      contentPieces.push(`## ${text}`);
+    if (block.type === "unsupported") {
+      /**
+       * Unknown blocks are retained, not silently discarded.
+       * Their original payload is sent back unchanged except for
+       * normalized id/version/order.
+       */
+      const raw = { ...block.raw };
 
-      addBlock({
-        id: createBlockId(),
-        type: "heading",
-        version: 1,
-        level: 2,
-        text,
-      });
-    } else if (block.type === "paragraph") {
-      const text = block.text.trim();
-      if (!text) continue;
+      raw.id =
+        typeof block.id === "string" && block.id.trim()
+          ? block.id
+          : typeof raw.id === "string"
+            ? raw.id
+            : createBlockId();
 
-      contentPieces.push(text);
+      raw.version =
+        typeof block.version === "number"
+          ? block.version
+          : typeof raw.version === "number"
+            ? raw.version
+            : 1;
 
-      addBlock({
-        id: createBlockId(),
-        type: "paragraph",
-        version: 1,
-        content: [{ type: "text", value: text }],
-      });
-    } else if (block.type === "quote") {
-      const text = block.text.trim();
-      if (!text) continue;
+      raw.type = block.originalType;
+      raw.order = contentBlocks.length;
 
-      contentPieces.push(`> ${text}`);
+      if (!SUPPORTED_BLOCK_TYPES.has(String(raw.type))) {
+        throw new Error(
+          `نوع بلوک «${String(raw.type)}» در قرارداد فعلی بک‌اند تعریف نشده است. برای جلوگیری از ارسال داده نامعتبر، ذخیره مقاله متوقف شد.`
+        );
+      }
 
-      addBlock({
-        id: createBlockId(),
-        type: "quote",
-        version: 1,
-        text,
-      });
-    } else if (block.type === "list") {
-      const items = block.items.map((item) => item.trim()).filter(Boolean);
-      if (items.length === 0) continue;
+      validateApiBlock(raw, contentBlocks.length);
+      contentBlocks.push(
+        raw as unknown as ArticleContentBlockDto
+      );
+      continue;
+    }
 
-      contentPieces.push(items.map((item) => `- ${item}`).join("\n"));
+    if (block.type === "list") {
+      /**
+       * Legacy UI list is not a backend block type.
+       * Convert each item to a valid paragraph block.
+       */
+      const items = block.items
+        .map((item) => item.trim())
+        .filter(Boolean);
 
       for (const item of items) {
-        addBlock({
+        append({
           id: createBlockId(),
           type: "paragraph",
           version: 1,
-          content: [{ type: "text", value: `• ${item}` }],
+          content: [
+            {
+              type: "text",
+              value: `• ${item}`,
+            },
+          ],
         });
+
+        contentPieces.push(`• ${item}`);
       }
+
+      continue;
     }
+
+    const raw = {
+      ...(block as unknown as RawBlock),
+    };
+
+    raw.id =
+      typeof block.id === "string" && block.id.trim()
+        ? block.id
+        : createBlockId();
+
+    raw.version =
+      typeof block.version === "number" && block.version > 0
+        ? block.version
+        : 1;
+
+    raw.order = contentBlocks.length;
+
+    /**
+     * Paragraph compatibility:
+     * Old UI content may still contain text instead of content nodes.
+     */
+    if (
+      block.type === "paragraph" &&
+      !Array.isArray(raw.content)
+    ) {
+      const text = asString(raw.text);
+
+      raw.content = text
+        ? [{ type: "text", value: text }]
+        : [];
+    }
+
+    append(raw);
+    contentPieces.push(blockToPlainText(block));
   }
 
   return {
-    content: contentPieces.join("\n\n"),
-    content_blocks,
+    content: contentPieces.filter(Boolean).join("\n\n"),
+    content_blocks: contentBlocks,
   };
 }
 
+/* ==========================================================================
+   ARTICLE SUMMARY / DETAIL
+   ========================================================================== */
 
-/**
- * Map ArticleListDto to UI BlogPostSummary.
- */
 export function mapArticleListToSummary(
   dto: ArticleListDto
 ): BlogPostSummary {
@@ -434,11 +914,11 @@ export function mapArticleListToSummary(
     typeof dto.category === "string"
       ? dto.category
       : dto.category &&
-        typeof dto.category === "object" &&
-        "name" in dto.category &&
-        typeof (dto.category as any).name === "string"
-      ? (dto.category as any).name
-      : "";
+          typeof dto.category === "object" &&
+          "name" in dto.category &&
+          typeof (dto.category as { name?: unknown }).name === "string"
+        ? String((dto.category as { name: string }).name)
+        : "";
 
   const authorName =
     dto.author &&
@@ -467,9 +947,6 @@ export function mapArticleListToSummary(
   };
 }
 
-/**
- * Map ArticleDetailDto to UI BlogPostDetail.
- */
 export function mapArticleDetailToUi(
   dto: ArticleDetailDto
 ): BlogPostDetail {
@@ -487,9 +964,10 @@ export function mapArticleDetailToUi(
   };
 }
 
-/**
- * Map UI AdminBlogPostInput to API create request.
- */
+/* ==========================================================================
+   ADMIN INPUT -> API CREATE
+   ========================================================================== */
+
 export function mapAdminInputToCreateRequest(
   input: AdminBlogPostInput,
   categoryId?: number,
@@ -517,9 +995,10 @@ export function mapAdminInputToCreateRequest(
   };
 }
 
-/**
- * Map Partial<AdminBlogPostInput> to API PATCH request.
- */
+/* ==========================================================================
+   ADMIN INPUT -> API PATCH
+   ========================================================================== */
+
 export function mapAdminInputToPatchRequest(
   input: Partial<AdminBlogPostInput>,
   categoryId?: number,

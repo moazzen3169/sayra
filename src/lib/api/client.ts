@@ -278,10 +278,32 @@ async function executeFetch<T>(
     }
   }
 
-  if (!response.ok || json?.success === false) {
-    const errorCode =
-      json?.error?.code ||
-      (response.status === 401
+
+if (!response.ok || json?.success === false) {
+  const messages = Array.isArray(json?.messagesList)
+    ? json.messagesList
+    : [];
+
+  const rawErrorText = [
+    ...messages,
+    json?.error?.message || "",
+    json?.error?.details
+      ? JSON.stringify(json.error.details)
+      : "",
+  ].join(" ");
+
+  // Django REST Framework / SimpleJWT may return 403
+  // with token_not_valid instead of HTTP 401.
+  const isInvalidToken =
+    /token_not_valid|token is expired|given token not valid/i.test(
+      rawErrorText
+    );
+
+  const errorCode =
+    json?.error?.code ||
+    (isInvalidToken
+      ? "TOKEN_NOT_VALID"
+      : response.status === 401
         ? "UNAUTHORIZED"
         : response.status === 403
           ? "FORBIDDEN"
@@ -289,21 +311,27 @@ async function executeFetch<T>(
             ? "NOT_FOUND"
             : "HTTP_ERROR");
 
-    const errorMessage =
-      json?.error?.message ||
-      (response.status === 401
-        ? "نشست کاربری نامعتبر است."
-        : response.status === 403
-          ? "دسترسی غیرمجاز."
-          : "خطای نامشخص از سمت سرور.");
+  const errorMessage =
+    json?.error?.message ||
+    messages[0] ||
+    (response.status === 401
+      ? "نشست کاربری نامعتبر است."
+      : response.status === 403
+        ? "دسترسی غیرمجاز."
+        : "خطای نامشخص از سمت سرور.");
 
-    throw new ApiError(
-      response.status,
-      errorCode,
-      errorMessage,
-      json?.error?.details
-    );
-  }
+  throw new ApiError(
+    response.status,
+    errorCode,
+    errorMessage,
+    json?.error?.details ?? (
+      messages.length > 0
+        ? { messagesList: messages }
+        : undefined
+    )
+  );
+}
+
 
   return {
     data:
@@ -483,11 +511,17 @@ async function request<T>(
       options
     );
   } catch (error) {
-    if (
-      error instanceof ApiError &&
-      error.status === 401 &&
-      shouldRetry
-    ) {
+if (
+  error instanceof ApiError &&
+  (
+    error.status === 401 ||
+    (
+      authScope === "blog" &&
+      error.code === "TOKEN_NOT_VALID"
+    )
+  ) &&
+  shouldRetry
+) {
       const newToken =
         authScope === "blog"
           ? await refreshBlogAccessToken()

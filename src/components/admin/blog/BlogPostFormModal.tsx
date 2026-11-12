@@ -1,21 +1,29 @@
+
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { AppImage } from "@/components/common/AppImage";
 import { BlogPostPreviewModal } from "./BlogPostPreviewModal";
+
 import type {
   BlogPostDetail,
   BlogPostStatus,
   BlogCategory,
   BlogContentBlock,
   AdminBlogPostInput,
+  BlogBlockType,
 } from "@/types/blog";
-import type { TagDto, AuthorProfileDto } from "@/types/blogApi";
+
+import type {
+  TagDto,
+  AuthorProfileDto,
+} from "@/types/blogApi";
+
 import { adminService } from "@/services/adminService";
-import { AppImage } from "@/components/common/AppImage";
 
 interface BlogPostFormModalProps {
   isOpen: boolean;
@@ -24,12 +32,315 @@ interface BlogPostFormModalProps {
   onSuccess: (post: BlogPostDetail) => void;
 }
 
-interface BlogPostFormContentProps {
-  isOpen: boolean;
-  onClose: () => void;
-  initialData?: BlogPostDetail | null;
-  onSuccess: (post: BlogPostDetail) => void;
+interface BlogPostFormContentProps extends BlogPostFormModalProps {}
+
+const BLOCK_OPTIONS: Array<{
+  type: BlogBlockType;
+  label: string;
+}> = [
+  { type: "heading", label: "عنوان (Heading)" },
+  { type: "paragraph", label: "پاراگراف (Paragraph)" },
+  { type: "image", label: "تصویر (Image)" },
+  { type: "gallery", label: "گالری (Gallery)" },
+  { type: "quote", label: "نقل‌قول (Quote)" },
+  { type: "table", label: "جدول (Table)" },
+  { type: "code", label: "کد (Code)" },
+  { type: "divider", label: "جداکننده (Divider)" },
+  { type: "video", label: "ویدئو (Video)" },
+  { type: "embed", label: "محتوای خارجی (Embed)" },
+  { type: "button", label: "دکمه (Button)" },
+  { type: "accordion", label: "آکاردئون (Accordion)" },
+  { type: "faq", label: "سوالات متداول (FAQ)" },
+  { type: "location", label: "موقعیت مکانی (Location)" },
+  { type: "timeline", label: "خط زمانی (Timeline)" },
+  {
+    type: "related_articles",
+    label: "مقالات مرتبط (Related Articles)",
+  },
+];
+
+function createBlockId(): string {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return `block-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
 }
+
+function createDefaultBlock(
+  type: BlogBlockType,
+  order: number
+): BlogContentBlock {
+  const base = {
+    id: createBlockId(),
+    version: 1,
+    order,
+  };
+
+  switch (type) {
+    case "heading":
+      return {
+        ...base,
+        type,
+        level: 2,
+        text: "",
+      };
+
+    case "paragraph":
+      return {
+        ...base,
+        type,
+        content: [{ type: "text", value: "" }],
+        text: "",
+      };
+
+    case "image":
+      return {
+        ...base,
+        type,
+        media_id: 0,
+        caption: "",
+        alt: "",
+        lazy: true,
+        object_fit: "cover",
+      };
+
+    case "gallery":
+      return {
+        ...base,
+        type,
+        media_ids: [],
+        layout: "grid",
+        aspect_ratio: "16:9",
+      };
+
+    case "quote":
+      return {
+        ...base,
+        type,
+        text: "",
+        citation: "",
+      };
+
+    case "table":
+      return {
+        ...base,
+        type,
+        headers: ["ستون اول"],
+        rows: [[""]],
+      };
+
+    case "code":
+      return {
+        ...base,
+        type,
+        code: "",
+        language: "text",
+        show_line_numbers: true,
+      };
+
+    case "divider":
+      return {
+        ...base,
+        type,
+        style: "solid",
+      };
+
+    case "video":
+      return {
+        ...base,
+        type,
+        provider: "youtube",
+        external_url: "",
+        controls: true,
+        autoplay: false,
+      };
+
+    case "embed":
+      return {
+        ...base,
+        type,
+        url: "",
+        embed_type: "iframe",
+        width: 100,
+        height: 400,
+      };
+
+    case "button":
+      return {
+        ...base,
+        type,
+        label: "",
+        url: "",
+        target: "_blank",
+        style_preset: "primary",
+      };
+
+    case "accordion":
+      return {
+        ...base,
+        type,
+        items: [
+          {
+            title: "",
+            content: "",
+          },
+        ],
+      };
+
+    case "faq":
+      return {
+        ...base,
+        type,
+        questions: [
+          {
+            q: "",
+            a: "",
+          },
+        ],
+      };
+
+    case "location":
+      return {
+        ...base,
+        type,
+        title: "",
+        address: {
+          country: "",
+          province: "",
+          city: "",
+          street: "",
+        },
+        coordinates: {
+          latitude: 0,
+          longitude: 0,
+        },
+        geo: {
+          type: "Point",
+          coordinates: [0, 0],
+        },
+        contact: {},
+        opening_hours: [],
+        map: {
+          provider: "google",
+          zoom: 15,
+        },
+        description: "",
+      };
+
+    case "timeline":
+      return {
+        ...base,
+        type,
+        title: "",
+        events: [],
+        orientation: "vertical",
+      };
+
+    case "related_articles":
+      return {
+        ...base,
+        type,
+        article_ids: [],
+      };
+  }
+}
+
+function getBlockLabel(type: string): string {
+  return (
+    BLOCK_OPTIONS.find((item) => item.type === type)?.label ||
+    type
+  );
+}
+
+function getBlockKey(
+  block: BlogContentBlock,
+  index: number
+): string {
+  return block.id || `block-index-${index}`;
+}
+
+function serializeBlock(block: BlogContentBlock): string {
+  if (block.type === "unsupported") {
+    return JSON.stringify(block.raw, null, 2);
+  }
+
+  return JSON.stringify(block, null, 2);
+}
+
+
+
+/**
+ * حذف بلوک‌های خالی و نرمال‌سازی محتوای مقاله قبل از ارسال به API
+ */
+const normalizeContentBlocks = (
+  blocks: BlogContentBlock[]
+): BlogContentBlock[] => {
+  return blocks.reduce<BlogContentBlock[]>((result, block) => {
+    if (block.type === "paragraph") {
+      const text = block.text?.trim() ?? "";
+
+      if (text.length > 0) {
+        result.push({
+          ...block,
+          text,
+        });
+      }
+
+      return result;
+    }
+
+    if (block.type === "heading") {
+      const text = block.text?.trim() ?? "";
+
+      if (text.length > 0) {
+        result.push({
+          ...block,
+          text,
+        });
+      }
+
+      return result;
+    }
+
+    if (block.type === "quote") {
+      const text = block.text?.trim() ?? "";
+
+      if (text.length > 0) {
+        result.push({
+          ...block,
+          text,
+        });
+      }
+
+      return result;
+    }
+
+    if (block.type === "list") {
+      const items = block.items
+        .filter((item) => typeof item === "string")
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+
+      if (items.length > 0) {
+        result.push({
+          ...block,
+          items,
+        });
+      }
+
+      return result;
+    }
+
+    return result;
+  }, []);
+};
+
 
 const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
   isOpen,
@@ -38,167 +349,384 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
   onSuccess,
 }) => {
   const [categories, setCategories] = useState<BlogCategory[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
-
-  // Form Fields initialized lazily without useEffect setState
-  const [title, setTitle] = useState(() => initialData?.title || "");
-  const [slug, setSlug] = useState(() => initialData?.slug || "");
-  const [category, setCategory] = useState(() => initialData?.category || "1");
-  const [authorName, setAuthorName] = useState(() => initialData?.authorName || "تحریریه‌ی سایرا");
-  const [readingMinutes, setReadingMinutes] = useState(() => initialData?.readingMinutes || 5);
-  const [featured, setFeatured] = useState(() => Boolean(initialData?.featured));
-  const [excerpt, setExcerpt] = useState(() => initialData?.excerpt || "");
-  const [coverUrl, setCoverUrl] = useState(() => initialData?.coverUrl || "/img/gamnet-1.webp");
-  const [coverImageId, setCoverImageId] = useState<string | number | null>(() => null);
-  const [status, setStatus] = useState<BlogPostStatus>(() => initialData?.status || "DRAFT");
-  const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
-    initialData?.content && initialData.content.length > 0
-      ? [...initialData.content]
-      : [{ type: "paragraph", text: "" }]
-  );
-
-  // Tags & Authors real integration state
   const [allAvailableTags, setAllAvailableTags] = useState<TagDto[]>([]);
-  const [selectedTagNames, setSelectedTagNames] = useState<string[]>(() => initialData?.tags || []);
-  const [newTagInput, setNewTagInput] = useState("");
   const [authors, setAuthors] = useState<AuthorProfileDto[]>([]);
 
-  // Media upload state
-  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
-  const [mediaUploadError, setMediaUploadError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<
+    Record<string, string>
+  >({});
 
-  // Preview State
+  const [title, setTitle] = useState(initialData?.title || "");
+  const [slug, setSlug] = useState(initialData?.slug || "");
+  const [category, setCategory] = useState(
+    initialData?.category || "1"
+  );
+  const [authorName, setAuthorName] = useState(
+    initialData?.authorName || "تحریریه‌ی سایرا"
+  );
+  const [readingMinutes, setReadingMinutes] = useState(
+    initialData?.readingMinutes || 5
+  );
+  const [featured, setFeatured] = useState(
+    Boolean(initialData?.featured)
+  );
+  const [excerpt, setExcerpt] = useState(
+    initialData?.excerpt || ""
+  );
+  const [coverUrl, setCoverUrl] = useState(
+    initialData?.coverUrl || "/img/gamnet-1.webp"
+  );
+  const [coverImageId, setCoverImageId] = useState<
+    string | number | null
+  >(null);
+
+  const [status, setStatus] = useState<BlogPostStatus>(
+    initialData?.status || "DRAFT"
+  );
+
+const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
+  initialData?.content && initialData.content.length > 0
+    ? normalizeContentBlocks(initialData.content)
+    : [{ type: "paragraph", text: "" }]
+);
+
+  /**
+   * JSON drafts allow editing nested block properties without
+   * losing fields that the current UI does not explicitly render.
+   */
+  const [blockDrafts, setBlockDrafts] = useState<
+    Record<string, string>
+  >({});
+
+  const [blockJsonErrors, setBlockJsonErrors] = useState<
+    Record<string, string>
+  >({});
+
+  const [newBlockType, setNewBlockType] =
+    useState<BlogBlockType>("paragraph");
+
+  const [selectedTagNames, setSelectedTagNames] = useState<
+    string[]
+  >(initialData?.tags || []);
+
+  const [newTagInput, setNewTagInput] = useState("");
+
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [mediaUploadError, setMediaUploadError] = useState<
+    string | null
+  >(null);
+
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  // Load fresh article details from server when editing an existing post
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* -----------------------------------------------------------------------
+     LOAD INITIAL ARTICLE
+     ----------------------------------------------------------------------- */
+
   useEffect(() => {
     let isMounted = true;
-    if (initialData?.slug) {
-      adminService.getBlogPostById(initialData.slug).then((fresh) => {
-        if (!isMounted || !fresh) return;
-        if (fresh.title) setTitle(fresh.title);
-        if (fresh.slug) setSlug(fresh.slug);
-        if (fresh.category) setCategory(fresh.category);
-        if (fresh.authorName) setAuthorName(fresh.authorName);
-        if (fresh.readingMinutes) setReadingMinutes(fresh.readingMinutes);
-        if (fresh.featured !== undefined) setFeatured(fresh.featured);
-        if (fresh.excerpt) setExcerpt(fresh.excerpt);
-        if (fresh.coverUrl) setCoverUrl(fresh.coverUrl);
-        if (fresh.tags?.length) setSelectedTagNames(fresh.tags);
-        if (fresh.status) setStatus(fresh.status);
-        if (fresh.content?.length) setContentBlocks(fresh.content);
-      }).catch(console.warn);
+
+    if (!initialData?.slug) {
+      return () => {
+        isMounted = false;
+      };
     }
+
+    adminService
+      .getBlogPostById(initialData.slug)
+      .then((fresh) => {
+        if (!isMounted || !fresh) return;
+
+        setTitle(fresh.title || "");
+        setSlug(fresh.slug || "");
+        setCategory(fresh.category || "1");
+        setAuthorName(
+          fresh.authorName || "تحریریه‌ی سایرا"
+        );
+        setReadingMinutes(fresh.readingMinutes || 5);
+        setFeatured(Boolean(fresh.featured));
+        setExcerpt(fresh.excerpt || "");
+        setCoverUrl(
+          fresh.coverUrl || "/img/gamnet-1.webp"
+        );
+        setSelectedTagNames(fresh.tags || []);
+        setStatus(fresh.status || "DRAFT");
+
+        if (fresh.content?.length) {
+          setContentBlocks([...fresh.content]);
+          setBlockDrafts({});
+          setBlockJsonErrors({});
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to load article details:", err);
+      });
+
     return () => {
       isMounted = false;
     };
   }, [initialData?.slug]);
 
+  /* -----------------------------------------------------------------------
+     LOAD FORM DATA
+     ----------------------------------------------------------------------- */
+
   useEffect(() => {
-    adminService.getBlogCategories().then(setCategories).catch(console.warn);
-    adminService.getTagsList().then(setAllAvailableTags).catch(console.warn);
-    adminService.getAuthorsList().then(setAuthors).catch(console.warn);
+    let isMounted = true;
+
+    Promise.all([
+      adminService.getBlogCategories(),
+      adminService.getTagsList(),
+      adminService.getAuthorsList(),
+    ])
+      .then(([categoryList, tagList, authorList]) => {
+        if (!isMounted) return;
+
+        setCategories(categoryList || []);
+        setAllAvailableTags(tagList || []);
+        setAuthors(authorList || []);
+      })
+      .catch((err) => {
+        console.warn("Failed to load blog form data:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Convert title to a slug automatically
+  /* -----------------------------------------------------------------------
+     SLUG
+     ----------------------------------------------------------------------- */
+
   const handleGenerateSlug = () => {
     if (!title.trim()) return;
+
     const generated = title
       .trim()
       .toLowerCase()
       .replace(/[^\w\u0600-\u06FF\s-]/g, "")
       .replace(/\s+/g, "-")
       .replace(/-+/g, "-");
+
     setSlug(generated);
   };
 
-  // Block Content Handlers
-  const handleAddBlock = (type: BlogContentBlock["type"]) => {
-    if (type === "list") {
-      setContentBlocks((prev) => [...prev, { type: "list", items: [""] }]);
-    } else if (type === "heading") {
-      setContentBlocks((prev) => [...prev, { type: "heading", text: "" }]);
-    } else if (type === "quote") {
-      setContentBlocks((prev) => [...prev, { type: "quote", text: "" }]);
-    } else {
-      setContentBlocks((prev) => [...prev, { type: "paragraph", text: "" }]);
-    }
+  /* -----------------------------------------------------------------------
+     BLOCK MANAGEMENT
+     ----------------------------------------------------------------------- */
+
+  const handleAddBlock = () => {
+    const block = createDefaultBlock(
+      newBlockType,
+      contentBlocks.length
+    );
+
+    setContentBlocks((previous) => [...previous, block]);
   };
 
   const handleRemoveBlock = (index: number) => {
-    setContentBlocks((prev) => prev.filter((_, i) => i !== index));
-  };
+    const removed = contentBlocks[index];
+    const removedKey = getBlockKey(removed, index);
 
-  const handleMoveBlock = (index: number, direction: "up" | "down") => {
-    setContentBlocks((prev) => {
-      const newBlocks = [...prev];
-      const targetIndex = direction === "up" ? index - 1 : index + 1;
-      if (targetIndex < 0 || targetIndex >= newBlocks.length) return prev;
-      const temp = newBlocks[index];
-      newBlocks[index] = newBlocks[targetIndex];
-      newBlocks[targetIndex] = temp;
-      return newBlocks;
+    setContentBlocks((previous) =>
+      previous.filter((_, itemIndex) => itemIndex !== index)
+    );
+
+    setBlockDrafts((previous) => {
+      const next = { ...previous };
+      delete next[removedKey];
+      return next;
+    });
+
+    setBlockJsonErrors((previous) => {
+      const next = { ...previous };
+      delete next[removedKey];
+      return next;
     });
   };
 
-  const handleUpdateBlockText = (index: number, text: string) => {
-    setContentBlocks((prev) => {
-      const newBlocks = [...prev];
-      const target = newBlocks[index];
-      if (target.type === "heading" || target.type === "paragraph" || target.type === "quote") {
-        newBlocks[index] = { ...target, text };
+  const handleMoveBlock = (
+    index: number,
+    direction: "up" | "down"
+  ) => {
+    setContentBlocks((previous) => {
+      const next = [...previous];
+      const targetIndex =
+        direction === "up" ? index - 1 : index + 1;
+
+      if (
+        targetIndex < 0 ||
+        targetIndex >= next.length
+      ) {
+        return previous;
       }
-      return newBlocks;
+
+      [next[index], next[targetIndex]] = [
+        next[targetIndex],
+        next[index],
+      ];
+
+      return next;
     });
   };
 
-  const handleUpdateListItem = (blockIndex: number, itemIndex: number, value: string) => {
-    setContentBlocks((prev) => {
-      const newBlocks = [...prev];
-      const target = newBlocks[blockIndex];
-      if (target.type === "list") {
-        const newItems = [...target.items];
-        newItems[itemIndex] = value;
-        newBlocks[blockIndex] = { ...target, items: newItems };
+  const handleBlockJsonChange = (
+    key: string,
+    value: string
+  ) => {
+    setBlockDrafts((previous) => ({
+      ...previous,
+      [key]: value,
+    }));
+
+    setBlockJsonErrors((previous) => {
+      const next = { ...previous };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const handleBlockJsonBlur = (
+    blockIndex: number,
+    key: string
+  ) => {
+    const draft = blockDrafts[key];
+
+    if (draft === undefined) return;
+
+    try {
+      const parsed: unknown = JSON.parse(draft);
+
+      if (
+        !parsed ||
+        typeof parsed !== "object" ||
+        Array.isArray(parsed)
+      ) {
+        throw new Error(
+          "ساختار بلوک باید یک JSON Object باشد."
+        );
       }
-      return newBlocks;
-    });
+
+      const parsedBlock = parsed as Record<string, unknown>;
+
+      setContentBlocks((previous) => {
+        const next = [...previous];
+
+        if (
+          next[blockIndex]?.type === "unsupported"
+        ) {
+          const current = next[blockIndex];
+
+          next[blockIndex] = {
+            ...current,
+            raw: parsedBlock,
+          };
+        } else {
+          next[blockIndex] =
+            parsedBlock as unknown as BlogContentBlock;
+        }
+
+        return next;
+      });
+
+      setBlockDrafts((previous) => {
+        const next = { ...previous };
+        delete next[key];
+        return next;
+      });
+
+      setBlockJsonErrors((previous) => {
+        const next = { ...previous };
+        delete next[key];
+        return next;
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "ساختار JSON معتبر نیست.";
+
+      setBlockJsonErrors((previous) => ({
+        ...previous,
+        [key]: message,
+      }));
+    }
   };
 
-  const handleAddListItem = (blockIndex: number) => {
-    setContentBlocks((prev) => {
-      const newBlocks = [...prev];
-      const target = newBlocks[blockIndex];
-      if (target.type === "list") {
-        newBlocks[blockIndex] = { ...target, items: [...target.items, ""] };
+  /**
+   * Parse all unsaved JSON drafts before submit.
+   * This avoids silently sending an older valid block when the user
+   * has an invalid JSON draft visible in the editor.
+   */
+  const getContentBlocksForSave = (): BlogContentBlock[] => {
+    if (Object.keys(blockJsonErrors).length > 0) {
+      throw new Error(
+        "ابتدا خطاهای JSON بلوک‌ها را برطرف کنید."
+      );
+    }
+
+    return contentBlocks.map((block, index) => {
+      const key = getBlockKey(block, index);
+      const draft = blockDrafts[key];
+
+      if (draft === undefined) {
+        return block;
       }
-      return newBlocks;
-    });
-  };
 
-  const handleRemoveListItem = (blockIndex: number, itemIndex: number) => {
-    setContentBlocks((prev) => {
-      const newBlocks = [...prev];
-      const target = newBlocks[blockIndex];
-      if (target.type === "list") {
-        const newItems = target.items.filter((_, i) => i !== itemIndex);
-        newBlocks[blockIndex] = { ...target, items: newItems };
+      let parsed: unknown;
+
+      try {
+        parsed = JSON.parse(draft);
+      } catch {
+        throw new Error(
+          `ساختار JSON بلوک شماره ${index + 1} معتبر نیست.`
+        );
       }
-      return newBlocks;
+
+      if (
+        !parsed ||
+        typeof parsed !== "object" ||
+        Array.isArray(parsed)
+      ) {
+        throw new Error(
+          `محتوای بلوک شماره ${index + 1} باید یک JSON Object باشد.`
+        );
+      }
+
+      const parsedBlock = parsed as Record<string, unknown>;
+
+      if (block.type === "unsupported") {
+        return {
+          ...block,
+          raw: parsedBlock,
+        };
+      }
+
+      return parsedBlock as unknown as BlogContentBlock;
     });
   };
 
-  // Tag management handlers
+  /* -----------------------------------------------------------------------
+     TAGS
+     ----------------------------------------------------------------------- */
+
   const handleToggleTag = (tagName: string) => {
     const trimmed = tagName.trim();
     if (!trimmed) return;
-    setSelectedTagNames((prev) =>
-      prev.includes(trimmed)
-        ? prev.filter((t) => t !== trimmed)
-        : [...prev, trimmed]
+
+    setSelectedTagNames((previous) =>
+      previous.some(
+        (item) => item.toLowerCase() === trimmed.toLowerCase()
+      )
+        ? previous.filter(
+            (item) =>
+              item.toLowerCase() !== trimmed.toLowerCase()
+          )
+        : [...previous, trimmed]
     );
   };
 
@@ -206,236 +734,381 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
     const trimmed = newTagInput.trim();
     if (!trimmed) return;
 
-    // Check if already selected
-    if (selectedTagNames.some((t) => t.toLowerCase() === trimmed.toLowerCase())) {
+    if (
+      selectedTagNames.some(
+        (tag) => tag.toLowerCase() === trimmed.toLowerCase()
+      )
+    ) {
       setNewTagInput("");
       return;
     }
 
-    // Check if exists in allAvailableTags
     const existing = allAvailableTags.find(
-      (t) =>
-        t.name.trim().toLowerCase() === trimmed.toLowerCase() ||
-        t.slug.trim().toLowerCase() === trimmed.toLowerCase()
+      (tag) =>
+        tag.name.trim().toLowerCase() ===
+          trimmed.toLowerCase() ||
+        tag.slug.trim().toLowerCase() ===
+          trimmed.toLowerCase()
     );
 
     if (existing) {
-      setSelectedTagNames((prev) => [...prev, existing.name]);
-    } else {
-      // Create new tag via backend API
-      try {
-        const rawSlug = trimmed
-          .toLowerCase()
-          .replace(/[^\w\s-]/g, "")
-          .replace(/\s+/g, "-")
-          .replace(/-+/g, "-")
-          .trim();
-        const slug = rawSlug.length > 0 ? rawSlug : `tag-${Date.now().toString(36)}`;
-        const created = await adminService.createTag({ name: trimmed, slug });
-        setAllAvailableTags((prev) => [...prev, created]);
-        setSelectedTagNames((prev) => [...prev, created.name]);
-      } catch {
-        // Fallback: still add to selected tags so ensureTagsExist will try to resolve it
-        setSelectedTagNames((prev) => [...prev, trimmed]);
-      }
+      setSelectedTagNames((previous) => [
+        ...previous,
+        existing.name,
+      ]);
+      setNewTagInput("");
+      return;
     }
+
+    try {
+      const rawSlug = trimmed
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .trim();
+
+      const tagSlug =
+        rawSlug || `tag-${Date.now().toString(36)}`;
+
+      const created = await adminService.createTag({
+        name: trimmed,
+        slug: tagSlug,
+      });
+
+      setAllAvailableTags((previous) => [
+        ...previous,
+        created,
+      ]);
+
+      setSelectedTagNames((previous) => [
+        ...previous,
+        created.name,
+      ]);
+    } catch {
+      setSelectedTagNames((previous) => [
+        ...previous,
+        trimmed,
+      ]);
+    }
+
     setNewTagInput("");
   };
 
   const handleRemoveSelectedTag = (tagName: string) => {
-    setSelectedTagNames((prev) => prev.filter((t) => t !== tagName));
+    setSelectedTagNames((previous) =>
+      previous.filter((tag) => tag !== tagName)
+    );
   };
 
-  // Media upload handler
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  /* -----------------------------------------------------------------------
+     COVER IMAGE UPLOAD
+     ----------------------------------------------------------------------- */
+
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     setMediaUploadError(null);
 
-    // Validate type (image only)
     if (!file.type.startsWith("image/")) {
-      setMediaUploadError("فقط فایل‌های تصویری مجاز هستند (PNG, JPEG, WebP, etc.).");
+      setMediaUploadError(
+        "فقط فایل‌های تصویری مجاز هستند."
+      );
       return;
     }
 
-    // Validate size (max 10MB)
-    const MAX_SIZE = 10 * 1024 * 1024;
-    if (file.size > MAX_SIZE) {
-      setMediaUploadError("حجم تصویر نمی‌تواند بیشتر از ۱۰ مگابایت باشد.");
+    const maxSize = 10 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      setMediaUploadError(
+        "حجم تصویر نمی‌تواند بیشتر از ۱۰ مگابایت باشد."
+      );
       return;
     }
 
     setIsUploadingMedia(true);
+
     try {
       const media = await adminService.uploadMedia({
         file,
         title: title || file.name,
         alt_text: title || "تصویر شاخص مقاله",
       });
+
       if (media.url) {
         setCoverUrl(media.url);
       }
+
       if (media.id != null) {
         setCoverImageId(media.id);
       }
-    } catch (err: unknown) {
-      const e = err as Error;
-      setMediaUploadError(e.message || "خطا در آپلود تصویر در سرور.");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "خطا در آپلود تصویر.";
+
+      setMediaUploadError(message);
     } finally {
       setIsUploadingMedia(false);
+
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }
   };
 
-  const handleSave = async (submitStatus: BlogPostStatus) => {
-    setError(null);
-    setFieldErrors({});
+  /* -----------------------------------------------------------------------
+     SAVE
+     ----------------------------------------------------------------------- */
 
-    const newFieldErrors: { [key: string]: string } = {};
+  
+const handleSave = async (submitStatus: BlogPostStatus) => {
+  if (isSubmitting) return;
 
-    if (!title.trim()) {
-      newFieldErrors.title = "لطفاً عنوان مقاله را وارد کنید.";
-    }
-    if (!slug.trim()) {
-      newFieldErrors.slug = "لطفاً شناسه (Slug) مقاله را وارد کنید.";
-    } else if (!/^[-a-zA-Z0-9_]+$/.test(slug.trim())) {
-      newFieldErrors.slug = "شناسه مقاله فقط می‌تواند شامل حروف انگلیسی، اعداد، خط فاصله (-) و زیرخط (_) باشد.";
-    }
-    if (!excerpt.trim()) {
-      newFieldErrors.excerpt = "لطفاً خلاصه / چکیده مقاله را وارد کنید.";
-    }
+  setError(null);
+  setFieldErrors({});
 
-    if (Object.keys(newFieldErrors).length > 0) {
-      setFieldErrors(newFieldErrors);
-      setError("لطفاً خطاهای مشخص‌شده در فرم را بررسی نمایید.");
-      return;
-    }
+  const newFieldErrors: { [key: string]: string } = {};
 
-    setIsSubmitting(true);
+  // اعتبارسنجی عنوان
+  if (!title.trim()) {
+    newFieldErrors.title = "لطفاً عنوان مقاله را وارد کنید.";
+  }
 
-    const tags = selectedTagNames;
+  // اعتبارسنجی Slug
+  const normalizedSlug = slug.trim();
+
+  if (!normalizedSlug) {
+    newFieldErrors.slug = "لطفاً شناسه (Slug) مقاله را وارد کنید.";
+  } else if (!/^[-a-zA-Z0-9_]+$/.test(normalizedSlug)) {
+    newFieldErrors.slug =
+      "شناسه مقاله فقط می‌تواند شامل حروف انگلیسی، اعداد، خط فاصله (-) و زیرخط (_) باشد.";
+  }
+
+  // اعتبارسنجی خلاصه مقاله
+  if (!excerpt.trim()) {
+    newFieldErrors.excerpt = "لطفاً خلاصه / چکیده مقاله را وارد کنید.";
+  }
+
+  // اعتبارسنجی زمان مطالعه
+  const normalizedReadingMinutes = Math.max(
+    1,
+    Number(readingMinutes) || 5
+  );
+
+  if (Object.keys(newFieldErrors).length > 0) {
+    setFieldErrors(newFieldErrors);
+    setError("لطفاً خطاهای مشخص‌شده در فرم را بررسی نمایید.");
+    return;
+  }
+
+  /**
+   * بسیار مهم:
+   * بلوک‌های خالی قبل از ساخت payload حذف می‌شوند.
+   * در نتیجه پاراگراف خالی به API ارسال نخواهد شد.
+   */
+  const normalizedContentBlocks = normalizeContentBlocks(contentBlocks);
+
+  // به‌روزرسانی محتوای فرم با نسخه پاک‌سازی‌شده
+  setContentBlocks(normalizedContentBlocks);
+
+  setIsSubmitting(true);
+
+  try {
     const payload: AdminBlogPostInput = {
       title: title.trim(),
-      slug: slug.trim(),
+      slug: normalizedSlug,
       category,
       authorName: authorName.trim() || "تحریریه‌ی سایرا",
-      readingMinutes: Number(readingMinutes) || 5,
+      readingMinutes: normalizedReadingMinutes,
       featured,
       excerpt: excerpt.trim(),
       coverUrl: coverUrl.trim() || "/img/gamnet-1.webp",
       coverImageId: coverImageId != null ? coverImageId : undefined,
-      tags,
+      tags: selectedTagNames
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0),
       status: submitStatus,
-      content: contentBlocks,
+
+      // فقط بلوک‌های معتبر و غیرخالی ارسال می‌شوند
+      content: normalizedContentBlocks,
     };
 
-    try {
-      let result: BlogPostDetail;
-      if (initialData) {
-        result = await adminService.updateBlogPost(initialData.slug || initialData.id, payload);
-      } else {
-        result = await adminService.createBlogPost(payload);
-      }
-      onSuccess(result);
-      onClose();
-    } catch (err: unknown) {
-      const e = err as Error & { details?: Record<string, unknown>; status?: number };
-      if (e.status === 403) {
-        setError("شما دسترسی لازم برای ویرایش یا ایجاد مقاله را ندارید (403 Forbidden).");
-      } else if (e.status === 401) {
-        setError("نشست کاربری شما منقضی شده است. لطفاً مجدداً وارد شوید.");
-      } else if (e.details && typeof e.details === "object") {
-        const detailsObj = e.details as Record<string, string[] | string>;
-        const mappedErrors: { [key: string]: string } = {};
-        for (const [k, v] of Object.entries(detailsObj)) {
-          mappedErrors[k] = Array.isArray(v) ? v.join(" ") : String(v);
-        }
-        setFieldErrors(mappedErrors);
-        setError(e.message || "خطای اعتبارسنجی فیلدهای ارسالی.");
-      } else {
-        setError(e.message || "خطا در برقراری ارتباط با سرور. اطلاعات فرم حفظ شده است.");
-      }
-    } finally {
-      setIsSubmitting(false);
+    let result: BlogPostDetail;
+
+    if (initialData) {
+      result = await adminService.updateBlogPost(
+        initialData.slug || initialData.id,
+        payload
+      );
+    } else {
+      result = await adminService.createBlogPost(payload);
     }
-  };
+
+    onSuccess(result);
+    onClose();
+  } catch (err: unknown) {
+    const e = err as Error & {
+      details?: Record<string, unknown>;
+      status?: number;
+    };
+
+    if (e.status === 403) {
+      setError(
+        "شما دسترسی لازم برای ویرایش یا ایجاد مقاله را ندارید (403 Forbidden)."
+      );
+    } else if (e.status === 401) {
+      setError(
+        "نشست کاربری شما منقضی شده است. لطفاً مجدداً وارد شوید."
+      );
+    } else if (e.details && typeof e.details === "object") {
+      const detailsObj = e.details as Record<
+        string,
+        string[] | string | unknown
+      >;
+
+      const mappedErrors: { [key: string]: string } = {};
+
+      for (const [key, value] of Object.entries(detailsObj)) {
+        mappedErrors[key] = Array.isArray(value)
+          ? value.join(" ")
+          : String(value);
+      }
+
+      setFieldErrors(mappedErrors);
+      setError(e.message || "خطای اعتبارسنجی فیلدهای ارسالی.");
+    } else {
+      setError(
+        e.message ||
+          "خطا در برقراری ارتباط با سرور. اطلاعات فرم حفظ شده است."
+      );
+    }
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+
+  /* -----------------------------------------------------------------------
+     PREVIEW
+     ----------------------------------------------------------------------- */
 
   const currentPreviewPost: BlogPostDetail = {
-    id: initialData ? initialData.id : "preview-id",
+    id: initialData?.id || "preview-id",
     title: title || "عنوان مقاله پیش‌نمایش",
     slug: slug || "preview-slug",
     category,
-    categoryLabel: categories.find((c) => c.id === category)?.label || "عمومی",
+    categoryLabel:
+      categories.find((item) => item.id === category)?.label ||
+      "عمومی",
     authorName: authorName || "تحریریه‌ی سایرا",
     readingMinutes: Number(readingMinutes) || 5,
-    publishedAt: initialData?.publishedAt || new Date().toISOString(),
-    excerpt: excerpt || "خلاصه و چکیده مقاله برای پیش‌نمایش...",
+    publishedAt:
+      initialData?.publishedAt || new Date().toISOString(),
+    excerpt: excerpt || "خلاصه مقاله برای پیش‌نمایش",
     coverUrl: coverUrl || "/img/gamnet-1.webp",
     tags: selectedTagNames,
     featured,
     status,
-    content: contentBlocks,
-  };
+content: contentBlocks,  };
+
+  /* -----------------------------------------------------------------------
+     RENDER
+     ----------------------------------------------------------------------- */
 
   return (
     <>
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        title={initialData ? "ویرایش مقاله وبلاگ" : "ایجاد مقاله جدید"}
-        className="max-w-[760px] max-h-[90vh] overflow-y-auto"
+        title={
+          initialData
+            ? "ویرایش مقاله وبلاگ"
+            : "ایجاد مقاله جدید"
+        }
+        className="max-w-[900px] max-h-[90vh] overflow-y-auto"
       >
         <div className="flex flex-col gap-6 py-2">
           {error && (
-            <div className="p-3.5 rounded-card bg-[var(--accent-red)]/15 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold flex items-center gap-2">
+            <div className="p-3 rounded-card bg-[var(--accent-red)]/15 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold flex items-center gap-2">
               <Icon name="alert" size={18} />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Section 1: Main Info */}
-          <div className="flex flex-col gap-3 p-4 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
-            <span className="text-xs font-bold text-[var(--primary)]">
+          {/* Main information */}
+
+          <section className="flex flex-col gap-3 p-4 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
+            <h3 className="text-xs font-bold text-[var(--primary)]">
               ۱. اطلاعات اصلی مقاله
-            </span>
+            </h3>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
                   دسته‌بندی مقاله *
                 </label>
+
                 <select
                   value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  onChange={(event) =>
+                    setCategory(event.target.value)
+                  }
                   className="w-full h-11 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)]"
                 >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id} className="bg-[var(--bg-card)]">
-                      {c.label}
+                  {categories.map((item) => (
+                    <option
+                      key={item.id}
+                      value={item.id}
+                      className="bg-[var(--bg-card)]"
+                    >
+                      {item.label}
                     </option>
                   ))}
                 </select>
+
+                {fieldErrors.category && (
+                  <p className="text-xs text-[var(--accent-red)] mt-1">
+                    {fieldErrors.category}
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
                   نویسنده مقاله
                 </label>
+
                 {authors.length > 0 ? (
                   <select
                     value={authorName}
-                    onChange={(e) => setAuthorName(e.target.value)}
-                    className="w-full h-11 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)]"
+                    onChange={(event) =>
+                      setAuthorName(event.target.value)
+                    }
+                    className="w-full h-11 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none"
                   >
-                    {authors.map((a) => (
-                      <option key={a.user} value={a.display_name} className="bg-[var(--bg-card)]">
-                        {a.display_name}
+                    {authors.map((author) => (
+                      <option
+                        key={author.user}
+                        value={author.display_name}
+                        className="bg-[var(--bg-card)]"
+                      >
+                        {author.display_name}
                       </option>
                     ))}
-                    {!authors.some((a) => a.display_name === authorName) && (
-                      <option value={authorName} className="bg-[var(--bg-card)]">
+
+                    {!authors.some(
+                      (author) =>
+                        author.display_name === authorName
+                    ) && (
+                      <option
+                        value={authorName}
+                        className="bg-[var(--bg-card)]"
+                      >
                         {authorName}
                       </option>
                     )}
@@ -443,145 +1116,193 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
                 ) : (
                   <Input
                     value={authorName}
-                    onChange={(e) => setAuthorName(e.target.value)}
-                    placeholder="مثلاً: تحریریه‌ی سایرا"
+                    onChange={(event) =>
+                      setAuthorName(event.target.value)
+                    }
+                    placeholder="نام نویسنده"
                   />
                 )}
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
-                  زمان تقریبی مطالعه (دقیقه)
+                  زمان مطالعه (دقیقه)
                 </label>
+
                 <Input
                   type="number"
                   min={1}
                   value={readingMinutes}
-                  onChange={(e) => setReadingMinutes(Number(e.target.value))}
+                  onChange={(event) =>
+                    setReadingMinutes(
+                      Math.max(1, Number(event.target.value) || 1)
+                    )
+                  }
                 />
               </div>
 
-              <div className="flex items-center gap-2 pt-6">
+              <label className="flex items-center gap-2 pt-6 text-xs text-[var(--text-white)] cursor-pointer">
                 <input
                   type="checkbox"
-                  id="featured-checkbox"
                   checked={featured}
-                  onChange={(e) => setFeatured(e.target.checked)}
-                  className="w-4 h-4 rounded border-[var(--border-subtle)] accent-[var(--primary)] cursor-pointer"
+                  onChange={(event) =>
+                    setFeatured(event.target.checked)
+                  }
+                  className="w-4 h-4 accent-[var(--primary)]"
                 />
-                <label
-                  htmlFor="featured-checkbox"
-                  className="text-xs text-[var(--text-white)] cursor-pointer font-medium"
+                مقاله ویژه
+              </label>
+            </div>
+          </section>
+
+          {/* Title and slug */}
+
+          <section className="flex flex-col gap-3 p-4 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
+            <h3 className="text-xs font-bold text-[var(--primary)]">
+              ۲. عنوان و شناسه مقاله
+            </h3>
+
+            <div>
+              <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
+                عنوان مقاله *
+              </label>
+
+              <Input
+                value={title}
+                onChange={(event) =>
+                  setTitle(event.target.value)
+                }
+                placeholder="عنوان کامل مقاله"
+                error={fieldErrors.title}
+              />
+
+              {fieldErrors.title && (
+                <p className="text-xs text-[var(--accent-red)] mt-1">
+                  {fieldErrors.title}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-[var(--text-muted)]">
+                  Slug *
+                </label>
+
+                <button
+                  type="button"
+                  onClick={handleGenerateSlug}
+                  className="text-xs text-[var(--primary)]"
                 >
-                  نمایش به‌عنوان مقاله ویژه (Featured)
-                </label>
+                  ساخت خودکار
+                </button>
               </div>
+
+              <Input
+                value={slug}
+                onChange={(event) =>
+                  setSlug(event.target.value)
+                }
+                placeholder="article-slug"
+                error={fieldErrors.slug}
+              />
+
+              {fieldErrors.slug && (
+                <p className="text-xs text-[var(--accent-red)] mt-1">
+                  {fieldErrors.slug}
+                </p>
+              )}
             </div>
-          </div>
+          </section>
 
-          {/* Section 2: Title & Slug */}
-          <div className="flex flex-col gap-3 p-4 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
-            <span className="text-xs font-bold text-[var(--primary)]">
-              ۲. عنوان و شناسه (Slug)
-            </span>
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
-                  عنوان مقاله *
-                </label>
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="عنوان کامل مقاله را وارد کنید..."
-                  error={fieldErrors.title}
-                />
-                {fieldErrors.title && (
-                  <span className="text-[11px] text-[var(--accent-red)] font-bold mt-1 block">
-                    {fieldErrors.title}
-                  </span>
-                )}
-              </div>
+          {/* Content blocks */}
 
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-bold text-[var(--text-muted)]">
-                    شناسه یکتا (Slug) *
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleGenerateSlug}
-                    className="text-xs text-[var(--primary)] hover:underline"
-                  >
-                    تولید خودکار از عنوان
-                  </button>
-                </div>
-                <Input
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
-                  placeholder="choose-the-right-device"
-                  className="dir-ltr text-right"
-                  error={fieldErrors.slug}
-                />
-                {fieldErrors.slug && (
-                  <span className="text-[11px] text-[var(--accent-red)] font-bold mt-1 block">
-                    {fieldErrors.slug}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
+          <section className="flex flex-col gap-3 p-4 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-xs font-bold text-[var(--primary)]">
+                ۳. بلوک‌های محتوایی مقاله
+              </h3>
 
-          {/* Section 3: Content Editor / Blocks */}
-          <div className="flex flex-col gap-3 p-4 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-[var(--primary)]">
-                ۳. محتوای متن مقاله (بلوک‌های محتوایی)
-              </span>
               <span className="text-xs text-[var(--text-subtle)]">
                 {contentBlocks.length} بلوک
               </span>
             </div>
 
-            <div className="flex flex-col gap-3">
-              {contentBlocks.map((block, idx) => (
-                <div
-                  key={idx}
-                  className="p-3.5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-2 relative"
-                >
-                  <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-                    <span className="text-xs font-bold text-[var(--text-white)] flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-[var(--foreground)]/60 text-[var(--text-muted)] text-[10px] flex items-center justify-center">
-                        {idx + 1}
-                      </span>
-                      {block.type === "heading" && "تیتر (Heading)"}
-                      {block.type === "paragraph" && "پاراگراف (Paragraph)"}
-                      {block.type === "list" && "فهرست / لیست (List)"}
-                      {block.type === "quote" && "نقل‌قول (Quote)"}
-                    </span>
+            <div className="text-xs leading-6 text-[var(--text-muted)]">
+              ساختار هر بلوک مطابق قرارداد API است. برای ویرایش
+              فیلدهای اختصاصی، JSON همان بلوک را تغییر بده.
+              فیلدهای id، version و type را حفظ کن.
+            </div>
 
-                    <div className="flex items-center gap-1">
+            {contentBlocks.map((block, index) => {
+              const key = getBlockKey(block, index);
+
+              const draft =
+                blockDrafts[key] ?? serializeBlock(block);
+
+              const blockType =
+                block.type === "unsupported"
+                  ? block.originalType
+                  : block.type;
+
+              return (
+                <div
+                  key={key}
+                  className="flex flex-col gap-3 p-3 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)]"
+                >
+                  <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-6 h-6 shrink-0 rounded-full bg-[var(--foreground)]/60 text-[var(--text-muted)] text-xs flex items-center justify-center">
+                        {index + 1}
+                      </span>
+
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-[var(--text-white)] truncate">
+                          {getBlockLabel(blockType)}
+                        </div>
+                        <div className="text-[10px] text-[var(--text-subtle)] truncate">
+                          ID: {block.id || "بدون شناسه"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
-                        onClick={() => handleMoveBlock(idx, "up")}
-                        disabled={idx === 0}
-                        className="p-1 text-[var(--text-subtle)] hover:text-white disabled:opacity-30"
+                        onClick={() =>
+                          handleMoveBlock(index, "up")
+                        }
+                        disabled={index === 0}
+                        className="p-1 text-[var(--text-subtle)] disabled:opacity-30"
                         title="انتقال به بالا"
                       >
-                        <Icon name="chevron" size={16} className="rotate-180" />
+                        <Icon
+                          name="chevron"
+                          size={16}
+                          className="rotate-180"
+                        />
                       </button>
+
                       <button
                         type="button"
-                        onClick={() => handleMoveBlock(idx, "down")}
-                        disabled={idx === contentBlocks.length - 1}
-                        className="p-1 text-[var(--text-subtle)] hover:text-white disabled:opacity-30"
+                        onClick={() =>
+                          handleMoveBlock(index, "down")
+                        }
+                        disabled={
+                          index === contentBlocks.length - 1
+                        }
+                        className="p-1 text-[var(--text-subtle)] disabled:opacity-30"
                         title="انتقال به پایین"
                       >
                         <Icon name="chevron" size={16} />
                       </button>
+
                       <button
                         type="button"
-                        onClick={() => handleRemoveBlock(idx)}
-                        className="p-1 text-[var(--accent-red)] hover:bg-[var(--accent-red)]/20 rounded"
+                        onClick={() =>
+                          handleRemoveBlock(index)
+                        }
+                        className="p-1 text-[var(--accent-red)]"
                         title="حذف بلوک"
                       >
                         <Icon name="close" size={16} />
@@ -589,378 +1310,346 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
                     </div>
                   </div>
 
-                  {block.type === "heading" && (
-                    <Input
-                      value={block.text}
-                      onChange={(e) => handleUpdateBlockText(idx, e.target.value)}
-                      placeholder="عنوان یا تیتر بخش را وارد کنید..."
-                    />
-                  )}
-
-                  {block.type === "paragraph" && (
-                    <textarea
-                      value={block.text}
-                      onChange={(e) => handleUpdateBlockText(idx, e.target.value)}
-                      placeholder="متن پاراگراف..."
-                      rows={3}
-                      className="w-full p-3 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] resize-y leading-relaxed"
-                    />
-                  )}
-
-                  {block.type === "quote" && (
-                    <textarea
-                      value={block.text}
-                      onChange={(e) => handleUpdateBlockText(idx, e.target.value)}
-                      placeholder="متن نقل‌قول..."
-                      rows={2}
-                      className="w-full p-3 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] resize-y leading-relaxed border-s-4 border-s-[var(--primary)]"
-                    />
-                  )}
-
-                  {block.type === "list" && (
-                    <div className="flex flex-col gap-2 pt-1">
-                      {block.items.map((item, itemIdx) => (
-                        <div key={itemIdx} className="flex items-center gap-2">
-                          <span className="text-xs text-[var(--primary)] font-bold">•</span>
-                          <Input
-                            value={item}
-                            onChange={(e) => handleUpdateListItem(idx, itemIdx, e.target.value)}
-                            placeholder={`آیتم شماره ${itemIdx + 1}...`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveListItem(idx, itemIdx)}
-                            className="p-1.5 text-[var(--text-subtle)] hover:text-[var(--accent-red)] shrink-0"
-                            title="حذف این مورد"
-                          >
-                            <Icon name="close" size={16} />
-                          </button>
-                        </div>
-                      ))}
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleAddListItem(idx)}
-                        className="self-start mt-1 text-xs"
-                      >
-                        + افزودن مورد جدید به لیست
-                      </Button>
+                  {block.type === "unsupported" && (
+                    <div className="p-2 rounded bg-[var(--accent-red)]/10 text-[var(--accent-red)] text-xs">
+                      این بلوک در مدل فعلی شناخته‌شده نیست.
+                      اطلاعات اصلی آن حفظ شده است؛ نوع آن را بدون
+                      بررسی قرارداد تغییر نده.
                     </div>
                   )}
-                </div>
-              ))}
 
-              {/* Add Block Toolbar */}
-              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--border-subtle)]">
-                <span className="text-xs font-bold text-[var(--text-muted)]">
-                  افزودن بلوک جدید:
-                </span>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleAddBlock("paragraph")}
-                >
-                  + پاراگراف
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleAddBlock("heading")}
-                >
-                  + تیتر
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleAddBlock("list")}
-                >
-                  + لیست
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleAddBlock("quote")}
-                >
-                  + نقل‌قول
-                </Button>
-              </div>
-            </div>
-          </div>
+                  <textarea
+                    value={draft}
+                    onChange={(event) =>
+                      handleBlockJsonChange(
+                        key,
+                        event.target.value
+                      )
+                    }
+                    onBlur={() =>
+                      handleBlockJsonBlur(index, key)
+                    }
+                    spellCheck={false}
+                    rows={Math.min(
+                      24,
+                      Math.max(7, draft.split("\n").length + 1)
+                    )}
+                    className="w-full p-3 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] resize-y leading-6 font-mono"
+                    dir="ltr"
+                  />
 
-          {/* Section 4: SEO & Excerpt */}
-          <div className="flex flex-col gap-3 p-4 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
-            <span className="text-xs font-bold text-[var(--primary)]">
-              ۴. اطلاعات محتوایی و سئو
-            </span>
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
-                  خلاصه / چکیده مقاله *
-                </label>
-                <textarea
-                  value={excerpt}
-                  onChange={(e) => setExcerpt(e.target.value)}
-                  placeholder="خلاصه کوتاهی از مقاله برای نمایش در کارت‌ها و نتایج..."
-                  rows={2}
-                  className={`w-full p-3 rounded-card bg-[var(--foreground)]/30 border text-xs text-[var(--text-white)] outline-none resize-y leading-relaxed ${
-                    fieldErrors.excerpt
-                      ? "border-[var(--accent-red)] focus:border-[var(--accent-red)]"
-                      : "border-[var(--border-subtle)] focus:border-[var(--primary)]"
-                  }`}
-                />
-                {fieldErrors.excerpt && (
-                  <span className="text-[11px] text-[var(--accent-red)] font-bold mt-1 block">
-                    {fieldErrors.excerpt}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="block text-xs font-bold text-[var(--text-muted)]">
-                  برچسب‌ها (انتخاب و ایجاد تگ واقعی)
-                </label>
-
-                {/* Selected Tags Pills */}
-                <div className="flex flex-wrap items-center gap-1.5 min-h-[36px] p-2 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)]">
-                  {selectedTagNames.length === 0 ? (
-                    <span className="text-xs text-[var(--text-subtle)]">
-                      هیچ برچسبی انتخاب نشده است.
-                    </span>
-                  ) : (
-                    selectedTagNames.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--primary)]/15 border border-[var(--primary)]/30 text-xs text-[var(--primary)] font-bold"
-                      >
-                        {tag}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSelectedTag(tag)}
-                          className="hover:text-[var(--accent-red)] transition-colors cursor-pointer"
-                          title="حذف برچسب"
-                        >
-                          <Icon name="close" size={12} />
-                        </button>
-                      </span>
-                    ))
+                  {blockJsonErrors[key] && (
+                    <p className="text-xs text-[var(--accent-red)]">
+                      {blockJsonErrors[key]}
+                    </p>
                   )}
                 </div>
+              );
+            })}
 
-                {/* Tag Input & Add Button */}
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <Input
-                      value={newTagInput}
-                      onChange={(e) => setNewTagInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddNewTag();
-                        }
-                      }}
-                      placeholder="نام برچسب جدید یا جستجو در تگ‌ها..."
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleAddNewTag}
-                    disabled={!newTagInput.trim()}
-                    className="shrink-0"
+            {/* Add block */}
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-[var(--border-subtle)]">
+              <select
+                value={newBlockType}
+                onChange={(event) =>
+                  setNewBlockType(
+                    event.target.value as BlogBlockType
+                  )
+                }
+                className="flex-1 min-w-0 h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)]"
+              >
+                {BLOCK_OPTIONS.map((option) => (
+                  <option
+                    key={option.type}
+                    value={option.type}
+                    className="bg-[var(--bg-card)]"
                   >
-                    + افزودن برچسب
-                  </Button>
-                </div>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
 
-                {/* Available Suggested Tags from Backend */}
-                {allAvailableTags.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[11px] text-[var(--text-muted)] font-medium">
-                      برچسب‌های موجود در سرور:
-                    </span>
-                    {allAvailableTags.map((tag) => {
-                      const isSelected = selectedTagNames.includes(tag.name);
-                      return (
-                        <button
-                          key={tag.id}
-                          type="button"
-                          onClick={() => handleToggleTag(tag.name)}
-                          className={`text-xs px-2 py-0.5 rounded-lg border transition-colors cursor-pointer ${
-                            isSelected
-                              ? "bg-[var(--primary)] text-on-primary border-[var(--primary)] font-bold"
-                              : "bg-[var(--foreground)]/30 text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-white"
-                          }`}
-                        >
-                          {tag.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleAddBlock}
+              >
+                <span>+ افزودن بلوک</span>
+              </Button>
             </div>
-          </div>
+          </section>
 
-          {/* Section 5: Cover Image */}
-          <div className="flex flex-col gap-3 p-4 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-[var(--primary)]">
-                ۵. تصویر شاخص (آپلود مستقیم یا آدرس اینترنتی)
-              </span>
+          {/* Excerpt */}
+
+          <section className="flex flex-col gap-3 p-4 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
+            <h3 className="text-xs font-bold text-[var(--primary)]">
+              ۴. خلاصه و تگ‌ها
+            </h3>
+
+            <div>
+              <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
+                خلاصه مقاله *
+              </label>
+
+              <textarea
+                value={excerpt}
+                onChange={(event) =>
+                  setExcerpt(event.target.value)
+                }
+                rows={3}
+                placeholder="خلاصه مقاله برای کارت‌ها و نتایج جستجو"
+                className="w-full p-3 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] resize-y leading-relaxed"
+              />
+
+              {fieldErrors.excerpt && (
+                <p className="text-xs text-[var(--accent-red)] mt-1">
+                  {fieldErrors.excerpt}
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {selectedTagNames.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--primary)]/15 border border-[var(--primary)]/30 text-xs text-[var(--primary)]"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleRemoveSelectedTag(tag)
+                    }
+                    title="حذف تگ"
+                  >
+                    <Icon name="close" size={12} />
+                  </button>
+                </span>
+              ))}
+
+              {selectedTagNames.length === 0 && (
+                <span className="text-xs text-[var(--text-subtle)]">
+                  هنوز تگی انتخاب نشده است.
+                </span>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Input
+                  value={newTagInput}
+                  onChange={(event) =>
+                    setNewTagInput(event.target.value)
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void handleAddNewTag();
+                    }
+                  }}
+                  placeholder="نام تگ"
+                />
+              </div>
+
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => void handleAddNewTag()}
+                disabled={!newTagInput.trim()}
+              >
+                افزودن
+              </Button>
+            </div>
+
+            {allAvailableTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {allAvailableTags.map((tag) => {
+                  const selected = selectedTagNames.some(
+                    (name) =>
+                      name.toLowerCase() ===
+                      tag.name.toLowerCase()
+                  );
+
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() =>
+                        handleToggleTag(tag.name)
+                      }
+                      className={`px-2 py-1 rounded-lg border text-xs ${
+                        selected
+                          ? "bg-[var(--primary)] text-on-primary border-[var(--primary)]"
+                          : "bg-[var(--foreground)]/30 text-[var(--text-muted)] border-[var(--border-subtle)]"
+                      }`}
+                    >
+                      {tag.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* Cover image */}
+
+          <section className="flex flex-col gap-3 p-4 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-xs font-bold text-[var(--primary)]">
+                ۵. تصویر شاخص مقاله
+              </h3>
+
               {coverImageId != null && (
-                <span className="text-[11px] text-[var(--accent-green)] font-bold">
-                  شناسه رسانه در سرور: {coverImageId}
+                <span className="text-[11px] text-[var(--accent-green)]">
+                  Media ID: {coverImageId}
                 </span>
               )}
             </div>
 
             {mediaUploadError && (
-              <div className="p-2.5 rounded-card bg-[var(--accent-red)]/15 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold flex items-center gap-2">
-                <Icon name="alert" size={16} />
-                <span>{mediaUploadError}</span>
-              </div>
+              <p className="text-xs text-[var(--accent-red)]">
+                {mediaUploadError}
+              </p>
             )}
 
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="flex-1 w-full flex flex-col gap-3">
-                {/* Upload Button & Status */}
-                <div className="flex items-center gap-3">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                    accept="image/*"
-                    className="hidden"
-                    disabled={isUploadingMedia}
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploadingMedia}
-                    className="flex items-center gap-2 shrink-0"
-                  >
-                    <Icon name="upload" size={16} />
-                    <span>{isUploadingMedia ? "در حال آپلود فایل..." : "انتخاب و آپلود تصویر"}</span>
-                  </Button>
-                  <span className="text-xs text-[var(--text-muted)]">
-                    حداکثر ۱۰ مگابایت (JPG, PNG, WebP)
-                  </span>
-                </div>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 flex flex-col gap-3">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept="image/*"
+                  className="hidden"
+                  disabled={isUploadingMedia}
+                />
 
-                {/* Direct URL Input */}
-                <div>
-                  <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
-                    یا آدرس تصویر شاخص (URL)
-                  </label>
-                  <Input
-                    value={coverUrl}
-                    onChange={(e) => {
-                      setCoverUrl(e.target.value);
-                      setCoverImageId(null);
-                    }}
-                    placeholder="/img/gamnet-1.webp"
-                    className="dir-ltr text-right"
-                  />
-                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    fileInputRef.current?.click()
+                  }
+                  disabled={isUploadingMedia}
+                >
+                  <Icon name="upload" size={16} />
+                  {isUploadingMedia
+                    ? "در حال آپلود..."
+                    : "آپلود تصویر"}
+                </Button>
+
+                <label className="text-xs text-[var(--text-muted)]">
+                  یا آدرس تصویر شاخص
+                </label>
+
+                <Input
+                  value={coverUrl}
+                  onChange={(event) => {
+                    setCoverUrl(event.target.value);
+                    setCoverImageId(null);
+                  }}
+                  placeholder="https://..."
+                />
               </div>
 
               {coverUrl && (
-                <div className="w-28 h-20 rounded-card overflow-hidden bg-[var(--foreground)] border border-[var(--border-subtle)] shrink-0 relative">
+                <div className="w-32 h-24 rounded-card overflow-hidden border border-[var(--border-subtle)]">
                   <AppImage
                     src={coverUrl}
                     fallbackSrc="/img/gamnet-1.webp"
-                    alt="پیش‌نمایش تصویر"
+                    alt="تصویر شاخص"
                     className="w-full h-full object-cover"
                     objectFit="cover"
                   />
                 </div>
               )}
             </div>
-          </div>
+          </section>
 
-          {/* Section 6: Publishing Status */}
-          <div className="flex flex-col gap-3 p-4 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
-            <span className="text-xs font-bold text-[var(--primary)]">
-              ۶. وضعیت انتشار
-            </span>
-            <div className="flex flex-wrap items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-[var(--text-white)]">
-                <input
-                  type="radio"
-                  name="blog-status"
-                  value="DRAFT"
-                  checked={status === "DRAFT"}
-                  onChange={() => setStatus("DRAFT")}
-                  className="accent-[var(--primary)]"
-                />
-                <span>پیش‌نویس (DRAFT)</span>
-              </label>
+          {/* Status */}
 
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-[var(--text-white)]">
-                <input
-                  type="radio"
-                  name="blog-status"
-                  value="PUBLISHED"
-                  checked={status === "PUBLISHED"}
-                  onChange={() => setStatus("PUBLISHED")}
-                  className="accent-[var(--primary)]"
-                />
-                <span>منتشرشده (PUBLISHED)</span>
-              </label>
+          <section className="flex flex-col gap-3 p-4 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
+            <h3 className="text-xs font-bold text-[var(--primary)]">
+              ۶. وضعیت مقاله
+            </h3>
 
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-[var(--text-white)]">
-                <input
-                  type="radio"
-                  name="blog-status"
-                  value="ARCHIVED"
-                  checked={status === "ARCHIVED"}
-                  onChange={() => setStatus("ARCHIVED")}
-                  className="accent-[var(--primary)]"
-                />
-                <span>بایگانی‌شده (ARCHIVED)</span>
-              </label>
+            <div className="flex flex-wrap gap-4">
+              {(
+                [
+                  ["DRAFT", "پیش‌نویس"],
+                  ["PUBLISHED", "منتشرشده"],
+                  ["ARCHIVED", "بایگانی‌شده"],
+                ] as const
+              ).map(([value, label]) => (
+                <label
+                  key={value}
+                  className="flex items-center gap-2 text-xs text-[var(--text-white)] cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    name="blog-status"
+                    value={value}
+                    checked={status === value}
+                    onChange={() => setStatus(value)}
+                    className="accent-[var(--primary)]"
+                  />
+                  {label}
+                </label>
+              ))}
             </div>
-          </div>
+          </section>
 
-          {/* Modal Actions */}
+          {/* Actions */}
+
           <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[var(--border-subtle)]">
             <Button
+              type="button"
               variant="secondary"
               onClick={() => setIsPreviewOpen(true)}
-              className="flex items-center gap-1.5"
             >
               <Icon name="info" size={18} />
-              <span>پیش‌نمایش</span>
+              پیش‌نمایش
             </Button>
 
-            <div className="flex items-center gap-3">
-              <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onClose}
+                disabled={isSubmitting}
+              >
                 انصراف
               </Button>
+
               <Button
+                type="button"
                 variant="ghost"
-                onClick={() => handleSave("DRAFT")}
+                onClick={() => void handleSave("DRAFT")}
                 isLoading={isSubmitting}
-                className="border border-[var(--border-subtle)]"
+                disabled={isUploadingMedia}
               >
                 ذخیره پیش‌نویس
               </Button>
+
               <Button
+                type="button"
                 variant="primary"
-                onClick={() => handleSave(status)}
+                onClick={() => void handleSave(status)}
                 isLoading={isSubmitting}
+                disabled={isUploadingMedia}
               >
-                {initialData ? "ذخیره تغییرات" : "انتشار مقاله"}
+                {initialData
+                  ? "ذخیره تغییرات"
+                  : "ذخیره مقاله"}
               </Button>
             </div>
           </div>
         </div>
       </Modal>
 
-      {/* Live Preview Modal */}
       <BlogPostPreviewModal
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
@@ -970,12 +1659,18 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
   );
 };
 
-export const BlogPostFormModal: React.FC<BlogPostFormModalProps> = (props) => {
+export const BlogPostFormModal: React.FC<
+  BlogPostFormModalProps
+> = (props) => {
   if (!props.isOpen) return null;
 
   return (
     <BlogPostFormContent
-      key={props.initialData ? props.initialData.id : "new-blog-post"}
+      key={
+        props.initialData
+          ? props.initialData.id
+          : "new-blog-post"
+      }
       {...props}
     />
   );
