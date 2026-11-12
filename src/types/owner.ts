@@ -1,6 +1,11 @@
+
 import type { Reservation } from "@/types/reservation";
 
-export type VerificationStatus = "APPROVED" | "PENDING" | "REJECTED" | "NOT_SUBMITTED";
+export type VerificationStatus =
+  | "APPROVED"
+  | "PENDING"
+  | "REJECTED"
+  | "NOT_SUBMITTED";
 
 export interface OwnerVerificationData {
   ownerName: string;
@@ -14,6 +19,7 @@ export interface OwnerVerificationData {
 export interface OwnerGamingCenterRef {
   id: string;
   name?: string;
+  englishName?: string;
   slug?: string;
   description?: string;
   isActive?: boolean;
@@ -38,6 +44,7 @@ export interface OwnerMe {
 export interface PublicCenter {
   id: string;
   name: string;
+  englishName?: string;
   slug: string;
   description?: string;
   isActive?: boolean;
@@ -59,7 +66,10 @@ export interface PublicCenter {
 
 /** فیلدهای مشتری در OpenAPI برای Reservation تعریف نشده‌اند؛ اختیاری */
 export interface OwnerReservation extends Reservation {
-  customer?: { fullName?: string; phone?: string };
+  customer?: {
+    fullName?: string;
+    phone?: string;
+  };
   customerName?: string;
   customerPhone?: string;
 }
@@ -93,8 +103,8 @@ export interface GamingCenterClosure {
   gamingCenterId?: string;
   title: string;
   reason?: string;
-  startDate: string; // ISO 8601 string / timestamptz
-  endDate: string; // ISO 8601 string / timestamptz
+  startDate: string;
+  endDate: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -102,8 +112,8 @@ export interface GamingCenterClosure {
 export interface CreateClosureInput {
   title: string;
   reason?: string;
-  startDate: string; // ISO 8601 string / timestamptz
-  endDate: string; // ISO 8601 string / timestamptz
+  startDate: string;
+  endDate: string;
 }
 
 export interface CenterSettings {
@@ -115,7 +125,7 @@ export interface CenterSettings {
   allowOnlineBooking?: boolean;
   onlineBookingAutoConfirm?: boolean;
   preventOverlaps?: boolean;
-  closedDays?: number[]; // روزهای تعطیل هفته ۰ تا ۶ (شنبه تا جمعه)
+  closedDays?: number[];
   schedules?: GamingCenterSchedule[];
 }
 
@@ -179,7 +189,12 @@ export interface StationInput {
   isVip?: boolean;
 }
 
-export type EarningStatus = "PENDING" | "ACCRUED" | "CHARGED" | "WAIVED" | "REFUNDED";
+export type EarningStatus =
+  | "PENDING"
+  | "ACCRUED"
+  | "CHARGED"
+  | "WAIVED"
+  | "REFUNDED";
 
 /**
  * مدل موجودی و کمیسیون رزرو مطابق با OpenAPI schema Earning
@@ -229,8 +244,19 @@ export interface Ticket {
   createdAt: string;
   messages?: TicketMessage[];
 }
+
+/**
+ * اطلاعات لازم برای ایجاد مرکز بازی
+ *
+ * name: نام فارسی مرکز
+ * englishName: نام انگلیسی مرکز (برای تولید slug)
+ * slug: شناسه متنی انگلیسی و URL-friendly
+ *
+ * توجه: ارسال englishName به Backend فقط در صورت پشتیبانی API انجام شود.
+ */
 export interface CreateGamingCenterPayload {
   name: string;
+  englishName?: string;
   slug: string;
   ownerId: string;
   games?: string[];
@@ -264,7 +290,13 @@ export interface OwnerAdvertisement {
   priority?: number;
   startDate?: string | null;
   endDate?: string | null;
-  status: "PENDING" | "APPROVED" | "REJECTED" | "ACTIVE" | "EXPIRED" | "DELETED";
+  status:
+    | "PENDING"
+    | "APPROVED"
+    | "REJECTED"
+    | "ACTIVE"
+    | "EXPIRED"
+    | "DELETED";
   decisionReason?: string | null;
   adminNote?: string | null;
   gamingCenterId: string;

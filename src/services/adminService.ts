@@ -20,7 +20,11 @@ import {
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { formatClock, formatDayLabel } from "@/lib/reservationUi";
-import { extractMediaItems, extractMediaUrl, normalizeMediaUrl } from "@/lib/media";
+import {
+  extractMediaItems,
+  extractMediaUrl,
+  normalizeMediaUrl,
+} from "@/lib/media";
 import { cleanPhoneNumber } from "@/lib/format";
 import {
   ADMIN_DASHBOARD_MOCK_DATA,
@@ -70,8 +74,12 @@ import type {
 let gamecentersStore: AdminGamecenter[] = [...MOCK_ADMIN_GAMECENTERS];
 let usersStore: AdminUser[] = [...MOCK_ADMIN_USERS];
 let reviewsStore: AdminReview[] = [...MOCK_ADMIN_REVIEWS];
-let reservationsStore: AdminUserReservation[] = [...MOCK_ADMIN_USER_RESERVATIONS];
-let verificationsStore: AdminOwnerVerification[] = [...MOCK_ADMIN_OWNER_VERIFICATIONS];
+let reservationsStore: AdminUserReservation[] = [
+  ...MOCK_ADMIN_USER_RESERVATIONS,
+];
+let verificationsStore: AdminOwnerVerification[] = [
+  ...MOCK_ADMIN_OWNER_VERIFICATIONS,
+];
 let adRequestsStore: AdminAdRequest[] = [...MOCK_ADMIN_AD_REQUESTS];
 let campaignsStore: AdminCampaign[] = [...MOCK_ADMIN_CAMPAIGNS];
 let siteSettingsStore: SiteSettings = { ...MOCK_SITE_SETTINGS };
@@ -133,11 +141,17 @@ function mapApiTicketToAdminTicket(raw: any): AdminTicket {
 
   const messages: AdminTicketMessage[] = Array.isArray(raw.messages)
     ? raw.messages.map((m: any) => ({
-        id: m.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        id:
+          m.id ||
+          `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         ticketId: m.ticketId || raw.id,
         senderId: m.senderId,
-        senderName: m.senderType === "SUPPORT" ? "پشتیبانی سایرا" : (raw.userName || "کاربر"),
-        senderRole: m.senderType === "SUPPORT" ? "ADMIN" : (raw.userRole || "USER"),
+        senderName:
+          m.senderType === "SUPPORT"
+            ? "پشتیبانی سایرا"
+            : raw.userName || "کاربر",
+        senderRole:
+          m.senderType === "SUPPORT" ? "ADMIN" : raw.userRole || "USER",
         message: m.text || m.message || "",
         attachment: m.attachment || null,
         createdAt: m.createdAt
@@ -164,7 +178,10 @@ function mapApiTicketToAdminTicket(raw: any): AdminTicket {
     assignedAdminName: raw.assignedAdminName,
     createdAt: createdAtFormatted,
     lastUpdate: updatedAtFormatted,
-    messagesCount: typeof raw.messagesCount === "number" ? raw.messagesCount : messages.length,
+    messagesCount:
+      typeof raw.messagesCount === "number"
+        ? raw.messagesCount
+        : messages.length,
     messages,
   };
 }
@@ -190,7 +207,10 @@ export const adminService = {
   async getDashboardData(signal?: AbortSignal): Promise<AdminDashboardData> {
     let apiStats: any = null;
     try {
-      const response = await apiClient.get<any>(ENDPOINTS.platformAdmin.operationsOverview, { signal });
+      const response = await apiClient.get<any>(
+        ENDPOINTS.platformAdmin.operationsOverview,
+        { signal },
+      );
       apiStats = response.data?.data || response.data;
     } catch {
       // فال‌بک
@@ -198,10 +218,18 @@ export const adminService = {
 
     const updatedStats = ADMIN_DASHBOARD_MOCK_DATA.stats.map((s) => {
       if (s.id === "gamecenters_count") {
-        return { ...s, value: String(apiStats?.totalGamingCenters ?? gamecentersStore.length) };
+        return {
+          ...s,
+          value: String(
+            apiStats?.totalGamingCenters ?? gamecentersStore.length,
+          ),
+        };
       }
       if (s.id === "users_count") {
-        return { ...s, value: String(apiStats?.totalUsers ?? usersStore.length) };
+        return {
+          ...s,
+          value: String(apiStats?.totalUsers ?? usersStore.length),
+        };
       }
       if (s.id === "reservations_count" && apiStats?.totalReservations) {
         return { ...s, value: String(apiStats.totalReservations) };
@@ -231,7 +259,8 @@ export const adminService = {
       : new Date().toLocaleDateString("fa-IR");
 
     const addresses = Array.isArray(raw.addresses) ? raw.addresses : [];
-    const primaryAddress = addresses.find((a: any) => a.isPrimary) || addresses[0];
+    const primaryAddress =
+      addresses.find((a: any) => a.isPrimary) || addresses[0];
 
     const cityName = raw.city || primaryAddress?.city || "تهران";
     const fullAddress =
@@ -251,27 +280,31 @@ export const adminService = {
 
     const ownerPhone = cleanPhoneNumber(
       raw.ownerPhone ||
-      raw.managerPhone ||
-      raw.phone ||
-      raw.manager?.phone ||
-      raw.owner?.phone ||
-      "09120000000"
+        raw.managerPhone ||
+        raw.phone ||
+        raw.manager?.phone ||
+        raw.owner?.phone ||
+        "09120000000",
     );
 
     const logoUrl =
       raw.logoUrl ||
       raw.logo?.url ||
-      (Array.isArray(raw.media) ? raw.media.find((m: any) => m.purpose === "LOGO")?.url : undefined);
+      (Array.isArray(raw.media)
+        ? raw.media.find((m: any) => m.purpose === "LOGO")?.url
+        : undefined);
 
     const coverUrl =
       raw.coverUrl ||
       raw.cover?.url ||
-      (Array.isArray(raw.media) ? raw.media.find((m: any) => m.purpose === "COVER")?.url : undefined);
+      (Array.isArray(raw.media)
+        ? raw.media.find((m: any) => m.purpose === "COVER")?.url
+        : undefined);
 
     return {
-      id: String(raw.id || raw.slug),
+      id: String(raw.id ?? raw.gamingCenterId ?? raw.slug ?? ""),
       name: raw.name || "گیمنت بدون نام",
-      slug: raw.slug || String(raw.id),
+      slug: raw.slug || String(raw.id ?? raw.gamingCenterId ?? ""),
       ownerName,
       ownerPhone,
       city: cityName,
@@ -279,7 +312,10 @@ export const adminService = {
       description: raw.description || "",
       isActive: raw.isActive !== undefined ? Boolean(raw.isActive) : true,
       rating: typeof raw.rating === "number" ? raw.rating : 5.0,
-      stationsCount: typeof raw.stationsCount === "number" ? raw.stationsCount : (raw.stations?.length || 0),
+      stationsCount:
+        typeof raw.stationsCount === "number"
+          ? raw.stationsCount
+          : raw.stations?.length || 0,
       createdAt: formattedCreatedAt,
       updatedAt: raw.updatedAt ? `${formatDayLabel(raw.updatedAt)}` : undefined,
       phone: raw.phone || ownerPhone,
@@ -297,7 +333,7 @@ export const adminService = {
    */
   async getGamecenters(
     params: AdminListQueryParams = {},
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<AdminPaginatedResult<AdminGamecenter>> {
     const {
       search = "",
@@ -324,10 +360,13 @@ export const adminService = {
 
       let resData: any = null;
       try {
-        const response = await apiClient.get<any>(ENDPOINTS.gamingCenter.adminList, {
-          query: queryPayload,
-          signal,
-        });
+        const response = await apiClient.get<any>(
+          ENDPOINTS.gamingCenter.adminList,
+          {
+            query: queryPayload,
+            signal,
+          },
+        );
         resData = response.data;
         if (response.meta?.pagination) {
           serverTotal = response.meta.pagination.total;
@@ -335,10 +374,13 @@ export const adminService = {
         }
       } catch (err: any) {
         if (err?.status === 403 || err?.status === 404) {
-          const response = await apiClient.get<any>(ENDPOINTS.gamingCenter.list, {
-            query: queryPayload,
-            signal,
-          });
+          const response = await apiClient.get<any>(
+            ENDPOINTS.gamingCenter.list,
+            {
+              query: queryPayload,
+              signal,
+            },
+          );
           resData = response.data;
           if (response.meta?.pagination) {
             serverTotal = response.meta.pagination.total;
@@ -371,8 +413,10 @@ export const adminService = {
 
       // مرتب‌سازی کلاینت در صورت نیاز
       items.sort((a, b) => {
-        const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
-        const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+        const valA =
+          (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+        const valB =
+          (b as unknown as Record<string, string | number>)[sortBy] ?? "";
 
         if (typeof valA === "string" && typeof valB === "string") {
           return sortOrder === "asc"
@@ -406,7 +450,7 @@ export const adminService = {
             gc.slug.toLowerCase().includes(query) ||
             gc.ownerName.toLowerCase().includes(query) ||
             gc.ownerPhone.includes(query) ||
-            gc.city.toLowerCase().includes(query)
+            gc.city.toLowerCase().includes(query),
         );
       }
       if (status === "active") {
@@ -438,9 +482,15 @@ export const adminService = {
    * دریافت اطلاعات تکمیلی یک گیمنت با شناسه
    * GET /gamingCenters/{id} یا GET /public/gamingCenters/{slug}
    */
-  async getGamecenterById(id: string, signal?: AbortSignal): Promise<AdminGamecenter | null> {
+  async getGamecenterById(
+    id: string,
+    signal?: AbortSignal,
+  ): Promise<AdminGamecenter | null> {
     try {
-      const response = await apiClient.get<any>(ENDPOINTS.gamingCenter.byId(id), { signal });
+      const response = await apiClient.get<any>(
+        ENDPOINTS.gamingCenter.byId(id),
+        { signal },
+      );
       const resData = response.data?.data || response.data;
       if (resData) {
         return this.mapRawGamingCenterToAdmin(resData);
@@ -452,7 +502,10 @@ export const adminService = {
     }
 
     try {
-      const response = await apiClient.get<any>(ENDPOINTS.gamingCenter.detail(id), { signal });
+      const response = await apiClient.get<any>(
+        ENDPOINTS.gamingCenter.detail(id),
+        { signal },
+      );
       const resData = response.data?.data || response.data;
       if (resData) {
         return this.mapRawGamingCenterToAdmin(resData);
@@ -461,7 +514,9 @@ export const adminService = {
       // فال‌بک به استور
     }
 
-    const localItem = gamecentersStore.find((g) => g.id === id || g.slug === id);
+    const localItem = gamecentersStore.find(
+      (g) => g.id === id || g.slug === id,
+    );
     return localItem || null;
   },
 
@@ -470,41 +525,80 @@ export const adminService = {
    * POST /gamingCenters
    * Body: { name, slug, ownerId, games? }
    */
-  async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
-    const payload = {
-      name: input.name.trim(),
-      slug: input.slug.trim(),
-      ownerId: input.ownerPhone.trim(),
-      games: [],
-    };
 
-    try {
-      const response = await apiClient.post<any>(ENDPOINTS.gamingCenter.list, payload);
-      const resData = response.data?.data || response.data;
-      const created = this.mapRawGamingCenterToAdmin({
-        ...resData,
-        ...input,
-      });
+/**
+ * ثبت گیمنت جدید از طریق اندپوینت رسمی:
+ * POST /gamingCenters
+ * Body: { name, slug, ownerId, games? }
+ */
+async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
+  const name = input.name?.trim();
+  const slug = input.slug?.trim().toLowerCase();
+  const ownerId = input.ownerId?.trim();
 
-      // اضافه به استور محلی
-      gamecentersStore.unshift(created);
-      persistStore("sayra_admin_gamecenters", gamecentersStore);
-      return created;
-    } catch {
-      // ایجاد در استور لوکال در صورت عدم دسترسی به بک‌اند زنده
-      const newId = `gc-${Date.now()}`;
-      const newGc: AdminGamecenter = {
-        id: newId,
-        ...input,
-        rating: 5.0,
-        stationsCount: 0,
-        createdAt: new Date().toLocaleDateString("fa-IR"),
-      };
-      gamecentersStore.unshift(newGc);
-      persistStore("sayra_admin_gamecenters", gamecentersStore);
-      return newGc;
-    }
-  },
+  // اعتبارسنجی اطلاعات ضروری
+  if (!name) {
+    throw new Error("نام فارسی گیم‌نت الزامی است.");
+  }
+
+  if (!slug) {
+    throw new Error("نام لاتین گیم‌نت (Slug) الزامی است.");
+  }
+
+  if (!ownerId) {
+    throw new Error("شناسه واقعی مالک انتخاب نشده است.");
+  }
+
+  // اسلاگ باید لاتین و شامل حروف، اعداد و خط تیره باشد.
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+    throw new Error(
+      "نام لاتین گیم‌نت باید فقط شامل حروف انگلیسی، اعداد و خط تیره باشد."
+    );
+  }
+
+  // فقط فیلدهای مورد تأیید API ارسال می‌شوند.
+  // ownerPhone و englishName نباید به‌جای ownerId یا به API ارسال شوند.
+  const payload = {
+    name,
+    slug,
+    ownerId,
+    games: [] as string[],
+  };
+
+  // در صورت خطای سرور، خطا به صفحه فراخواننده منتقل می‌شود.
+  // ثبت محلی جعلی انجام نمی‌دهیم.
+  const response = await apiClient.post<any>(
+    ENDPOINTS.gamingCenter.list,
+    payload
+  );
+
+  const resData =
+    response.data?.data ??
+    response.data;
+
+  if (!resData || typeof resData !== "object") {
+    throw new Error("پاسخ معتبری از سرور برای ثبت گیم‌نت دریافت نشد.");
+  }
+
+  const created = this.mapRawGamingCenterToAdmin({
+    ...resData,
+    ...input,
+    name,
+    slug,
+    id: resData.id ?? resData.gamingCenterId ?? resData.slug,
+  });
+
+  if (!created.id) {
+    throw new Error("گیم‌نت ثبت شد، اما شناسه آن از سرور دریافت نشد.");
+  }
+
+  // ذخیره فقط پس از موفقیت ثبت در سرور
+  gamecentersStore.unshift(created);
+  persistStore("sayra_admin_gamecenters", gamecentersStore);
+
+  return created;
+},
+
 
   /**
    * ویرایش کامل گیمنت شامل نام، اسلاگ، آدرس، تلفن و تنظیمات:
@@ -513,7 +607,7 @@ export const adminService = {
    */
   async updateGamecenter(
     id: string,
-    input: Partial<AdminGamecenterInput>
+    input: Partial<AdminGamecenterInput>,
   ): Promise<AdminGamecenter> {
     // ارسال درخواست به‌روزرسانی مشخصات اصلی
     const patchBody: Record<string, unknown> = {};
@@ -542,7 +636,9 @@ export const adminService = {
     }
 
     // به‌روزرسانی در استور محلی
-    const index = gamecentersStore.findIndex((item) => item.id === id || item.slug === id);
+    const index = gamecentersStore.findIndex(
+      (item) => item.id === id || item.slug === id,
+    );
     let updated: AdminGamecenter;
     if (index !== -1) {
       updated = {
@@ -601,12 +697,16 @@ export const adminService = {
     } catch (err: any) {
       // در صورتی که 404 نباشد و خطای سمت سرور باشد، خطا را نگه می‌داریم مگر اینکه محیط تستی باشد
       if (err?.status && err.status >= 500) {
-        console.warn("Backend DELETE endpoint returned server error, proceeding with local cleanup");
+        console.warn(
+          "Backend DELETE endpoint returned server error, proceeding with local cleanup",
+        );
       }
     }
 
     const initialLength = gamecentersStore.length;
-    gamecentersStore = gamecentersStore.filter((item) => item.id !== id && item.slug !== id);
+    gamecentersStore = gamecentersStore.filter(
+      (item) => item.id !== id && item.slug !== id,
+    );
     persistStore("sayra_admin_gamecenters", gamecentersStore);
 
     return true;
@@ -618,10 +718,15 @@ export const adminService = {
    */
   async getGamecenterMedia(
     slugOrId: string,
-    signal?: AbortSignal
-  ): Promise<Array<{ id: string; url: string; altText?: string; purpose?: string }>> {
+    signal?: AbortSignal,
+  ): Promise<
+    Array<{ id: string; url: string; altText?: string; purpose?: string }>
+  > {
     try {
-      const response = await apiClient.get<any>(ENDPOINTS.gamingCenter.media(slugOrId), { signal });
+      const response = await apiClient.get<any>(
+        ENDPOINTS.gamingCenter.media(slugOrId),
+        { signal },
+      );
       const items = extractMediaItems<any>(response.data, "GALLERY");
       return items.map((m: any) => ({
         id: String(m.id || m.url),
@@ -643,7 +748,7 @@ export const adminService = {
     gamingCenterId: string,
     file: File,
     purpose: "COVER" | "GALLERY" | "LOGO" | "STATION" = "GALLERY",
-    altText?: string
+    altText?: string,
   ): Promise<{ id: string; url: string; altText?: string; purpose?: string }> {
     const formData = new FormData();
     formData.append("file", file);
@@ -653,7 +758,7 @@ export const adminService = {
     try {
       const response = await apiClient.post<any>(
         ENDPOINTS.owner.mediaUpload(gamingCenterId),
-        formData
+        formData,
       );
       const rawData = response.data;
       const extractedUrl = extractMediaUrl(rawData);
@@ -667,7 +772,10 @@ export const adminService = {
     } catch {
       // تلاش از طریق اندپوینت اختصاصی آپلود مدیا پلتفرم ادمین
       try {
-        const response = await apiClient.post<any>("/platform-admin/media/upload", formData);
+        const response = await apiClient.post<any>(
+          "/platform-admin/media/upload",
+          formData,
+        );
         const rawData = response.data;
         const extractedUrl = extractMediaUrl(rawData);
         return {
@@ -687,9 +795,12 @@ export const adminService = {
    * مستندات OpenAPI در نسخه v1.0-LOCKED متد DELETE برای تصاویر ثبت نکرده است.
    * به همین دلیل تا پیاده‌سازی متد اختصاصی سرور، از حدس زدن اندپوینت جلوگیری شده و پیام شفاف بازمی‌گرداند.
    */
-  async deleteGamecenterMedia(_gamingCenterId: string, _mediaId: string): Promise<void> {
+  async deleteGamecenterMedia(
+    _gamingCenterId: string,
+    _mediaId: string,
+  ): Promise<void> {
     throw new Error(
-      "عملیات حذف تصویر در نسخه فعلی OpenAPI v1.0-LOCKED فاقد اندپوینت است و پس از ارائه توسط تیم بک‌اند فعال خواهد شد."
+      "عملیات حذف تصویر در نسخه فعلی OpenAPI v1.0-LOCKED فاقد اندپوینت است و پس از ارائه توسط تیم بک‌اند فعال خواهد شد.",
     );
   },
 
@@ -700,7 +811,7 @@ export const adminService = {
    */
   async getTickets(
     params: AdminListQueryParams = {},
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<AdminPaginatedResult<AdminTicket>> {
     const {
       search = "",
@@ -719,7 +830,10 @@ export const adminService = {
     let serverTotalPages: number | undefined;
 
     try {
-      const response = await apiClient.get<unknown>(ENDPOINTS.adminTickets.list, { signal });
+      const response = await apiClient.get<unknown>(
+        ENDPOINTS.adminTickets.list,
+        { signal },
+      );
       const resData = response.data;
       rawList = unwrapTicketsList(resData);
       if (response.meta?.pagination) {
@@ -728,7 +842,10 @@ export const adminService = {
       }
     } catch (err: any) {
       if (err?.status === 403 || err?.status === 404) {
-        const response = await apiClient.get<unknown>(ENDPOINTS.support.tickets, { signal });
+        const response = await apiClient.get<unknown>(
+          ENDPOINTS.support.tickets,
+          { signal },
+        );
         rawList = unwrapTicketsList(response.data);
       } else {
         throw err;
@@ -738,7 +855,9 @@ export const adminService = {
     let mapped = rawList.map(mapApiTicketToAdminTicket);
 
     if (needingResponseOnly) {
-      mapped = mapped.filter((t) => t.status === "OPEN" || t.status === "PENDING");
+      mapped = mapped.filter(
+        (t) => t.status === "OPEN" || t.status === "PENDING",
+      );
     }
 
     if (search.trim()) {
@@ -748,8 +867,10 @@ export const adminService = {
           t.id.toLowerCase().includes(query) ||
           t.subject.toLowerCase().includes(query) ||
           (t.userName && t.userName.toLowerCase().includes(query)) ||
-          (t.gamecenterName && t.gamecenterName.toLowerCase().includes(query)) ||
-          (t.reservationCode && t.reservationCode.toLowerCase().includes(query))
+          (t.gamecenterName &&
+            t.gamecenterName.toLowerCase().includes(query)) ||
+          (t.reservationCode &&
+            t.reservationCode.toLowerCase().includes(query)),
       );
     }
 
@@ -770,8 +891,10 @@ export const adminService = {
     }
 
     mapped.sort((a, b) => {
-      const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
-      const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valA =
+        (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valB =
+        (b as unknown as Record<string, string | number>)[sortBy] ?? "";
 
       if (typeof valA === "string" && typeof valB === "string") {
         return sortOrder === "asc"
@@ -800,9 +923,15 @@ export const adminService = {
   /**
    * دریافت جزئیات تیکت از اندپوینت‌های رسمی پشتیبانی /support/tickets/{id} یا کاربر /tickets/{id}
    */
-  async getTicketById(id: string, signal?: AbortSignal): Promise<AdminTicket | null> {
+  async getTicketById(
+    id: string,
+    signal?: AbortSignal,
+  ): Promise<AdminTicket | null> {
     try {
-      const response = await apiClient.get<unknown>(ENDPOINTS.support.ticketDetail(id), { signal });
+      const response = await apiClient.get<unknown>(
+        ENDPOINTS.support.ticketDetail(id),
+        { signal },
+      );
       const resData = (response.data as any)?.data || response.data;
       if (resData) {
         return mapApiTicketToAdminTicket(resData);
@@ -810,7 +939,10 @@ export const adminService = {
     } catch (err: any) {
       if (err?.status === 404) return null;
       try {
-        const response = await apiClient.get<unknown>(ENDPOINTS.tickets.detail(id), { signal });
+        const response = await apiClient.get<unknown>(
+          ENDPOINTS.tickets.detail(id),
+          { signal },
+        );
         const resData = (response.data as any)?.data || response.data;
         if (resData) return mapApiTicketToAdminTicket(resData);
       } catch (custErr: any) {
@@ -828,7 +960,7 @@ export const adminService = {
   async replyToTicket(
     ticketId: string,
     messageText: string,
-    _senderAdminId?: string
+    _senderAdminId?: string,
   ): Promise<AdminTicket> {
     const trimmed = messageText.trim();
     if (!trimmed) {
@@ -862,13 +994,17 @@ export const adminService = {
    */
   async updateTicketStatus(
     ticketId: string,
-    status: AdminTicket["status"]
+    status: AdminTicket["status"],
   ): Promise<AdminTicket> {
     try {
-      await apiClient.patch(ENDPOINTS.adminTickets.status(ticketId), { status });
+      await apiClient.patch(ENDPOINTS.adminTickets.status(ticketId), {
+        status,
+      });
     } catch (err: any) {
       if (err?.status === 403 || err?.status === 404) {
-        await apiClient.patch(ENDPOINTS.support.ticketStatus(ticketId), { status });
+        await apiClient.patch(ENDPOINTS.support.ticketStatus(ticketId), {
+          status,
+        });
       } else {
         throw err;
       }
@@ -887,7 +1023,7 @@ export const adminService = {
    */
   async assignTicket(
     ticketId: string,
-    adminId: string | null
+    adminId: string | null,
   ): Promise<AdminTicket> {
     const payload = { assignedToUserId: adminId || "" };
 
@@ -895,7 +1031,10 @@ export const adminService = {
       await apiClient.patch(ENDPOINTS.adminTickets.assign(ticketId), payload);
     } catch (err: any) {
       if (err?.status === 403 || err?.status === 404) {
-        await apiClient.patch(ENDPOINTS.support.ticketAssign(ticketId), payload);
+        await apiClient.patch(
+          ENDPOINTS.support.ticketAssign(ticketId),
+          payload,
+        );
       } else {
         throw err;
       }
@@ -918,7 +1057,10 @@ export const adminService = {
    */
   async getAdmins(signal?: AbortSignal): Promise<AdminUser[]> {
     try {
-      const res = await adminService.getUsers({ role: "ADMIN", pageSize: 50 }, signal);
+      const res = await adminService.getUsers(
+        { role: "ADMIN", pageSize: 50 },
+        signal,
+      );
       if (res.items.length > 0) {
         return res.items;
       }
@@ -929,7 +1071,10 @@ export const adminService = {
     return Promise.resolve(admins);
   },
 
-  async getGamecenterTickets(gamecenterId: string, signal?: AbortSignal): Promise<AdminTicket[]> {
+  async getGamecenterTickets(
+    gamecenterId: string,
+    signal?: AbortSignal,
+  ): Promise<AdminTicket[]> {
     try {
       const res = await adminService.getTickets({ pageSize: 100 }, signal);
       return res.items.filter((t) => t.gamecenterId === gamecenterId);
@@ -943,8 +1088,12 @@ export const adminService = {
     return Promise.resolve(items);
   },
 
-  async getGamecenterReservations(gamecenterId: string): Promise<AdminUserReservation[]> {
-    const items = reservationsStore.filter((r) => r.gamecenterId === gamecenterId);
+  async getGamecenterReservations(
+    gamecenterId: string,
+  ): Promise<AdminUserReservation[]> {
+    const items = reservationsStore.filter(
+      (r) => r.gamecenterId === gamecenterId,
+    );
     return Promise.resolve(items);
   },
 
@@ -983,7 +1132,7 @@ export const adminService = {
    */
   async getUsers(
     params: AdminListQueryParams = {},
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<AdminPaginatedResult<AdminUser>> {
     const {
       search = "",
@@ -1021,7 +1170,9 @@ export const adminService = {
       if (rawArray.length > 0) {
         const items = rawArray.map(this.mapRawUserToAdmin);
         const total = response.meta?.pagination?.total ?? items.length;
-        const totalPages = response.meta?.pagination?.totalPages ?? (Math.ceil(total / pageSize) || 1);
+        const totalPages =
+          response.meta?.pagination?.totalPages ??
+          (Math.ceil(total / pageSize) || 1);
         return {
           items,
           total,
@@ -1043,7 +1194,7 @@ export const adminService = {
           u.fullName.toLowerCase().includes(query) ||
           u.phone.includes(query) ||
           (u.email && u.email.toLowerCase().includes(query)) ||
-          (u.nationalId && u.nationalId.includes(query))
+          (u.nationalId && u.nationalId.includes(query)),
       );
     }
 
@@ -1058,8 +1209,10 @@ export const adminService = {
     }
 
     filtered.sort((a, b) => {
-      const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
-      const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valA =
+        (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valB =
+        (b as unknown as Record<string, string | number>)[sortBy] ?? "";
 
       if (typeof valA === "string" && typeof valB === "string") {
         return sortOrder === "asc"
@@ -1085,9 +1238,15 @@ export const adminService = {
     };
   },
 
-  async getUserById(id: string, signal?: AbortSignal): Promise<AdminUser | null> {
+  async getUserById(
+    id: string,
+    signal?: AbortSignal,
+  ): Promise<AdminUser | null> {
     try {
-      const response = await apiClient.get<any>(ENDPOINTS.platformAdmin.userById(id), { signal });
+      const response = await apiClient.get<any>(
+        ENDPOINTS.platformAdmin.userById(id),
+        { signal },
+      );
       const resData = response.data?.data || response.data;
       if (resData) return this.mapRawUserToAdmin(resData);
     } catch {
@@ -1113,7 +1272,10 @@ export const adminService = {
     };
 
     try {
-      const response = await apiClient.post<any>(ENDPOINTS.platformAdmin.users, payload);
+      const response = await apiClient.post<any>(
+        ENDPOINTS.platformAdmin.users,
+        payload,
+      );
       const resData = response.data?.data || response.data;
       if (resData) {
         const created = this.mapRawUserToAdmin({ ...resData, ...input });
@@ -1137,7 +1299,10 @@ export const adminService = {
     return Promise.resolve(newUser);
   },
 
-  async updateUser(id: string, input: Partial<AdminUserInput>): Promise<AdminUser> {
+  async updateUser(
+    id: string,
+    input: Partial<AdminUserInput>,
+  ): Promise<AdminUser> {
     const payload: Record<string, unknown> = {};
     if (input.fullName) {
       const parts = input.fullName.trim().split(" ");
@@ -1228,7 +1393,10 @@ export const adminService = {
     return Promise.resolve(items);
   },
 
-  async getUserTickets(userId: string, signal?: AbortSignal): Promise<AdminTicket[]> {
+  async getUserTickets(
+    userId: string,
+    signal?: AbortSignal,
+  ): Promise<AdminTicket[]> {
     try {
       const res = await adminService.getTickets({ pageSize: 100 }, signal);
       return res.items.filter((t) => t.userId === userId);
@@ -1245,7 +1413,7 @@ export const adminService = {
   // ==================== OWNER VERIFICATION ====================
 
   async getOwnerVerifications(
-    params: AdminListQueryParams = {}
+    params: AdminListQueryParams = {},
   ): Promise<AdminPaginatedResult<AdminOwnerVerification>> {
     const {
       search = "",
@@ -1268,7 +1436,7 @@ export const adminService = {
           v.gamecenterName.toLowerCase().includes(query) ||
           v.ownerPhone.includes(query) ||
           v.ownerNationalId.includes(query) ||
-          v.gamecenterCity.toLowerCase().includes(query)
+          v.gamecenterCity.toLowerCase().includes(query),
       );
     }
 
@@ -1284,8 +1452,10 @@ export const adminService = {
 
     // Sort
     filtered.sort((a, b) => {
-      const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
-      const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valA =
+        (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valB =
+        (b as unknown as Record<string, string | number>)[sortBy] ?? "";
 
       if (typeof valA === "string" && typeof valB === "string") {
         return sortOrder === "asc"
@@ -1312,7 +1482,9 @@ export const adminService = {
     });
   },
 
-  async getOwnerVerificationById(id: string): Promise<AdminOwnerVerification | null> {
+  async getOwnerVerificationById(
+    id: string,
+  ): Promise<AdminOwnerVerification | null> {
     const item = verificationsStore.find((v) => v.id === id);
     return Promise.resolve(item || null);
   },
@@ -1321,7 +1493,7 @@ export const adminService = {
     id: string,
     status: "APPROVED" | "REJECTED",
     reason?: string,
-    adminName: string = "مدیر پشتیبانی سایرا"
+    adminName: string = "مدیر پشتیبانی سایرا",
   ): Promise<AdminOwnerVerification> {
     const index = verificationsStore.findIndex((v) => v.id === id);
     if (index === -1) {
@@ -1329,14 +1501,25 @@ export const adminService = {
     }
 
     const current = verificationsStore[index];
-    const isModification = current.status !== "PENDING" && current.status !== status;
-    const nowFormatted = new Date().toLocaleDateString("fa-IR") + " - " + new Date().toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+    const isModification =
+      current.status !== "PENDING" && current.status !== status;
+    const nowFormatted =
+      new Date().toLocaleDateString("fa-IR") +
+      " - " +
+      new Date().toLocaleTimeString("fa-IR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 
     const newLog = {
       id: `log-${Date.now()}`,
       adminName,
       action: isModification ? ("MODIFIED" as const) : status,
-      note: reason || (status === "APPROVED" ? "درخواست احراز هویت تأیید شد." : "درخواست احراز هویت رد شد."),
+      note:
+        reason ||
+        (status === "APPROVED"
+          ? "درخواست احراز هویت تأیید شد."
+          : "درخواست احراز هویت رد شد."),
       date: nowFormatted,
     };
 
@@ -1394,7 +1577,7 @@ export const adminService = {
    */
   async getAdRequests(
     params: AdminListQueryParams = {},
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<AdminPaginatedResult<AdminAdRequest>> {
     const {
       search = "",
@@ -1413,10 +1596,13 @@ export const adminService = {
       if (search.trim()) queryPayload.search = search.trim();
       if (status && status !== "all") queryPayload.status = status;
 
-      const response = await apiClient.get<any>(ENDPOINTS.platformAdmin.adRequests, {
-        query: queryPayload,
-        signal,
-      });
+      const response = await apiClient.get<any>(
+        ENDPOINTS.platformAdmin.adRequests,
+        {
+          query: queryPayload,
+          signal,
+        },
+      );
 
       const resData = response.data;
       let rawArray: any[] = [];
@@ -1429,7 +1615,9 @@ export const adminService = {
       if (rawArray.length > 0) {
         const items = rawArray.map(this.mapRawAdRequestToAdmin);
         const total = response.meta?.pagination?.total ?? items.length;
-        const totalPages = response.meta?.pagination?.totalPages ?? (Math.ceil(total / pageSize) || 1);
+        const totalPages =
+          response.meta?.pagination?.totalPages ??
+          (Math.ceil(total / pageSize) || 1);
         return {
           items,
           total,
@@ -1452,7 +1640,7 @@ export const adminService = {
           ad.description.toLowerCase().includes(query) ||
           ad.gamecenterName.toLowerCase().includes(query) ||
           ad.ownerName.toLowerCase().includes(query) ||
-          ad.ownerPhone.includes(query)
+          ad.ownerPhone.includes(query),
       );
     }
 
@@ -1461,8 +1649,10 @@ export const adminService = {
     }
 
     filtered.sort((a, b) => {
-      const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
-      const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valA =
+        (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valB =
+        (b as unknown as Record<string, string | number>)[sortBy] ?? "";
 
       if (typeof valA === "string" && typeof valB === "string") {
         return sortOrder === "asc"
@@ -1495,21 +1685,31 @@ export const adminService = {
   async updateAdRequestStatus(
     id: string,
     status: "APPROVED" | "REJECTED",
-    decisionReason?: string
+    decisionReason?: string,
   ): Promise<AdminAdRequest> {
     const payload: Record<string, unknown> = {
       status,
-      decisionReason: decisionReason || (status === "APPROVED" ? "تأیید شد" : "رد شد"),
+      decisionReason:
+        decisionReason || (status === "APPROVED" ? "تأیید شد" : "رد شد"),
     };
 
     try {
-      await apiClient.patch(ENDPOINTS.platformAdmin.adRequestStatus(id), payload);
+      await apiClient.patch(
+        ENDPOINTS.platformAdmin.adRequestStatus(id),
+        payload,
+      );
     } catch {
       // فال‌بک
     }
 
     const index = adRequestsStore.findIndex((ad) => ad.id === id);
-    const nowFormatted = new Date().toLocaleDateString("fa-IR") + " - " + new Date().toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+    const nowFormatted =
+      new Date().toLocaleDateString("fa-IR") +
+      " - " +
+      new Date().toLocaleTimeString("fa-IR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 
     if (index !== -1) {
       const updated: AdminAdRequest = {
@@ -1561,7 +1761,10 @@ export const adminService = {
   /**
    * Helper: map UI sort keys to backend DRF ordering
    */
-  mapAdminSortToOrdering(sortBy: string = "createdAt", sortOrder: "asc" | "desc" = "desc"): string {
+  mapAdminSortToOrdering(
+    sortBy: string = "createdAt",
+    sortOrder: "asc" | "desc" = "desc",
+  ): string {
     const prefix = sortOrder === "desc" ? "-" : "";
     switch (sortBy) {
       case "publishedAt":
@@ -1584,7 +1787,7 @@ export const adminService = {
    * List articles for Admin Panel with real backend API pagination, search, category, and sorting.
    */
   async getBlogPosts(
-    params: AdminListQueryParams & { category?: string } = {}
+    params: AdminListQueryParams & { category?: string } = {},
   ): Promise<AdminPaginatedResult<BlogPostDetail>> {
     const {
       search = "",
@@ -1616,7 +1819,9 @@ export const adminService = {
 
     const res = await blogApiService.getArticles(queryParams);
 
-    let items = (res.items || []).map((dto) => mapArticleDetailToUi(dto as unknown as ArticleDetailDto));
+    let items = (res.items || []).map((dto) =>
+      mapArticleDetailToUi(dto as unknown as ArticleDetailDto),
+    );
 
     // If client requested a specific status filter and backend did not filter (or returned mixed statuses),
     // we safely ensure the UI status filter consistency.
@@ -1664,11 +1869,16 @@ export const adminService = {
 
     // Resolve categoryId if category string is numeric
     const parsedCatId = Number(input.category);
-    const categoryId = !isNaN(parsedCatId) && parsedCatId > 0 ? parsedCatId : undefined;
+    const categoryId =
+      !isNaN(parsedCatId) && parsedCatId > 0 ? parsedCatId : undefined;
 
     // Resolve or sync tags if tagIds not provided directly
     let resolvedTagIds = input.tagIds;
-    if ((!resolvedTagIds || resolvedTagIds.length === 0) && input.tags && input.tags.length > 0) {
+    if (
+      (!resolvedTagIds || resolvedTagIds.length === 0) &&
+      input.tags &&
+      input.tags.length > 0
+    ) {
       try {
         resolvedTagIds = await adminService.ensureTagsExist(input.tags);
       } catch {
@@ -1676,8 +1886,14 @@ export const adminService = {
       }
     }
 
-    const coverImageId = input.coverImageId != null ? String(input.coverImageId) : undefined;
-    const requestBody = mapAdminInputToCreateRequest(input, categoryId, resolvedTagIds, coverImageId);
+    const coverImageId =
+      input.coverImageId != null ? String(input.coverImageId) : undefined;
+    const requestBody = mapAdminInputToCreateRequest(
+      input,
+      categoryId,
+      resolvedTagIds,
+      coverImageId,
+    );
 
     const createdDto = await blogApiService.createArticle(requestBody);
     return mapArticleDetailToUi(createdDto);
@@ -1689,7 +1905,7 @@ export const adminService = {
    */
   async updateBlogPost(
     idOrSlug: string,
-    input: Partial<AdminBlogPostInput>
+    input: Partial<AdminBlogPostInput>,
   ): Promise<BlogPostDetail> {
     // Resolve target slug
     let targetSlug = idOrSlug;
@@ -1711,7 +1927,10 @@ export const adminService = {
     }
 
     const parsedCatId = input.category ? Number(input.category) : undefined;
-    const categoryId = parsedCatId && !isNaN(parsedCatId) && parsedCatId > 0 ? parsedCatId : undefined;
+    const categoryId =
+      parsedCatId && !isNaN(parsedCatId) && parsedCatId > 0
+        ? parsedCatId
+        : undefined;
 
     // Resolve or sync tags if tags were provided
     let resolvedTagIds = input.tagIds;
@@ -1727,8 +1946,18 @@ export const adminService = {
       }
     }
 
-    const coverImageId = input.coverImageId !== undefined ? (input.coverImageId != null ? String(input.coverImageId) : null) : undefined;
-    const patchBody = mapAdminInputToPatchRequest(input, categoryId, resolvedTagIds, coverImageId);
+    const coverImageId =
+      input.coverImageId !== undefined
+        ? input.coverImageId != null
+          ? String(input.coverImageId)
+          : null
+        : undefined;
+    const patchBody = mapAdminInputToPatchRequest(
+      input,
+      categoryId,
+      resolvedTagIds,
+      coverImageId,
+    );
 
     const updatedDto = await blogApiService.patchArticle(targetSlug, patchBody);
     return mapArticleDetailToUi(updatedDto);
@@ -1741,7 +1970,7 @@ export const adminService = {
    */
   async updateBlogPostStatus(
     idOrSlug: string,
-    status: BlogPostStatus
+    status: BlogPostStatus,
   ): Promise<BlogPostDetail> {
     // Resolve slug from backend first
     let slug = idOrSlug;
@@ -1801,11 +2030,17 @@ export const adminService = {
     return blogApiService.createCategory(body);
   },
 
-  async updateCategory(id: number | string, body: CategoryRequestDto): Promise<CategoryDto> {
+  async updateCategory(
+    id: number | string,
+    body: CategoryRequestDto,
+  ): Promise<CategoryDto> {
     return blogApiService.updateCategory(id, body);
   },
 
-  async patchCategory(id: number | string, body: PatchedCategoryRequestDto): Promise<CategoryDto> {
+  async patchCategory(
+    id: number | string,
+    body: PatchedCategoryRequestDto,
+  ): Promise<CategoryDto> {
     return blogApiService.patchCategory(id, body);
   },
 
@@ -1838,7 +2073,7 @@ export const adminService = {
    */
   async ensureTagsExist(tagNames: string[]): Promise<number[]> {
     const trimmedNames = Array.from(
-      new Set(tagNames.map((t) => t.trim()).filter((t) => t.length > 0))
+      new Set(tagNames.map((t) => t.trim()).filter((t) => t.length > 0)),
     );
     if (trimmedNames.length === 0) return [];
 
@@ -1850,7 +2085,7 @@ export const adminService = {
       const found = existingTags.find(
         (t) =>
           t.name.trim().toLowerCase() === name.toLowerCase() ||
-          t.slug.trim().toLowerCase() === name.toLowerCase()
+          t.slug.trim().toLowerCase() === name.toLowerCase(),
       );
 
       if (found) {
@@ -1863,7 +2098,8 @@ export const adminService = {
           .replace(/\s+/g, "-")
           .replace(/-+/g, "-")
           .trim();
-        const finalSlug = rawSlug.length > 0 ? rawSlug : `tag-${Date.now().toString(36)}`;
+        const finalSlug =
+          rawSlug.length > 0 ? rawSlug : `tag-${Date.now().toString(36)}`;
 
         try {
           const created = await blogApiService.createTag({
@@ -1878,7 +2114,7 @@ export const adminService = {
           const matchAfter = refreshed.find(
             (t) =>
               t.name.trim().toLowerCase() === name.toLowerCase() ||
-              t.slug.trim().toLowerCase() === finalSlug.toLowerCase()
+              t.slug.trim().toLowerCase() === finalSlug.toLowerCase(),
           );
           if (matchAfter) {
             tagIds.push(matchAfter.id);
@@ -1928,19 +2164,27 @@ export const adminService = {
       title: raw.title || "کمپین تخفیف",
       code: (raw.code || "").toUpperCase(),
       description: raw.description,
-      discountType: (raw.discountType || "PERCENTAGE") as AdminCampaign["discountType"],
+      discountType: (raw.discountType ||
+        "PERCENTAGE") as AdminCampaign["discountType"],
       discountValue: Number(raw.discountValue) || 0,
-      maxDiscountAmount: raw.maxDiscountAmount ? Number(raw.maxDiscountAmount) : undefined,
-      minOrderAmount: raw.minOrderAmount ? Number(raw.minOrderAmount) : undefined,
+      maxDiscountAmount: raw.maxDiscountAmount
+        ? Number(raw.maxDiscountAmount)
+        : undefined,
+      minOrderAmount: raw.minOrderAmount
+        ? Number(raw.minOrderAmount)
+        : undefined,
       scopeType: (raw.scopeType || "GLOBAL") as AdminCampaign["scopeType"],
       applicableGamecenterIds: raw.applicableGamecenterIds,
       applicableDeviceTypes: raw.applicableDeviceTypes,
-      targetAudience: (raw.targetAudience || "ALL_USERS") as AdminCampaign["targetAudience"],
+      targetAudience: (raw.targetAudience ||
+        "ALL_USERS") as AdminCampaign["targetAudience"],
       specificUserIds: raw.specificUserIds,
       totalUsageLimit: raw.totalUsageLimit,
       perUserUsageLimit: raw.perUserUsageLimit,
       usedCount: raw.usedCount || 0,
-      startDate: raw.startDate ? formatDayLabel(raw.startDate) : createdAtFormatted,
+      startDate: raw.startDate
+        ? formatDayLabel(raw.startDate)
+        : createdAtFormatted,
       endDate: raw.endDate ? formatDayLabel(raw.endDate) : createdAtFormatted,
       status: (raw.status || "ACTIVE") as AdminCampaign["status"],
       createdAt: createdAtFormatted,
@@ -1954,7 +2198,7 @@ export const adminService = {
    */
   async getCampaigns(
     params: AdminListQueryParams = {},
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<AdminPaginatedResult<AdminCampaign>> {
     const {
       search = "",
@@ -1975,13 +2219,17 @@ export const adminService = {
       };
       if (search.trim()) queryPayload.search = search.trim();
       if (status && status !== "all") queryPayload.status = status;
-      if (discountType && discountType !== "all") queryPayload.discountType = discountType;
+      if (discountType && discountType !== "all")
+        queryPayload.discountType = discountType;
       if (scopeType && scopeType !== "all") queryPayload.scopeType = scopeType;
 
-      const response = await apiClient.get<any>(ENDPOINTS.platformAdmin.campaigns, {
-        query: queryPayload,
-        signal,
-      });
+      const response = await apiClient.get<any>(
+        ENDPOINTS.platformAdmin.campaigns,
+        {
+          query: queryPayload,
+          signal,
+        },
+      );
 
       const resData = response.data;
       let rawArray: any[] = [];
@@ -1994,7 +2242,9 @@ export const adminService = {
       if (rawArray.length > 0) {
         const items = rawArray.map(this.mapRawCampaignToAdmin);
         const total = response.meta?.pagination?.total ?? items.length;
-        const totalPages = response.meta?.pagination?.totalPages ?? (Math.ceil(total / pageSize) || 1);
+        const totalPages =
+          response.meta?.pagination?.totalPages ??
+          (Math.ceil(total / pageSize) || 1);
         return {
           items,
           total,
@@ -2015,7 +2265,7 @@ export const adminService = {
         (c) =>
           c.title.toLowerCase().includes(query) ||
           c.code.toLowerCase().includes(query) ||
-          (c.description && c.description.toLowerCase().includes(query))
+          (c.description && c.description.toLowerCase().includes(query)),
       );
     }
 
@@ -2036,8 +2286,10 @@ export const adminService = {
     }
 
     filtered.sort((a, b) => {
-      const valA = (a as unknown as Record<string, string | number>)[sortBy] ?? "";
-      const valB = (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valA =
+        (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valB =
+        (b as unknown as Record<string, string | number>)[sortBy] ?? "";
 
       if (typeof valA === "string" && typeof valB === "string") {
         return sortOrder === "asc"
@@ -2067,9 +2319,15 @@ export const adminService = {
     };
   },
 
-  async getCampaignById(id: string, signal?: AbortSignal): Promise<AdminCampaign | null> {
+  async getCampaignById(
+    id: string,
+    signal?: AbortSignal,
+  ): Promise<AdminCampaign | null> {
     try {
-      const response = await apiClient.get<any>(ENDPOINTS.platformAdmin.campaignById(id), { signal });
+      const response = await apiClient.get<any>(
+        ENDPOINTS.platformAdmin.campaignById(id),
+        { signal },
+      );
       const resData = response.data?.data || response.data;
       if (resData) return this.mapRawCampaignToAdmin(resData);
     } catch {
@@ -2089,8 +2347,12 @@ export const adminService = {
       description: input.description,
       discountType: input.discountType,
       discountValue: Number(input.discountValue),
-      maxDiscountAmount: input.maxDiscountAmount ? Number(input.maxDiscountAmount) : undefined,
-      minOrderAmount: input.minOrderAmount ? Number(input.minOrderAmount) : undefined,
+      maxDiscountAmount: input.maxDiscountAmount
+        ? Number(input.maxDiscountAmount)
+        : undefined,
+      minOrderAmount: input.minOrderAmount
+        ? Number(input.minOrderAmount)
+        : undefined,
       scopeType: input.scopeType,
       applicableGamecenterIds: input.applicableGamecenterIds,
       applicableDeviceTypes: input.applicableDeviceTypes,
@@ -2104,7 +2366,10 @@ export const adminService = {
     };
 
     try {
-      const response = await apiClient.post<any>(ENDPOINTS.platformAdmin.campaigns, payload);
+      const response = await apiClient.post<any>(
+        ENDPOINTS.platformAdmin.campaigns,
+        payload,
+      );
       const resData = response.data?.data || response.data;
       if (resData) {
         const created = this.mapRawCampaignToAdmin({ ...resData, ...input });
@@ -2117,10 +2382,12 @@ export const adminService = {
     }
 
     const codeExists = campaignsStore.some(
-      (c) => c.code.trim().toUpperCase() === input.code.trim().toUpperCase()
+      (c) => c.code.trim().toUpperCase() === input.code.trim().toUpperCase(),
     );
     if (codeExists) {
-      throw new Error("کد تخفیف وارد شده تکراری است. لطفاً کد دیگری انتخاب کنید.");
+      throw new Error(
+        "کد تخفیف وارد شده تکراری است. لطفاً کد دیگری انتخاب کنید.",
+      );
     }
 
     const nowFormatted = new Date().toLocaleDateString("fa-IR");
@@ -2144,14 +2411,16 @@ export const adminService = {
    */
   async updateCampaign(
     id: string,
-    input: Partial<AdminCampaignInput>
+    input: Partial<AdminCampaignInput>,
   ): Promise<AdminCampaign> {
     const payload: Record<string, unknown> = {};
     if (input.title) payload.title = input.title;
     if (input.code) payload.code = input.code.trim().toUpperCase();
-    if (input.description !== undefined) payload.description = input.description;
+    if (input.description !== undefined)
+      payload.description = input.description;
     if (input.discountType) payload.discountType = input.discountType;
-    if (input.discountValue !== undefined) payload.discountValue = Number(input.discountValue);
+    if (input.discountValue !== undefined)
+      payload.discountValue = Number(input.discountValue);
     if (input.status) payload.status = input.status;
 
     try {
@@ -2236,11 +2505,18 @@ export const adminService = {
     return {
       general: {
         siteTitle: rawSettings.siteTitle ?? siteSettingsStore.general.siteTitle,
-        supportPhone: rawSettings.supportPhone ?? siteSettingsStore.general.supportPhone,
-        supportEmail: rawSettings.supportEmail ?? siteSettingsStore.general.supportEmail,
-        centralAddress: rawSettings.centralAddress ?? siteSettingsStore.general.centralAddress,
+        supportPhone:
+          rawSettings.supportPhone ?? siteSettingsStore.general.supportPhone,
+        supportEmail:
+          rawSettings.supportEmail ?? siteSettingsStore.general.supportEmail,
+        centralAddress:
+          rawSettings.centralAddress ??
+          siteSettingsStore.general.centralAddress,
         maintenanceMode: Boolean(rawSettings.maintenanceMode),
-        maintenanceMessage: rawSettings.maintenanceMessage ?? siteSettingsStore.general.maintenanceMessage ?? "",
+        maintenanceMessage:
+          rawSettings.maintenanceMessage ??
+          siteSettingsStore.general.maintenanceMessage ??
+          "",
       },
       reservation: {
         platformCommissionPercent:
@@ -2274,7 +2550,8 @@ export const adminService = {
             ? Boolean(rawSettings.autoSendReminderSms)
             : siteSettingsStore.notification.autoSendReminderSms,
         welcomeSmsTemplate:
-          rawSettings.welcomeSmsTemplate ?? siteSettingsStore.notification.welcomeSmsTemplate,
+          rawSettings.welcomeSmsTemplate ??
+          siteSettingsStore.notification.welcomeSmsTemplate,
         reviewApprovalPolicy:
           rawSettings.reviewApprovalPolicy === "MANUAL" ? "MANUAL" : "AUTO",
       },
@@ -2284,20 +2561,23 @@ export const adminService = {
           rawInfra.smsGatewayStatus === "ACTIVE" ||
           siteSettingsStore.securityInfo.smsGatewayConnected,
         smsGatewayProvider:
-          rawInfra.smsProvider ?? siteSettingsStore.securityInfo.smsGatewayProvider,
+          rawInfra.smsProvider ??
+          siteSettingsStore.securityInfo.smsGatewayProvider,
         paymentGatewayConnected:
           rawInfra.paymentGatewayStatus === "OPERATIONAL" ||
           rawInfra.paymentGatewayStatus === "ACTIVE" ||
           siteSettingsStore.securityInfo.paymentGatewayConnected,
         paymentGatewayProvider:
-          rawInfra.paymentProvider ?? siteSettingsStore.securityInfo.paymentGatewayProvider,
+          rawInfra.paymentProvider ??
+          siteSettingsStore.securityInfo.paymentGatewayProvider,
         sslCertificateStatus:
-          rawInfra.sslStatus ?? siteSettingsStore.securityInfo.sslCertificateStatus,
-        apiVersion: rawInfra.apiVersion ?? siteSettingsStore.securityInfo.apiVersion,
-        lastBackupDate:
-          rawInfra.lastSuccessfulBackupAt
-            ? formatDayLabel(rawInfra.lastSuccessfulBackupAt)
-            : siteSettingsStore.securityInfo.lastBackupDate,
+          rawInfra.sslStatus ??
+          siteSettingsStore.securityInfo.sslCertificateStatus,
+        apiVersion:
+          rawInfra.apiVersion ?? siteSettingsStore.securityInfo.apiVersion,
+        lastBackupDate: rawInfra.lastSuccessfulBackupAt
+          ? formatDayLabel(rawInfra.lastSuccessfulBackupAt)
+          : siteSettingsStore.securityInfo.lastBackupDate,
       },
     };
   },
@@ -2313,10 +2593,16 @@ export const adminService = {
       centralAddress: settings.general.centralAddress?.trim(),
       maintenanceMode: Boolean(settings.general.maintenanceMode),
       maintenanceMessage: settings.general.maintenanceMessage?.trim(),
-      platformCommissionPercent: Number(settings.reservation.platformCommissionPercent),
+      platformCommissionPercent: Number(
+        settings.reservation.platformCommissionPercent,
+      ),
       maxAdvanceBookingDays: Number(settings.reservation.maxAdvanceBookingDays),
-      onlinePaymentTimeoutMinutes: Number(settings.reservation.onlinePaymentTimeoutMinutes),
-      cancellationPenaltyPercent: Number(settings.reservation.cancellationPenaltyPercent),
+      onlinePaymentTimeoutMinutes: Number(
+        settings.reservation.onlinePaymentTimeoutMinutes,
+      ),
+      cancellationPenaltyPercent: Number(
+        settings.reservation.cancellationPenaltyPercent,
+      ),
       freeCancellationHours: Number(settings.reservation.freeCancellationHours),
       autoSendBookingSms: Boolean(settings.notification.autoSendBookingSms),
       autoSendReminderSms: Boolean(settings.notification.autoSendReminderSms),
@@ -2331,7 +2617,10 @@ export const adminService = {
    */
   async getSiteSettings(signal?: AbortSignal): Promise<SiteSettings> {
     try {
-      const response = await apiClient.get<any>(ENDPOINTS.platformAdmin.settings, { signal });
+      const response = await apiClient.get<any>(
+        ENDPOINTS.platformAdmin.settings,
+        { signal },
+      );
       const apiData = response.data?.data || response.data;
       if (apiData) {
         const mapped = this.mapApiSettingsToUi(apiData);
@@ -2356,7 +2645,10 @@ export const adminService = {
     const payload = this.mapUiSettingsToApiInput(newSettings);
 
     try {
-      const response = await apiClient.put<any>(ENDPOINTS.platformAdmin.settings, payload);
+      const response = await apiClient.put<any>(
+        ENDPOINTS.platformAdmin.settings,
+        payload,
+      );
       const apiData = response.data?.data || response.data;
       if (apiData) {
         const mapped = this.mapApiSettingsToUi({

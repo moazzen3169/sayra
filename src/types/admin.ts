@@ -1,3 +1,4 @@
+
 export interface AdminStatItem {
   id: string;
   title: string;
@@ -68,6 +69,7 @@ export interface AdminGamecenter {
 export interface AdminGamecenterInput {
   name: string;
   slug: string;
+  ownerId: string;
   ownerName: string;
   ownerPhone: string;
   city: string;
@@ -245,9 +247,6 @@ export interface AdminAdRequest {
   submittedAt: string;
   updatedAt?: string;
   decisionReason?: string;
-  adminNote?: string;
-  startDate?: string;
-  endDate?: string;
 }
 
 export interface AdminListQueryParams {

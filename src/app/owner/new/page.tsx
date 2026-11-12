@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -11,7 +12,7 @@ import { getErrorMessage } from "@/lib/reservationUi";
 import { authService } from "@/services/authService";
 import { ownerService } from "@/services/ownerService";
 import { Icon } from "@/components/ui/Icon";
-import { IRAN_PROVINCES, type ProvinceInfo } from "@/data/iranLocations";
+import { IRAN_PROVINCES } from "@/data/iranLocations";
 import { LocationMapPicker } from "@/components/owner/LocationMapPicker";
 import { BannerSlider } from "@/components/BannerSlider";
 import { SafeImage } from "@/components/ui/SafeImage";
@@ -31,6 +32,20 @@ const DAYS_OF_WEEK = [
 const inputClass =
   "w-full h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none text-[var(--text-white)] placeholder:text-[var(--text-subtle)] transition-colors";
 
+/**
+ * تولید slug معتبر از نام انگلیسی.
+ * خروجی فقط شامل حروف کوچک انگلیسی، عدد و خط تیره است.
+ */
+const generateSlug = (value: string): string => {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+};
+
 export default function NewGamingCenterPage() {
   const router = useRouter();
   const { isLoggedIn, user, login } = useAuth();
@@ -47,8 +62,8 @@ export default function NewGamingCenterPage() {
 
   // --- مرحله اول: اطلاعات اولیه و مدیر ---
   const [name, setName] = useState("");
+  const [englishName, setEnglishName] = useState("");
   const [slug, setSlug] = useState("");
-  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [managerFullName, setManagerFullName] = useState("");
   const [managerPhone, setManagerPhone] = useState("");
 
@@ -73,11 +88,11 @@ export default function NewGamingCenterPage() {
   const [city, setCity] = useState("تهران");
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState(35.6892);
-  const [longitude, setLongitude] = useState(51.3890);
+  const [longitude, setLongitude] = useState(51.389);
 
   // --- مرحله سوم: ساعات کاری و روزهای تعطیل ---
   const [workStartTime, setWorkStartTime] = useState("10:00");
-  const [workEndTime, setWorkEndTime] = useState("02:00"); // Overnight supported
+  const [workEndTime, setWorkEndTime] = useState("02:00");
   const [closedDays, setClosedDays] = useState<string[]>([]);
   const [allowOnlineBooking, setAllowOnlineBooking] = useState(true);
   const [onlineBookingAutoConfirm, setOnlineBookingAutoConfirm] = useState(false);
@@ -101,8 +116,14 @@ export default function NewGamingCenterPage() {
   // Populate manager defaults if already logged in
   useEffect(() => {
     if (isLoggedIn && user) {
-      if (!managerFullName && user.fullName) setManagerFullName(user.fullName);
-      if (!managerPhone && user.phone) setManagerPhone(user.phone);
+      if (!managerFullName && user.fullName) {
+        setManagerFullName(user.fullName);
+      }
+
+      if (!managerPhone && user.phone) {
+        setManagerPhone(user.phone);
+      }
+
       setOtpVerified(true);
     }
   }, [isLoggedIn, user, managerFullName, managerPhone]);
@@ -110,65 +131,86 @@ export default function NewGamingCenterPage() {
   // Countdown timer for OTP
   useEffect(() => {
     let interval: NodeJS.Timeout;
+
     if (otpSent && otpTimer > 0 && !otpVerified) {
       interval = setInterval(() => {
         setOtpTimer((prev) => prev - 1);
       }, 1000);
     }
+
     return () => clearInterval(interval);
   }, [otpSent, otpTimer, otpVerified]);
 
   // Handle Province Change & update city list + default coordinates
   const handleProvinceChange = (provName: string) => {
     setProvince(provName);
+
     const found = IRAN_PROVINCES.find((p) => p.name === provName);
+
     if (found) {
       if (found.cities.length > 0) {
         setCity(found.cities[0]);
       }
+
       setLatitude(found.defaultLat);
       setLongitude(found.defaultLng);
     }
   };
 
-  // Auto-generate English slug from center name if not manually edited
-  const handleNameChange = (val: string) => {
-    setName(val);
-    if (!slugManuallyEdited) {
-      const generated = val
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-zA-Z0-9\s-]/g, "")
-        .replace(/\s+/g, "-");
-      setSlug(generated || "");
-    }
+  /**
+   * تغییر نام فارسی گیمنت.
+   * نام فارسی در فیلد name نگهداری می‌شود.
+   */
+  const handleNameChange = (value: string) => {
+    setName(value);
+  };
+
+  /**
+   * تغییر نام انگلیسی گیمنت.
+   * با هر تغییر، slug به‌صورت خودکار تولید می‌شود.
+   */
+  const handleEnglishNameChange = (value: string) => {
+    setEnglishName(value);
+    setSlug(generateSlug(value));
   };
 
   // Toggle closed days
   const toggleClosedDay = (dayId: string) => {
     setClosedDays((prev) =>
-      prev.includes(dayId) ? prev.filter((d) => d !== dayId) : [...prev, dayId]
+      prev.includes(dayId)
+        ? prev.filter((d) => d !== dayId)
+        : [...prev, dayId]
     );
   };
 
   // Check if hours cross midnight
   const isOvernight = (() => {
     if (!workStartTime || !workEndTime) return false;
+
     const [startH, startM] = workStartTime.split(":").map(Number);
     const [endH, endM] = workEndTime.split(":").map(Number);
-    return endH < startH || (endH === startH && endM < startM);
+
+    return (
+      endH < startH ||
+      (endH === startH && endM < startM)
+    );
   })();
 
   // OTP Step 1 Handlers
   const handleSendOtp = async () => {
     setOtpError(null);
+
     const cleanPhone = cleanPhoneNumber(managerPhone);
+
     if (!isValidIranPhone(cleanPhone)) {
-      setOtpError("لطفاً شماره تماس معتبر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
+      setOtpError(
+        "لطفاً شماره تماس معتبر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید."
+      );
       return;
     }
 
     setIsSendingOtp(true);
+
     try {
       try {
         await authService.requestUserOtp(cleanPhone);
@@ -176,6 +218,7 @@ export default function NewGamingCenterPage() {
         // Fallback to general OTP endpoint
         await authService.requestOtp(cleanPhone);
       }
+
       setOtpSent(true);
       setOtpTimer(120);
       setOtpCode(["", "", "", "", "", ""]);
@@ -190,48 +233,68 @@ export default function NewGamingCenterPage() {
     if (value.length > 1) {
       const digits = value.replace(/[^\d]/g, "").slice(0, 6).split("");
       const newOtp = [...otpCode];
-      digits.forEach((d, i) => {
-        if (i < 6) newOtp[i] = d;
+
+      digits.forEach((digit, i) => {
+        if (i < 6) newOtp[i] = digit;
       });
+
       setOtpCode(newOtp);
       return;
     }
 
     const clean = value.replace(/[^\d]/g, "");
     const newOtp = [...otpCode];
+
     newOtp[index] = clean;
     setOtpCode(newOtp);
 
     if (clean && index < 5) {
-      const nextInput = document.getElementById(`creator-otp-${index + 1}`);
+      const nextInput = document.getElementById(
+        `creator-otp-${index + 1}`
+      );
+
       nextInput?.focus();
     }
   };
 
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleOtpKeyDown = (
+    index: number,
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
     if (e.key === "Backspace" && !otpCode[index] && index > 0) {
-      const prevInput = document.getElementById(`creator-otp-${index - 1}`);
+      const prevInput = document.getElementById(
+        `creator-otp-${index - 1}`
+      );
+
       prevInput?.focus();
     }
   };
 
   const handleVerifyOtp = async () => {
     setOtpError(null);
+
     const fullCode = otpCode.join("");
+
     if (fullCode.length < 6) {
       setOtpError("لطفاً کد تایید ۶ رقمی را کامل وارد کنید.");
       return;
     }
 
     const cleanPhone = cleanPhoneNumber(managerPhone);
+
     if (!isValidIranPhone(cleanPhone)) {
-      setOtpError("لطفاً شماره تماس معتبر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
+      setOtpError(
+        "لطفاً شماره تماس معتبر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید."
+      );
       return;
     }
+
     setIsVerifyingOtp(true);
+
     try {
       // Authenticate via customer OTP verification which directly verifies and returns tokens
       const authRes = await authService.verifyOtp(cleanPhone, fullCode);
+
       const accessToken = authRes?.accessToken;
       const refreshToken = authRes?.refreshToken || "";
       const resUser = authRes?.user;
@@ -240,8 +303,19 @@ export default function NewGamingCenterPage() {
         throw new Error("توکن ورود دریافت نشد.");
       }
 
-      const userName = managerFullName.trim() || resUser?.fullName || "مدیر گیم‌نت";
-      login(userName, cleanPhone, accessToken, refreshToken, "MANAGER");
+      const userName =
+        managerFullName.trim() ||
+        resUser?.fullName ||
+        "مدیر گیم‌نت";
+
+      login(
+        userName,
+        cleanPhone,
+        accessToken,
+        refreshToken,
+        "MANAGER"
+      );
+
       setOtpVerified(true);
       setOtpError(null);
     } catch (err) {
@@ -254,6 +328,7 @@ export default function NewGamingCenterPage() {
   // Image Upload Handlers
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+
     if (file) {
       setLogoFile(file);
       setLogoPreview(URL.createObjectURL(file));
@@ -262,24 +337,42 @@ export default function NewGamingCenterPage() {
 
   const removeLogo = () => {
     setLogoFile(null);
-    if (logoPreview) URL.revokeObjectURL(logoPreview);
+
+    if (logoPreview) {
+      URL.revokeObjectURL(logoPreview);
+    }
+
     setLogoPreview(null);
   };
 
-  const handleGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGalleryUpload = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = Array.from(e.target.files || []);
+
     if (files.length === 0) return;
 
     setGalleryFiles((prev) => [...prev, ...files]);
-    const newPreviews = files.map((f) => URL.createObjectURL(f));
+
+    const newPreviews = files.map((file) =>
+      URL.createObjectURL(file)
+    );
+
     setGalleryPreviews((prev) => [...prev, ...newPreviews]);
   };
 
   const removeGalleryImage = (index: number) => {
-    setGalleryFiles((prev) => prev.filter((_, i) => i !== index));
+    setGalleryFiles((prev) =>
+      prev.filter((_, i) => i !== index)
+    );
+
     setGalleryPreviews((prev) => {
       const removed = prev[index];
-      if (removed) URL.revokeObjectURL(removed);
+
+      if (removed) {
+        URL.revokeObjectURL(removed);
+      }
+
       return prev.filter((_, i) => i !== index);
     });
   };
@@ -290,22 +383,51 @@ export default function NewGamingCenterPage() {
 
     if (stepNumber === 1) {
       if (!name.trim() || name.trim().length < 2) {
-        setErrorMsg("لطفاً نام GameCenter را وارد کنید (حداقل ۲ نویسه).");
+        setErrorMsg(
+          "لطفاً نام فارسی GameCenter را وارد کنید (حداقل ۲ نویسه)."
+        );
         return false;
       }
+
+      if (!englishName.trim() || englishName.trim().length < 2) {
+        setErrorMsg(
+          "لطفاً نام انگلیسی GameCenter را وارد کنید (حداقل ۲ نویسه)."
+        );
+        return false;
+      }
+
+      const generatedSlug = generateSlug(englishName);
+
+      if (!generatedSlug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(generatedSlug)) {
+        setErrorMsg(
+          "نام انگلیسی واردشده معتبر نیست. لطفاً از حروف انگلیسی و اعداد استفاده کنید."
+        );
+        return false;
+      }
+
       if (!managerFullName.trim() || managerFullName.trim().length < 2) {
-        setErrorMsg("لطفاً نام و نام خانوادگی Manager را وارد کنید.");
+        setErrorMsg(
+          "لطفاً نام و نام خانوادگی Manager را وارد کنید."
+        );
         return false;
       }
+
       const cleanPhone = cleanPhoneNumber(managerPhone);
+
       if (!isValidIranPhone(cleanPhone)) {
-        setErrorMsg("لطفاً شماره تماس معتبر برای مدیر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید.");
+        setErrorMsg(
+          "لطفاً شماره تماس معتبر برای مدیر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید."
+        );
         return false;
       }
+
       if (!otpVerified && !isLoggedIn) {
-        setErrorMsg("لطفاً کد تایید شماره تماس (OTP) را دریافت و تایید کنید.");
+        setErrorMsg(
+          "لطفاً کد تایید شماره تماس (OTP) را دریافت و تایید کنید."
+        );
         return false;
       }
+
       return true;
     }
 
@@ -314,26 +436,37 @@ export default function NewGamingCenterPage() {
         setErrorMsg("لطفاً استان را انتخاب کنید.");
         return false;
       }
+
       if (!city.trim()) {
         setErrorMsg("لطفاً شهر را مشخص کنید.");
         return false;
       }
+
       if (!address.trim() || address.trim().length < 5) {
-        setErrorMsg("لطفاً آدرس دقیق و کامل با جزئیات را وارد کنید.");
+        setErrorMsg(
+          "لطفاً آدرس دقیق و کامل با جزئیات را وارد کنید."
+        );
         return false;
       }
+
       if (latitude === 0 || longitude === 0) {
-        setErrorMsg("لطفاً موقعیت مکانی را روی نقشه انتخاب کنید.");
+        setErrorMsg(
+          "لطفاً موقعیت مکانی را روی نقشه انتخاب کنید."
+        );
         return false;
       }
+
       return true;
     }
 
     if (stepNumber === 3) {
       if (!workStartTime || !workEndTime) {
-        setErrorMsg("لطفاً ساعت شروع و پایان فعالیت را مشخص کنید.");
+        setErrorMsg(
+          "لطفاً ساعت شروع و پایان فعالیت را مشخص کنید."
+        );
         return false;
       }
+
       return true;
     }
 
@@ -362,7 +495,11 @@ export default function NewGamingCenterPage() {
 
   // Final Submission (Step 6)
   const handleFinalSubmit = async () => {
-    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
+    if (
+      !validateStep(1) ||
+      !validateStep(2) ||
+      !validateStep(3)
+    ) {
       return;
     }
 
@@ -371,28 +508,55 @@ export default function NewGamingCenterPage() {
     setSubmitProgressText("در حال آغاز ثبت اطلاعات مرکز بازی...");
 
     try {
-      const normalizedManagerPhone = cleanPhoneNumber(managerPhone);
-      const resolvedOwnerId = me?.id || user?.id || `owner-${normalizedManagerPhone}`;
-      const effectiveSlug = (slug.trim() || name.trim())
-        .toLowerCase()
-        .replace(/[^a-zA-Z0-9\s-]/g, "")
-        .replace(/\s+/g, "-") || `gc-${Date.now()}`;
+      const normalizedManagerPhone =
+        cleanPhoneNumber(managerPhone);
+
+      const resolvedOwnerId =
+        me?.id ||
+        user?.id ||
+        `owner-${normalizedManagerPhone}`;
+
+      // slug فقط از نام انگلیسی ساخته می‌شود.
+      const effectiveSlug = generateSlug(englishName);
+
+      // کنترل نهایی قبل از ارسال به API
+      if (
+        !effectiveSlug ||
+        !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(effectiveSlug)
+      ) {
+        setErrorMsg(
+          "Slug معتبر نیست. لطفاً نام انگلیسی گیمنت را بررسی کنید."
+        );
+        return;
+      }
 
       // 1. POST /gamingCenters
-      setSubmitProgressText("در حال ایجاد مرکز بازی در سامانه...");
-      const createdCenter = await ownerService.createGamingCenter({
-        name: name.trim(),
-        slug: effectiveSlug,
-        ownerId: resolvedOwnerId,
-        games: selectedGames,
-      });
+      setSubmitProgressText(
+        "در حال ایجاد مرکز بازی در سامانه..."
+      );
+
+      const createdCenter =
+        await ownerService.createGamingCenter({
+          // نام فارسی در فیلد name ذخیره می‌شود.
+          name: name.trim(),
+          // slug از نام انگلیسی تولید شده است.
+          slug: effectiveSlug,
+          ownerId: resolvedOwnerId,
+          games: selectedGames,
+        });
 
       const centerId = createdCenter.id || createdCenter.slug;
 
       // 2. POST /gamingCenters/{id}/addresses & PATCH /gamingCenters/{id}
-      setSubmitProgressText("در حال ثبت آدرس و موقعیت مکانی...");
+      setSubmitProgressText(
+        "در حال ثبت آدرس و موقعیت مکانی..."
+      );
+
       const userEnteredAddress = address.trim();
-      const fullAddressString = `${province}، ${city.trim()}، ${userEnteredAddress} (مختصات: ${latitude.toFixed(5)}, ${longitude.toFixed(5)})`;
+
+      const fullAddressString =
+        `${province}، ${city.trim()}، ${userEnteredAddress} (مختصات: ${latitude.toFixed(5)}, ${longitude.toFixed(5)})`;
+
       await ownerService.createAddress(centerId, {
         addressLine: userEnteredAddress,
         address: fullAddressString,
@@ -402,15 +566,21 @@ export default function NewGamingCenterPage() {
         lat: latitude,
         lng: longitude,
       });
-      await ownerService.patchCenter(centerId, {
-        address: fullAddressString,
-        phone: normalizedManagerPhone || undefined,
-      }).catch((err) => {
-        console.warn("Center address patch warning:", err);
-      });
+
+      await ownerService
+        .patchCenter(centerId, {
+          address: fullAddressString,
+          phone: normalizedManagerPhone || undefined,
+        })
+        .catch((err) => {
+          console.warn("Center address patch warning:", err);
+        });
 
       // 3. PUT /gamingCenters/{id}/settings
-      setSubmitProgressText("در حال ثبت ساعات کاری و تنظیمات...");
+      setSubmitProgressText(
+        "در حال ثبت ساعات کاری و تنظیمات..."
+      );
+
       const settingsPayload: CenterSettings = {
         timeZone: "Asia/Tehran",
         workStartTime: workStartTime,
@@ -419,30 +589,43 @@ export default function NewGamingCenterPage() {
         onlineBookingAutoConfirm: onlineBookingAutoConfirm,
         preventOverlaps: true,
       };
-      await ownerService.updateSettings(centerId, settingsPayload).catch((err) => {
-        console.warn("Settings submission warning:", err);
-      });
+
+      await ownerService
+        .updateSettings(centerId, settingsPayload)
+        .catch((err) => {
+          console.warn("Settings submission warning:", err);
+        });
 
       // 4. POST /gamingCenters/{id}/media/upload (Logo & Gallery)
       if (logoFile) {
-        setSubmitProgressText("در حال آپلود لوگوی مجموعه...");
-        await ownerService.uploadGalleryImage(centerId, logoFile, {
-          purpose: "LOGO",
-          altText: `لوگوی ${name}`,
-        }).catch((err) => {
-          console.warn("Logo upload warning:", err);
-        });
+        setSubmitProgressText(
+          "در حال آپلود لوگوی مجموعه..."
+        );
+
+        await ownerService
+          .uploadGalleryImage(centerId, logoFile, {
+            purpose: "LOGO",
+            altText: `لوگوی ${name}`,
+          })
+          .catch((err) => {
+            console.warn("Logo upload warning:", err);
+          });
       }
 
       if (galleryFiles.length > 0) {
-        setSubmitProgressText("در حال آپلود تصاویر گالری...");
+        setSubmitProgressText(
+          "در حال آپلود تصاویر گالری..."
+        );
+
         for (const gFile of galleryFiles) {
-          await ownerService.uploadGalleryImage(centerId, gFile, {
-            purpose: "GALLERY",
-            altText: gFile.name,
-          }).catch((err) => {
-            console.warn("Gallery upload warning:", err);
-          });
+          await ownerService
+            .uploadGalleryImage(centerId, gFile, {
+              purpose: "GALLERY",
+              altText: gFile.name,
+            })
+            .catch((err) => {
+              console.warn("Gallery upload warning:", err);
+            });
         }
       }
 
@@ -453,7 +636,10 @@ export default function NewGamingCenterPage() {
       });
 
       try {
-        localStorage.setItem("sayra_owner_center_id", centerId);
+        localStorage.setItem(
+          "sayra_owner_center_id",
+          centerId
+        );
       } catch {
         // ignore
       }
@@ -483,11 +669,16 @@ export default function NewGamingCenterPage() {
     { num: 6, title: "ثبت نهایی" },
   ];
 
-  const currentProvinceInfo = IRAN_PROVINCES.find((p) => p.name === province) || IRAN_PROVINCES[0];
+  const currentProvinceInfo =
+    IRAN_PROVINCES.find((p) => p.name === province) ||
+    IRAN_PROVINCES[0];
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-16">
-      <OwnerPageHeader title="ایجاد GameCenter جدید" backUrl="/owner" />
+      <OwnerPageHeader
+        title="ایجاد GameCenter جدید"
+        backUrl="/owner"
+      />
 
       <main className="flex-1 mt-16 px-4 py-6 max-w-3xl mx-auto w-full">
         {/* Stepper Wizard Indicator */}
@@ -496,8 +687,12 @@ export default function NewGamingCenterPage() {
             {STEPS_LIST.map((s, idx) => {
               const isActive = step === s.num;
               const isPassed = step > s.num;
+
               return (
-                <div key={s.num} className="flex items-center gap-2 flex-1 last:flex-initial">
+                <div
+                  key={s.num}
+                  className="flex items-center gap-2 flex-1 last:flex-initial"
+                >
                   <div className="flex items-center gap-2">
                     <div
                       className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
@@ -510,6 +705,7 @@ export default function NewGamingCenterPage() {
                     >
                       {isPassed ? "✓" : toPersianDigits(s.num)}
                     </div>
+
                     <span
                       className={`text-xs whitespace-nowrap font-bold ${
                         isActive
@@ -526,7 +722,9 @@ export default function NewGamingCenterPage() {
                   {idx < STEPS_LIST.length - 1 && (
                     <div
                       className={`flex-1 h-[2px] mx-1 transition-colors ${
-                        step > s.num ? "bg-[var(--accent-green)]" : "bg-[var(--border-subtle)]"
+                        step > s.num
+                          ? "bg-[var(--accent-green)]"
+                          : "bg-[var(--border-subtle)]"
                       }`}
                     />
                   )}
@@ -539,7 +737,11 @@ export default function NewGamingCenterPage() {
         {/* Global Error Banner */}
         {errorMsg && (
           <div className="mb-6 p-3.5 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold flex items-center gap-2">
-            <Icon name="alert" size={18} className="shrink-0" />
+            <Icon
+              name="alert"
+              size={18}
+              className="shrink-0"
+            />
             <span>{errorMsg}</span>
           </div>
         )}
@@ -550,10 +752,12 @@ export default function NewGamingCenterPage() {
             <div className="w-14 h-14 rounded-full bg-[var(--accent-green)]/20 text-[var(--accent-green)] flex items-center justify-center text-2xl font-black">
               ✓
             </div>
+
             <div>
               <h3 className="text-lg font-bold text-[var(--text-white)]">
                 GameCenter «{createdResult.name}» با موفقیت ثبت شد!
               </h3>
+
               <p className="text-xs text-[var(--text-subtle)] mt-1.5 max-w-md mx-auto">
                 شناسه مرکز با موفقیت دریافت گردید. هم‌اکنون می‌توانید وارد پنل مدیریت Manager شوید.
               </p>
@@ -568,12 +772,14 @@ export default function NewGamingCenterPage() {
                   } catch {
                     // ignore
                   }
+
                   router.push("/owner");
                 }}
                 className="px-6 py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform text-center cursor-pointer"
               >
                 ورود به پنل Manager
               </button>
+
               <Link
                 href={`/gamecenter/${encodeURIComponent(createdResult.slug)}`}
                 className="px-6 py-2.5 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-[var(--text-white)] text-xs font-bold hover:bg-[var(--foreground)]/80 active:scale-95 transition-transform text-center"
@@ -592,36 +798,95 @@ export default function NewGamingCenterPage() {
             {step === 1 && (
               <div className="flex flex-col gap-5">
                 <div className="border-b border-[var(--border-subtle)] pb-3">
-                  <h3 className="text-sm font-bold text-[var(--text-white)]">مرحله اول: اطلاعات اولیه</h3>
+                  <h3 className="text-sm font-bold text-[var(--text-white)]">
+                    مرحله اول: اطلاعات اولیه
+                  </h3>
+
                   <p className="text-xs text-[var(--text-subtle)] mt-1">
-                    نام GameCenter، مشخصات Manager و شماره تماس جهت احراز هویت را وارد کنید.
+                    نام فارسی و انگلیسی GameCenter، مشخصات Manager و شماره تماس جهت احراز هویت را وارد کنید.
                   </p>
                 </div>
 
                 <div className="flex flex-col gap-4">
-                  {/* نام GameCenter */}
+                  {/* نام فارسی GameCenter */}
                   <div>
                     <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      نام GameCenter <span className="text-[var(--accent-red)]">*</span>
+                      نام فارسی GameCenter{" "}
+                      <span className="text-[var(--accent-red)]">*</span>
                     </label>
+
                     <input
                       type="text"
+                      dir="rtl"
                       value={name}
-                      onChange={(e) => handleNameChange(e.target.value)}
+                      onChange={(e) =>
+                        handleNameChange(e.target.value)
+                      }
                       placeholder="مثال: گیم‌نت گرگدن"
                       className={inputClass}
                     />
+
+                    <p className="text-[11px] text-[var(--text-subtle)] mt-1">
+                      این نام در سایت به کاربران نمایش داده می‌شود.
+                    </p>
+                  </div>
+
+                  {/* نام انگلیسی GameCenter */}
+                  <div>
+                    <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
+                      نام انگلیسی GameCenter{" "}
+                      <span className="text-[var(--accent-red)]">*</span>
+                    </label>
+
+                    <input
+                      type="text"
+                      dir="ltr"
+                      value={englishName}
+                      onChange={(e) =>
+                        handleEnglishNameChange(e.target.value)
+                      }
+                      placeholder="Example: Gorgodan Gaming"
+                      className={`${inputClass} text-left`}
+                    />
+
+                    <p className="text-[11px] text-[var(--text-subtle)] mt-1">
+                      نام انگلیسی برای ساخت آدرس اختصاصی صفحه گیمنت استفاده می‌شود.
+                    </p>
+                  </div>
+
+                  {/* Slug Preview */}
+                  <div>
+                    <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
+                      آدرس اختصاصی صفحه (Slug)
+                    </label>
+
+                    <div className="flex items-center gap-2">
+                      <div
+                        dir="ltr"
+                        className={`${inputClass} flex items-center text-left font-mono`}
+                      >
+                        {slug || "your-gaming-center"}
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-[var(--text-subtle)] mt-1">
+                      این مقدار به‌صورت خودکار از نام انگلیسی ساخته می‌شود.
+                    </p>
                   </div>
 
                   {/* نام و نام خانوادگی Manager */}
                   <div>
                     <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      نام و نام خانوادگی Manager <span className="text-[var(--accent-red)]">*</span>
+                      نام و نام خانوادگی Manager{" "}
+                      <span className="text-[var(--accent-red)]">*</span>
                     </label>
+
                     <input
                       type="text"
                       value={managerFullName}
-                      onChange={(e) => setManagerFullName(e.target.value)}
+                      onChange={(e) =>
+                        setManagerFullName(e.target.value)
+                      }
                       placeholder="مثال: علی احمدی"
                       className={inputClass}
                     />
@@ -630,8 +895,10 @@ export default function NewGamingCenterPage() {
                   {/* شماره تماس Manager */}
                   <div>
                     <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      شماره تماس Manager <span className="text-[var(--accent-red)]">*</span>
+                      شماره تماس Manager{" "}
+                      <span className="text-[var(--accent-red)]">*</span>
                     </label>
+
                     <div className="flex gap-2">
                       <input
                         type="tel"
@@ -639,19 +906,28 @@ export default function NewGamingCenterPage() {
                         value={managerPhone}
                         onChange={(e) => {
                           setManagerPhone(e.target.value);
-                          if (otpVerified) setOtpVerified(false);
+
+                          if (otpVerified) {
+                            setOtpVerified(false);
+                          }
                         }}
                         disabled={otpVerified}
                         placeholder="09123456789"
                         className={`${inputClass} text-left font-mono ${
-                          otpVerified ? "bg-[var(--accent-green)]/10 border-[var(--accent-green)]/40 text-[var(--accent-green)]" : ""
+                          otpVerified
+                            ? "bg-[var(--accent-green)]/10 border-[var(--accent-green)]/40 text-[var(--accent-green)]"
+                            : ""
                         }`}
                       />
+
                       {!otpVerified && (
                         <button
                           type="button"
                           onClick={handleSendOtp}
-                          disabled={isSendingOtp || (otpSent && otpTimer > 0)}
+                          disabled={
+                            isSendingOtp ||
+                            (otpSent && otpTimer > 0)
+                          }
                           className="px-4 py-2 rounded-card bg-[var(--primary)] text-black text-xs font-bold shrink-0 hover:brightness-105 disabled:opacity-50 transition-opacity"
                         >
                           {isSendingOtp
@@ -671,9 +947,11 @@ export default function NewGamingCenterPage() {
                         <span className="text-xs font-bold text-[var(--text-white)]">
                           کد تایید پیامک‌شده را وارد کنید:
                         </span>
+
                         {otpTimer > 0 ? (
                           <span className="text-xs text-[var(--primary)] font-bold">
-                            زمان باقیمانده: {toPersianDigits(otpTimer)} ثانیه
+                            زمان باقیمانده:{" "}
+                            {toPersianDigits(otpTimer)} ثانیه
                           </span>
                         ) : (
                           <button
@@ -695,24 +973,35 @@ export default function NewGamingCenterPage() {
                             inputMode="numeric"
                             maxLength={1}
                             value={digit}
-                            onChange={(e) => handleOtpChange(idx, e.target.value)}
-                            onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                            onChange={(e) =>
+                              handleOtpChange(idx, e.target.value)
+                            }
+                            onKeyDown={(e) =>
+                              handleOtpKeyDown(idx, e)
+                            }
                             className="w-11 h-12 text-center text-lg font-black rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] focus:border-[var(--primary)] text-[var(--text-white)] outline-none"
                           />
                         ))}
                       </div>
 
                       {otpError && (
-                        <p className="text-xs text-[var(--accent-red)] font-bold">{otpError}</p>
+                        <p className="text-xs text-[var(--accent-red)] font-bold">
+                          {otpError}
+                        </p>
                       )}
 
                       <button
                         type="button"
                         onClick={handleVerifyOtp}
-                        disabled={isVerifyingOtp || otpCode.join("").length < 6}
+                        disabled={
+                          isVerifyingOtp ||
+                          otpCode.join("").length < 6
+                        }
                         className="w-full py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 disabled:opacity-50 transition-opacity"
                       >
-                        {isVerifyingOtp ? "در حال تایید..." : "تایید شماره و صدور توکن احراز هویت"}
+                        {isVerifyingOtp
+                          ? "در حال تایید..."
+                          : "تایید شماره و صدور توکن احراز هویت"}
                       </button>
                     </div>
                   )}
@@ -724,6 +1013,7 @@ export default function NewGamingCenterPage() {
                         <Icon name="check" size={16} />
                         شماره تماس تایید شد و حساب Manager متصل گردید.
                       </span>
+
                       <button
                         type="button"
                         onClick={() => {
@@ -745,7 +1035,11 @@ export default function NewGamingCenterPage() {
                     className="px-6 py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center gap-1.5"
                   >
                     <span>مرحله بعد: آدرس و موقعیت</span>
-                    <Icon name="back" size={16} className="rotate-180" />
+                    <Icon
+                      name="back"
+                      size={16}
+                      className="rotate-180"
+                    />
                   </button>
                 </div>
               </div>
@@ -757,7 +1051,10 @@ export default function NewGamingCenterPage() {
             {step === 2 && (
               <div className="flex flex-col gap-5">
                 <div className="border-b border-[var(--border-subtle)] pb-3">
-                  <h3 className="text-sm font-bold text-[var(--text-white)]">مرحله دوم: آدرس و موقعیت مکانی</h3>
+                  <h3 className="text-sm font-bold text-[var(--text-white)]">
+                    مرحله دوم: آدرس و موقعیت مکانی
+                  </h3>
+
                   <p className="text-xs text-[var(--text-subtle)] mt-1">
                     استان، شهر، آدرس دقیق و موقعیت مکانی روی نقشه را تعیین کنید.
                   </p>
@@ -767,15 +1064,23 @@ export default function NewGamingCenterPage() {
                   {/* استان */}
                   <div>
                     <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      استان <span className="text-[var(--accent-red)]">*</span>
+                      استان{" "}
+                      <span className="text-[var(--accent-red)]">*</span>
                     </label>
+
                     <select
                       value={province}
-                      onChange={(e) => handleProvinceChange(e.target.value)}
+                      onChange={(e) =>
+                        handleProvinceChange(e.target.value)
+                      }
                       className={inputClass}
                     >
                       {IRAN_PROVINCES.map((prov) => (
-                        <option key={prov.name} value={prov.name} className="bg-[var(--bg-card)]">
+                        <option
+                          key={prov.name}
+                          value={prov.name}
+                          className="bg-[var(--bg-card)]"
+                        >
                           {prov.name}
                         </option>
                       ))}
@@ -785,15 +1090,21 @@ export default function NewGamingCenterPage() {
                   {/* شهر */}
                   <div>
                     <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      شهر <span className="text-[var(--accent-red)]">*</span>
+                      شهر{" "}
+                      <span className="text-[var(--accent-red)]">*</span>
                     </label>
+
                     <select
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
                       className={inputClass}
                     >
                       {currentProvinceInfo.cities.map((c) => (
-                        <option key={c} value={c} className="bg-[var(--bg-card)]">
+                        <option
+                          key={c}
+                          value={c}
+                          className="bg-[var(--bg-card)]"
+                        >
                           {c}
                         </option>
                       ))}
@@ -804,8 +1115,10 @@ export default function NewGamingCenterPage() {
                 {/* آدرس دقیق */}
                 <div>
                   <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                    آدرس دقیق با جزئیات <span className="text-[var(--accent-red)]">*</span>
+                    آدرس دقیق با جزئیات{" "}
+                    <span className="text-[var(--accent-red)]">*</span>
                   </label>
+
                   <textarea
                     rows={3}
                     value={address}
@@ -835,13 +1148,18 @@ export default function NewGamingCenterPage() {
                   >
                     مرحله قبل
                   </button>
+
                   <button
                     type="button"
                     onClick={handleNextStep}
                     className="px-6 py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center gap-1.5"
                   >
                     <span>مرحله بعد: ساعات کاری</span>
-                    <Icon name="back" size={16} className="rotate-180" />
+                    <Icon
+                      name="back"
+                      size={16}
+                      className="rotate-180"
+                    />
                   </button>
                 </div>
               </div>
@@ -853,7 +1171,10 @@ export default function NewGamingCenterPage() {
             {step === 3 && (
               <div className="flex flex-col gap-5">
                 <div className="border-b border-[var(--border-subtle)] pb-3">
-                  <h3 className="text-sm font-bold text-[var(--text-white)]">مرحله سوم: ساعات کاری و روزهای فعالیت</h3>
+                  <h3 className="text-sm font-bold text-[var(--text-white)]">
+                    مرحله سوم: ساعات کاری و روزهای فعالیت
+                  </h3>
+
                   <p className="text-xs text-[var(--text-subtle)] mt-1">
                     ساعات شروع و پایان و روزهای تعطیل را مشخص کنید. امکان تنظیم ساعات شبانه‌روزی و عبور از نیمه‌شب وجود دارد.
                   </p>
@@ -863,12 +1184,16 @@ export default function NewGamingCenterPage() {
                   {/* ساعت شروع فعالیت */}
                   <div>
                     <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      ساعت شروع فعالیت <span className="text-[var(--accent-red)]">*</span>
+                      ساعت شروع فعالیت{" "}
+                      <span className="text-[var(--accent-red)]">*</span>
                     </label>
+
                     <input
                       type="time"
                       value={workStartTime}
-                      onChange={(e) => setWorkStartTime(e.target.value)}
+                      onChange={(e) =>
+                        setWorkStartTime(e.target.value)
+                      }
                       className={inputClass}
                     />
                   </div>
@@ -876,12 +1201,16 @@ export default function NewGamingCenterPage() {
                   {/* ساعت پایان فعالیت */}
                   <div>
                     <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      ساعت پایان فعالیت <span className="text-[var(--accent-red)]">*</span>
+                      ساعت پایان فعالیت{" "}
+                      <span className="text-[var(--accent-red)]">*</span>
                     </label>
+
                     <input
                       type="time"
                       value={workEndTime}
-                      onChange={(e) => setWorkEndTime(e.target.value)}
+                      onChange={(e) =>
+                        setWorkEndTime(e.target.value)
+                      }
                       className={inputClass}
                     />
                   </div>
@@ -891,8 +1220,10 @@ export default function NewGamingCenterPage() {
                 {isOvernight && (
                   <div className="p-3 rounded-card bg-[var(--primary)]/10 border border-[var(--primary)]/30 text-[var(--primary)] text-xs font-bold flex items-center gap-2">
                     <Icon name="clock" size={16} />
+
                     <span>
-                      ساعات کاری از نیمه‌شب عبور می‌کند (پایان در بامداد روز بعد: ساعت {toPersianDigits(workEndTime)}).
+                      ساعات کاری از نیمه‌شب عبور می‌کند (پایان در بامداد روز بعد: ساعت{" "}
+                      {toPersianDigits(workEndTime)}).
                     </span>
                   </div>
                 )}
@@ -902,12 +1233,15 @@ export default function NewGamingCenterPage() {
                   <label className="block text-xs font-bold text-[var(--text-white)] mb-2">
                     روزهای تعطیل مجموعه
                   </label>
+
                   <p className="text-[11px] text-[var(--text-subtle)] mb-2.5">
                     در صورتی که در روزهای خاصی از هفته تعطیل هستید، آن‌ها را انتخاب کنید (عدم انتخاب = بدون تعطیلی).
                   </p>
+
                   <div className="flex flex-wrap gap-2">
                     {DAYS_OF_WEEK.map((day) => {
                       const isClosed = closedDays.includes(day.id);
+
                       return (
                         <button
                           key={day.id}
@@ -932,14 +1266,18 @@ export default function NewGamingCenterPage() {
                     <span className="text-xs font-bold text-[var(--text-white)] block">
                       امکان رزرو آنلاین فعال باشد
                     </span>
+
                     <span className="text-[11px] text-[var(--text-subtle)] block mt-0.5">
                       مشتریان می‌توانند از طریق پلتفرم سِیرَن نوبت رزرو کنند.
                     </span>
                   </div>
+
                   <input
                     type="checkbox"
                     checked={allowOnlineBooking}
-                    onChange={(e) => setAllowOnlineBooking(e.target.checked)}
+                    onChange={(e) =>
+                      setAllowOnlineBooking(e.target.checked)
+                    }
                     className="w-5 h-5 accent-[var(--primary)] cursor-pointer"
                   />
                 </div>
@@ -952,13 +1290,18 @@ export default function NewGamingCenterPage() {
                   >
                     مرحله قبل
                   </button>
+
                   <button
                     type="button"
                     onClick={handleNextStep}
                     className="px-6 py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center gap-1.5"
                   >
                     <span>مرحله بعد: تصاویر</span>
-                    <Icon name="back" size={16} className="rotate-180" />
+                    <Icon
+                      name="back"
+                      size={16}
+                      className="rotate-180"
+                    />
                   </button>
                 </div>
               </div>
@@ -971,11 +1314,15 @@ export default function NewGamingCenterPage() {
               <div className="flex flex-col gap-5">
                 <div className="border-b border-[var(--border-subtle)] pb-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-[var(--text-white)]">مرحله چهارم: تصاویر مجموعه</h3>
+                    <h3 className="text-sm font-bold text-[var(--text-white)]">
+                      مرحله چهارم: تصاویر مجموعه
+                    </h3>
+
                     <span className="text-[11px] px-2 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-bold">
                       کاملاً اختیاری
                     </span>
                   </div>
+
                   <p className="text-xs text-[var(--text-subtle)] mt-1">
                     تصویر پروفایل/لوگو و تصاویر گالری را بارگذاری کنید. عدم آپلود تصاویر مانع ادامه فرآیند نمی‌شود.
                   </p>
@@ -986,6 +1333,7 @@ export default function NewGamingCenterPage() {
                   <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
                     تصویر پروفایل یا Logo (اختیاری)
                   </label>
+
                   {logoPreview ? (
                     <div className="relative w-28 h-28 rounded-card overflow-hidden border border-[var(--border-subtle)]">
                       <SafeImage
@@ -994,6 +1342,7 @@ export default function NewGamingCenterPage() {
                         fallbackSrc={PLACEHOLDERS.avatar}
                         className="w-full h-full object-cover"
                       />
+
                       <button
                         type="button"
                         onClick={removeLogo}
@@ -1004,8 +1353,16 @@ export default function NewGamingCenterPage() {
                     </div>
                   ) : (
                     <label className="flex flex-col items-center justify-center w-full sm:w-64 h-28 rounded-card border-2 border-dashed border-[var(--border-subtle)] hover:border-[var(--primary)] cursor-pointer bg-[var(--foreground)]/20 transition-colors">
-                      <Icon name="upload" size={24} className="text-[var(--text-subtle)] mb-1" />
-                      <span className="text-xs text-[var(--text-subtle)] font-bold">انتخاب تصویر لوگو</span>
+                      <Icon
+                        name="upload"
+                        size={24}
+                        className="text-[var(--text-subtle)] mb-1"
+                      />
+
+                      <span className="text-xs text-[var(--text-subtle)] font-bold">
+                        انتخاب تصویر لوگو
+                      </span>
+
                       <input
                         type="file"
                         accept="image/*"
@@ -1021,6 +1378,7 @@ export default function NewGamingCenterPage() {
                   <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
                     تصاویر گالری (اختیاری)
                   </label>
+
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {galleryPreviews.map((previewUrl, idx) => (
                       <div
@@ -1033,6 +1391,7 @@ export default function NewGamingCenterPage() {
                           fallbackSrc={PLACEHOLDERS.gallery}
                           className="w-full h-full object-cover"
                         />
+
                         <button
                           type="button"
                           onClick={() => removeGalleryImage(idx)}
@@ -1044,8 +1403,16 @@ export default function NewGamingCenterPage() {
                     ))}
 
                     <label className="flex flex-col items-center justify-center h-24 rounded-card border-2 border-dashed border-[var(--border-subtle)] hover:border-[var(--primary)] cursor-pointer bg-[var(--foreground)]/20 transition-colors">
-                      <Icon name="upload" size={20} className="text-[var(--text-subtle)] mb-1" />
-                      <span className="text-[11px] text-[var(--text-subtle)] font-bold">+ افزودن تصویر</span>
+                      <Icon
+                        name="upload"
+                        size={20}
+                        className="text-[var(--text-subtle)] mb-1"
+                      />
+
+                      <span className="text-[11px] text-[var(--text-subtle)] font-bold">
+                        + افزودن تصویر
+                      </span>
+
                       <input
                         type="file"
                         accept="image/*"
@@ -1065,13 +1432,18 @@ export default function NewGamingCenterPage() {
                   >
                     مرحله قبل
                   </button>
+
                   <button
                     type="button"
                     onClick={handleNextStep}
                     className="px-6 py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center gap-1.5"
                   >
                     <span>مرحله بعد: پیش‌نمایش (Preview)</span>
-                    <Icon name="back" size={16} className="rotate-180" />
+                    <Icon
+                      name="back"
+                      size={16}
+                      className="rotate-180"
+                    />
                   </button>
                 </div>
               </div>
@@ -1083,7 +1455,10 @@ export default function NewGamingCenterPage() {
             {step === 5 && (
               <div className="flex flex-col gap-6">
                 <div className="border-b border-[var(--border-subtle)] pb-3">
-                  <h3 className="text-sm font-bold text-[var(--text-white)]">مرحله پنجم: پیش‌نمایش (Preview)</h3>
+                  <h3 className="text-sm font-bold text-[var(--text-white)]">
+                    مرحله پنجم: پیش‌نمایش (Preview)
+                  </h3>
+
                   <p className="text-xs text-[var(--text-subtle)] mt-1">
                     تمام اطلاعات واردشده را بازبینی کنید. با کلیک روی «ویرایش» در هر بخش می‌توانید مستقیماً اطلاعات را تغییر دهید.
                   </p>
@@ -1096,6 +1471,7 @@ export default function NewGamingCenterPage() {
                       <Icon name="user" size={16} />
                       اطلاعات اولیه و Manager
                     </span>
+
                     <button
                       type="button"
                       onClick={() => handleEditSection(1)}
@@ -1105,17 +1481,59 @@ export default function NewGamingCenterPage() {
                       ویرایش
                     </button>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
-                      <span className="text-[var(--text-subtle)] block">نام GameCenter:</span>
-                      <span className="font-bold text-[var(--text-white)]">{name || "—"}</span>
+                      <span className="text-[var(--text-subtle)] block">
+                        نام فارسی GameCenter:
+                      </span>
+
+                      <span className="font-bold text-[var(--text-white)]">
+                        {name || "—"}
+                      </span>
                     </div>
+
                     <div>
-                      <span className="text-[var(--text-subtle)] block">نام و نام خانوادگی Manager:</span>
-                      <span className="font-bold text-[var(--text-white)]">{managerFullName || "—"}</span>
+                      <span className="text-[var(--text-subtle)] block">
+                        نام انگلیسی GameCenter:
+                      </span>
+
+                      <span
+                        dir="ltr"
+                        className="font-bold text-[var(--text-white)] block text-left"
+                      >
+                        {englishName || "—"}
+                      </span>
                     </div>
+
                     <div>
-                      <span className="text-[var(--text-subtle)] block">شماره تماس:</span>
+                      <span className="text-[var(--text-subtle)] block">
+                        آدرس اختصاصی (Slug):
+                      </span>
+
+                      <span
+                        dir="ltr"
+                        className="font-mono text-[var(--text-white)] block text-left"
+                      >
+                        {slug || "—"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[var(--text-subtle)] block">
+                        نام و نام خانوادگی Manager:
+                      </span>
+
+                      <span className="font-bold text-[var(--text-white)]">
+                        {managerFullName || "—"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[var(--text-subtle)] block">
+                        شماره تماس:
+                      </span>
+
                       <span className="font-mono text-[var(--text-white)] dir-ltr block text-right">
                         {managerPhone || "—"}
                       </span>
@@ -1130,6 +1548,7 @@ export default function NewGamingCenterPage() {
                       <Icon name="pin" size={16} />
                       آدرس و موقعیت مکانی
                     </span>
+
                     <button
                       type="button"
                       onClick={() => handleEditSection(2)}
@@ -1139,20 +1558,36 @@ export default function NewGamingCenterPage() {
                       ویرایش
                     </button>
                   </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
-                      <span className="text-[var(--text-subtle)] block">استان و شهر:</span>
-                      <span className="font-bold text-[var(--text-white)]">{province} - {city}</span>
+                      <span className="text-[var(--text-subtle)] block">
+                        استان و شهر:
+                      </span>
+
+                      <span className="font-bold text-[var(--text-white)]">
+                        {province} - {city}
+                      </span>
                     </div>
+
                     <div>
-                      <span className="text-[var(--text-subtle)] block">مختصات جغرافیایی:</span>
+                      <span className="text-[var(--text-subtle)] block">
+                        مختصات جغرافیایی:
+                      </span>
+
                       <span className="font-mono text-[var(--text-white)] dir-ltr block text-right">
                         {latitude.toFixed(5)}, {longitude.toFixed(5)}
                       </span>
                     </div>
+
                     <div className="sm:col-span-2">
-                      <span className="text-[var(--text-subtle)] block">آدرس دقیق:</span>
-                      <span className="font-bold text-[var(--text-white)]">{address || "—"}</span>
+                      <span className="text-[var(--text-subtle)] block">
+                        آدرس دقیق:
+                      </span>
+
+                      <span className="font-bold text-[var(--text-white)]">
+                        {address || "—"}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1164,6 +1599,7 @@ export default function NewGamingCenterPage() {
                       <Icon name="clock" size={16} />
                       ساعات کاری و روزهای فعالیت
                     </span>
+
                     <button
                       type="button"
                       onClick={() => handleEditSection(3)}
@@ -1173,24 +1609,44 @@ export default function NewGamingCenterPage() {
                       ویرایش
                     </button>
                   </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                     <div>
-                      <span className="text-[var(--text-subtle)] block">ساعت فعالیت:</span>
+                      <span className="text-[var(--text-subtle)] block">
+                        ساعت فعالیت:
+                      </span>
+
                       <span className="font-bold text-[var(--text-white)]">
-                        {toPersianDigits(workStartTime)} تا {toPersianDigits(workEndTime)}
+                        {toPersianDigits(workStartTime)} تا{" "}
+                        {toPersianDigits(workEndTime)}
                         {isOvernight ? " (بامداد روز بعد)" : ""}
                       </span>
                     </div>
+
                     <div>
-                      <span className="text-[var(--text-subtle)] block">روزهای تعطیل:</span>
+                      <span className="text-[var(--text-subtle)] block">
+                        روزهای تعطیل:
+                      </span>
+
                       <span className="font-bold text-[var(--text-white)]">
                         {closedDays.length > 0
-                          ? closedDays.map((id) => DAYS_OF_WEEK.find((d) => d.id === id)?.label).join("، ")
+                          ? closedDays
+                              .map(
+                                (id) =>
+                                  DAYS_OF_WEEK.find(
+                                    (d) => d.id === id
+                                  )?.label
+                              )
+                              .join("، ")
                           : "بدون روز تعطیل (فعال در تمام ایام هفته)"}
                       </span>
                     </div>
+
                     <div>
-                      <span className="text-[var(--text-subtle)] block">وضعیت رزرو آنلاین:</span>
+                      <span className="text-[var(--text-subtle)] block">
+                        وضعیت رزرو آنلاین:
+                      </span>
+
                       <span className="font-bold text-[var(--accent-green)]">
                         {allowOnlineBooking ? "فعال" : "غیرفعال"}
                       </span>
@@ -1205,6 +1661,7 @@ export default function NewGamingCenterPage() {
                       <Icon name="upload" size={16} />
                       تصاویر و رسانه
                     </span>
+
                     <button
                       type="button"
                       onClick={() => handleEditSection(4)}
@@ -1214,10 +1671,14 @@ export default function NewGamingCenterPage() {
                       ویرایش
                     </button>
                   </div>
+
                   <div className="flex flex-col gap-3 text-xs">
                     <div className="flex items-center gap-4">
                       <div>
-                        <span className="text-[var(--text-subtle)] block mb-1">لوگو:</span>
+                        <span className="text-[var(--text-subtle)] block mb-1">
+                          لوگو:
+                        </span>
+
                         {logoPreview ? (
                           <SafeImage
                             src={logoPreview}
@@ -1226,16 +1687,23 @@ export default function NewGamingCenterPage() {
                             className="w-12 h-12 rounded object-cover border"
                           />
                         ) : (
-                          <span className="text-[var(--text-subtle)]">بارگذاری نشده</span>
+                          <span className="text-[var(--text-subtle)]">
+                            بارگذاری نشده
+                          </span>
                         )}
                       </div>
+
                       <div>
-                        <span className="text-[var(--text-subtle)] block mb-1">تصاویر گالری:</span>
+                        <span className="text-[var(--text-subtle)] block mb-1">
+                          تصاویر گالری:
+                        </span>
+
                         <span className="font-bold text-[var(--text-white)]">
                           {toPersianDigits(galleryFiles.length)} تصویر انتخاب شده
                         </span>
                       </div>
                     </div>
+
                     {galleryPreviews.length > 0 && (
                       <div className="w-full mt-2">
                         <BannerSlider
@@ -1260,13 +1728,18 @@ export default function NewGamingCenterPage() {
                   >
                     مرحله قبل
                   </button>
+
                   <button
                     type="button"
                     onClick={handleNextStep}
                     className="px-6 py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center gap-1.5"
                   >
                     <span>مرحله بعد: ثبت نهایی</span>
-                    <Icon name="back" size={16} className="rotate-180" />
+                    <Icon
+                      name="back"
+                      size={16}
+                      className="rotate-180"
+                    />
                   </button>
                 </div>
               </div>
@@ -1278,7 +1751,10 @@ export default function NewGamingCenterPage() {
             {step === 6 && (
               <div className="flex flex-col gap-6">
                 <div className="border-b border-[var(--border-subtle)] pb-3">
-                  <h3 className="text-sm font-bold text-[var(--text-white)]">مرحله ششم: ثبت نهایی اطلاعات</h3>
+                  <h3 className="text-sm font-bold text-[var(--text-white)]">
+                    مرحله ششم: ثبت نهایی اطلاعات
+                  </h3>
+
                   <p className="text-xs text-[var(--text-subtle)] mt-1">
                     اطلاعات را برای ذخیره نهایی در سرور ارسال کنید. در صورت بروز هرگونه خطا، اطلاعات شما محفوظ مانده و امکان تلاش مجدد وجود دارد.
                   </p>
@@ -1288,18 +1764,50 @@ export default function NewGamingCenterPage() {
                 <div className="p-4 rounded-card bg-[var(--primary)]/10 border border-[var(--primary)]/30 flex flex-col gap-2">
                   <div className="flex items-center gap-2 text-xs font-bold text-[var(--primary)]">
                     <Icon name="check" size={18} />
-                    <span>آماده ثبت نهایی GameCenter «{name}»</span>
+                    <span>
+                      آماده ثبت نهایی GameCenter «{name}»
+                    </span>
                   </div>
+
                   <p className="text-[11px] text-[var(--text-subtle)] leading-relaxed">
                     با کلیک بر روی دکمه ثبت نهایی، مرکز بازی شما با شناسه اختصاصی ایجاد شده و پس از ثبت موقعیت و ساعات کاری، مستقیماً وارد پنل مدیریت خواهید شد.
                   </p>
+
+                  <div className="mt-2 text-xs">
+                    <span className="text-[var(--text-subtle)]">
+                      نام انگلیسی:
+                    </span>
+
+                    <span
+                      dir="ltr"
+                      className="font-mono text-[var(--text-white)] ml-2"
+                    >
+                      {englishName}
+                    </span>
+                  </div>
+
+                  <div className="text-xs">
+                    <span className="text-[var(--text-subtle)]">
+                      Slug:
+                    </span>
+
+                    <span
+                      dir="ltr"
+                      className="font-mono text-[var(--text-white)] ml-2"
+                    >
+                      {slug}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Loading / Progress indicator */}
                 {isSubmitting && (
                   <div className="p-4 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] flex items-center gap-3">
                     <div className="w-5 h-5 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin shrink-0"></div>
-                    <span className="text-xs text-[var(--text-white)] font-bold">{submitProgressText}</span>
+
+                    <span className="text-xs text-[var(--text-white)] font-bold">
+                      {submitProgressText}
+                    </span>
                   </div>
                 )}
 
@@ -1312,13 +1820,16 @@ export default function NewGamingCenterPage() {
                   >
                     بازگشت به پیش‌نمایش
                   </button>
+
                   <button
                     type="button"
                     disabled={isSubmitting}
                     onClick={handleFinalSubmit}
                     className="px-8 py-3 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center gap-2 shadow-lg disabled:opacity-50"
                   >
-                    {isSubmitting ? "در حال ثبت اطلاعات..." : "تأیید و ثبت نهایی GameCenter"}
+                    {isSubmitting
+                      ? "در حال ثبت اطلاعات..."
+                      : "تأیید و ثبت نهایی GameCenter"}
                   </button>
                 </div>
               </div>
