@@ -52,6 +52,7 @@ export const Header: React.FC<HeaderProps> = ({
       setUnreadCount(0);
       return;
     }
+
     try {
       const count = await customerNotificationService.getUnreadCount();
       setUnreadCount(count);
@@ -68,15 +69,19 @@ export const Header: React.FC<HeaderProps> = ({
     }
   }, [unreadNotificationsCount, fetchUnreadCount]);
 
+  // Close account menu when clicking outside or pressing Escape
   useEffect(() => {
     if (!isAccountMenuOpen) return;
 
     const handleOutsideClick = (event: MouseEvent) => {
       const target = event.target as Node;
+
       const clickedInsideDesktop =
         desktopAccountMenuRef.current?.contains(target);
+
       const clickedInsideMobile =
         mobileAccountMenuRef.current?.contains(target);
+
       if (!clickedInsideDesktop && !clickedInsideMobile) {
         setIsAccountMenuOpen(false);
       }
@@ -85,6 +90,7 @@ export const Header: React.FC<HeaderProps> = ({
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsAccountMenuOpen(false);
+
         if (
           desktopAccountButtonRef.current &&
           desktopAccountButtonRef.current.offsetParent !== null
@@ -112,6 +118,7 @@ export const Header: React.FC<HeaderProps> = ({
     }
   }, [isLoggedIn]);
 
+  // Global search shortcut
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (
@@ -124,7 +131,9 @@ export const Header: React.FC<HeaderProps> = ({
         setIsSearchModalOpen(true);
       }
     };
+
     window.addEventListener("keydown", handleGlobalKeyDown);
+
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, []);
 
@@ -162,22 +171,26 @@ export const Header: React.FC<HeaderProps> = ({
   const reservationsHref = isOwner ? "/owner/reservations" : "/reservations";
   const reservationsLabel = isOwner ? "رزروهای گیم‌نت" : "رزروهای من";
 
-  // فقط اگر دریافت اطلاعات از API شکست بخورد از نقش ذخیره‌شده استفاده می‌شود
+  // Fallback based on stored role if API request fails
   const centerLinkFallback: "admin" | "center" | "none" = isAdmin
     ? "admin"
     : isManager
-    ? "center"
-    : "none";
+      ? "center"
+      : "none";
 
   /**
-   * منوی دراپ‌داون پروفایل در هر اندازه صفحه هنگام لاگین بودن:
-   * ۱. اطلاعات کاربر= پروفایل (/profile)
-   * ۲. رزروهای من / مدیریت رزروها بر اساس نقش
-   * ۳. نوتیفیکیشن
-   * ۴. فقط یکی از: مدیریت گیمنت (اگر کاربر گیمنت دارد) | ساخت گیمنت (اگر ندارد)
-   *    تشخیص بر اساس توکن و پاسخ API (/auth/me) انجام می‌شود، نه نقش ذخیره‌شده.
-   * ۵. پشتیبانی (/support)
-   * ۶. خروج از حساب
+   * Account dropdown:
+   *
+   * Logged out:
+   * Only one option: Login
+   *
+   * Logged in:
+   * 1. Profile
+   * 2. Reservations
+   * 3. Notifications
+   * 4. Owner center / Create game center
+   * 5. Support
+   * 6. Logout
    */
   const renderAccountDropdownContent = () => (
     <div
@@ -185,75 +198,179 @@ export const Header: React.FC<HeaderProps> = ({
       aria-label="منوی حساب کاربری"
       className="absolute left-0 top-full z-50 mt-2 w-[250px] overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-2 text-right shadow-xl shadow-black/20 animate-in fade-in slide-in-from-top-1 duration-150"
     >
-      {/* 1. اطلاعات کاربر= پروفایل */}
-      <Link
-        href="/profile"
-        role="menuitem"
-        onClick={closeAccountMenu}
-        className="flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
-      >
-        <span className="shrink-0 text-[var(--text-muted)]">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.7}
-            className="h-[18px] w-[18px]"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="8" r="3.5" />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M5 20a7 7 0 0114 0"
-            />
-          </svg>
-        </span>
-        <span>اطلاعات کاربر (پروفایل)</span>
-      </Link>
-
-      {/* 2. رزروها (مدیریت شده بر اساس نقش کاربر) */}
-      <Link
-        href={reservationsHref}
-        role="menuitem"
-        onClick={closeAccountMenu}
-        className="flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
-      >
-        <span className="shrink-0 text-[var(--text-muted)]">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.7}
-            className="h-[18px] w-[18px]"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-        </span>
-        <span>{reservationsLabel}</span>
-      </Link>
-
-      {/* 3. نوتیفیکیشن */}
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => {
-          closeAccountMenu();
-          handleNotificationBtnClick();
-        }}
-        className="w-full flex min-h-10 items-center justify-between rounded-lg px-3 py-2.5 text-sm text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60 text-right cursor-pointer"
-      >
-        <div className="flex items-center gap-3">
+      {!isLoggedIn ? (
+        // Logged-out user: only login option
+        <Link
+          href="/profile"
+          role="menuitem"
+          onClick={closeAccountMenu}
+          className="flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+        >
           <span className="shrink-0 text-[var(--text-muted)]">
             <svg
-              className="h-[18px] w-[18px]"
-              fill="none"
               viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.7}
+              className="h-[18px] w-[18px]"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="8" r="3.5" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M5 20a7 7 0 0114 0"
+              />
+            </svg>
+          </span>
+
+          <span>ورود به حساب کاربری</span>
+        </Link>
+      ) : (
+        <>
+          {/* 1. Profile */}
+          <Link
+            href="/profile"
+            role="menuitem"
+            onClick={closeAccountMenu}
+            className="flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+          >
+            <span className="shrink-0 text-[var(--text-muted)]">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.7}
+                className="h-[18px] w-[18px]"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="8" r="3.5" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M5 20a7 7 0 0114 0"
+                />
+              </svg>
+            </span>
+
+            <span>اطلاعات کاربر (پروفایل)</span>
+          </Link>
+
+          {/* 2. Reservations */}
+          <Link
+            href={reservationsHref}
+            role="menuitem"
+            onClick={closeAccountMenu}
+            className="flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+          >
+            <span className="shrink-0 text-[var(--text-muted)]">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.7}
+                className="h-[18px] w-[18px]"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+            </span>
+
+            <span>{reservationsLabel}</span>
+          </Link>
+
+          {/* 3. Notifications */}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              closeAccountMenu();
+              handleNotificationBtnClick();
+            }}
+            className="w-full flex min-h-10 items-center justify-between rounded-lg px-3 py-2.5 text-sm text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60 text-right cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <span className="shrink-0 text-[var(--text-muted)]">
+                <svg
+                  className="h-[18px] w-[18px]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.7}
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 17h5l-1.4-1.4a2 2 0 01-.6-1.4V11a6 6 0 00-4-5.66V5a2 2 0 10-4 0v.34C7.67 6.17 6 8.39 6 11v3.2c0 .54-.21 1.05-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  />
+                </svg>
+              </span>
+
+              <span>نوتیفیکیشن</span>
+            </div>
+
+            {unreadCount > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--primary)] px-1.5 text-xs font-bold text-on-primary">
+                {notificationBadge}
+              </span>
+            )}
+          </button>
+
+          {/* 4. Owner center / Create game center */}
+          <OwnerCenterLink
+            variant="menu"
+            onNavigate={closeAccountMenu}
+            fallback={centerLinkFallback}
+          />
+
+          {/* 5. Support */}
+          <Link
+            href="/support"
+            role="menuitem"
+            onClick={closeAccountMenu}
+            className="flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+          >
+            <span className="shrink-0 text-[var(--text-muted)]">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.7}
+                className="h-[18px] w-[18px]"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
+                />
+              </svg>
+            </span>
+
+            <span>پشتیبانی</span>
+          </Link>
+
+          <div className="my-1 border-t border-[var(--border-subtle)]" />
+
+          {/* 6. Logout */}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={async () => {
+              closeAccountMenu();
+              await logout();
+            }}
+            className="w-full flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--accent-red)] transition-colors hover:bg-[var(--accent-red)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-red)]/50 text-right cursor-pointer"
+          >
+            <svg
+              className="h-[18px] w-[18px] shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
               stroke="currentColor"
               strokeWidth={1.7}
               aria-hidden="true"
@@ -261,85 +378,72 @@ export const Header: React.FC<HeaderProps> = ({
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M15 17h5l-1.4-1.4a2 2 0 01-.6-1.4V11a6 6 0 00-4-5.66V5a2 2 0 10-4 0v.34C7.67 6.17 6 8.39 6 11v3.2c0 .54-.21 1.05-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                d="M10 17l5-5-5-5M15 12H3"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 3h6a2 2 0 012 2v14a2 2 0 01-2 2h-6"
               />
             </svg>
-          </span>
-          <span>نوتیفیکیشن</span>
-        </div>
-        {unreadCount > 0 && (
-          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--primary)] px-1.5 text-xs font-bold text-on-primary">
+
+            <span>خروج از حساب</span>
+          </button>
+        </>
+      )}
+    </div>
+  );
+
+  // Shared profile button for mobile and desktop
+  const renderAccountButton = (isMobile: boolean) => (
+    <div
+      ref={isMobile ? mobileAccountMenuRef : desktopAccountMenuRef}
+      className="relative"
+    >
+      <button
+        ref={isMobile ? mobileAccountButtonRef : desktopAccountButtonRef}
+        type="button"
+        onClick={() => setIsAccountMenuOpen((previous) => !previous)}
+        aria-label="پروفایل"
+        aria-haspopup="menu"
+        aria-expanded={isAccountMenuOpen}
+        className={
+          isMobile
+            ? "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+            : "relative flex h-10 w-10 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+        }
+      >
+        <svg
+          className="h-5 w-5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={isMobile ? 1.8 : 1.7}
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="8" r="3.5" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M5 20a7 7 0 0114 0"
+          />
+        </svg>
+
+        {isLoggedIn && unreadCount > 0 && (
+          <span
+            className={
+              isMobile
+                ? "absolute -top-1 -left-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] text-[10px] font-bold text-on-primary px-0.5"
+                : "absolute -top-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] text-[10px] font-bold text-on-primary px-1"
+            }
+            aria-label={`${toPersianDigits(unreadCount)} اعلان خوانده‌نشده`}
+          >
             {notificationBadge}
           </span>
         )}
       </button>
 
-      {/* 4. فقط یک لینک: مدیریت گیمنت یا ساخت گیمنت (بر اساس پاسخ API) */}
-      <OwnerCenterLink
-        variant="menu"
-        onNavigate={closeAccountMenu}
-        fallback={centerLinkFallback}
-      />
-
-      {/* 5. پشتیبانی */}
-      <Link
-        href="/support"
-        role="menuitem"
-        onClick={closeAccountMenu}
-        className="flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
-      >
-        <span className="shrink-0 text-[var(--text-muted)]">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.7}
-            className="h-[18px] w-[18px]"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
-            />
-          </svg>
-        </span>
-        <span>پشتیبانی</span>
-      </Link>
-
-      <div className="my-1 border-t border-[var(--border-subtle)]" />
-
-      {/* 6. خروج از حساب */}
-      <button
-        type="button"
-        role="menuitem"
-        onClick={async () => {
-          closeAccountMenu();
-          await logout();
-        }}
-        className="w-full flex min-h-10 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--accent-red)] transition-colors hover:bg-[var(--accent-red)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-red)]/50 text-right cursor-pointer"
-      >
-        <svg
-          className="h-[18px] w-[18px] shrink-0"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.7}
-          aria-hidden="true"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M10 17l5-5-5-5M15 12H3"
-          />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 3h6a2 2 0 012 2v14a2 2 0 01-2 2h-6"
-          />
-        </svg>
-        <span>خروج از حساب</span>
-      </button>
+      {isAccountMenuOpen && renderAccountDropdownContent()}
     </div>
   );
 
@@ -368,7 +472,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={handleLocationBtnClick}
-                className="flex shrink-0 items-center gap-2 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--text-white)]  transition-colors hover:bg-[var(--foreground)]/60 h-[40px]"
+                className="flex shrink-0 items-center gap-2 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60 h-[40px]"
                 aria-label="انتخاب شهر"
               >
                 <svg
@@ -409,70 +513,8 @@ export const Header: React.FC<HeaderProps> = ({
                 </svg>
               </button>
 
-              {/* Profile button on mobile (replacing notifications) */}
-              {isLoggedIn ? (
-                <div ref={mobileAccountMenuRef} className="relative">
-                  <button
-                    ref={mobileAccountButtonRef}
-                    type="button"
-                    onClick={() =>
-                      setIsAccountMenuOpen((previous) => !previous)
-                    }
-                    aria-label="پروفایل"
-                    aria-haspopup="menu"
-                    aria-expanded={isAccountMenuOpen}
-                    className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
-                  >
-                    <svg
-                      className="h-5 w-5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={1.8}
-                      aria-hidden="true"
-                    >
-                      <circle cx="12" cy="8" r="3.5" />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 20a7 7 0 0114 0"
-                      />
-                    </svg>
-
-                    {unreadCount > 0 && (
-                      <span
-                        className="absolute -top-1 -left-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] text-[10px] font-bold text-on-primary px-0.5"
-                        aria-label={`${toPersianDigits(unreadCount)} اعلان خوانده‌نشده`}
-                      >
-                        {notificationBadge}
-                      </span>
-                    )}
-                  </button>
-
-                  {isAccountMenuOpen && renderAccountDropdownContent()}
-                </div>
-              ) : (
-                <Link
-                  href="/profile"
-                  aria-label="پروفایل"
-                  className="relative flex h-10 w-10 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
-                >
-                  <svg
-                    className="h-5 w-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={1.8}
-                  >
-                    <circle cx="12" cy="8" r="3.5" />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5 20a7 7 0 0114 0"
-                    />
-                  </svg>
-                </Link>
-              )}
+              {/* Profile button on mobile */}
+              {renderAccountButton(true)}
             </div>
 
             {/* Row 2: Search */}
@@ -610,68 +652,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Actions */}
             <div className="flex shrink-0 items-center gap-2">
               {/* Account menu — desktop */}
-              {isLoggedIn ? (
-                <div ref={desktopAccountMenuRef} className="relative">
-                  <button
-                    ref={desktopAccountButtonRef}
-                    type="button"
-                    onClick={() =>
-                      setIsAccountMenuOpen((previous) => !previous)
-                    }
-                    aria-label="پروفایل"
-                    aria-haspopup="menu"
-                    aria-expanded={isAccountMenuOpen}
-                    className="relative flex h-10 w-10 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
-                  >
-                    <svg
-                      className="h-5 w-5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={1.7}
-                      aria-hidden="true"
-                    >
-                      <circle cx="12" cy="8" r="3.5" />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 20a7 7 0 0114 0"
-                      />
-                    </svg>
-                    {unreadCount > 0 && (
-                      <span
-                        className="absolute -top-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] text-[10px] font-bold text-on-primary px-1"
-                        aria-label={`${toPersianDigits(unreadCount)} اعلان خوانده‌نشده`}
-                      >
-                        {notificationBadge}
-                      </span>
-                    )}
-                  </button>
-
-                  {isAccountMenuOpen && renderAccountDropdownContent()}
-                </div>
-              ) : (
-                <Link
-                  href="/profile"
-                  className="flex h-10 items-center gap-1.5 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 text-xs font-bold text-[var(--text-white)] hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] transition-colors"
-                >
-                  <svg
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={1.8}
-                  >
-                    <circle cx="12" cy="8" r="3.5" />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5 20a7 7 0 0114 0"
-                    />
-                  </svg>
-                  <span>ورود / حساب</span>
-                </Link>
-              )}
+              {renderAccountButton(false)}
             </div>
           </div>
         </div>

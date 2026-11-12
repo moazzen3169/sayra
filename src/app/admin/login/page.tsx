@@ -1,125 +1,122 @@
 
 "use client";
 
-import React, { useState } from "react";
+import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { authService } from "@/services/authService";
-import { setTokens } from "@/lib/token";
-import { Button } from "@/components/ui/Button";
-import { Icon } from "@/components/ui/Icon";
+
+const BASE_URL = "https://blog.sayra-booking.ir";
+
+interface LoginResponse {
+  data?: {
+    access?: string;
+    refresh?: string;
+  };
+  messagesList?: string[];
+}
 
 export default function AdminLoginPage() {
   const router = useRouter();
+
+  // اتصال به سیستم احراز هویت پروژه
   const { login } = useAuth();
 
-  const [phone, setPhone] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
-  // تبدیل اعداد فارسی و عربی به انگلیسی
-  const normalizeDigits = (value: string) => {
-    return value
-      .replace(/[۰-۹]/g, (digit) =>
-        String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit))
-      )
-      .replace(/[٠-٩]/g, (digit) =>
-        String("٠١٢٣٤٥٦٧٨٩".indexOf(digit))
-      );
-  };
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
+    if (isLoading) return;
 
-    const normalizedPhone = normalizeDigits(phone).trim();
+    setErrorMessage("");
 
-    // اعتبارسنجی شماره موبایل
-    if (!normalizedPhone) {
-      setErrorMessage("لطفاً شماره موبایل خود را وارد کنید.");
-      return;
-    }
+    const normalizedUsername = username.trim();
 
-    if (!/^09\d{9}$/.test(normalizedPhone)) {
-      setErrorMessage(
-        "شماره موبایل معتبر نیست. شماره باید با 09 شروع شود و 11 رقم باشد."
-      );
-      return;
-    }
-
-    if (!password) {
-      setErrorMessage("لطفاً رمز عبور خود را وارد کنید.");
+    if (!normalizedUsername || !password) {
+      setErrorMessage("لطفاً نام کاربری و رمز عبور را وارد کنید.");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // ارسال درخواست ورود مدیر پلتفرم
-      const res = await authService.loginPlatformAdmin(
-        normalizedPhone,
-        password
+      // ارسال درخواست ورود به API
+      const response = await fetch(
+        `${BASE_URL}/api/auth/admin-login/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            username: normalizedUsername,
+            password,
+          }),
+        }
       );
 
-      if (!res?.accessToken) {
-        throw new Error("توکن معتبری از سمت سرور دریافت نشد.");
+      // دریافت پاسخ سرور
+      const result: LoginResponse = await response
+        .json()
+        .catch(() => ({}));
+
+      // بررسی خطاهای API
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("نام کاربری یا رمز عبور اشتباه است.");
+        }
+
+        if (response.status === 403) {
+          throw new Error(
+            "دسترسی به پنل مدیریت فقط برای کاربران Staff مجاز است."
+          );
+        }
+
+        throw new Error(
+          result?.messagesList?.[0] ||
+            "خطا در ورود به سامانه. لطفاً مجدداً تلاش کنید."
+        );
       }
 
-      // ذخیره توکن‌ها
-      setTokens({
-        accessToken: res.accessToken,
-        refreshToken: res.refreshToken,
-      });
+      // استخراج توکن‌ها از ساختار واقعی پاسخ API
+      const accessToken = result?.data?.access;
+      const refreshToken = result?.data?.refresh;
 
-      // دریافت اطلاعات مدیر
-      const adminName =
-        res.user?.fullName ||
-        res.user?.name ||
-        "مدیر سامانه";
+      if (!accessToken || !refreshToken) {
+        throw new Error(
+          "ورود موفق بود اما توکن‌های معتبر از سرور دریافت نشدند."
+        );
+      }
 
-      const adminPhone =
-        res.user?.phone || normalizedPhone;
-
-      // ثبت اطلاعات در AuthContext
+      // ثبت اطلاعات ورود در AuthContext
+      // تابع login مسئول ذخیره توکن‌ها و به‌روزرسانی وضعیت کاربر است.
       login(
-        adminName,
-        adminPhone,
-        res.accessToken,
-        res.refreshToken,
+        "مدیر سامانه",
+        normalizedUsername,
+        accessToken,
+        refreshToken,
         "ADMIN"
       );
+
+      console.log("Admin login successful.");
 
       // انتقال به پنل مدیریت
       router.replace("/admin");
 
-    } catch (err: unknown) {
-      const error = err as {
-        message?: string;
-        status?: number;
-        response?: {
-          status?: number;
-          data?: {
-            message?: string;
-          };
-        };
-      };
+    } catch (error: unknown) {
+      console.error("Admin Login Error:", error);
 
-      const status =
-        error?.status || error?.response?.status;
+      const message =
+        error instanceof Error
+          ? error.message
+          : "خطای غیرمنتظره‌ای رخ داده است.";
 
-      const msg =
-        error?.response?.data?.message ||
-        (status === 401
-          ? "شماره موبایل یا رمز عبور اشتباه است."
-          : status === 403
-          ? "حساب کاربری شما دسترسی مدیر پلتفرم را ندارد."
-          : error?.message ||
-            "خطا در برقراری ارتباط با سرور. لطفاً مجدداً تلاش فرمایید.");
-
-      setErrorMessage(msg);
+      setErrorMessage(message);
 
     } finally {
       setIsLoading(false);
@@ -128,144 +125,116 @@ export default function AdminLoginPage() {
 
   return (
     <main
-      className="min-h-screen flex items-center justify-center bg-[var(--bg-body)] px-4 py-8"
+      dir="rtl"
+      className="min-h-screen flex items-center justify-center bg-slate-950 px-4 py-10"
     >
-      <div
-        className="w-full max-w-[420px] bg-[var(--bg-card)] border border-[var(--border-color)] rounded-card p-6 sm:p-8 flex flex-col gap-6 shadow-2xl relative"
-      >
-        {/* Header */}
-        <div className="flex flex-col items-center text-center gap-2">
-          <div
-            className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[var(--primary)] to-amber-400 flex items-center justify-center text-black font-black text-2xl shadow-lg shadow-[var(--primary)]/20 mb-1"
-          >
-            <Icon name="gamepad" size={28} />
+      <div className="w-full max-w-md">
+
+        {/* لوگو و عنوان */}
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-3xl text-white shadow-lg shadow-blue-600/20">
+            A
           </div>
 
-          <h1 className="text-xl font-black text-[var(--text-white)] tracking-tight">
-            ورود مدیر سامانه
+          <h1 className="text-2xl font-bold text-white">
+            پنل مدیریت
           </h1>
 
-          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            جهت ورود به پنل مدیریت کل پلتفرم،
-            شماره موبایل و رمز عبور خود را وارد کنید.
+          <p className="mt-2 text-sm text-slate-400">
+            برای ورود به سامانه اطلاعات خود را وارد کنید.
           </p>
         </div>
 
-        {/* Error */}
-        {errorMessage && (
-          <div
-            role="alert"
-            className="p-3.5 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold leading-relaxed flex items-start gap-2"
-          >
-            <Icon
-              name="alert"
-              size={16}
-              className="shrink-0 mt-0.5"
-            />
+        {/* فرم ورود */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl sm:p-8">
 
-            <span>{errorMessage}</span>
-          </div>
-        )}
+          <form onSubmit={handleLogin} className="space-y-5">
 
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-4"
-        >
-          {/* Phone */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-[var(--text-muted)] text-right">
-              شماره موبایل مدیر سامانه
-            </label>
-
-            <div className="relative">
-              <input
-                type="tel"
-                inputMode="numeric"
-                autoComplete="username"
-                placeholder="09121234567"
-                value={phone}
-                onChange={(e) => {
-                  setPhone(
-                    normalizeDigits(e.target.value)
-                  );
-                }}
-                disabled={isLoading}
-                dir="ltr"
-                maxLength={11}
-                required
-                className="w-full h-11 px-3.5 pl-10 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-sm text-[var(--text-white)] placeholder:text-[var(--text-subtle)] focus:border-[var(--primary)] outline-none transition-colors"
-              />
-
-              <span className="absolute left-3 top-3 text-[var(--text-muted)] pointer-events-none">
-                <Icon name="user" size={18} />
-              </span>
-            </div>
-          </div>
-
-          {/* Password */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-[var(--text-muted)]">
-              رمز عبور
-            </label>
-
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                placeholder="••••••••••••"
-                value={password}
-                onChange={(e) =>
-                  setPassword(e.target.value)
-                }
-                disabled={isLoading}
-                dir="ltr"
-                required
-                className="w-full h-11 px-3.5 pl-10 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-sm text-[var(--text-white)] placeholder:text-[var(--text-subtle)] focus:border-[var(--primary)] outline-none transition-colors"
-              />
-
-              <button
-                type="button"
-                onClick={() =>
-                  setShowPassword((prev) => !prev)
-                }
-                disabled={isLoading}
-                className="absolute left-3 top-3 text-[var(--text-muted)] hover:text-white transition-colors cursor-pointer"
-                title={
-                  showPassword
-                    ? "مخفی کردن رمز"
-                    : "نمایش رمز"
-                }
+            {/* نام کاربری */}
+            <div>
+              <label
+                htmlFor="username"
+                className="mb-2 block text-sm font-medium text-slate-200"
               >
-                <Icon
-                  name={showPassword ? "close" : "info"}
-                  size={18}
-                />
-              </button>
+                نام کاربری
+              </label>
+
+              <input
+                id="username"
+                type="text"
+                autoComplete="username"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder="نام کاربری خود را وارد کنید"
+                disabled={isLoading}
+                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+              />
             </div>
-          </div>
 
-          {/* Submit */}
-          <Button
-            type="submit"
-            variant="primary"
-            isLoading={isLoading}
-            className="w-full h-11 font-bold mt-2 shadow-lg shadow-[var(--primary)]/20"
-          >
-            ورود به پنل مدیریت
-          </Button>
-        </form>
+            {/* رمز عبور */}
+            <div>
+              <label
+                htmlFor="password"
+                className="mb-2 block text-sm font-medium text-slate-200"
+              >
+                رمز عبور
+              </label>
 
-        {/* Footer */}
-        <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-center">
-          <Link
-            href="/"
-            className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors flex items-center gap-1.5"
-          >
-            <Icon name="back" size={14} />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="رمز عبور خود را وارد کنید"
+                  disabled={isLoading}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 pl-16 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                />
 
-            <span>بازگشت به صفحه اصلی سایت</span>
-          </Link>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-blue-400 hover:text-blue-300"
+                >
+                  {showPassword ? "مخفی کردن" : "نمایش"}
+                </button>
+              </div>
+            </div>
+
+            {/* پیام خطا */}
+            {errorMessage && (
+              <div
+                role="alert"
+                className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm leading-6 text-red-400"
+              >
+                {errorMessage}
+              </div>
+            )}
+
+            {/* دکمه ورود */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-3.5 font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  در حال ورود...
+                </span>
+              ) : (
+                "ورود به پنل مدیریت"
+              )}
+            </button>
+
+          </form>
         </div>
+
+        <p className="mt-6 text-center text-xs text-slate-500">
+          ورود به این بخش مخصوص مدیران مجاز سامانه است.
+        </p>
+
       </div>
     </main>
   );

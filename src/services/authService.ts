@@ -58,6 +58,36 @@ export const authService = {
     await apiClient.post(ENDPOINTS.auth.otpRequest, { phone });
   },
 
+
+  async loginAdmin(
+  username: string,
+  password: string
+): Promise<{
+  accessToken: string;
+  refreshToken: string;
+}> {
+  const response = await apiClient.post<any>(
+    "/api/auth/admin-login/",
+    { username, password },
+    { retryOnAuth: false }
+  );
+
+  const responseData = response.data;
+  const tokenData = responseData?.data ?? responseData;
+
+  const accessToken = tokenData?.access;
+  const refreshToken = tokenData?.refresh;
+
+  if (!accessToken || !refreshToken) {
+    throw new Error("پاسخ ورود مدیر فاقد توکن معتبر است.");
+  }
+
+  return {
+    accessToken,
+    refreshToken,
+  };
+},
+
   /**
    * Verify customer OTP according to OpenAPI:
    * POST /auth/customer/otp/verify
