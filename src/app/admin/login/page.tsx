@@ -1,25 +1,25 @@
 
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
 
-const BASE_URL = "https://blog.sayra-booking.ir";
+import { BLOG_API_BASE_URL } from "@/lib/api/config";
+import { setBlogTokens } from "@/lib/token";
 
-interface LoginResponse {
+interface BlogLoginResponse {
   data?: {
     access?: string;
     refresh?: string;
   };
   messagesList?: string[];
+  error?: {
+    message?: string;
+  };
 }
 
 export default function AdminLoginPage() {
   const router = useRouter();
-
-  // اتصال به سیستم احراز هویت پروژه
-  const { login } = useAuth();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -27,7 +27,9 @@ export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (
+    event: FormEvent<HTMLFormElement>
+  ) => {
     event.preventDefault();
 
     if (isLoading) return;
@@ -37,16 +39,31 @@ export default function AdminLoginPage() {
     const normalizedUsername = username.trim();
 
     if (!normalizedUsername || !password) {
-      setErrorMessage("لطفاً نام کاربری و رمز عبور را وارد کنید.");
+      setErrorMessage(
+        "لطفاً نام کاربری و رمز عبور را وارد کنید."
+      );
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // ارسال درخواست ورود به API
+      /**
+       * Blog Platform Login
+       *
+       * OpenAPI:
+       * POST /api/auth/admin-login/
+       *
+       * Request:
+       * { username, password }
+       *
+       * Response:
+       * { data: { access, refresh }, messagesList: [] }
+       */
+      const base = BLOG_API_BASE_URL.replace(/\/+$/, "");
+
       const response = await fetch(
-        `${BASE_URL}/api/auth/admin-login/`,
+        `${base}/auth/admin-login/`,
         {
           method: "POST",
           headers: {
@@ -60,56 +77,70 @@ export default function AdminLoginPage() {
         }
       );
 
-      // دریافت پاسخ سرور
-      const result: LoginResponse = await response
-        .json()
-        .catch(() => ({}));
+      const result: BlogLoginResponse =
+        await response.json().catch(() => ({}));
 
-      // بررسی خطاهای API
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error("نام کاربری یا رمز عبور اشتباه است.");
+          throw new Error(
+            "نام کاربری یا رمز عبور اشتباه است."
+          );
         }
 
         if (response.status === 403) {
           throw new Error(
-            "دسترسی به پنل مدیریت فقط برای کاربران Staff مجاز است."
+            "دسترسی به پنل وبلاگ فقط برای کاربران Staff مجاز است."
           );
         }
 
         throw new Error(
+          result?.error?.message ||
           result?.messagesList?.[0] ||
-            "خطا در ورود به سامانه. لطفاً مجدداً تلاش کنید."
+          "خطا در ورود به سامانه وبلاگ."
         );
       }
 
-      // استخراج توکن‌ها از ساختار واقعی پاسخ API
       const accessToken = result?.data?.access;
       const refreshToken = result?.data?.refresh;
 
       if (!accessToken || !refreshToken) {
         throw new Error(
-          "ورود موفق بود اما توکن‌های معتبر از سرور دریافت نشدند."
+          "پاسخ ورود فاقد Access Token یا Refresh Token معتبر است."
         );
       }
 
-      // ثبت اطلاعات ورود در AuthContext
-      // تابع login مسئول ذخیره توکن‌ها و به‌روزرسانی وضعیت کاربر است.
-      login(
-        "مدیر سامانه",
-        normalizedUsername,
+      /**
+       * Save only Blog tokens.
+       * Do NOT call AuthContext.login here.
+       * Platform tokens must remain untouched.
+       */
+      setBlogTokens({
         accessToken,
         refreshToken,
-        "ADMIN"
+      });
+
+      // Verify Blog token storage.
+      const savedAccessToken = localStorage.getItem(
+        "sayra_blog_access_token"
       );
 
-      console.log("Admin login successful.");
+      const savedRefreshToken = localStorage.getItem(
+        "sayra_blog_refresh_token"
+      );
 
-      // انتقال به پنل مدیریت
-      router.replace("/admin");
+      if (!savedAccessToken || !savedRefreshToken) {
+        throw new Error(
+          "ذخیره توکن‌های وبلاگ در مرورگر با مشکل مواجه شد."
+        );
+      }
+
+      console.log("Blog admin login successful.");
+
+      // Blog admin must enter the Blog section.
+      router.replace("/admin/blog");
 
     } catch (error: unknown) {
-      console.error("Admin Login Error:", error);
+      console.error("Blog Admin Login Error:", error);
 
       const message =
         error instanceof Error
@@ -130,27 +161,29 @@ export default function AdminLoginPage() {
     >
       <div className="w-full max-w-md">
 
-        {/* لوگو و عنوان */}
+        {/* Logo and title */}
         <div className="mb-8 text-center">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-3xl text-white shadow-lg shadow-blue-600/20">
-            A
+            B
           </div>
 
           <h1 className="text-2xl font-bold text-white">
-            پنل مدیریت
+            مدیریت وبلاگ سایرا
           </h1>
 
           <p className="mt-2 text-sm text-slate-400">
-            برای ورود به سامانه اطلاعات خود را وارد کنید.
+            برای ورود به سامانه مدیریت وبلاگ اطلاعات خود را وارد کنید.
           </p>
         </div>
 
-        {/* فرم ورود */}
+        {/* Login form */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl sm:p-8">
+          <form
+            onSubmit={handleLogin}
+            className="space-y-5"
+          >
 
-          <form onSubmit={handleLogin} className="space-y-5">
-
-            {/* نام کاربری */}
+            {/* Username */}
             <div>
               <label
                 htmlFor="username"
@@ -164,14 +197,16 @@ export default function AdminLoginPage() {
                 type="text"
                 autoComplete="username"
                 value={username}
-                onChange={(event) => setUsername(event.target.value)}
+                onChange={(event) =>
+                  setUsername(event.target.value)
+                }
                 placeholder="نام کاربری خود را وارد کنید"
                 disabled={isLoading}
                 className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
               />
             </div>
 
-            {/* رمز عبور */}
+            {/* Password */}
             <div>
               <label
                 htmlFor="password"
@@ -186,23 +221,29 @@ export default function AdminLoginPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(event) =>
+                    setPassword(event.target.value)
+                  }
                   placeholder="رمز عبور خود را وارد کنید"
                   disabled={isLoading}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 pl-16 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 pl-20 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                 />
 
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={() =>
+                    setShowPassword((previous) => !previous)
+                  }
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-blue-400 hover:text-blue-300"
                 >
-                  {showPassword ? "مخفی کردن" : "نمایش"}
+                  {showPassword
+                    ? "مخفی کردن"
+                    : "نمایش"}
                 </button>
               </div>
             </div>
 
-            {/* پیام خطا */}
+            {/* Error */}
             {errorMessage && (
               <div
                 role="alert"
@@ -212,7 +253,7 @@ export default function AdminLoginPage() {
               </div>
             )}
 
-            {/* دکمه ورود */}
+            {/* Submit */}
             <button
               type="submit"
               disabled={isLoading}
@@ -224,7 +265,7 @@ export default function AdminLoginPage() {
                   در حال ورود...
                 </span>
               ) : (
-                "ورود به پنل مدیریت"
+                "ورود به مدیریت وبلاگ"
               )}
             </button>
 
@@ -232,7 +273,7 @@ export default function AdminLoginPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-slate-500">
-          ورود به این بخش مخصوص مدیران مجاز سامانه است.
+          این بخش مخصوص کاربران Staff مجاز وبلاگ است.
         </p>
 
       </div>

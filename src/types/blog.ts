@@ -1,3 +1,4 @@
+
 export type BlogSort = "newest" | "oldest" | "popular" | "shortest";
 
 export interface BlogCategory {
@@ -7,27 +8,23 @@ export interface BlogCategory {
 
 export type BlogPostStatus = "PUBLISHED" | "DRAFT" | "ARCHIVED";
 
-/** ⚠️ ساختار زیر در OpenAPI فعلی (v1.0-LOCKED) وجود ندارد و نیازمند تأیید بک‌اند است. */
+/** ساختار اطلاعات خلاصه مقاله */
 export interface BlogPostSummary {
   id: string;
   slug: string;
   title: string;
   excerpt: string;
   coverUrl: string;
-  /** شناسه‌ی دسته */
   category: string;
   categoryLabel: string;
   authorName: string;
-  /** ISO */
   publishedAt: string;
   createdAt?: string;
   updatedAt?: string;
   readingMinutes: number;
   tags: string[];
   featured?: boolean;
-  /** وضعیت محتوا (پیش‌نویس، منتشرشده، بایگانی‌شده) */
   status?: BlogPostStatus;
-  /** فقط برای مرتب‌سازی؛ نمایش داده نمی‌شود */
   viewsCount?: number;
 }
 
@@ -48,11 +45,15 @@ export interface AdminBlogPostInput {
   content: BlogContentBlock[];
 }
 
+/**
+ * شناسه هر بلوک برای حفظ هویت آن در API و ویرایش‌های بعدی.
+ * در بلوک‌های جدید ممکن است id هنوز تولید نشده باشد.
+ */
 export type BlogContentBlock =
-  | { type: "heading"; text: string }
-  | { type: "paragraph"; text: string }
-  | { type: "list"; items: string[] }
-  | { type: "quote"; text: string };
+  | { id?: string; type: "heading"; text: string }
+  | { id?: string; type: "paragraph"; text: string }
+  | { id?: string; type: "list"; items: string[] }
+  | { id?: string; type: "quote"; text: string };
 
 export interface BlogPostDetail extends BlogPostSummary {
   content: BlogContentBlock[];

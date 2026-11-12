@@ -1,5 +1,18 @@
-import { API_BASE_URL, BLOG_API_BASE_URL } from "./config";
-import { getAccessToken, refreshAccessToken, clearTokens } from "../token";
+
+import {
+  API_BASE_URL,
+  BLOG_API_BASE_URL,
+} from "./config";
+
+import {
+  getAccessToken,
+  getBlogAccessToken,
+  getBlogRefreshToken,
+  setBlogTokens,
+  refreshAccessToken,
+  clearTokens,
+  clearBlogTokens,
+} from "../token";
 
 export interface ApiMeta {
   requestId?: string;
@@ -36,25 +49,37 @@ export class ApiError extends Error {
     status: number,
     code: string,
     message: string,
-    details?: unknown,
+    details?: unknown
   ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.details = details;
+
     Object.setPrototypeOf(this, ApiError.prototype);
   }
 }
 
-export const isAbortError = (e: unknown): boolean =>
+export const isAbortError = (error: unknown): boolean =>
   (typeof DOMException !== "undefined" &&
-    e instanceof DOMException &&
-    e.name === "AbortError") ||
-  (e instanceof Error && e.name === "AbortError");
+    error instanceof DOMException &&
+    error.name === "AbortError") ||
+  (error instanceof Error && error.name === "AbortError");
 
-export type QueryValue = string | number | boolean | null | undefined;
-export type Query = Record<string, QueryValue | QueryValue[]>;
+export type QueryValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined;
+
+export type Query = Record<
+  string,
+  QueryValue | QueryValue[]
+>;
+
+export type AuthScope = "platform" | "blog";
 
 export interface RequestOptions {
   query?: Query;
@@ -63,172 +88,228 @@ export interface RequestOptions {
   signal?: AbortSignal;
   retryOnAuth?: boolean;
   baseUrl?: string;
-
-  // کنترل ارسال JWT
   skipAuth?: boolean;
+
+  /**
+   * Selects which independent token store is used.
+   */
+  authScope?: AuthScope;
 }
 
-/**
- * Serialize query parameters supporting strings, numbers, booleans, and arrays.
- */
-export function buildQueryString(query?: Query): string {
-  if (!query) return "";
-  const qs = new URLSearchParams();
-  Object.entries(query).forEach(([k, v]) => {
-    if (v === undefined || v === null) return;
-    if (Array.isArray(v)) {
-      v.forEach((item) => {
-        if (item !== undefined && item !== null) {
-          qs.append(k, String(item));
-        }
-      });
-    } else {
-      qs.append(k, String(v));
-    }
-  });
-  const s = qs.toString();
-  return s ? `?${s}` : "";
-}
+type HttpMethod =
+  | "GET"
+  | "POST"
+  | "PUT"
+  | "PATCH"
+  | "DELETE";
 
-/**
- * Build complete request URL based on API_BASE_URL or custom baseUrl.
- */
-export function buildUrl(
-  path: string,
-  query?: Query,
-  baseUrl?: string,
-): string {
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const base = (baseUrl || API_BASE_URL).replace(/\/+$/, "");
-  const qs = buildQueryString(query);
-  return `${base}${normalizedPath}${qs}`;
-}
-
-/**
- * Execute raw fetch request against backend API or Proxy
- */
-async function executeFetch<T>(
-  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
-  path: string,
-  options: RequestOptions = {},
-  overrideToken?: string | null,
-): Promise<{
+interface ApiResponse<T> {
   data: T;
   meta?: ApiMeta;
   message?: string;
   messagesList?: string[];
   pagination?: unknown;
   rawEnvelope?: unknown;
-}> {
+}
+
+// ==================================================
+// Query and URL
+// ==================================================
+
+export function buildQueryString(query?: Query): string {
+  if (!query) return "";
+
+  const params = new URLSearchParams();
+
+  Object.entries(query).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        if (item !== undefined && item !== null) {
+          params.append(key, String(item));
+        }
+      });
+    } else {
+      params.append(key, String(value));
+    }
+  });
+
+  const result = params.toString();
+
+  return result ? `?${result}` : "";
+}
+
+export function buildUrl(
+  path: string,
+  query?: Query,
+  baseUrl?: string
+): string {
+  const normalizedPath = path.startsWith("/")
+    ? path
+    : `/${path}`;
+
+  const base = (baseUrl || API_BASE_URL).replace(/\/+$/, "");
+
+  return `${base}${normalizedPath}${buildQueryString(query)}`;
+}
+
+// ==================================================
+// Token Resolution
+// ==================================================
+
+function getTokenForScope(
+  scope: AuthScope
+): string | null {
+  return scope === "blog"
+    ? getBlogAccessToken()
+    : getAccessToken();
+}
+
+// ==================================================
+// Raw Fetch
+// ==================================================
+
+async function executeFetch<T>(
+  method: HttpMethod,
+  path: string,
+  options: RequestOptions = {},
+  overrideToken?: string | null
+): Promise<ApiResponse<T>> {
   const targetBaseUrl = options.baseUrl || API_BASE_URL;
+
   if (!targetBaseUrl) {
-    throw new ApiError(0, "API_BASE_URL_MISSING", "ارتباط با سرور برقرار نشد.");
+    throw new ApiError(
+      0,
+      "API_BASE_URL_MISSING",
+      "ارتباط با سرور برقرار نشد."
+    );
   }
 
   const isFormData =
-    typeof FormData !== "undefined" && options.body instanceof FormData;
+    typeof FormData !== "undefined" &&
+    options.body instanceof FormData;
 
   const headers: Record<string, string> = {
     Accept: "application/json",
     ...options.headers,
   };
 
-  // Only set Content-Type for non-FormData bodies
   if (options.body !== undefined && !isFormData) {
     headers["Content-Type"] = "application/json";
   }
 
-  // Token resolution
   if (!options.skipAuth) {
+    const scope = options.authScope || "platform";
+
     const token =
-      overrideToken !== undefined ? overrideToken : getAccessToken();
+      overrideToken !== undefined
+        ? overrideToken
+        : getTokenForScope(scope);
 
     if (token) {
       headers.Authorization = `Bearer ${token}`;
+    } else {
+      delete headers.Authorization;
     }
   } else {
-    // اطمینان از عدم ارسال توکن حتی در صورت وجود Header قبلی
     delete headers.Authorization;
   }
 
-  let res: Response;
+  let response: Response;
+
   try {
-    res = await fetch(buildUrl(path, options.query, targetBaseUrl), {
-      method,
-      headers,
-      body:
-        options.body === undefined
-          ? undefined
-          : isFormData
-            ? (options.body as FormData)
-            : JSON.stringify(options.body),
-      signal: options.signal,
-    });
-  } catch (e) {
-    if (isAbortError(e)) {
-      throw e;
+    response = await fetch(
+      buildUrl(path, options.query, targetBaseUrl),
+      {
+        method,
+        headers,
+        body:
+          options.body === undefined
+            ? undefined
+            : isFormData
+              ? (options.body as FormData)
+              : JSON.stringify(options.body),
+        signal: options.signal,
+      }
+    );
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
     }
-    throw new ApiError(0, "NETWORK_ERROR", "ارتباط با سرور برقرار نشد.");
+
+    throw new ApiError(
+      0,
+      "NETWORK_ERROR",
+      "ارتباط با سرور برقرار نشد."
+    );
   }
 
-  // Empty response (e.g. 204 No Content)
-  if (res.status === 204) {
-    return { data: undefined as unknown as T };
+  if (response.status === 204) {
+    return {
+      data: undefined as unknown as T,
+    };
   }
 
-  const responseText = await res.text();
+  const responseText = await response.text();
+
   let json: ApiEnvelope<T> | null = null;
 
-  if (responseText.trim().length > 0) {
+  if (responseText.trim()) {
     try {
       json = JSON.parse(responseText) as ApiEnvelope<T>;
     } catch {
-      // Invalid JSON received from server
-      if (!res.ok) {
+      if (!response.ok) {
         throw new ApiError(
-          res.status,
-          res.status === 404 ? "NOT_FOUND" : "INVALID_RESPONSE",
-          responseText || `سرور پاسخ نامعتبر بازگرداند (${res.status}).`,
+          response.status,
+          response.status === 404
+            ? "NOT_FOUND"
+            : "INVALID_RESPONSE",
+          responseText ||
+            `سرور پاسخ نامعتبر بازگرداند (${response.status}).`
         );
       }
+
       throw new ApiError(
-        res.status,
+        response.status,
         "INVALID_JSON",
-        "پاسخ دریافت شده از سرور فرمت نامعتبر دارد.",
+        "پاسخ دریافت شده از سرور فرمت نامعتبر دارد."
       );
     }
   }
 
-  // Handle HTTP error statuses or envelope success: false
-  if (!res.ok || json?.success === false) {
+  if (!response.ok || json?.success === false) {
     const errorCode =
       json?.error?.code ||
-      (res.status === 401
+      (response.status === 401
         ? "UNAUTHORIZED"
-        : res.status === 403
+        : response.status === 403
           ? "FORBIDDEN"
-          : res.status === 404
+          : response.status === 404
             ? "NOT_FOUND"
             : "HTTP_ERROR");
+
     const errorMessage =
       json?.error?.message ||
-      (res.status === 401
+      (response.status === 401
         ? "نشست کاربری نامعتبر است."
-        : res.status === 403
+        : response.status === 403
           ? "دسترسی غیرمجاز."
           : "خطای نامشخص از سمت سرور.");
 
     throw new ApiError(
-      res.status,
+      response.status,
       errorCode,
       errorMessage,
-      json?.error?.details,
+      json?.error?.details
     );
   }
 
-  // Return data envelope
   return {
-    data: (json?.data !== undefined ? json.data : (json as unknown as T)) as T,
+    data:
+      json?.data !== undefined
+        ? json.data
+        : (json as unknown as T),
     meta: json?.meta,
     message: json?.message,
     messagesList: json?.messagesList,
@@ -237,127 +318,298 @@ async function executeFetch<T>(
   };
 }
 
-/**
- * Direct call to refresh endpoint conforming to OpenAPI /auth/refresh
- */
+// ==================================================
+// Platform Refresh
+// ==================================================
+
 async function performTokenRefresh(
-  refreshToken: string,
+  refreshToken: string
 ): Promise<{ accessToken: string } | null> {
   const base = API_BASE_URL.replace(/\/+$/, "");
-  const res = await fetch(`${base}/auth/refresh`, {
+
+  const response = await fetch(`${base}/auth/refresh`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
     },
-    body: JSON.stringify({ refreshToken }),
+    body: JSON.stringify({
+      refreshToken,
+    }),
   });
 
-  if (!res.ok) {
+  if (!response.ok) return null;
+
+  const json = await response.json();
+
+  const accessToken =
+    json?.data?.accessToken ||
+    json?.accessToken;
+
+  if (json?.success === false || !accessToken) {
     return null;
   }
 
-  const json = (await res.json()) as ApiEnvelope<{ accessToken: string }>;
-  if (json?.success !== false && json?.data?.accessToken) {
-    return { accessToken: json.data.accessToken };
-  }
-  return null;
+  return { accessToken };
 }
 
-/**
- * Top-level request method with token management and single retry on 401
- */
+// ==================================================
+// Blog Refresh - Based on Blog-Platform-API.yaml
+// POST /api/token/refresh/
+// Body: { refresh: string }
+// Response: { data: { access: string } }
+// ==================================================
+
+let blogRefreshPromise: Promise<string | null> | null = null;
+
+async function performBlogTokenRefresh(
+  refreshToken: string
+): Promise<string | null> {
+  const base = BLOG_API_BASE_URL.replace(/\/+$/, "");
+
+  const response = await fetch(
+    `${base}/token/refresh/`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        refresh: refreshToken,
+      }),
+    }
+  );
+
+  const json = await response.json().catch(() => null);
+
+  if (!response.ok || json?.success === false) {
+    return null;
+  }
+
+  const accessToken =
+    json?.data?.access ||
+    json?.access;
+
+  return typeof accessToken === "string" && accessToken
+    ? accessToken
+    : null;
+}
+
+async function refreshBlogAccessToken(): Promise<string | null> {
+  const currentRefreshToken = getBlogRefreshToken();
+
+  if (!currentRefreshToken) {
+    clearBlogTokens();
+    return null;
+  }
+
+  if (blogRefreshPromise) {
+    return blogRefreshPromise;
+  }
+
+  blogRefreshPromise = (async () => {
+    try {
+      const newAccessToken =
+        await performBlogTokenRefresh(currentRefreshToken);
+
+      if (!newAccessToken) {
+        clearBlogTokens();
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new Event("sayra:blog-auth-expired")
+          );
+        }
+
+        return null;
+      }
+
+      // Blog API YAML returns a new access token only.
+      // Keep the existing refresh token.
+      setBlogTokens({
+        accessToken: newAccessToken,
+        refreshToken: currentRefreshToken,
+      });
+
+      return newAccessToken;
+    } catch {
+      clearBlogTokens();
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new Event("sayra:blog-auth-expired")
+        );
+      }
+
+      return null;
+    } finally {
+      blogRefreshPromise = null;
+    }
+  })();
+
+  return blogRefreshPromise;
+}
+
+// ==================================================
+// Request + Single Retry
+// ==================================================
+
 async function request<T>(
-  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+  method: HttpMethod,
   path: string,
-  options: RequestOptions = {},
-): Promise<{
-  data: T;
-  meta?: ApiMeta;
-  message?: string;
-  messagesList?: string[];
-  pagination?: unknown;
-  rawEnvelope?: unknown;
-}> {
+  options: RequestOptions = {}
+): Promise<ApiResponse<T>> {
+  const authScope = options.authScope || "platform";
+
+  const isRefreshRequest =
+    path.includes("/auth/refresh") ||
+    path.includes("/token/refresh");
+
+  const isLoginRequest =
+    path.includes("/auth/login") ||
+    path.includes("/auth/admin-login");
+
   const shouldRetry =
     !options.skipAuth &&
     options.retryOnAuth !== false &&
-    path !== "/auth/refresh" &&
-    path !== "/auth/login";
+    !isRefreshRequest &&
+    !isLoginRequest;
 
   try {
-    return await executeFetch<T>(method, path, options);
+    return await executeFetch<T>(
+      method,
+      path,
+      options
+    );
   } catch (error) {
-    // Check if error is 401 and eligible for refresh retry
-    if (error instanceof ApiError && error.status === 401 && shouldRetry) {
-      const newToken = await refreshAccessToken(performTokenRefresh);
+    if (
+      error instanceof ApiError &&
+      error.status === 401 &&
+      shouldRetry
+    ) {
+      const newToken =
+        authScope === "blog"
+          ? await refreshBlogAccessToken()
+          : await refreshAccessToken(performTokenRefresh);
+
       if (newToken) {
-        // Retry the request exactly once with new token and retryOnAuth: false
-        return await executeFetch<T>(
+        return executeFetch<T>(
           method,
           path,
-          { ...options, retryOnAuth: false },
-          newToken,
+          {
+            ...options,
+            retryOnAuth: false,
+          },
+          newToken
         );
-      } else {
+      }
+
+      if (authScope === "platform") {
         clearTokens();
       }
     }
+
     throw error;
   }
 }
 
+// ==================================================
+// Main Platform API Client
+// ==================================================
+
 export const apiClient = {
   get: <T>(path: string, options?: RequestOptions) =>
     request<T>("GET", path, options),
-  post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>("POST", path, { ...options, body }),
-  put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>("PUT", path, { ...options, body }),
-  patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>("PATCH", path, { ...options, body }),
+
+  post: <T>(
+    path: string,
+    body?: unknown,
+    options?: RequestOptions
+  ) =>
+    request<T>("POST", path, {
+      ...options,
+      body,
+    }),
+
+  put: <T>(
+    path: string,
+    body?: unknown,
+    options?: RequestOptions
+  ) =>
+    request<T>("PUT", path, {
+      ...options,
+      body,
+    }),
+
+  patch: <T>(
+    path: string,
+    body?: unknown,
+    options?: RequestOptions
+  ) =>
+    request<T>("PATCH", path, {
+      ...options,
+      body,
+    }),
+
   delete: <T>(path: string, options?: RequestOptions) =>
     request<T>("DELETE", path, options),
 };
 
-/**
- * Blog Platform API Client
- * Dedicated API client targeting BLOG_API_BASE_URL for all blog endpoints.
- * Delegates calls through apiClient with { baseUrl: BLOG_API_BASE_URL }.
- */
-/**
- * Blog Platform API Client
- * Public requests do not send JWT by default.
- */
+// ==================================================
+// Dedicated Blog Platform API Client
+// ==================================================
+
+function blogOptions(
+  options?: RequestOptions
+): RequestOptions {
+  return {
+    ...options,
+    baseUrl: BLOG_API_BASE_URL,
+    authScope: "blog",
+  };
+}
+
 export const blogApiClient = {
   get: <T>(path: string, options?: RequestOptions) =>
-    apiClient.get<T>(path, {
-      ...options,
-      baseUrl: BLOG_API_BASE_URL,
-      skipAuth: true,
-    }),
+    apiClient.get<T>(path, blogOptions(options)),
 
-  post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    apiClient.post<T>(path, body, {
-      ...options,
-      baseUrl: BLOG_API_BASE_URL,
-    }),
+  post: <T>(
+    path: string,
+    body?: unknown,
+    options?: RequestOptions
+  ) =>
+    apiClient.post<T>(
+      path,
+      body,
+      blogOptions(options)
+    ),
 
-  put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    apiClient.put<T>(path, body, {
-      ...options,
-      baseUrl: BLOG_API_BASE_URL,
-    }),
+  put: <T>(
+    path: string,
+    body?: unknown,
+    options?: RequestOptions
+  ) =>
+    apiClient.put<T>(
+      path,
+      body,
+      blogOptions(options)
+    ),
 
-  patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    apiClient.patch<T>(path, body, {
-      ...options,
-      baseUrl: BLOG_API_BASE_URL,
-    }),
+  patch: <T>(
+    path: string,
+    body?: unknown,
+    options?: RequestOptions
+  ) =>
+    apiClient.patch<T>(
+      path,
+      body,
+      blogOptions(options)
+    ),
 
   delete: <T>(path: string, options?: RequestOptions) =>
-    apiClient.delete<T>(path, {
-      ...options,
-      baseUrl: BLOG_API_BASE_URL,
-    }),
+    apiClient.delete<T>(
+      path,
+      blogOptions(options)
+    ),
 };
