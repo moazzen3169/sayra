@@ -1,1841 +1,582 @@
-
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
+import { LocationMapPicker } from "@/components/owner/LocationMapPicker";
+import { Icon } from "@/components/ui/Icon";
 import { useAuth } from "@/context/AuthContext";
 import { useOwner } from "@/context/OwnerContext";
-import { cleanPhoneNumber, isValidIranPhone, toPersianDigits } from "@/lib/format";
+import { isAbortError } from "@/lib/api/client";
+import { cleanPhoneNumber, isValidIranPhone, toEnglishDigits, toPersianDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
-import { authService } from "@/services/authService";
-import { ownerService } from "@/services/ownerService";
-import { Icon } from "@/components/ui/Icon";
-import { IRAN_PROVINCES } from "@/data/iranLocations";
-import { LocationMapPicker } from "@/components/owner/LocationMapPicker";
-import { BannerSlider } from "@/components/BannerSlider";
-import { SafeImage } from "@/components/ui/SafeImage";
-import { PLACEHOLDERS } from "@/lib/media";
-import type { CenterSettings } from "@/types/owner";
+import { onboardingService } from "@/services/onboardingService";
+import type {
+  LocationOption,
+  OnboardingCompletion,
+  OnboardingPreview,
+  OnboardingStep,
+} from "@/types/onboarding";
 
-const DAYS_OF_WEEK = [
-  { id: "saturday", label: "شنبه" },
-  { id: "sunday", label: "یک‌شنبه" },
-  { id: "monday", label: "دوشنبه" },
-  { id: "tuesday", label: "سه‌شنبه" },
-  { id: "wednesday", label: "چهارشنبه" },
-  { id: "thursday", label: "پنج‌شنبه" },
-  { id: "friday", label: "جمعه" },
+const DRAFT_KEY = "sayra_onboarding_draft_id";
+
+// ترتیب روزها مطابق صفحهٔ ساعات کاری (۰ = شنبه)
+const DAYS = [
+  { id: 0, label: "شنبه" },
+  { id: 1, label: "یک‌شنبه" },
+  { id: 2, label: "دوشنبه" },
+  { id: 3, label: "سه‌شنبه" },
+  { id: 4, label: "چهارشنبه" },
+  { id: 5, label: "پنج‌شنبه" },
+  { id: 6, label: "جمعه" },
+];
+
+const STEPS: { id: OnboardingStep; title: string }[] = [
+  { id: "info", title: "اطلاعات اولیه" },
+  { id: "otp", title: "تأیید شماره" },
+  { id: "location", title: "موقعیت" },
+  { id: "hours", title: "ساعات کاری" },
+  { id: "preview", title: "بازبینی" },
 ];
 
 const inputClass =
   "w-full h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none text-[var(--text-white)] placeholder:text-[var(--text-subtle)] transition-colors";
+const primaryBtn =
+  "h-12 px-6 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary text-sm font-bold transition-colors active:scale-[0.98] disabled:opacity-60";
+const secondaryBtn =
+  "h-12 px-5 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-sm font-bold text-[var(--text-white)] disabled:opacity-60";
 
-/**
- * تولید slug معتبر از نام انگلیسی.
- * خروجی فقط شامل حروف کوچک انگلیسی، عدد و خط تیره است.
- */
-const generateSlug = (value: string): string => {
-  return value
-    .trim()
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+const pick = (obj: OnboardingPreview, keys: string[]): string | undefined => {
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "string" && v.trim()) return v;
+  }
+  return undefined;
 };
 
 export default function NewGamingCenterPage() {
   const router = useRouter();
-  const { isLoggedIn, user, login } = useAuth();
-  const { me, refreshCenters } = useOwner();
+  const { login, refreshUser } = useAuth();
+  const { refreshCenters } = useOwner();
 
-  // 6 Steps Wizard State
-  // 1: اطلاعات اولیه & احراز هویت مدیر
-  // 2: آدرس و موقعیت مکانی
-  // 3: ساعات کاری و روزهای تعطیل
-  // 4: تصاویر و لوگو
-  // 5: پیش‌نمایش (Preview)
-  // 6: ثبت نهایی
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
+  const [step, setStep] = useState<OnboardingStep>("info");
+  const [onboardingId, setOnboardingId] = useState<string | null>(null);
 
-  // --- مرحله اول: اطلاعات اولیه و مدیر ---
-  const [name, setName] = useState("");
-  const [englishName, setEnglishName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [managerFullName, setManagerFullName] = useState("");
+  // مرحله ۱
+  const [centerName, setCenterName] = useState("");
+  const [managerName, setManagerName] = useState("");
   const [managerPhone, setManagerPhone] = useState("");
-
-  // OTP State in Step 1
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
-  const [otpTimer, setOtpTimer] = useState(120);
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  const [otpVerified, setOtpVerified] = useState(false);
-  const [otpError, setOtpError] = useState<string | null>(null);
-
-  // Popular Games (included in creation)
-  const [selectedGames, setSelectedGames] = useState<string[]>([
-    "EA Sports FC 25",
-    "Call of Duty: Modern Warfare III",
-    "GTA V",
-  ]);
-
-  // --- مرحله دوم: آدرس و موقعیت مکانی ---
-  const [province, setProvince] = useState("تهران");
-  const [city, setCity] = useState("تهران");
+  // مرحله ۲
+  const [otp, setOtp] = useState("");
+  // مرحله ۳
+  const [provinces, setProvinces] = useState<LocationOption[]>([]);
+  const [cities, setCities] = useState<LocationOption[]>([]);
+  const [provinceId, setProvinceId] = useState("");
+  const [cityId, setCityId] = useState("");
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupToken, setLookupToken] = useState(0);
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState(35.6892);
   const [longitude, setLongitude] = useState(51.389);
+  // مرحله ۴
+  const [openingTime, setOpeningTime] = useState("10:00");
+  const [closingTime, setClosingTime] = useState("23:00");
+  const [closedDays, setClosedDays] = useState<number[]>([]);
+  // مرحله ۵
+  const [preview, setPreview] = useState<OnboardingPreview | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
 
-  // --- مرحله سوم: ساعات کاری و روزهای تعطیل ---
-  const [workStartTime, setWorkStartTime] = useState("10:00");
-  const [workEndTime, setWorkEndTime] = useState("02:00");
-  const [closedDays, setClosedDays] = useState<string[]>([]);
-  const [allowOnlineBooking, setAllowOnlineBooking] = useState(true);
-  const [onlineBookingAutoConfirm, setOnlineBookingAutoConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<OnboardingCompletion | null>(null);
+  const [needsLogin, setNeedsLogin] = useState(false);
+  const submittingRef = useRef(false);
 
-  // --- مرحله چهارم: تصاویر ---
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
-  const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
+  /** اجرای یک عمل async با قفل ارسال مضاعف */
+  const run = useCallback(async (fn: () => Promise<void>) => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      if (!isAbortError(e)) setError(getErrorMessage(e));
+    } finally {
+      submittingRef.current = false;
+      setBusy(false);
+    }
+  }, []);
 
-  // Submission Progress & Result
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitProgressText, setSubmitProgressText] = useState("");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [createdResult, setCreatedResult] = useState<{
-    id: string;
-    name: string;
-    slug: string;
-  } | null>(null);
-
-  // Populate manager defaults if already logged in
+  // استان‌ها (وقتی به مرحلهٔ موقعیت رسیدیم)
   useEffect(() => {
-    if (isLoggedIn && user) {
-      if (!managerFullName && user.fullName) {
-        setManagerFullName(user.fullName);
-      }
+    if (step !== "location") return;
+    const c = new AbortController();
+    setLookupLoading(true);
+    setLookupError(null);
+    onboardingService
+      .getProvinces(c.signal)
+      .then((list) => {
+        setProvinces(list);
+        if (list.length === 0) setLookupError("فهرست استان‌ها در دسترس نیست.");
+      })
+      .catch((e) => {
+        if (!isAbortError(e)) setLookupError(getErrorMessage(e));
+      })
+      .finally(() => setLookupLoading(false));
+    return () => c.abort();
+  }, [step, lookupToken]);
 
-      if (!managerPhone && user.phone) {
-        setManagerPhone(user.phone);
-      }
-
-      setOtpVerified(true);
-    }
-  }, [isLoggedIn, user, managerFullName, managerPhone]);
-
-  // Countdown timer for OTP
+  // شهرها
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    if (otpSent && otpTimer > 0 && !otpVerified) {
-      interval = setInterval(() => {
-        setOtpTimer((prev) => prev - 1);
-      }, 1000);
-    }
-
-    return () => clearInterval(interval);
-  }, [otpSent, otpTimer, otpVerified]);
-
-  // Handle Province Change & update city list + default coordinates
-  const handleProvinceChange = (provName: string) => {
-    setProvince(provName);
-
-    const found = IRAN_PROVINCES.find((p) => p.name === provName);
-
-    if (found) {
-      if (found.cities.length > 0) {
-        setCity(found.cities[0]);
-      }
-
-      setLatitude(found.defaultLat);
-      setLongitude(found.defaultLng);
-    }
-  };
-
-  /**
-   * تغییر نام فارسی گیمنت.
-   * نام فارسی در فیلد name نگهداری می‌شود.
-   */
-  const handleNameChange = (value: string) => {
-    setName(value);
-  };
-
-  /**
-   * تغییر نام انگلیسی گیمنت.
-   * با هر تغییر، slug به‌صورت خودکار تولید می‌شود.
-   */
-  const handleEnglishNameChange = (value: string) => {
-    setEnglishName(value);
-    setSlug(generateSlug(value));
-  };
-
-  // Toggle closed days
-  const toggleClosedDay = (dayId: string) => {
-    setClosedDays((prev) =>
-      prev.includes(dayId)
-        ? prev.filter((d) => d !== dayId)
-        : [...prev, dayId]
-    );
-  };
-
-  // Check if hours cross midnight
-  const isOvernight = (() => {
-    if (!workStartTime || !workEndTime) return false;
-
-    const [startH, startM] = workStartTime.split(":").map(Number);
-    const [endH, endM] = workEndTime.split(":").map(Number);
-
-    return (
-      endH < startH ||
-      (endH === startH && endM < startM)
-    );
-  })();
-
-  // OTP Step 1 Handlers
-  const handleSendOtp = async () => {
-    setOtpError(null);
-
-    const cleanPhone = cleanPhoneNumber(managerPhone);
-
-    if (!isValidIranPhone(cleanPhone)) {
-      setOtpError(
-        "لطفاً شماره تماس معتبر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید."
-      );
+    if (!provinceId) {
+      setCities([]);
       return;
     }
+    const c = new AbortController();
+    setLookupLoading(true);
+    setLookupError(null);
+    onboardingService
+      .getCities(provinceId, c.signal)
+      .then(setCities)
+      .catch((e) => {
+        if (!isAbortError(e)) setLookupError(getErrorMessage(e));
+      })
+      .finally(() => setLookupLoading(false));
+    return () => c.abort();
+  }, [provinceId, lookupToken]);
 
-    setIsSendingOtp(true);
-
-    try {
+  /* ---------- مرحله ۱: شروع ---------- */
+  const handleStart = () =>
+    run(async () => {
+      if (centerName.trim().length < 2) throw new Error("نام گیمنت را وارد کنید.");
+      if (managerName.trim().length < 2) throw new Error("نام و نام خانوادگی مدیر را وارد کنید.");
+      if (!isValidIranPhone(cleanPhoneNumber(managerPhone))) {
+        throw new Error("شماره موبایل را با ۱۱ رقم و با ۰۹ وارد کنید.");
+      }
+      const { onboardingId: id } = await onboardingService.start({
+        gameCenterName: centerName,
+        managerFullName: managerName,
+        managerPhone,
+      });
+      setOnboardingId(id);
       try {
-        await authService.requestUserOtp(cleanPhone);
+        sessionStorage.setItem(DRAFT_KEY, id);
       } catch {
-        // Fallback to general OTP endpoint
-        await authService.requestOtp(cleanPhone);
+        // ignore
       }
-
-      setOtpSent(true);
-      setOtpTimer(120);
-      setOtpCode(["", "", "", "", "", ""]);
-    } catch (err) {
-      setOtpError(getErrorMessage(err));
-    } finally {
-      setIsSendingOtp(false);
-    }
-  };
-
-  const handleOtpChange = (index: number, value: string) => {
-    if (value.length > 1) {
-      const digits = value.replace(/[^\d]/g, "").slice(0, 6).split("");
-      const newOtp = [...otpCode];
-
-      digits.forEach((digit, i) => {
-        if (i < 6) newOtp[i] = digit;
-      });
-
-      setOtpCode(newOtp);
-      return;
-    }
-
-    const clean = value.replace(/[^\d]/g, "");
-    const newOtp = [...otpCode];
-
-    newOtp[index] = clean;
-    setOtpCode(newOtp);
-
-    if (clean && index < 5) {
-      const nextInput = document.getElementById(
-        `creator-otp-${index + 1}`
-      );
-
-      nextInput?.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (
-    index: number,
-    e: React.KeyboardEvent<HTMLInputElement>
-  ) => {
-    if (e.key === "Backspace" && !otpCode[index] && index > 0) {
-      const prevInput = document.getElementById(
-        `creator-otp-${index - 1}`
-      );
-
-      prevInput?.focus();
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    setOtpError(null);
-
-    const fullCode = otpCode.join("");
-
-    if (fullCode.length < 6) {
-      setOtpError("لطفاً کد تایید ۶ رقمی را کامل وارد کنید.");
-      return;
-    }
-
-    const cleanPhone = cleanPhoneNumber(managerPhone);
-
-    if (!isValidIranPhone(cleanPhone)) {
-      setOtpError(
-        "لطفاً شماره تماس معتبر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید."
-      );
-      return;
-    }
-
-    setIsVerifyingOtp(true);
-
-    try {
-      // Authenticate via customer OTP verification which directly verifies and returns tokens
-      const authRes = await authService.verifyOtp(cleanPhone, fullCode);
-
-      const accessToken = authRes?.accessToken;
-      const refreshToken = authRes?.refreshToken || "";
-      const resUser = authRes?.user;
-
-      if (!accessToken) {
-        throw new Error("توکن ورود دریافت نشد.");
-      }
-
-      const userName =
-        managerFullName.trim() ||
-        resUser?.fullName ||
-        "مدیر گیم‌نت";
-
-      login(
-        userName,
-        cleanPhone,
-        accessToken,
-        refreshToken,
-        "MANAGER"
-      );
-
-      setOtpVerified(true);
-      setOtpError(null);
-    } catch (err) {
-      setOtpError(getErrorMessage(err));
-    } finally {
-      setIsVerifyingOtp(false);
-    }
-  };
-
-  // Image Upload Handlers
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-
-    if (file) {
-      setLogoFile(file);
-      setLogoPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const removeLogo = () => {
-    setLogoFile(null);
-
-    if (logoPreview) {
-      URL.revokeObjectURL(logoPreview);
-    }
-
-    setLogoPreview(null);
-  };
-
-  const handleGalleryUpload = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const files = Array.from(e.target.files || []);
-
-    if (files.length === 0) return;
-
-    setGalleryFiles((prev) => [...prev, ...files]);
-
-    const newPreviews = files.map((file) =>
-      URL.createObjectURL(file)
-    );
-
-    setGalleryPreviews((prev) => [...prev, ...newPreviews]);
-  };
-
-  const removeGalleryImage = (index: number) => {
-    setGalleryFiles((prev) =>
-      prev.filter((_, i) => i !== index)
-    );
-
-    setGalleryPreviews((prev) => {
-      const removed = prev[index];
-
-      if (removed) {
-        URL.revokeObjectURL(removed);
-      }
-
-      return prev.filter((_, i) => i !== index);
+      setOtp("");
+      setStep("otp");
     });
-  };
 
-  // Validations for each step
-  const validateStep = (stepNumber: number): boolean => {
-    setErrorMsg(null);
+  /* ---------- مرحله ۲: OTP ---------- */
+  const handleVerifyOtp = () =>
+    run(async () => {
+      const code = toEnglishDigits(otp).replace(/\D/g, "");
+      if (!onboardingId) throw new Error("فرایند ثبت پیدا نشد. از ابتدا شروع کنید.");
+      if (code.length < 4) throw new Error("کد تأیید را کامل وارد کنید.");
+      await onboardingService.verifyOtp(onboardingId, code);
+      setStep("location");
+    });
 
-    if (stepNumber === 1) {
-      if (!name.trim() || name.trim().length < 2) {
-        setErrorMsg(
-          "لطفاً نام فارسی GameCenter را وارد کنید (حداقل ۲ نویسه)."
-        );
-        return false;
-      }
-
-      if (!englishName.trim() || englishName.trim().length < 2) {
-        setErrorMsg(
-          "لطفاً نام انگلیسی GameCenter را وارد کنید (حداقل ۲ نویسه)."
-        );
-        return false;
-      }
-
-      const generatedSlug = generateSlug(englishName);
-
-      if (!generatedSlug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(generatedSlug)) {
-        setErrorMsg(
-          "نام انگلیسی واردشده معتبر نیست. لطفاً از حروف انگلیسی و اعداد استفاده کنید."
-        );
-        return false;
-      }
-
-      if (!managerFullName.trim() || managerFullName.trim().length < 2) {
-        setErrorMsg(
-          "لطفاً نام و نام خانوادگی Manager را وارد کنید."
-        );
-        return false;
-      }
-
-      const cleanPhone = cleanPhoneNumber(managerPhone);
-
-      if (!isValidIranPhone(cleanPhone)) {
-        setErrorMsg(
-          "لطفاً شماره تماس معتبر برای مدیر (۱۱ رقم با ۰۹ مانند ۰۹۱۲۳۴۵۶۷۸۹) وارد کنید."
-        );
-        return false;
-      }
-
-      if (!otpVerified && !isLoggedIn) {
-        setErrorMsg(
-          "لطفاً کد تایید شماره تماس (OTP) را دریافت و تایید کنید."
-        );
-        return false;
-      }
-
-      return true;
-    }
-
-    if (stepNumber === 2) {
-      if (!province.trim()) {
-        setErrorMsg("لطفاً استان را انتخاب کنید.");
-        return false;
-      }
-
-      if (!city.trim()) {
-        setErrorMsg("لطفاً شهر را مشخص کنید.");
-        return false;
-      }
-
-      if (!address.trim() || address.trim().length < 5) {
-        setErrorMsg(
-          "لطفاً آدرس دقیق و کامل با جزئیات را وارد کنید."
-        );
-        return false;
-      }
-
-      if (latitude === 0 || longitude === 0) {
-        setErrorMsg(
-          "لطفاً موقعیت مکانی را روی نقشه انتخاب کنید."
-        );
-        return false;
-      }
-
-      return true;
-    }
-
-    if (stepNumber === 3) {
-      if (!workStartTime || !workEndTime) {
-        setErrorMsg(
-          "لطفاً ساعت شروع و پایان فعالیت را مشخص کنید."
-        );
-        return false;
-      }
-
-      return true;
-    }
-
-    return true;
-  };
-
-  const handleNextStep = () => {
-    if (validateStep(step)) {
-      setStep((prev) => (Math.min(6, prev + 1) as any));
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  };
-
-  const handlePrevStep = () => {
-    setErrorMsg(null);
-    setStep((prev) => (Math.max(1, prev - 1) as any));
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  // Jump to step from Preview
-  const handleEditSection = (targetStep: 1 | 2 | 3 | 4) => {
-    setErrorMsg(null);
-    setStep(targetStep);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  // Final Submission (Step 6)
-  const handleFinalSubmit = async () => {
-    if (
-      !validateStep(1) ||
-      !validateStep(2) ||
-      !validateStep(3)
-    ) {
-      return;
-    }
-
-    setIsSubmitting(true);
-    setErrorMsg(null);
-    setSubmitProgressText("در حال آغاز ثبت اطلاعات مرکز بازی...");
-
-    try {
-      const normalizedManagerPhone =
-        cleanPhoneNumber(managerPhone);
-
-      const resolvedOwnerId =
-        me?.id ||
-        user?.id ||
-        `owner-${normalizedManagerPhone}`;
-
-      // slug فقط از نام انگلیسی ساخته می‌شود.
-      const effectiveSlug = generateSlug(englishName);
-
-      // کنترل نهایی قبل از ارسال به API
-      if (
-        !effectiveSlug ||
-        !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(effectiveSlug)
-      ) {
-        setErrorMsg(
-          "Slug معتبر نیست. لطفاً نام انگلیسی گیمنت را بررسی کنید."
-        );
-        return;
-      }
-
-      // 1. POST /gamingCenters
-      setSubmitProgressText(
-        "در حال ایجاد مرکز بازی در سامانه..."
-      );
-
-      const createdCenter =
-        await ownerService.createGamingCenter({
-          // نام فارسی در فیلد name ذخیره می‌شود.
-          name: name.trim(),
-          // slug از نام انگلیسی تولید شده است.
-          slug: effectiveSlug,
-          ownerId: resolvedOwnerId,
-          games: selectedGames,
-        });
-
-      const centerId = createdCenter.id || createdCenter.slug;
-
-      // 2. POST /gamingCenters/{id}/addresses & PATCH /gamingCenters/{id}
-      setSubmitProgressText(
-        "در حال ثبت آدرس و موقعیت مکانی..."
-      );
-
-      const userEnteredAddress = address.trim();
-
-      const fullAddressString =
-        `${province}، ${city.trim()}، ${userEnteredAddress} (مختصات: ${latitude.toFixed(5)}, ${longitude.toFixed(5)})`;
-
-      await ownerService.createAddress(centerId, {
-        addressLine: userEnteredAddress,
-        address: fullAddressString,
-        city: city.trim(),
-        province: province.trim() || undefined,
-        phone: normalizedManagerPhone || undefined,
-        lat: latitude,
-        lng: longitude,
+  /* ---------- مرحله ۳: موقعیت ---------- */
+  const handleSaveLocation = () =>
+    run(async () => {
+      if (!onboardingId) throw new Error("فرایند ثبت پیدا نشد.");
+      if (!provinceId) throw new Error("استان را انتخاب کنید.");
+      if (!cityId) throw new Error("شهر را انتخاب کنید.");
+      if (address.trim().length < 5) throw new Error("آدرس دقیق را وارد کنید.");
+      await onboardingService.saveLocation(onboardingId, {
+        provinceId,
+        cityId,
+        address,
+        latitude,
+        longitude,
       });
+      setStep("hours");
+    });
 
-      await ownerService
-        .patchCenter(centerId, {
-          address: fullAddressString,
-          phone: normalizedManagerPhone || undefined,
-        })
-        .catch((err) => {
-          console.warn("Center address patch warning:", err);
-        });
+  /* ---------- مرحله ۴: ساعات کاری ---------- */
+  const handleSaveHours = () =>
+    run(async () => {
+      if (!onboardingId) throw new Error("فرایند ثبت پیدا نشد.");
+      if (!openingTime || !closingTime) throw new Error("ساعت شروع و پایان را مشخص کنید.");
+      await onboardingService.saveWorkingHours(onboardingId, {
+        openingTime,
+        closingTime,
+        closedDays,
+        timezone: "Asia/Tehran",
+      });
+      // بازبینی از روی داده‌ی ذخیره‌شده در سرور
+      setPreview(await onboardingService.getPreview(onboardingId));
+      setConfirmed(false);
+      setStep("preview");
+    });
 
-      // 3. PUT /gamingCenters/{id}/settings
-      setSubmitProgressText(
-        "در حال ثبت ساعات کاری و تنظیمات..."
-      );
+  /* ---------- مرحله ۷: تکمیل ---------- */
+  const handleComplete = () =>
+    run(async () => {
+      if (!onboardingId) throw new Error("فرایند ثبت پیدا نشد.");
+      if (!confirmed) throw new Error("برای ثبت نهایی، تأیید اطلاعات را علامت بزنید.");
 
-      const settingsPayload: CenterSettings = {
-        timeZone: "Asia/Tehran",
-        workStartTime: workStartTime,
-        workEndTime: workEndTime,
-        allowOnlineBooking: allowOnlineBooking,
-        onlineBookingAutoConfirm: onlineBookingAutoConfirm,
-        preventOverlaps: true,
-      };
-
-      await ownerService
-        .updateSettings(centerId, settingsPayload)
-        .catch((err) => {
-          console.warn("Settings submission warning:", err);
-        });
-
-      // 4. POST /gamingCenters/{id}/media/upload (Logo & Gallery)
-      if (logoFile) {
-        setSubmitProgressText(
-          "در حال آپلود لوگوی مجموعه..."
-        );
-
-        await ownerService
-          .uploadGalleryImage(centerId, logoFile, {
-            purpose: "LOGO",
-            altText: `لوگوی ${name}`,
-          })
-          .catch((err) => {
-            console.warn("Logo upload warning:", err);
-          });
+      const completion = await onboardingService.complete(onboardingId);
+      try {
+        sessionStorage.removeItem(DRAFT_KEY);
+      } catch {
+        // ignore
       }
-
-      if (galleryFiles.length > 0) {
-        setSubmitProgressText(
-          "در حال آپلود تصاویر گالری..."
-        );
-
-        for (const gFile of galleryFiles) {
-          await ownerService
-            .uploadGalleryImage(centerId, gFile, {
-              purpose: "GALLERY",
-              altText: gFile.name,
-            })
-            .catch((err) => {
-              console.warn("Gallery upload warning:", err);
-            });
+      if (completion.gamingCenterId) {
+        try {
+          localStorage.setItem("sayra_owner_center_id", completion.gamingCenterId);
+        } catch {
+          // ignore
         }
       }
 
-      setCreatedResult({
-        id: centerId,
-        name: createdCenter.name || name,
-        slug: createdCenter.slug || effectiveSlug,
-      });
-
-      try {
-        localStorage.setItem(
-          "sayra_owner_center_id",
-          centerId
-        );
-      } catch {
-        // ignore
+      if (completion.tokens) {
+        // نقش را محلی تعیین نمی‌کنیم؛ بعد از ورود، نقش واقعی از سرور خوانده می‌شود
+        login(managerName.trim(), cleanPhoneNumber(managerPhone), completion.tokens.accessToken, completion.tokens.refreshToken);
+        await refreshUser();
+        await refreshCenters().catch(() => undefined);
+        setResult(completion);
+        setStep("done");
+        router.replace("/owner");
+        return;
       }
 
-      // Refresh OwnerContext so the newly created gaming center is reflected immediately in memory
-      try {
-        await refreshCenters();
-      } catch {
-        // ignore
-      }
-    } catch (err) {
-      // Keep all entered state untouched so user can retry
-      setErrorMsg(getErrorMessage(err));
-    } finally {
-      setIsSubmitting(false);
-      setSubmitProgressText("");
-    }
+      // توکن در پاسخ نبود: موفقیت ساخت گیمنت را اعلام می‌کنیم، اما نشست جعلی نمی‌سازیم
+      setNeedsLogin(true);
+      setResult(completion);
+      setStep("done");
+    });
+
+  const stepIndex = STEPS.findIndex((s) => s.id === step);
+  const toggleDay = (id: number) =>
+    setClosedDays((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id].sort()));
+  const provinceName = provinces.find((p) => p.id === provinceId)?.name;
+  const cityName = cities.find((c) => c.id === cityId)?.name;
+
+  const backTo = (s: OnboardingStep) => {
+    setError(null);
+    setStep(s);
   };
-
-  // Step Indicators Configuration
-  const STEPS_LIST = [
-    { num: 1, title: "اطلاعات اولیه" },
-    { num: 2, title: "موقعیت مکانی" },
-    { num: 3, title: "ساعات کاری" },
-    { num: 4, title: "تصاویر" },
-    { num: 5, title: "پیش‌نمایش" },
-    { num: 6, title: "ثبت نهایی" },
-  ];
-
-  const currentProvinceInfo =
-    IRAN_PROVINCES.find((p) => p.name === province) ||
-    IRAN_PROVINCES[0];
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-16">
-      <OwnerPageHeader
-        title="ایجاد GameCenter جدید"
-        backUrl="/owner"
-      />
+      <OwnerPageHeader title="ساخت گیمنت" backUrl="/owner" />
 
-      <main className="flex-1 mt-16 px-4 py-6 max-w-3xl mx-auto w-full">
-        {/* Stepper Wizard Indicator */}
-        <div className="mb-6 p-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] overflow-x-auto">
-          <div className="flex items-center justify-between min-w-[340px] gap-2">
-            {STEPS_LIST.map((s, idx) => {
-              const isActive = step === s.num;
-              const isPassed = step > s.num;
+      <main className="flex-1 mt-16 px-4 py-6 max-w-3xl mx-auto w-full flex flex-col gap-4">
+        {step !== "done" && (
+          <ol
+            aria-label="مراحل ثبت گیمنت"
+            className="flex items-center justify-between gap-2 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 overflow-x-auto"
+          >
+            {STEPS.map((s, i) => (
+              <li
+                key={s.id}
+                aria-current={i === stepIndex ? "step" : undefined}
+                className={`flex items-center gap-2 shrink-0 text-xs font-bold ${
+                  i === stepIndex
+                    ? "text-[var(--primary)]"
+                    : i < stepIndex
+                      ? "text-[var(--accent-green)]"
+                      : "text-[var(--text-muted)]"
+                }`}
+              >
+                <span className="flex h-6 w-6 items-center justify-center rounded-full border border-current">
+                  {i < stepIndex ? <Icon name="check" size={14} /> : toPersianDigits(i + 1)}
+                </span>
+                <span>{s.title}</span>
+              </li>
+            ))}
+          </ol>
+        )}
 
-              return (
-                <div
-                  key={s.num}
-                  className="flex items-center gap-2 flex-1 last:flex-initial"
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-colors ${
-                        isActive
-                          ? "bg-[var(--primary)] text-black ring-2 ring-[var(--primary)]/30"
-                          : isPassed
-                          ? "bg-[var(--accent-green)] text-black"
-                          : "bg-[var(--foreground)]/60 text-[var(--text-subtle)]"
-                      }`}
-                    >
-                      {isPassed ? "✓" : toPersianDigits(s.num)}
-                    </div>
-
-                    <span
-                      className={`text-xs whitespace-nowrap font-bold ${
-                        isActive
-                          ? "text-[var(--text-white)]"
-                          : isPassed
-                          ? "text-[var(--accent-green)]"
-                          : "text-[var(--text-subtle)]"
-                      }`}
-                    >
-                      {s.title}
-                    </span>
-                  </div>
-
-                  {idx < STEPS_LIST.length - 1 && (
-                    <div
-                      className={`flex-1 h-[2px] mx-1 transition-colors ${
-                        step > s.num
-                          ? "bg-[var(--accent-green)]"
-                          : "bg-[var(--border-subtle)]"
-                      }`}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Global Error Banner */}
-        {errorMsg && (
-          <div className="mb-6 p-3.5 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold flex items-center gap-2">
-            <Icon
-              name="alert"
-              size={18}
-              className="shrink-0"
-            />
-            <span>{errorMsg}</span>
+        {error && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-3 text-xs font-bold leading-6 text-[var(--accent-red)]"
+          >
+            <Icon name="alert" size={16} className="mt-1 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* Success Screen after complete submission */}
-        {createdResult ? (
-          <div className="p-6 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-center flex flex-col items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-[var(--accent-green)]/20 text-[var(--accent-green)] flex items-center justify-center text-2xl font-black">
-              ✓
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold text-[var(--text-white)]">
-                GameCenter «{createdResult.name}» با موفقیت ثبت شد!
-              </h3>
-
-              <p className="text-xs text-[var(--text-subtle)] mt-1.5 max-w-md mx-auto">
-                شناسه مرکز با موفقیت دریافت گردید. هم‌اکنون می‌توانید وارد پنل مدیریت Manager شوید.
+        <section className="flex flex-col gap-5 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-5">
+          {/* ---- مرحله ۱ ---- */}
+          {step === "info" && (
+            <>
+              <h2 className="text-base font-bold">اطلاعات اولیه</h2>
+              <p className="text-xs leading-6 text-[var(--text-muted)]">
+                بعد از ثبت، کد تأیید به شمارهٔ مدیر پیامک می‌شود.
               </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 mt-4 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await refreshCenters();
-                  } catch {
-                    // ignore
-                  }
-
-                  router.push("/owner");
-                }}
-                className="px-6 py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform text-center cursor-pointer"
-              >
-                ورود به پنل Manager
-              </button>
-
-              <Link
-                href={`/gamecenter/${encodeURIComponent(createdResult.slug)}`}
-                className="px-6 py-2.5 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-[var(--text-white)] text-xs font-bold hover:bg-[var(--foreground)]/80 active:scale-95 transition-transform text-center"
-              >
-                مشاهده صفحه عمومی گیم‌نت
-              </Link>
-            </div>
-          </div>
-        ) : (
-          /* Wizard Main Container */
-          <div className="p-5 sm:p-6 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-6">
-
-            {/* ============================================================ */}
-            {/* مرحله اول: اطلاعات اولیه & مدیر */}
-            {/* ============================================================ */}
-            {step === 1 && (
-              <div className="flex flex-col gap-5">
-                <div className="border-b border-[var(--border-subtle)] pb-3">
-                  <h3 className="text-sm font-bold text-[var(--text-white)]">
-                    مرحله اول: اطلاعات اولیه
-                  </h3>
-
-                  <p className="text-xs text-[var(--text-subtle)] mt-1">
-                    نام فارسی و انگلیسی GameCenter، مشخصات Manager و شماره تماس جهت احراز هویت را وارد کنید.
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-4">
-                  {/* نام فارسی GameCenter */}
-                  <div>
-                    <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      نام فارسی GameCenter{" "}
-                      <span className="text-[var(--accent-red)]">*</span>
-                    </label>
-
-                    <input
-                      type="text"
-                      dir="rtl"
-                      value={name}
-                      onChange={(e) =>
-                        handleNameChange(e.target.value)
-                      }
-                      placeholder="مثال: گیم‌نت گرگدن"
-                      className={inputClass}
-                    />
-
-                    <p className="text-[11px] text-[var(--text-subtle)] mt-1">
-                      این نام در سایت به کاربران نمایش داده می‌شود.
-                    </p>
-                  </div>
-
-                  {/* نام انگلیسی GameCenter */}
-                  <div>
-                    <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      نام انگلیسی GameCenter{" "}
-                      <span className="text-[var(--accent-red)]">*</span>
-                    </label>
-
-                    <input
-                      type="text"
-                      dir="ltr"
-                      value={englishName}
-                      onChange={(e) =>
-                        handleEnglishNameChange(e.target.value)
-                      }
-                      placeholder="Example: Gorgodan Gaming"
-                      className={`${inputClass} text-left`}
-                    />
-
-                    <p className="text-[11px] text-[var(--text-subtle)] mt-1">
-                      نام انگلیسی برای ساخت آدرس اختصاصی صفحه گیمنت استفاده می‌شود.
-                    </p>
-                  </div>
-
-                  {/* Slug Preview */}
-                  <div>
-                    <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      آدرس اختصاصی صفحه (Slug)
-                    </label>
-
-                    <div className="flex items-center gap-2">
-                      <div
-                        dir="ltr"
-                        className={`${inputClass} flex items-center text-left font-mono`}
-                      >
-                        {slug || "your-gaming-center"}
-                      </div>
-                    </div>
-
-                    <p className="text-[11px] text-[var(--text-subtle)] mt-1">
-                      این مقدار به‌صورت خودکار از نام انگلیسی ساخته می‌شود.
-                    </p>
-                  </div>
-
-                  {/* نام و نام خانوادگی Manager */}
-                  <div>
-                    <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      نام و نام خانوادگی Manager{" "}
-                      <span className="text-[var(--accent-red)]">*</span>
-                    </label>
-
-                    <input
-                      type="text"
-                      value={managerFullName}
-                      onChange={(e) =>
-                        setManagerFullName(e.target.value)
-                      }
-                      placeholder="مثال: علی احمدی"
-                      className={inputClass}
-                    />
-                  </div>
-
-                  {/* شماره تماس Manager */}
-                  <div>
-                    <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      شماره تماس Manager{" "}
-                      <span className="text-[var(--accent-red)]">*</span>
-                    </label>
-
-                    <div className="flex gap-2">
-                      <input
-                        type="tel"
-                        dir="ltr"
-                        value={managerPhone}
-                        onChange={(e) => {
-                          setManagerPhone(e.target.value);
-
-                          if (otpVerified) {
-                            setOtpVerified(false);
-                          }
-                        }}
-                        disabled={otpVerified}
-                        placeholder="09123456789"
-                        className={`${inputClass} text-left font-mono ${
-                          otpVerified
-                            ? "bg-[var(--accent-green)]/10 border-[var(--accent-green)]/40 text-[var(--accent-green)]"
-                            : ""
-                        }`}
-                      />
-
-                      {!otpVerified && (
-                        <button
-                          type="button"
-                          onClick={handleSendOtp}
-                          disabled={
-                            isSendingOtp ||
-                            (otpSent && otpTimer > 0)
-                          }
-                          className="px-4 py-2 rounded-card bg-[var(--primary)] text-black text-xs font-bold shrink-0 hover:brightness-105 disabled:opacity-50 transition-opacity"
-                        >
-                          {isSendingOtp
-                            ? "ارسال..."
-                            : otpSent && otpTimer > 0
-                            ? `${toPersianDigits(otpTimer)} ثانیه`
-                            : "ارسال OTP"}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* OTP Verification Box */}
-                  {otpSent && !otpVerified && (
-                    <div className="p-4 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] flex flex-col gap-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-[var(--text-white)]">
-                          کد تایید پیامک‌شده را وارد کنید:
-                        </span>
-
-                        {otpTimer > 0 ? (
-                          <span className="text-xs text-[var(--primary)] font-bold">
-                            زمان باقیمانده:{" "}
-                            {toPersianDigits(otpTimer)} ثانیه
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={handleSendOtp}
-                            className="text-xs text-[var(--primary)] font-bold hover:underline"
-                          >
-                            ارسال مجدد کد
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="flex justify-center gap-2 dir-ltr">
-                        {otpCode.map((digit, idx) => (
-                          <input
-                            key={idx}
-                            id={`creator-otp-${idx}`}
-                            type="text"
-                            inputMode="numeric"
-                            maxLength={1}
-                            value={digit}
-                            onChange={(e) =>
-                              handleOtpChange(idx, e.target.value)
-                            }
-                            onKeyDown={(e) =>
-                              handleOtpKeyDown(idx, e)
-                            }
-                            className="w-11 h-12 text-center text-lg font-black rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] focus:border-[var(--primary)] text-[var(--text-white)] outline-none"
-                          />
-                        ))}
-                      </div>
-
-                      {otpError && (
-                        <p className="text-xs text-[var(--accent-red)] font-bold">
-                          {otpError}
-                        </p>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={handleVerifyOtp}
-                        disabled={
-                          isVerifyingOtp ||
-                          otpCode.join("").length < 6
-                        }
-                        className="w-full py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 disabled:opacity-50 transition-opacity"
-                      >
-                        {isVerifyingOtp
-                          ? "در حال تایید..."
-                          : "تایید شماره و صدور توکن احراز هویت"}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Verification Success Badge */}
-                  {otpVerified && (
-                    <div className="p-3 rounded-card bg-[var(--accent-green)]/15 border border-[var(--accent-green)]/30 text-[var(--accent-green)] text-xs font-bold flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <Icon name="check" size={16} />
-                        شماره تماس تایید شد و حساب Manager متصل گردید.
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOtpVerified(false);
-                          setOtpSent(false);
-                        }}
-                        className="text-[11px] underline text-[var(--text-subtle)] hover:text-white"
-                      >
-                        تغییر شماره
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex justify-end pt-4 border-t border-[var(--border-subtle)]">
-                  <button
-                    type="button"
-                    onClick={handleNextStep}
-                    className="px-6 py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center gap-1.5"
-                  >
-                    <span>مرحله بعد: آدرس و موقعیت</span>
-                    <Icon
-                      name="back"
-                      size={16}
-                      className="rotate-180"
-                    />
-                  </button>
-                </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ob-center" className="text-xs font-bold">نام گیمنت</label>
+                <input id="ob-center" className={inputClass} value={centerName} onChange={(e) => setCenterName(e.target.value)} placeholder="مثلاً گیمنت گرگدن" disabled={busy} />
               </div>
-            )}
-
-            {/* ============================================================ */}
-            {/* مرحله دوم: آدرس و موقعیت مکانی */}
-            {/* ============================================================ */}
-            {step === 2 && (
-              <div className="flex flex-col gap-5">
-                <div className="border-b border-[var(--border-subtle)] pb-3">
-                  <h3 className="text-sm font-bold text-[var(--text-white)]">
-                    مرحله دوم: آدرس و موقعیت مکانی
-                  </h3>
-
-                  <p className="text-xs text-[var(--text-subtle)] mt-1">
-                    استان، شهر، آدرس دقیق و موقعیت مکانی روی نقشه را تعیین کنید.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* استان */}
-                  <div>
-                    <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      استان{" "}
-                      <span className="text-[var(--accent-red)]">*</span>
-                    </label>
-
-                    <select
-                      value={province}
-                      onChange={(e) =>
-                        handleProvinceChange(e.target.value)
-                      }
-                      className={inputClass}
-                    >
-                      {IRAN_PROVINCES.map((prov) => (
-                        <option
-                          key={prov.name}
-                          value={prov.name}
-                          className="bg-[var(--bg-card)]"
-                        >
-                          {prov.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* شهر */}
-                  <div>
-                    <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      شهر{" "}
-                      <span className="text-[var(--accent-red)]">*</span>
-                    </label>
-
-                    <select
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className={inputClass}
-                    >
-                      {currentProvinceInfo.cities.map((c) => (
-                        <option
-                          key={c}
-                          value={c}
-                          className="bg-[var(--bg-card)]"
-                        >
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* آدرس دقیق */}
-                <div>
-                  <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                    آدرس دقیق با جزئیات{" "}
-                    <span className="text-[var(--accent-red)]">*</span>
-                  </label>
-
-                  <textarea
-                    rows={3}
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="مثال: خیابان ولیعصر، نرسیده به میدان ونک، پلاک ۱۲، طبقه منفی ۱"
-                    className="w-full p-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none text-[var(--text-white)] placeholder:text-[var(--text-subtle)] transition-colors resize-none"
-                  />
-                </div>
-
-                {/* نقشه و مختصات جغرافیایی */}
-                <LocationMapPicker
-                  latitude={latitude}
-                  longitude={longitude}
-                  cityName={city}
-                  provinceName={province}
-                  onChange={(lat, lng) => {
-                    setLatitude(lat);
-                    setLongitude(lng);
-                  }}
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ob-manager" className="text-xs font-bold">نام و نام خانوادگی مدیر</label>
+                <input id="ob-manager" className={inputClass} value={managerName} onChange={(e) => setManagerName(e.target.value)} disabled={busy} autoComplete="name" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ob-phone" className="text-xs font-bold">شماره موبایل مدیر</label>
+                <input
+                  id="ob-phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  dir="ltr"
+                  className={`${inputClass} text-right`}
+                  value={managerPhone}
+                  onChange={(e) => setManagerPhone(e.target.value)}
+                  placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                  disabled={busy}
                 />
-
-                <div className="flex items-center justify-between pt-4 border-t border-[var(--border-subtle)]">
-                  <button
-                    type="button"
-                    onClick={handlePrevStep}
-                    className="px-5 py-2.5 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-white)] hover:bg-[var(--foreground)]/80"
-                  >
-                    مرحله قبل
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleNextStep}
-                    className="px-6 py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center gap-1.5"
-                  >
-                    <span>مرحله بعد: ساعات کاری</span>
-                    <Icon
-                      name="back"
-                      size={16}
-                      className="rotate-180"
-                    />
-                  </button>
-                </div>
               </div>
-            )}
+              <button type="button" className={primaryBtn} onClick={handleStart} disabled={busy}>
+                {busy ? "در حال ارسال…" : "ارسال کد تأیید"}
+              </button>
+            </>
+          )}
 
-            {/* ============================================================ */}
-            {/* مرحله سوم: ساعات کاری */}
-            {/* ============================================================ */}
-            {step === 3 && (
-              <div className="flex flex-col gap-5">
-                <div className="border-b border-[var(--border-subtle)] pb-3">
-                  <h3 className="text-sm font-bold text-[var(--text-white)]">
-                    مرحله سوم: ساعات کاری و روزهای فعالیت
-                  </h3>
-
-                  <p className="text-xs text-[var(--text-subtle)] mt-1">
-                    ساعات شروع و پایان و روزهای تعطیل را مشخص کنید. امکان تنظیم ساعات شبانه‌روزی و عبور از نیمه‌شب وجود دارد.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* ساعت شروع فعالیت */}
-                  <div>
-                    <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      ساعت شروع فعالیت{" "}
-                      <span className="text-[var(--accent-red)]">*</span>
-                    </label>
-
-                    <input
-                      type="time"
-                      value={workStartTime}
-                      onChange={(e) =>
-                        setWorkStartTime(e.target.value)
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-
-                  {/* ساعت پایان فعالیت */}
-                  <div>
-                    <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                      ساعت پایان فعالیت{" "}
-                      <span className="text-[var(--accent-red)]">*</span>
-                    </label>
-
-                    <input
-                      type="time"
-                      value={workEndTime}
-                      onChange={(e) =>
-                        setWorkEndTime(e.target.value)
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-
-                {/* نشانگر عبور از نیمه‌شب */}
-                {isOvernight && (
-                  <div className="p-3 rounded-card bg-[var(--primary)]/10 border border-[var(--primary)]/30 text-[var(--primary)] text-xs font-bold flex items-center gap-2">
-                    <Icon name="clock" size={16} />
-
-                    <span>
-                      ساعات کاری از نیمه‌شب عبور می‌کند (پایان در بامداد روز بعد: ساعت{" "}
-                      {toPersianDigits(workEndTime)}).
-                    </span>
-                  </div>
-                )}
-
-                {/* روزهای تعطیل */}
-                <div>
-                  <label className="block text-xs font-bold text-[var(--text-white)] mb-2">
-                    روزهای تعطیل مجموعه
-                  </label>
-
-                  <p className="text-[11px] text-[var(--text-subtle)] mb-2.5">
-                    در صورتی که در روزهای خاصی از هفته تعطیل هستید، آن‌ها را انتخاب کنید (عدم انتخاب = بدون تعطیلی).
-                  </p>
-
-                  <div className="flex flex-wrap gap-2">
-                    {DAYS_OF_WEEK.map((day) => {
-                      const isClosed = closedDays.includes(day.id);
-
-                      return (
-                        <button
-                          key={day.id}
-                          type="button"
-                          onClick={() => toggleClosedDay(day.id)}
-                          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
-                            isClosed
-                              ? "bg-[var(--accent-red)] text-white shadow-sm"
-                              : "bg-[var(--foreground)]/60 text-[var(--text-subtle)] hover:text-white border border-[var(--border-subtle)]"
-                          }`}
-                        >
-                          {day.label} {isClosed ? "(تعطیل)" : ""}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* رزرو آنلاین */}
-                <div className="p-4 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-bold text-[var(--text-white)] block">
-                      امکان رزرو آنلاین فعال باشد
-                    </span>
-
-                    <span className="text-[11px] text-[var(--text-subtle)] block mt-0.5">
-                      مشتریان می‌توانند از طریق پلتفرم سِیرَن نوبت رزرو کنند.
-                    </span>
-                  </div>
-
-                  <input
-                    type="checkbox"
-                    checked={allowOnlineBooking}
-                    onChange={(e) =>
-                      setAllowOnlineBooking(e.target.checked)
-                    }
-                    className="w-5 h-5 accent-[var(--primary)] cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-[var(--border-subtle)]">
-                  <button
-                    type="button"
-                    onClick={handlePrevStep}
-                    className="px-5 py-2.5 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-white)] hover:bg-[var(--foreground)]/80"
-                  >
-                    مرحله قبل
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleNextStep}
-                    className="px-6 py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center gap-1.5"
-                  >
-                    <span>مرحله بعد: تصاویر</span>
-                    <Icon
-                      name="back"
-                      size={16}
-                      className="rotate-180"
-                    />
-                  </button>
-                </div>
+          {/* ---- مرحله ۲ ---- */}
+          {step === "otp" && (
+            <>
+              <h2 className="text-base font-bold">تأیید شماره موبایل</h2>
+              <p className="text-xs leading-6 text-[var(--text-muted)]">
+                کد تأیید به شمارهٔ{" "}
+                <span className="font-bold text-[var(--primary)]">{toPersianDigits(cleanPhoneNumber(managerPhone))}</span>{" "}
+                ارسال شد.
+              </p>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ob-otp" className="text-xs font-bold">کد تأیید</label>
+                <input
+                  id="ob-otp"
+                  className={`${inputClass} text-center text-lg font-black tracking-[0.5em]`}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  dir="ltr"
+                  maxLength={8}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  disabled={busy}
+                />
               </div>
-            )}
+              <div className="flex flex-col gap-2 sm:flex-row-reverse">
+                <button type="button" className={`${primaryBtn} sm:flex-1`} onClick={handleVerifyOtp} disabled={busy}>
+                  {busy ? "در حال بررسی…" : "تأیید کد"}
+                </button>
+                <button type="button" className={secondaryBtn} onClick={() => backTo("info")} disabled={busy}>
+                  ویرایش شماره
+                </button>
+              </div>
+            </>
+          )}
 
-            {/* ============================================================ */}
-            {/* مرحله چهارم: تصاویر */}
-            {/* ============================================================ */}
-            {step === 4 && (
-              <div className="flex flex-col gap-5">
-                <div className="border-b border-[var(--border-subtle)] pb-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-[var(--text-white)]">
-                      مرحله چهارم: تصاویر مجموعه
-                    </h3>
+          {/* ---- مرحله ۳ ---- */}
+          {step === "location" && (
+            <>
+              <h2 className="text-base font-bold">آدرس و موقعیت</h2>
 
-                    <span className="text-[11px] px-2 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-bold">
-                      کاملاً اختیاری
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-[var(--text-subtle)] mt-1">
-                    تصویر پروفایل/لوگو و تصاویر گالری را بارگذاری کنید. عدم آپلود تصاویر مانع ادامه فرآیند نمی‌شود.
-                  </p>
+              {lookupError && (
+                <div className="flex items-center justify-between gap-3 rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-3 text-xs font-bold text-[var(--accent-red)]">
+                  <span>{lookupError}</span>
+                  <button type="button" className="h-11 px-2 underline text-[var(--text-white)]" onClick={() => setLookupToken((v) => v + 1)}>
+                    تلاش دوباره
+                  </button>
                 </div>
+              )}
 
-                {/* Logo / Profile Image */}
-                <div>
-                  <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                    تصویر پروفایل یا Logo (اختیاری)
-                  </label>
-
-                  {logoPreview ? (
-                    <div className="relative w-28 h-28 rounded-card overflow-hidden border border-[var(--border-subtle)]">
-                      <SafeImage
-                        src={logoPreview}
-                        alt="Logo Preview"
-                        fallbackSrc={PLACEHOLDERS.avatar}
-                        className="w-full h-full object-cover"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={removeLogo}
-                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-[var(--accent-red)] transition-colors"
-                      >
-                        <Icon name="close" size={14} />
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="flex flex-col items-center justify-center w-full sm:w-64 h-28 rounded-card border-2 border-dashed border-[var(--border-subtle)] hover:border-[var(--primary)] cursor-pointer bg-[var(--foreground)]/20 transition-colors">
-                      <Icon
-                        name="upload"
-                        size={24}
-                        className="text-[var(--text-subtle)] mb-1"
-                      />
-
-                      <span className="text-xs text-[var(--text-subtle)] font-bold">
-                        انتخاب تصویر لوگو
-                      </span>
-
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleLogoUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
-                </div>
-
-                {/* Gallery Images */}
-                <div>
-                  <label className="block text-xs font-bold text-[var(--text-white)] mb-1.5">
-                    تصاویر گالری (اختیاری)
-                  </label>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {galleryPreviews.map((previewUrl, idx) => (
-                      <div
-                        key={idx}
-                        className="relative h-24 rounded-card overflow-hidden border border-[var(--border-subtle)] group"
-                      >
-                        <SafeImage
-                          src={previewUrl}
-                          alt={`Gallery ${idx + 1}`}
-                          fallbackSrc={PLACEHOLDERS.gallery}
-                          className="w-full h-full object-cover"
-                        />
-
-                        <button
-                          type="button"
-                          onClick={() => removeGalleryImage(idx)}
-                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-[var(--accent-red)] transition-colors"
-                        >
-                          <Icon name="close" size={14} />
-                        </button>
-                      </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="ob-province" className="text-xs font-bold">استان</label>
+                  <select
+                    id="ob-province"
+                    className={inputClass}
+                    value={provinceId}
+                    onChange={(e) => {
+                      setProvinceId(e.target.value);
+                      setCityId("");
+                    }}
+                    disabled={busy || lookupLoading}
+                  >
+                    <option value="">انتخاب استان</option>
+                    {provinces.map((p) => (
+                      <option key={p.id} value={p.id} className="bg-[var(--bg-card)]">{p.name}</option>
                     ))}
-
-                    <label className="flex flex-col items-center justify-center h-24 rounded-card border-2 border-dashed border-[var(--border-subtle)] hover:border-[var(--primary)] cursor-pointer bg-[var(--foreground)]/20 transition-colors">
-                      <Icon
-                        name="upload"
-                        size={20}
-                        className="text-[var(--text-subtle)] mb-1"
-                      />
-
-                      <span className="text-[11px] text-[var(--text-subtle)] font-bold">
-                        + افزودن تصویر
-                      </span>
-
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={handleGalleryUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
+                  </select>
                 </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-[var(--border-subtle)]">
-                  <button
-                    type="button"
-                    onClick={handlePrevStep}
-                    className="px-5 py-2.5 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-white)] hover:bg-[var(--foreground)]/80"
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="ob-city" className="text-xs font-bold">شهر</label>
+                  <select
+                    id="ob-city"
+                    className={inputClass}
+                    value={cityId}
+                    onChange={(e) => setCityId(e.target.value)}
+                    disabled={busy || lookupLoading || !provinceId}
                   >
-                    مرحله قبل
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleNextStep}
-                    className="px-6 py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center gap-1.5"
-                  >
-                    <span>مرحله بعد: پیش‌نمایش (Preview)</span>
-                    <Icon
-                      name="back"
-                      size={16}
-                      className="rotate-180"
-                    />
-                  </button>
+                    <option value="">انتخاب شهر</option>
+                    {cities.map((c) => (
+                      <option key={c.id} value={c.id} className="bg-[var(--bg-card)]">{c.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            )}
 
-            {/* ============================================================ */}
-            {/* مرحله پنجم: Preview */}
-            {/* ============================================================ */}
-            {step === 5 && (
-              <div className="flex flex-col gap-6">
-                <div className="border-b border-[var(--border-subtle)] pb-3">
-                  <h3 className="text-sm font-bold text-[var(--text-white)]">
-                    مرحله پنجم: پیش‌نمایش (Preview)
-                  </h3>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="ob-address" className="text-xs font-bold">آدرس دقیق</label>
+                <textarea
+                  id="ob-address"
+                  rows={3}
+                  className="w-full p-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none text-[var(--text-white)] resize-none"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  disabled={busy}
+                />
+              </div>
 
-                  <p className="text-xs text-[var(--text-subtle)] mt-1">
-                    تمام اطلاعات واردشده را بازبینی کنید. با کلیک روی «ویرایش» در هر بخش می‌توانید مستقیماً اطلاعات را تغییر دهید.
-                  </p>
+              <LocationMapPicker
+                latitude={latitude}
+                longitude={longitude}
+                cityName={cityName}
+                provinceName={provinceName}
+                onChange={(lat, lng) => {
+                  setLatitude(lat);
+                  setLongitude(lng);
+                }}
+              />
+
+              <div className="flex flex-col gap-2 sm:flex-row-reverse">
+                <button type="button" className={`${primaryBtn} sm:flex-1`} onClick={handleSaveLocation} disabled={busy}>
+                  {busy ? "در حال ذخیره…" : "ذخیره و ادامه"}
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ---- مرحله ۴ ---- */}
+          {step === "hours" && (
+            <>
+              <h2 className="text-base font-bold">ساعات کاری</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="ob-open" className="text-xs font-bold">ساعت شروع</label>
+                  <input id="ob-open" type="time" className={inputClass} value={openingTime} onChange={(e) => setOpeningTime(e.target.value)} disabled={busy} />
                 </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="ob-close" className="text-xs font-bold">ساعت پایان</label>
+                  <input id="ob-close" type="time" className={inputClass} value={closingTime} onChange={(e) => setClosingTime(e.target.value)} disabled={busy} />
+                </div>
+              </div>
 
-                {/* بخش ۱: اطلاعات پایه */}
-                <div className="p-4 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] flex flex-col gap-3">
-                  <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-                    <span className="text-xs font-bold text-[var(--primary)] flex items-center gap-1.5">
-                      <Icon name="user" size={16} />
-                      اطلاعات اولیه و Manager
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() => handleEditSection(1)}
-                      className="text-xs text-[var(--primary)] font-bold hover:underline flex items-center gap-1"
-                    >
-                      <Icon name="edit" size={14} />
-                      ویرایش
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <span className="text-[var(--text-subtle)] block">
-                        نام فارسی GameCenter:
-                      </span>
-
-                      <span className="font-bold text-[var(--text-white)]">
-                        {name || "—"}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[var(--text-subtle)] block">
-                        نام انگلیسی GameCenter:
-                      </span>
-
-                      <span
-                        dir="ltr"
-                        className="font-bold text-[var(--text-white)] block text-left"
+              <div role="group" aria-label="روزهای تعطیل" className="flex flex-col gap-2">
+                <span className="text-xs font-bold">روزهای تعطیل (اختیاری)</span>
+                <div className="flex flex-wrap gap-2">
+                  {DAYS.map((d) => {
+                    const on = closedDays.includes(d.id);
+                    return (
+                      <button
+                        key={d.id}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => toggleDay(d.id)}
+                        disabled={busy}
+                        className={`h-11 rounded-full border px-4 text-xs font-bold transition-colors ${
+                          on
+                            ? "border-[var(--accent-red)] bg-[var(--accent-red)]/15 text-[var(--accent-red)]"
+                            : "border-[var(--border-subtle)] bg-[var(--foreground)]/40 text-[var(--text-white)]"
+                        }`}
                       >
-                        {englishName || "—"}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[var(--text-subtle)] block">
-                        آدرس اختصاصی (Slug):
-                      </span>
-
-                      <span
-                        dir="ltr"
-                        className="font-mono text-[var(--text-white)] block text-left"
-                      >
-                        {slug || "—"}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[var(--text-subtle)] block">
-                        نام و نام خانوادگی Manager:
-                      </span>
-
-                      <span className="font-bold text-[var(--text-white)]">
-                        {managerFullName || "—"}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[var(--text-subtle)] block">
-                        شماره تماس:
-                      </span>
-
-                      <span className="font-mono text-[var(--text-white)] dir-ltr block text-right">
-                        {managerPhone || "—"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* بخش ۲: آدرس و موقعیت مکانی */}
-                <div className="p-4 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] flex flex-col gap-3">
-                  <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-                    <span className="text-xs font-bold text-[var(--primary)] flex items-center gap-1.5">
-                      <Icon name="pin" size={16} />
-                      آدرس و موقعیت مکانی
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() => handleEditSection(2)}
-                      className="text-xs text-[var(--primary)] font-bold hover:underline flex items-center gap-1"
-                    >
-                      <Icon name="edit" size={14} />
-                      ویرایش
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <span className="text-[var(--text-subtle)] block">
-                        استان و شهر:
-                      </span>
-
-                      <span className="font-bold text-[var(--text-white)]">
-                        {province} - {city}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[var(--text-subtle)] block">
-                        مختصات جغرافیایی:
-                      </span>
-
-                      <span className="font-mono text-[var(--text-white)] dir-ltr block text-right">
-                        {latitude.toFixed(5)}, {longitude.toFixed(5)}
-                      </span>
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <span className="text-[var(--text-subtle)] block">
-                        آدرس دقیق:
-                      </span>
-
-                      <span className="font-bold text-[var(--text-white)]">
-                        {address || "—"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* بخش ۳: ساعات کاری */}
-                <div className="p-4 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] flex flex-col gap-3">
-                  <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-                    <span className="text-xs font-bold text-[var(--primary)] flex items-center gap-1.5">
-                      <Icon name="clock" size={16} />
-                      ساعات کاری و روزهای فعالیت
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() => handleEditSection(3)}
-                      className="text-xs text-[var(--primary)] font-bold hover:underline flex items-center gap-1"
-                    >
-                      <Icon name="edit" size={14} />
-                      ویرایش
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                    <div>
-                      <span className="text-[var(--text-subtle)] block">
-                        ساعت فعالیت:
-                      </span>
-
-                      <span className="font-bold text-[var(--text-white)]">
-                        {toPersianDigits(workStartTime)} تا{" "}
-                        {toPersianDigits(workEndTime)}
-                        {isOvernight ? " (بامداد روز بعد)" : ""}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[var(--text-subtle)] block">
-                        روزهای تعطیل:
-                      </span>
-
-                      <span className="font-bold text-[var(--text-white)]">
-                        {closedDays.length > 0
-                          ? closedDays
-                              .map(
-                                (id) =>
-                                  DAYS_OF_WEEK.find(
-                                    (d) => d.id === id
-                                  )?.label
-                              )
-                              .join("، ")
-                          : "بدون روز تعطیل (فعال در تمام ایام هفته)"}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[var(--text-subtle)] block">
-                        وضعیت رزرو آنلاین:
-                      </span>
-
-                      <span className="font-bold text-[var(--accent-green)]">
-                        {allowOnlineBooking ? "فعال" : "غیرفعال"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* بخش ۴: تصاویر */}
-                <div className="p-4 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] flex flex-col gap-3">
-                  <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-                    <span className="text-xs font-bold text-[var(--primary)] flex items-center gap-1.5">
-                      <Icon name="upload" size={16} />
-                      تصاویر و رسانه
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() => handleEditSection(4)}
-                      className="text-xs text-[var(--primary)] font-bold hover:underline flex items-center gap-1"
-                    >
-                      <Icon name="edit" size={14} />
-                      ویرایش
-                    </button>
-                  </div>
-
-                  <div className="flex flex-col gap-3 text-xs">
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <span className="text-[var(--text-subtle)] block mb-1">
-                          لوگو:
-                        </span>
-
-                        {logoPreview ? (
-                          <SafeImage
-                            src={logoPreview}
-                            alt="Logo"
-                            fallbackSrc={PLACEHOLDERS.avatar}
-                            className="w-12 h-12 rounded object-cover border"
-                          />
-                        ) : (
-                          <span className="text-[var(--text-subtle)]">
-                            بارگذاری نشده
-                          </span>
-                        )}
-                      </div>
-
-                      <div>
-                        <span className="text-[var(--text-subtle)] block mb-1">
-                          تصاویر گالری:
-                        </span>
-
-                        <span className="font-bold text-[var(--text-white)]">
-                          {toPersianDigits(galleryFiles.length)} تصویر انتخاب شده
-                        </span>
-                      </div>
-                    </div>
-
-                    {galleryPreviews.length > 0 && (
-                      <div className="w-full mt-2">
-                        <BannerSlider
-                          banners={galleryPreviews.map((p, idx) => ({
-                            id: `preview-${idx}`,
-                            imageUrl: p,
-                            alt: `پیش‌نمایش گالری ${idx + 1}`,
-                          }))}
-                          aspectClassName="aspect-[2.2/1] sm:aspect-[2.8/1] lg:aspect-[3.2/1]"
-                          ariaLabel="پیش‌نمایش گالری تصاویر"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-[var(--border-subtle)]">
-                  <button
-                    type="button"
-                    onClick={handlePrevStep}
-                    className="px-5 py-2.5 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-white)] hover:bg-[var(--foreground)]/80"
-                  >
-                    مرحله قبل
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleNextStep}
-                    className="px-6 py-2.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center gap-1.5"
-                  >
-                    <span>مرحله بعد: ثبت نهایی</span>
-                    <Icon
-                      name="back"
-                      size={16}
-                      className="rotate-180"
-                    />
-                  </button>
+                        {d.label}
+                        {on ? " (تعطیل)" : ""}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            )}
 
-            {/* ============================================================ */}
-            {/* مرحله ششم: ثبت نهایی */}
-            {/* ============================================================ */}
-            {step === 6 && (
-              <div className="flex flex-col gap-6">
-                <div className="border-b border-[var(--border-subtle)] pb-3">
-                  <h3 className="text-sm font-bold text-[var(--text-white)]">
-                    مرحله ششم: ثبت نهایی اطلاعات
-                  </h3>
-
-                  <p className="text-xs text-[var(--text-subtle)] mt-1">
-                    اطلاعات را برای ذخیره نهایی در سرور ارسال کنید. در صورت بروز هرگونه خطا، اطلاعات شما محفوظ مانده و امکان تلاش مجدد وجود دارد.
-                  </p>
-                </div>
-
-                {/* Confirmation Box */}
-                <div className="p-4 rounded-card bg-[var(--primary)]/10 border border-[var(--primary)]/30 flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-xs font-bold text-[var(--primary)]">
-                    <Icon name="check" size={18} />
-                    <span>
-                      آماده ثبت نهایی GameCenter «{name}»
-                    </span>
-                  </div>
-
-                  <p className="text-[11px] text-[var(--text-subtle)] leading-relaxed">
-                    با کلیک بر روی دکمه ثبت نهایی، مرکز بازی شما با شناسه اختصاصی ایجاد شده و پس از ثبت موقعیت و ساعات کاری، مستقیماً وارد پنل مدیریت خواهید شد.
-                  </p>
-
-                  <div className="mt-2 text-xs">
-                    <span className="text-[var(--text-subtle)]">
-                      نام انگلیسی:
-                    </span>
-
-                    <span
-                      dir="ltr"
-                      className="font-mono text-[var(--text-white)] ml-2"
-                    >
-                      {englishName}
-                    </span>
-                  </div>
-
-                  <div className="text-xs">
-                    <span className="text-[var(--text-subtle)]">
-                      Slug:
-                    </span>
-
-                    <span
-                      dir="ltr"
-                      className="font-mono text-[var(--text-white)] ml-2"
-                    >
-                      {slug}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Loading / Progress indicator */}
-                {isSubmitting && (
-                  <div className="p-4 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] flex items-center gap-3">
-                    <div className="w-5 h-5 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin shrink-0"></div>
-
-                    <span className="text-xs text-[var(--text-white)] font-bold">
-                      {submitProgressText}
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between pt-4 border-t border-[var(--border-subtle)]">
-                  <button
-                    type="button"
-                    disabled={isSubmitting}
-                    onClick={handlePrevStep}
-                    className="px-5 py-2.5 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-white)] hover:bg-[var(--foreground)]/80 disabled:opacity-50"
-                  >
-                    بازگشت به پیش‌نمایش
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={isSubmitting}
-                    onClick={handleFinalSubmit}
-                    className="px-8 py-3 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center gap-2 shadow-lg disabled:opacity-50"
-                  >
-                    {isSubmitting
-                      ? "در حال ثبت اطلاعات..."
-                      : "تأیید و ثبت نهایی GameCenter"}
-                  </button>
-                </div>
+              <div className="flex flex-col gap-2 sm:flex-row-reverse">
+                <button type="button" className={`${primaryBtn} sm:flex-1`} onClick={handleSaveHours} disabled={busy}>
+                  {busy ? "در حال ذخیره…" : "ذخیره و بازبینی"}
+                </button>
+                <button type="button" className={secondaryBtn} onClick={() => backTo("location")} disabled={busy}>
+                  مرحلهٔ قبل
+                </button>
               </div>
-            )}
-          </div>
-        )}
+            </>
+          )}
+
+          {/* ---- مرحله ۵: بازبینی ---- */}
+          {step === "preview" && preview && (
+            <>
+              <h2 className="text-base font-bold">بازبینی نهایی</h2>
+              <p className="text-xs leading-6 text-[var(--text-muted)]">
+                اطلاعات زیر از سرور خوانده شده است. بعد از ثبت نهایی، گیمنت ساخته می‌شود و حساب مدیر برای شما فعال می‌شود.
+              </p>
+              <dl className="flex flex-col gap-3 text-xs">
+                {[
+                  ["نام گیمنت", pick(preview, ["gameCenterName", "name"]) ?? centerName],
+                  ["مدیر", pick(preview, ["managerFullName"]) ?? managerName],
+                  ["شماره مدیر", toPersianDigits(pick(preview, ["managerPhone"]) ?? cleanPhoneNumber(managerPhone))],
+                  ["آدرس", pick(preview, ["address"]) ?? address],
+                  ["ساعات کاری", `${toPersianDigits(pick(preview, ["openingTime"]) ?? openingTime)} تا ${toPersianDigits(pick(preview, ["closingTime"]) ?? closingTime)}`],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex items-start justify-between gap-3 border-b border-[var(--border-subtle)] pb-2">
+                    <dt className="shrink-0 text-[var(--text-muted)]">{k}</dt>
+                    <dd className="text-left font-bold">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              <label htmlFor="ob-confirm" className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-bold">
+                <input id="ob-confirm" type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} disabled={busy} className="h-5 w-5 accent-[var(--primary)]" />
+                <span>اطلاعات بالا را بررسی کرده‌ام و تأیید می‌کنم.</span>
+              </label>
+
+              <div className="flex flex-col gap-2 sm:flex-row-reverse">
+                <button type="button" className={`${primaryBtn} sm:flex-1`} onClick={handleComplete} disabled={busy || !confirmed}>
+                  {busy ? "در حال ثبت…" : "ثبت نهایی گیمنت"}
+                </button>
+                <button type="button" className={secondaryBtn} onClick={() => backTo("hours")} disabled={busy}>
+                  ویرایش
+                </button>
+              </div>
+              {!confirmed && <p className="text-xs text-[var(--text-muted)]">برای ثبت، ابتدا تأیید اطلاعات را علامت بزنید.</p>}
+            </>
+          )}
+
+          {/* ---- پایان ---- */}
+          {step === "done" && result && (
+            <div className="flex flex-col items-center gap-4 py-4 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--accent-green)]/15 text-[var(--accent-green)]">
+                <Icon name="check" size={28} />
+              </span>
+              <h2 className="text-base font-bold">گیمنت شما ساخته شد</h2>
+              {needsLogin ? (
+                <>
+                  <p className="text-xs leading-6 text-[var(--text-muted)]">
+                    برای ورود به پنل مدیریت، با همین شماره وارد شوید.
+                  </p>
+                  <Link
+                    href="/login?redirect=/owner"
+                    className="flex h-12 w-full items-center justify-center rounded-card bg-[var(--primary)] px-6 text-sm font-bold text-on-primary sm:w-auto"
+                  >
+                    ورود به حساب کاربری
+                  </Link>
+                </>
+              ) : (
+                <p className="text-xs text-[var(--text-muted)]">در حال انتقال به پنل مدیریت…</p>
+              )}
+              {result.slug && (
+                <Link href={`/gamecenter/${encodeURIComponent(result.slug)}`} className="text-xs font-bold text-[var(--primary)] underline">
+                  مشاهدهٔ صفحهٔ گیمنت
+                </Link>
+              )}
+            </div>
+          )}
+        </section>
       </main>
     </div>
   );
