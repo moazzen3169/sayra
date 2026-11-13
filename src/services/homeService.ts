@@ -31,7 +31,9 @@ export const homeService = {
   /**
    * دریافت بنرهای تبلیغاتی تأییدشده صفحه اول:
    * GET /public/advertisements/slider
-   * در صورت خطا یا نبودن تبلیغ، لیست خالی برمی‌گردد (بنر ساختگی نمایش داده نمی‌شود).
+   *
+   * هیچ داده‌ی نمونه‌ای جایگزین نمی‌شود: در صورت خطا یا خالی بودن پاسخ،
+   * لیست خالی برمی‌گردد و BannerSlider خودش را مخفی می‌کند.
    */
   async getBanners(signal?: AbortSignal): Promise<BannerItem[]> {
     if (signal?.aborted) {
@@ -74,7 +76,6 @@ export const homeService = {
       if (signal?.aborted || err?.name === "AbortError") {
         throw err;
       }
-      // بنر بخش حیاتی نیست؛ صفحه‌ی اصلی بدون آن نمایش داده می‌شود
       return [];
     }
   },

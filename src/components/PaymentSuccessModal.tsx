@@ -24,6 +24,10 @@ interface PaymentSuccessModalProps {
   details?: ReservationSummaryDetails | null;
 }
 
+/**
+ * این مودال فقط ثبت رزرو را اعلام می‌کند. وضعیت پرداخت در صفحه‌ی جزئیات رزرو
+ * (از Backend) نمایش داده می‌شود؛ بنابراین ادعای «پرداخت انجام شد» در اینجا نیست.
+ */
 export const PaymentSuccessModal: React.FC<PaymentSuccessModalProps> = ({
   isOpen,
   onClose,
@@ -47,27 +51,37 @@ export const PaymentSuccessModal: React.FC<PaymentSuccessModalProps> = ({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reservation-registered-title"
         className="w-full max-w-[480px] bg-[var(--bg-card)] border border-[var(--border-color)] rounded-card p-6 flex flex-col items-center text-center gap-5 shadow-2xl relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Animated Success Check Icon */}
-        <div className="w-16 h-16 rounded-full bg-[var(--primary)]/15 border border-[var(--primary)] text-[var(--primary)] flex items-center justify-center shadow-[0_0_20px_rgba(255,255,61,0.2)] animate-bounce">
-          <svg className="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+        <div className="w-16 h-16 rounded-full bg-[var(--primary-muted)] border border-[var(--primary)] text-[var(--primary)] flex items-center justify-center">
+          <svg
+            className="w-9 h-9"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={3}
+            aria-hidden="true"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         </div>
 
-        {/* Title & Message */}
         <div className="flex flex-col gap-1.5">
-          <h3 className="text-xl font-bold text-[var(--text-white)]">
-            پرداخت با موفقیت انجام شد
+          <h3
+            id="reservation-registered-title"
+            className="text-xl font-bold text-[var(--text-white)]"
+          >
+            رزرو شما ثبت شد
           </h3>
           <p className="text-xs text-[var(--text-muted)]">
-            رزرو شما با موفقیت در سیستم ثبت گردید و پیامک تایید ارسال شد.
+            وضعیت رزرو و پرداخت را در صفحه‌ی جزئیات رزرو ببینید.
           </p>
         </div>
 
-        {/* Reservation Receipt Card */}
         <div className="w-full bg-[var(--foreground)]/30 rounded-card p-4 border border-[var(--border-subtle)] flex flex-col gap-3 text-right text-xs">
           {details?.trackingCode && (
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5">
@@ -98,7 +112,7 @@ export const PaymentSuccessModal: React.FC<PaymentSuccessModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-[var(--text-muted)]">زمان رزرو:</span>
               <span className="font-bold text-[var(--text-white)]">
-                {details.dayName} ({details.dateStr})
+                {details.dayName ? `${details.dayName} (${details.dateStr})` : details.dateStr}
               </span>
             </div>
           )}
@@ -114,7 +128,7 @@ export const PaymentSuccessModal: React.FC<PaymentSuccessModalProps> = ({
 
           {details?.grandTotal !== undefined && (
             <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)]">
-              <span className="text-[var(--text-muted)] font-bold">مبلغ پرداخت شده:</span>
+              <span className="text-[var(--text-muted)] font-bold">مبلغ رزرو:</span>
               <div className="flex items-center gap-1 font-black text-sm text-[var(--primary)]">
                 <span>{formatPrice(details.grandTotal)}</span>
                 <span className="text-xs font-normal text-[var(--text-white)]">تومان</span>
@@ -123,7 +137,6 @@ export const PaymentSuccessModal: React.FC<PaymentSuccessModalProps> = ({
           )}
         </div>
 
-        {/* Action Button */}
         <button
           type="button"
           onClick={handleViewDetails}
