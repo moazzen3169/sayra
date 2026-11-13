@@ -58,36 +58,6 @@ export const authService = {
     await apiClient.post(ENDPOINTS.auth.otpRequest, { phone });
   },
 
-
-  async loginAdmin(
-  username: string,
-  password: string
-): Promise<{
-  accessToken: string;
-  refreshToken: string;
-}> {
-  const response = await apiClient.post<any>(
-    "/api/auth/admin-login/",
-    { username, password },
-    { retryOnAuth: false }
-  );
-
-  const responseData = response.data;
-  const tokenData = responseData?.data ?? responseData;
-
-  const accessToken = tokenData?.access;
-  const refreshToken = tokenData?.refresh;
-
-  if (!accessToken || !refreshToken) {
-    throw new Error("پاسخ ورود مدیر فاقد توکن معتبر است.");
-  }
-
-  return {
-    accessToken,
-    refreshToken,
-  };
-},
-
   /**
    * Verify customer OTP according to OpenAPI:
    * POST /auth/customer/otp/verify
@@ -104,7 +74,6 @@ export const authService = {
     });
 
     const resData = response.data;
-    // Extract tokens from resData.tokens, resData.data.tokens, or resData directly
     const tokens =
       resData?.tokens ||
       resData?.data?.tokens ||
@@ -135,8 +104,8 @@ export const authService = {
   },
 
   /**
-   * Get current customer profile according to OpenAPI:
-   * GET /customer/me
+   * Get current profile:
+   * GET /auth/me
    */
   async getMe(signal?: AbortSignal): Promise<AuthUser> {
     const { data } = await apiClient.get<AuthUser>(ENDPOINTS.auth.me, { signal });
@@ -167,15 +136,19 @@ export const authService = {
 
   /**
    * ویرایش مشخصات پروفایل مشتری لاگین‌شده
-   * PATCH /customer/me
+   * PATCH /customer/me  (مسیر /auth/me فقط GET دارد و PATCH روی آن ۴۰۴ می‌دهد)
    * Body: { fullName: string }
    */
   async updateProfile(data: { fullName?: string }): Promise<AuthUser> {
     const payload: { fullName?: string } = {};
     if (data.fullName !== undefined) {
-      payload.fullName = data.fullName.trim();
+      const name = data.fullName.trim();
+      if (!name) {
+        throw new Error("نام و نام خانوادگی نمی‌تواند خالی باشد.");
+      }
+      payload.fullName = name;
     }
-    const response = await apiClient.patch<AuthUser>(ENDPOINTS.auth.me, payload);
+    const response = await apiClient.patch<AuthUser>(ENDPOINTS.auth.customerMe, payload);
     return response.data;
   },
 
@@ -190,10 +163,6 @@ export const authService = {
     );
   },
 
-  /**
-   * ورود با کلمه عبور برای مشتریان عادی
-   * در نسخه v1.0-LOCKED تنها ورود با OTP برای مشتریان تعریف شده است.
-   */
   customerPasswordLoginUnsupported(): never {
     throw new ContractGapError(
       "CustomerPasswordLogin",
@@ -201,10 +170,6 @@ export const authService = {
     );
   },
 
-  /**
-   * ثبت‌نام مجزا برای مشتریان
-   * در OpenAPI فرآیند ثبت‌نام و ورود از طریق ورود با شماره تلفن و OTP انجام می‌شود.
-   */
   customerRegistrationUnsupported(): never {
     throw new ContractGapError(
       "CustomerRegistration",
@@ -212,10 +177,6 @@ export const authService = {
     );
   },
 
-  /**
-   * بازیابی رمز عبور مشتریان
-   * از آنجا که مشتریان سیستم کلمه عبور ندارند، بازیابی رمز عبور پشتیبانی نمی‌شود.
-   */
   customerPasswordResetUnsupported(): never {
     throw new ContractGapError(
       "CustomerPasswordReset",
@@ -223,9 +184,6 @@ export const authService = {
     );
   },
 
-  /**
-   * ورود با شبکه‌های اجتماعی (Social Login)
-   */
   socialLoginUnsupported(): never {
     throw new ContractGapError(
       "SocialLogin",
@@ -240,7 +198,6 @@ export const authService = {
   /**
    * درخواست OTP پرسنل / مدیر گیمنت
    * POST /auth/user/otp/request
-   * Body: { phone: string }
    */
   async requestUserOtp(phone: string): Promise<void> {
     if (USE_MOCK_DATA) return;
@@ -250,8 +207,6 @@ export const authService = {
   /**
    * اعتبارسنجی کد یکبار مصرف پرسنل و دریافت مراکز فعال کاربر
    * POST /auth/user/otp/verify
-   * Body: { phone: string, code: string }
-   * Response Envelope: { success: true, data: { gamingCenters: [{ id, name }] } }
    */
   async verifyUserOtp(phone: string, code: string): Promise<UserOtpVerifyResponse> {
     if (USE_MOCK_DATA) {
@@ -279,8 +234,6 @@ export const authService = {
   /**
    * نهایی‌سازی ورود پرسنل با انتخاب شعبه
    * POST /auth/user/login/otp
-   * Request Body: { phone: string, gamingCenterId?: string, code?: string }
-   * Response Envelope: { success: true, data: { tokens: { accessToken, refreshToken }, user } } or { accessToken, refreshToken }
    */
   async loginUserWithOtp(
     phone: string,
@@ -323,9 +276,8 @@ export const authService = {
   },
 
   /**
-   * ورود مستقیم پرسنل / مدیر با نام کاربری، رمز عبور و شناسه گیمنت
+   * ورود مستقیم پرسنل / مدیر با شماره، رمز عبور و شناسه گیمنت
    * POST /auth/login
-   * Body: { phone: string, password: string, gamingCenterId?: string }
    */
   async loginUserWithPassword(
     phone: string,

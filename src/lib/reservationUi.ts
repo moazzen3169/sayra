@@ -174,21 +174,37 @@ const ERROR_MESSAGES: Record<string, string> = {
   STATUS_TRANSITION_NOT_IMPLEMENTED: "این عملیات در حال حاضر توسط سرور پشتیبانی نمی‌شود.",
 };
 
+const GENERIC_NOT_FOUND = "مورد درخواستی پیدا نشد. اگر این خطا تکرار شد با پشتیبانی تماس بگیرید.";
+const OTP_REJECTED = "کد تأیید نادرست است یا منقضی شده. کد جدید دریافت کنید.";
+const GENERIC_ERROR = "مشکلی پیش آمد. لطفاً دوباره تلاش کنید.";
+
+/** در محیط توسعه، کد و پیام خام سرور برای عیب‌یابی به متن اضافه می‌شود */
+function withDevDetails(text: string, e: ApiError): string {
+  if (process.env.NODE_ENV === "production") return text;
+  return `${text} [${e.status} ${e.code}: ${e.message}]`;
+}
+
 export function getErrorMessage(e: unknown): string {
   if (e instanceof ApiError) {
     if (e.status === 502) {
-      return "خطای ارتباط با سرور (502). سرور موقتاً در دسترس نیست یا در حال بروزرسانی است.";
+      return withDevDetails("خطای ارتباط با سرور (502). سرور موقتاً در دسترس نیست یا در حال بروزرسانی است.", e);
     }
     if (e.status === 503 || e.status === 504) {
-      return "سرور پاسخگو نیست. لطفاً دقایقی بعد تلاش کنید.";
+      return withDevDetails("سرور پاسخگو نیست. لطفاً دقایقی بعد تلاش کنید.", e);
     }
-    if (e.status === 404) {
-      return "گیم‌نت مورد نظر پیدا نشد.";
+    // ردّ OTP توسط سرور باید قبل از نگاشت عمومی ۴۰۱ تشخیص داده شود
+    if (/otp/i.test(e.message)) {
+      return withDevDetails(OTP_REJECTED, e);
     }
-    return ERROR_MESSAGES[e.code] ?? e.message;
+    const mapped = ERROR_MESSAGES[e.code];
+    if (mapped) return withDevDetails(mapped, e);
+    if (e.status === 404) return withDevDetails(GENERIC_NOT_FOUND, e);
+    // پیام فارسی سرور مستقیم نمایش داده می‌شود؛ پیام غیرفارسی خام نشان داده نمی‌شود
+    if (/[\u0600-\u06FF]/.test(e.message)) return e.message;
+    return withDevDetails(GENERIC_ERROR, e);
   }
   if (e instanceof Error && e.message) return e.message;
-  return "مشکلی پیش آمد. لطفاً دوباره تلاش کنید.";
+  return GENERIC_ERROR;
 }
 
 const SLOT_CONFLICT_CODES = new Set([
