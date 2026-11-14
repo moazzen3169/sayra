@@ -70,7 +70,7 @@ export default function ReservationsHistoryPage() {
 
         {/* Loading State (Auth initializing or items fetching) */}
         {(isAuthLoading || (isLoggedIn && items === null)) && (
-          <div className="flex flex-col lg:grid lg:grid-cols-2 lg:gap-4 lg:px-8">
+          <div className="flex flex-col  lg:gap-4 lg:px-8">
             {[0, 1, 2].map((i) => (
               <div key={i} className="px-4 py-5 flex flex-col gap-3.5 border-b border-[var(--border-color)] animate-pulse">
                 <div className="flex justify-between">
