@@ -9,24 +9,50 @@ import { Icon } from "@/components/ui/Icon";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { isAbortError } from "@/lib/api/client";
-import { formatClock, formatDayLabel, getErrorMessage } from "@/lib/reservationUi";
+import {
+  formatClock,
+  formatDayLabel,
+  getErrorMessage,
+} from "@/lib/reservationUi";
 import { toPersianDigits } from "@/lib/format";
 import { ownerService } from "@/services/ownerService";
 import { customerMediaService } from "@/services/customerMediaService";
 import type { Ticket } from "@/types/owner";
 
-const CATEGORIES: { id: "TECHNICAL" | "FINANCIAL" | "SALES" | "ACCOUNT"; label: string }[] = [
+const CATEGORIES: {
+  id: "TECHNICAL" | "FINANCIAL" | "SALES" | "ACCOUNT";
+  label: string;
+}[] = [
   { id: "TECHNICAL", label: "پشتیبانی فنی" },
   { id: "FINANCIAL", label: "امور مالی و پرداخت" },
   { id: "SALES", label: "خدمات و رزروها" },
   { id: "ACCOUNT", label: "حساب کاربری" },
 ];
 
-const STATUS_LABEL: Record<Ticket["status"], { label: string; bg: string; text: string }> = {
-  OPEN: { label: "باز", bg: "bg-[var(--primary)]/15 border-[var(--primary)]/30", text: "text-[var(--primary)]" },
-  PENDING: { label: "در انتظار پاسخ", bg: "bg-[var(--accent-warning)]/15 border-[var(--accent-warning)]/30", text: "text-[var(--accent-warning)]" },
-  ANSWERED: { label: "پاسخ داده شده", bg: "bg-[var(--accent-green)]/15 border-[var(--accent-green)]/30", text: "text-[var(--accent-green)]" },
-  CLOSED: { label: "بسته شده", bg: "bg-[var(--foreground)] border-[var(--border-subtle)]", text: "text-[var(--text-muted)]" },
+const STATUS_LABEL: Record<
+  Ticket["status"],
+  { label: string; bg: string; text: string }
+> = {
+  OPEN: {
+    label: "باز",
+    bg: "bg-[var(--primary)]/15 border-[var(--primary)]/30",
+    text: "text-[var(--primary)]",
+  },
+  PENDING: {
+    label: "در انتظار پاسخ",
+    bg: "bg-[var(--accent-warning)]/15 border-[var(--accent-warning)]/30",
+    text: "text-[var(--accent-warning)]",
+  },
+  ANSWERED: {
+    label: "پاسخ داده شده",
+    bg: "bg-[var(--accent-green)]/15 border-[var(--accent-green)]/30",
+    text: "text-[var(--accent-green)]",
+  },
+  CLOSED: {
+    label: "بسته شده",
+    bg: "bg-[var(--foreground)] border-[var(--border-subtle)]",
+    text: "text-[var(--text-muted)]",
+  },
 };
 
 const inputStyles =
@@ -45,7 +71,8 @@ export default function SupportPage() {
   const [creating, setCreating] = useState(false);
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]["id"]>("TECHNICAL");
+  const [category, setCategory] =
+    useState<(typeof CATEGORIES)[number]["id"]>("TECHNICAL");
   const [busy, setBusy] = useState(false);
 
   // Reply states
@@ -144,7 +171,10 @@ export default function SupportPage() {
       let attachment: string | undefined;
       if (file) {
         try {
-          attachment = await customerMediaService.uploadTicketAttachment(selected.id, file);
+          attachment = await customerMediaService.uploadTicketAttachment(
+            selected.id,
+            file,
+          );
         } catch (uploadErr) {
           setError(`خطا در آپلود فایل پیوست: ${getErrorMessage(uploadErr)}`);
           setBusy(false);
@@ -176,36 +206,20 @@ export default function SupportPage() {
       <ProfileHeader title="پشتیبانی و پاسخگویی" isSubpage={true} />
 
       <main className="flex-1 pt-20  p-4  flex flex-col gap-6 w-full max-w-[var(--max-mini-app-width)] mx-auto">
-
         {/* Overview Banner */}
         <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-card bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0 border border-[var(--primary)]/20">
-              <Icon name="info" size={24} />
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center justify-center gap-3">
+              <div className="w-12 h-12 rounded-card bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0 border border-[var(--primary)]/20">
+                <Icon name="info" size={24} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <h2 className="text-sm font-bold text-[var(--text-white)]">
+                  تیکت های پشتیبانی 
+                </h2>
+              </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <h2 className="text-sm font-bold text-[var(--text-white)]">
-                مرکز پشتیبانی کاربران
-              </h2>
-
-            </div>
-          </div>
-        </div>
-
-        {/* Global Error Alert */}
-        {error && (
-          <div className="p-3.5 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold flex items-center gap-2">
-            <Icon name="alert" size={18} className="shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* TICKETS SECTION */}
-        <section className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <SectionTitle title="تیکت‌های پشتیبانی" />
-            {!creating && !selected && (
-              <button
+                          <button
                 type="button"
                 onClick={() => {
                   if (!isLoggedIn) {
@@ -220,9 +234,19 @@ export default function SupportPage() {
                 <Icon name="plus" size={16} />
                 <span>ثبت تیکت جدید</span>
               </button>
-            )}
           </div>
+        </div>
 
+        {/* Global Error Alert */}
+        {error && (
+          <div className="p-3.5 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold flex items-center gap-2">
+            <Icon name="alert" size={18} className="shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* TICKETS SECTION */}
+        <section className="flex flex-col gap-4">
           {!isAuthLoading && !isLoggedIn ? (
             <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-8 flex flex-col items-center justify-center gap-4 text-center shadow-lg">
               <div className="w-16 h-16 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center border border-[var(--primary)]/20 shadow-sm">
@@ -233,7 +257,8 @@ export default function SupportPage() {
                   مشاهده و ثبت تیکت نیازمند ورود به حساب کاربری است
                 </h3>
                 <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                  جهت پیگیری درخواست‌های قبلی و یا ثبت تیکت جدید با هویت اختصاصی خود، لطفاً وارد شوید.
+                  جهت پیگیری درخواست‌های قبلی و یا ثبت تیکت جدید با هویت اختصاصی
+                  خود، لطفاً وارد شوید.
                 </p>
               </div>
               <button
@@ -247,237 +272,270 @@ export default function SupportPage() {
             </div>
           ) : (
             <>
-          {/* DETAIL VIEW: Full screen on mobile, elegant card on desktop */}
-          {selected ? (
-            <div className="fixed inset-0 z-50 flex flex-col bg-[var(--bg-body)] md:relative md:inset-auto md:z-auto md:bg-[var(--bg-card)] md:border md:border-[var(--border-subtle)] md:rounded-card p-0 md:p-5 shadow-2xl md:shadow-lg">
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] p-4 md:p-0 md:pb-3 bg-[var(--bg-card)]">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setSelected(null)}
-                    aria-label="بازگشت به لیست تیکت‌ها"
-                    className="w-9 h-9 flex items-center justify-center rounded-full bg-[var(--foreground)] hover:bg-[var(--border-subtle)] text-[var(--text-white)] transition-colors active:scale-95"
-                  >
-                    <Icon name="back" size={18} />
-                  </button>
-                  <div className="flex flex-col min-w-0">
-                    <h3 className="text-sm font-bold text-[var(--text-white)] truncate max-w-[200px] sm:max-w-xs">
-                      {selected.subject}
-                    </h3>
-                    <span className="text-[11px] text-[var(--text-muted)]">
-                      شناسه: <span className="font-mono">{toPersianDigits(selected.id)}</span>
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${STATUS_LABEL[selected.status].bg} ${STATUS_LABEL[selected.status].text}`}>
-                    {STATUS_LABEL[selected.status].label}
-                  </span>
-                </div>
-              </div>
-
-              {/* Conversation Messages */}
-              <div className="flex-1 overflow-y-auto p-4 md:p-2 flex flex-col gap-3 min-h-[300px] max-h-[calc(100vh-140px)] md:max-h-[460px]">
-                {selected.messages?.map((m) => {
-                  const isUser = m.senderType === "USER";
-                  return (
-                    <div
-                      key={m.id}
-                      className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-3.5 text-xs leading-relaxed flex flex-col gap-2 ${
-                        isUser
-                          ? "self-start bg-[var(--primary)] text-on-primary rounded-br-none shadow-md"
-                          : "self-end bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-white)] rounded-bl-none shadow-sm"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-4 text-[10px] opacity-80 border-b border-current/20 pb-1">
-                        <span className="font-bold">{isUser ? "شما" : "پشتیبانی سایرا"}</span>
-                        <span>
-                          {formatDayLabel(m.createdAt)} - {formatClock(m.createdAt, true)}
+              {/* DETAIL VIEW: Full screen on mobile, elegant card on desktop */}
+              {selected ? (
+                <div className="fixed inset-0 z-50 flex flex-col bg-[var(--bg-body)] md:relative md:inset-auto md:z-auto md:bg-[var(--bg-card)] md:border md:border-[var(--border-subtle)] md:rounded-card p-0 md:p-5 shadow-2xl md:shadow-lg">
+                  {/* Header */}
+                  <div className="flex items-center justify-between border-b border-[var(--border-subtle)] p-4 md:p-0 md:pb-3 bg-[var(--bg-card)]">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setSelected(null)}
+                        aria-label="بازگشت به لیست تیکت‌ها"
+                        className="w-9 h-9 flex items-center justify-center rounded-full bg-[var(--foreground)] hover:bg-[var(--border-subtle)] text-[var(--text-white)] transition-colors active:scale-95"
+                      >
+                        <Icon name="back" size={18} />
+                      </button>
+                      <div className="flex flex-col min-w-0">
+                        <h3 className="text-sm font-bold text-[var(--text-white)] truncate max-w-[200px] sm:max-w-xs">
+                          {selected.subject}
+                        </h3>
+                        <span className="text-[11px] text-[var(--text-muted)]">
+                          شناسه:{" "}
+                          <span className="font-mono">
+                            {toPersianDigits(selected.id)}
+                          </span>
                         </span>
                       </div>
-                      <p className="whitespace-pre-wrap">{m.text}</p>
-                      {m.attachment && (
-                        <a
-                          href={m.attachment}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="self-start flex items-center gap-1 mt-1 underline font-bold"
-                        >
-                          <Icon name="upload" size={14} />
-                          <span>مشاهده فایل پیوست</span>
-                        </a>
-                      )}
                     </div>
-                  );
-                })}
-              </div>
 
-              {/* Reply Form */}
-              {selected.status !== "CLOSED" ? (
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-xs font-bold border ${STATUS_LABEL[selected.status].bg} ${STATUS_LABEL[selected.status].text}`}
+                      >
+                        {STATUS_LABEL[selected.status].label}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Conversation Messages */}
+                  <div className="flex-1 overflow-y-auto p-4 md:p-2 flex flex-col gap-3 min-h-[300px] max-h-[calc(100vh-140px)] md:max-h-[460px]">
+                    {selected.messages?.map((m) => {
+                      const isUser = m.senderType === "USER";
+                      return (
+                        <div
+                          key={m.id}
+                          className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-3.5 text-xs leading-relaxed flex flex-col gap-2 ${
+                            isUser
+                              ? "self-start bg-[var(--primary)] text-on-primary rounded-br-none shadow-md"
+                              : "self-end bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-white)] rounded-bl-none shadow-sm"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-4 text-[10px] opacity-80 border-b border-current/20 pb-1">
+                            <span className="font-bold">
+                              {isUser ? "شما" : "پشتیبانی سایرا"}
+                            </span>
+                            <span>
+                              {formatDayLabel(m.createdAt)} -{" "}
+                              {formatClock(m.createdAt, true)}
+                            </span>
+                          </div>
+                          <p className="whitespace-pre-wrap">{m.text}</p>
+                          {m.attachment && (
+                            <a
+                              href={m.attachment}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="self-start flex items-center gap-1 mt-1 underline font-bold"
+                            >
+                              <Icon name="upload" size={14} />
+                              <span>مشاهده فایل پیوست</span>
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Reply Form */}
+                  {selected.status !== "CLOSED" ? (
+                    <form
+                      onSubmit={sendReply}
+                      className="p-3 md:p-0 md:pt-3 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] flex flex-col gap-2.5"
+                    >
+                      <textarea
+                        rows={2}
+                        value={reply}
+                        onChange={(e) => setReply(e.target.value)}
+                        placeholder="پیام خود را بنویسید..."
+                        className="rounded-xl bg-[var(--foreground)]/50 border border-[var(--border-subtle)] focus:border-[var(--primary)] p-3 text-sm text-[var(--text-white)] placeholder:text-[var(--text-subtle)] outline-none resize-none"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => fileRef.current?.click()}
+                          className="h-10 px-3.5 rounded-xl bg-[var(--foreground)] text-[var(--text-white)] border border-[var(--border-subtle)] hover:border-[var(--border-color)] text-xs font-bold flex items-center gap-2 shrink-0"
+                        >
+                          <Icon name="upload" size={16} />
+                          <span className="truncate max-w-[100px] sm:max-w-[120px]">
+                            {file ? file.name : "پیوست فایل"}
+                          </span>
+                        </button>
+                        <input
+                          ref={fileRef}
+                          type="file"
+                          className="hidden"
+                          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                        />
+                        <button
+                          type="submit"
+                          disabled={busy || !reply.trim()}
+                          className="flex-1 h-10 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs disabled:opacity-60 transition-all shadow-md active:scale-[0.98]"
+                        >
+                          {busy ? "در حال ارسال..." : "ارسال پیام"}
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="p-3 m-3 md:m-0 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-center text-xs text-[var(--text-muted)]">
+                      این تیکت بسته شده است. در صورت نیاز می‌توانید تیکت جدید
+                      ثبت کنید.
+                    </div>
+                  )}
+                </div>
+              ) : creating ? (
+                /* CREATE TICKET FORM */
                 <form
-                  onSubmit={sendReply}
-                  className="p-3 md:p-0 md:pt-3 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] flex flex-col gap-2.5"
+                  onSubmit={createTicket}
+                  className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-5 flex flex-col gap-4 shadow-lg"
                 >
-                  <textarea
-                    rows={2}
-                    value={reply}
-                    onChange={(e) => setReply(e.target.value)}
-                    placeholder="پیام خود را بنویسید..."
-                    className="rounded-xl bg-[var(--foreground)]/50 border border-[var(--border-subtle)] focus:border-[var(--primary)] p-3 text-sm text-[var(--text-white)] placeholder:text-[var(--text-subtle)] outline-none resize-none"
-                  />
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+                    <h3 className="text-sm font-bold text-[var(--text-white)]">
+                      ایجاد تیکت پشتیبانی جدید
+                    </h3>
                     <button
                       type="button"
-                      onClick={() => fileRef.current?.click()}
-                      className="h-10 px-3.5 rounded-xl bg-[var(--foreground)] text-[var(--text-white)] border border-[var(--border-subtle)] hover:border-[var(--border-color)] text-xs font-bold flex items-center gap-2 shrink-0"
+                      onClick={() => setCreating(false)}
+                      className="text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-white)]"
                     >
-                      <Icon name="upload" size={16} />
-                      <span className="truncate max-w-[100px] sm:max-w-[120px]">
-                        {file ? file.name : "پیوست فایل"}
-                      </span>
+                      انصراف
                     </button>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-[var(--text-white)]">
+                      موضوع تیکت
+                    </label>
                     <input
-                      ref={fileRef}
-                      type="file"
-                      className="hidden"
-                      onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                      className={inputStyles}
+                      placeholder="عنوان یا موضوع کوتاه مشکل خود را بنویسید"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
                     />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-[var(--text-white)]">
+                      دسته‌بندی
+                    </label>
+                    <select
+                      className={inputStyles}
+                      value={category}
+                      onChange={(e) =>
+                        setCategory(e.target.value as typeof category)
+                      }
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option
+                          key={c.id}
+                          value={c.id}
+                          className="bg-[var(--bg-card)] text-[var(--text-white)]"
+                        >
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-[var(--text-white)]">
+                      متن پیام
+                    </label>
+                    <textarea
+                      rows={5}
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="توضیحات کامل مشکل یا درخواست خود را وارد نمایید..."
+                      className="rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] p-3 text-sm text-[var(--text-white)] placeholder:text-[var(--text-subtle)] outline-none resize-none"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
                     <button
                       type="submit"
-                      disabled={busy || !reply.trim()}
-                      className="flex-1 h-10 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs disabled:opacity-60 transition-all shadow-md active:scale-[0.98]"
+                      disabled={busy}
+                      className="flex-1 h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs disabled:opacity-60 shadow-md transition-all active:scale-[0.98]"
                     >
-                      {busy ? "در حال ارسال..." : "ارسال پیام"}
+                      {busy ? "در حال ثبت..." : "ثبت و ارسال تیکت"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCreating(false)}
+                      className="px-5 h-11 rounded-card bg-[var(--foreground)] text-[var(--text-white)] font-bold text-xs hover:bg-[var(--foreground)]/80 transition-colors"
+                    >
+                      انصراف
                     </button>
                   </div>
                 </form>
               ) : (
-                <div className="p-3 m-3 md:m-0 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-center text-xs text-[var(--text-muted)]">
-                  این تیکت بسته شده است. در صورت نیاز می‌توانید تیکت جدید ثبت کنید.
+                /* TICKETS LIST */
+                <div className="flex flex-col gap-3">
+                  {loading && (
+                    <div className="flex flex-col gap-2">
+                      <div className="h-16 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse" />
+                      <div className="h-16 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse" />
+                    </div>
+                  )}
+
+                  {!loading && tickets && tickets.length === 0 && !error && (
+                    <EmptyState
+                      title="تیکتی یافت نشد"
+                      description="هنوز هیچ تیکتی ثبت نکرده‌اید. در صورت وجود سوال یا مشکل، تیکت جدید ثبت کنید."
+                      actionLabel="ثبت تیکت جدید"
+                      onAction={() => setCreating(true)}
+                    />
+                  )}
+
+                  {!loading && tickets && tickets.length > 0 && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                      {tickets.map((t) => {
+                        const statusInfo =
+                          STATUS_LABEL[t.status] || STATUS_LABEL.OPEN;
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => openTicket(t.id)}
+                            className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary)] p-4 flex items-center justify-between gap-3 text-right transition-all group shadow-sm"
+                          >
+                            <div className="flex flex-col gap-1 min-w-0">
+                              <span className="text-sm font-bold text-[var(--text-white)] truncate group-hover:text-[var(--primary)] transition-colors">
+                                {t.subject}
+                              </span>
+                              <span className="text-xs text-[var(--text-muted)] font-mono">
+                                {formatDayLabel(t.createdAt)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span
+                                className={`px-2.5 py-1 rounded-full text-xs font-bold border ${statusInfo.bg} ${statusInfo.text}`}
+                              >
+                                {statusInfo.label}
+                              </span>
+                              <Icon
+                                name="back"
+                                size={16}
+                                className="text-[var(--text-subtle)] transform rotate-180"
+                              />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          ) : creating ? (
-            /* CREATE TICKET FORM */
-            <form onSubmit={createTicket} className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-5 flex flex-col gap-4 shadow-lg">
-              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-                <h3 className="text-sm font-bold text-[var(--text-white)]">ایجاد تیکت پشتیبانی جدید</h3>
-                <button
-                  type="button"
-                  onClick={() => setCreating(false)}
-                  className="text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-white)]"
-                >
-                  انصراف
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-[var(--text-white)]">موضوع تیکت</label>
-                <input
-                  className={inputStyles}
-                  placeholder="عنوان یا موضوع کوتاه مشکل خود را بنویسید"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-[var(--text-white)]">دسته‌بندی</label>
-                <select
-                  className={inputStyles}
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value as typeof category)}
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c.id} value={c.id} className="bg-[var(--bg-card)] text-[var(--text-white)]">
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-[var(--text-white)]">متن پیام</label>
-                <textarea
-                  rows={5}
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="توضیحات کامل مشکل یا درخواست خود را وارد نمایید..."
-                  className="rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] p-3 text-sm text-[var(--text-white)] placeholder:text-[var(--text-subtle)] outline-none resize-none"
-                />
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className="flex-1 h-11 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-xs disabled:opacity-60 shadow-md transition-all active:scale-[0.98]"
-                >
-                  {busy ? "در حال ثبت..." : "ثبت و ارسال تیکت"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCreating(false)}
-                  className="px-5 h-11 rounded-card bg-[var(--foreground)] text-[var(--text-white)] font-bold text-xs hover:bg-[var(--foreground)]/80 transition-colors"
-                >
-                  انصراف
-                </button>
-              </div>
-            </form>
-          ) : (
-            /* TICKETS LIST */
-            <div className="flex flex-col gap-3">
-              {loading && (
-                <div className="flex flex-col gap-2">
-                  <div className="h-16 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse" />
-                  <div className="h-16 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse" />
-                </div>
-              )}
-
-              {!loading && tickets && tickets.length === 0 && !error && (
-                <EmptyState
-                  title="تیکتی یافت نشد"
-                  description="هنوز هیچ تیکتی ثبت نکرده‌اید. در صورت وجود سوال یا مشکل، تیکت جدید ثبت کنید."
-                  actionLabel="ثبت تیکت جدید"
-                  onAction={() => setCreating(true)}
-                />
-              )}
-
-              {!loading && tickets && tickets.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  {tickets.map((t) => {
-                    const statusInfo = STATUS_LABEL[t.status] || STATUS_LABEL.OPEN;
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => openTicket(t.id)}
-                        className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary)] p-4 flex items-center justify-between gap-3 text-right transition-all group shadow-sm"
-                      >
-                        <div className="flex flex-col gap-1 min-w-0">
-                          <span className="text-sm font-bold text-[var(--text-white)] truncate group-hover:text-[var(--primary)] transition-colors">
-                            {t.subject}
-                          </span>
-                          <span className="text-xs text-[var(--text-muted)] font-mono">
-                            {formatDayLabel(t.createdAt)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${statusInfo.bg} ${statusInfo.text}`}>
-                            {statusInfo.label}
-                          </span>
-                          <Icon name="back" size={16} className="text-[var(--text-subtle)] transform rotate-180" />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-          </>
+            </>
           )}
         </section>
 
@@ -485,7 +543,8 @@ export default function SupportPage() {
         <section className="flex flex-col gap-4 pt-4 border-t border-[var(--border-subtle)]">
           <SectionTitle title="راه‌های ارتباطی مستقیم" />
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            علاوه بر ثبت تیکت، می‌توانید از طریق پیام‌رسان‌های زیر به‌صورت مستقیم با کارشناسان پشتیبانی سایرا ارتباط برقرار کنید:
+            علاوه بر ثبت تیکت، می‌توانید از طریق پیام‌رسان‌های زیر به‌صورت
+            مستقیم با کارشناسان پشتیبانی سایرا ارتباط برقرار کنید:
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -498,16 +557,32 @@ export default function SupportPage() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.8}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                    />
                   </svg>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-[var(--text-white)]">پشتیبانی تلگرام</span>
-                  <span className="text-xs text-[var(--text-muted)] font-mono dir-ltr text-right">@SayraSupport</span>
+                  <span className="text-xs font-bold text-[var(--text-white)]">
+                    پشتیبانی تلگرام
+                  </span>
+                  <span className="text-xs text-[var(--text-muted)] font-mono dir-ltr text-right">
+                    @SayraSupport
+                  </span>
                 </div>
               </div>
-              <span className="text-xs font-bold text-[var(--primary)] group-hover:underline">ارتباط</span>
+              <span className="text-xs font-bold text-[var(--primary)] group-hover:underline">
+                ارتباط
+              </span>
             </a>
 
             {/* WhatsApp Channel */}
@@ -519,16 +594,32 @@ export default function SupportPage() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-[var(--accent-green)]/15 text-[var(--accent-green)] flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.8}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                    />
                   </svg>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-[var(--text-white)]">واتساپ</span>
-                  <span className="text-xs text-[var(--text-muted)] font-mono dir-ltr text-right">۰۹۱۲۰۰۰۰۰۰۰</span>
+                  <span className="text-xs font-bold text-[var(--text-white)]">
+                    واتساپ
+                  </span>
+                  <span className="text-xs text-[var(--text-muted)] font-mono dir-ltr text-right">
+                    ۰۹۱۲۰۰۰۰۰۰۰
+                  </span>
                 </div>
               </div>
-              <span className="text-xs font-bold text-[var(--accent-green)] group-hover:underline">ارتباط</span>
+              <span className="text-xs font-bold text-[var(--accent-green)] group-hover:underline">
+                ارتباط
+              </span>
             </a>
 
             {/* Rubika Channel */}
@@ -540,16 +631,32 @@ export default function SupportPage() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.8}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    />
                   </svg>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-[var(--text-white)]">روبیکا</span>
-                  <span className="text-xs text-[var(--text-muted)] font-mono dir-ltr text-right">@SayraSupport</span>
+                  <span className="text-xs font-bold text-[var(--text-white)]">
+                    روبیکا
+                  </span>
+                  <span className="text-xs text-[var(--text-muted)] font-mono dir-ltr text-right">
+                    @SayraSupport
+                  </span>
                 </div>
               </div>
-              <span className="text-xs font-bold text-[var(--primary)] group-hover:underline">ارتباط</span>
+              <span className="text-xs font-bold text-[var(--primary)] group-hover:underline">
+                ارتباط
+              </span>
             </a>
           </div>
         </section>
@@ -559,7 +666,13 @@ export default function SupportPage() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onSuccess={(data) => {
-          login(data.fullName, data.phone, data.accessToken, data.refreshToken, data.role || "USER");
+          login(
+            data.fullName,
+            data.phone,
+            data.accessToken,
+            data.refreshToken,
+            data.role || "USER",
+          );
           setIsAuthModalOpen(false);
           setReload((v) => v + 1);
         }}
