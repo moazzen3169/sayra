@@ -365,11 +365,17 @@ const BlogPostFormContent: React.FC<BlogPostFormContentProps> = ({
     initialData?.status || "DRAFT",
   );
 
-  const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
-    initialData?.content && initialData.content.length > 0
-      ? normalizeContentBlocks(initialData.content)
-      : [{ type: "paragraph", text: "" }],
-  );
+const [contentBlocks, setContentBlocks] = useState<BlogContentBlock[]>(() =>
+  initialData?.content && initialData.content.length > 0
+    ? normalizeContentBlocks(initialData.content)
+    : [
+        {
+          type: "paragraph",
+          content: [{ type: "text", value: "" }],
+          text: "",
+        },
+      ],
+);
 
   /**
    * JSON drafts allow editing nested block properties without

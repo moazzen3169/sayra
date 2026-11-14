@@ -141,8 +141,8 @@ function blockToPlainText(block: BlogContentBlock): string {
     case "image":
       return block.caption || block.alt || "";
 
-    case "gallery":
-      return block.caption || "";
+ case "gallery":
+  return typeof block.caption === "string" ? block.caption : "";
 
     case "table":
       return [
