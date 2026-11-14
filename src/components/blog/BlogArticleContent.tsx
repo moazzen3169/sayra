@@ -436,13 +436,14 @@ function TableBlock({ block }: { block: UnknownRecord }) {
 
 function CodeBlock({ block }: { block: UnknownRecord }) {
   const code = asString(block.code);
+  const language = asString(block.language);
   if (!code) return null;
 
   return (
     <div className="overflow-hidden rounded-card border border-[var(--border-subtle)] bg-[#111827] text-slate-100">
-      {block.language && (
+      {language && (
         <div className="border-b border-white/10 px-4 py-2 text-xs text-slate-300">
-          {asString(block.language)}
+          {language}
         </div>
       )}
       <pre className="overflow-x-auto p-4 text-left text-xs leading-7" dir="ltr">
@@ -561,15 +562,20 @@ function LocationBlock({ block }: { block: UnknownRecord }) {
 
   const hours = asArray(block.opening_hours).filter(isRecord);
 
+  const description = asString(block.description);
+  const phone = asString(contact.phone);
+  const email = asString(contact.email);
+  const embedUrl = externalUrl(map.embed_url);
+
   return (
     <section className="flex flex-col gap-3 rounded-card border border-[var(--border-subtle)] p-4">
       <h3 className="text-base font-bold">
         {asString(block.title, "موقعیت مکانی")}
       </h3>
 
-      {block.description && (
+      {description && (
         <p className="text-sm leading-7 text-[var(--text-muted)]">
-          {asString(block.description)}
+          {description}
         </p>
       )}
 
@@ -577,15 +583,15 @@ function LocationBlock({ block }: { block: UnknownRecord }) {
         <p className="text-sm leading-7">{addressText}</p>
       )}
 
-      {contact.phone && (
+      {phone && (
         <p className="text-sm" dir="ltr">
-          تلفن: {asString(contact.phone)}
+          تلفن: {phone}
         </p>
       )}
 
-      {contact.email && (
+      {email && (
         <p className="text-sm" dir="ltr">
-          ایمیل: {asString(contact.email)}
+          ایمیل: {email}
         </p>
       )}
 
@@ -612,9 +618,9 @@ function LocationBlock({ block }: { block: UnknownRecord }) {
         </a>
       )}
 
-      {map.embed_url && externalUrl(map.embed_url) && (
+      {embedUrl && (
         <iframe
-          src={externalUrl(map.embed_url) ?? undefined}
+          src={embedUrl}
           title="نقشه موقعیت"
           loading="lazy"
           className="h-64 w-full rounded-card border-0"
@@ -651,6 +657,7 @@ function TimelineBlock({ block }: { block: UnknownRecord }) {
             getString(event, "image_url", "url") ||
               getString(media, "url")
           );
+          const eventDescription = asString(event.description);
 
           return (
             <article
@@ -673,9 +680,9 @@ function TimelineBlock({ block }: { block: UnknownRecord }) {
                 {asString(event.title)}
               </h4>
 
-              {event.description && (
+              {eventDescription && (
                 <p className="text-sm leading-8 text-[var(--text-muted)]">
-                  {asString(event.description)}
+                  {eventDescription}
                 </p>
               )}
 
@@ -740,17 +747,18 @@ function BlockRenderer({ block }: { block: UnknownRecord }) {
         </p>
       );
 
-    case "quote":
+    case "quote": {
+      const citation = asString(block.citation);
+
       return (
         <blockquote className="flex flex-col gap-2 border-s-2 border-[var(--primary)] py-1 ps-4 text-sm leading-8 text-[var(--text-muted)]">
           <p>{asString(block.text)}</p>
-          {block.citation && (
-            <cite className="text-xs not-italic">
-              {asString(block.citation)}
-            </cite>
+          {citation && (
+            <cite className="text-xs not-italic">{citation}</cite>
           )}
         </blockquote>
       );
+    }
 
     // Backward compatibility for old UI content.
     case "list": {

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { AdminGamecenter, AdminGamecenterInput } from "@/types/admin";
+import { AdminGamecenter, AdminGamecenterInput, AdminUser } from "@/types/admin";
 import { adminService } from "@/services/adminService";
 import { cleanPhoneNumber, isValidIranPhone } from "@/lib/format";
 
@@ -18,12 +18,16 @@ interface GamecenterFormModalProps {
 interface FormErrors {
   name?: string;
   slug?: string;
+  ownerId?: string;
   ownerName?: string;
   ownerPhone?: string;
   city?: string;
   address?: string;
   description?: string;
 }
+
+/** ownerId جدا از فرم نگه داشته می‌شود و فقط از لیست کاربران واقعی سرور انتخاب می‌شود */
+type GamecenterFormState = Omit<AdminGamecenterInput, "ownerId">;
 
 export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
   isOpen,
@@ -33,7 +37,7 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
 }) => {
   const isEdit = Boolean(initialData);
 
-  const [formData, setFormData] = useState<AdminGamecenterInput>({
+  const [formData, setFormData] = useState<GamecenterFormState>({
     name: "",
     slug: "",
     ownerName: "مدیر گیم‌نت",
@@ -44,6 +48,11 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
     isActive: true,
     phone: "",
   });
+
+  const [selectedOwnerId, setSelectedOwnerId] = useState("");
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,16 +82,60 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
         isActive: true,
       });
     }
+    setSelectedOwnerId("");
     setErrors({});
     setSubmitError(null);
   }, [initialData, isOpen]);
 
-  const handleChange = (field: keyof AdminGamecenterInput, value: string | boolean) => {
+  // دریافت کاربران واقعی برای انتخاب مالک (فقط هنگام ثبت گیمنت جدید)
+  useEffect(() => {
+    if (!isOpen || isEdit) return;
+
+    const controller = new AbortController();
+    setUsersLoading(true);
+    setUsersError(null);
+
+    adminService
+      .getUsers({ pageSize: 100 }, controller.signal)
+      .then((res) => {
+        if (controller.signal.aborted) return;
+        setUsers(res.items);
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        setUsers([]);
+        setUsersError(
+          (err as Error)?.message || "دریافت فهرست کاربران انجام نشد. دوباره تلاش کنید."
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setUsersLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [isOpen, isEdit]);
+
+  const handleChange = (field: keyof GamecenterFormState, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
     setSubmitError(null);
+  };
+
+  const handleOwnerSelect = (userId: string) => {
+    setSelectedOwnerId(userId);
+    setErrors((prev) => ({ ...prev, ownerId: undefined }));
+    setSubmitError(null);
+
+    const user = users.find((u) => u.id === userId);
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        ownerName: user.fullName || prev.ownerName,
+        ownerPhone: user.phone || prev.ownerPhone,
+      }));
+    }
   };
 
   const validate = (): boolean => {
@@ -98,6 +151,10 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
       newErrors.slug = "شناسه اسلاگ را وارد کنید";
     } else if (!/^[a-zA-Z0-9-]+$/.test(formData.slug.trim())) {
       newErrors.slug = "اسلاگ باید شامل حروف انگلیسی، اعداد و خط تیره باشد";
+    }
+
+    if (!isEdit && !selectedOwnerId) {
+      newErrors.ownerId = "یکی از کاربران را به‌عنوان مالک انتخاب کنید";
     }
 
     if (!formData.ownerName.trim()) {
@@ -132,7 +189,7 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
     setIsSubmitting(true);
     setSubmitError(null);
 
-    const payload = {
+    const payload: GamecenterFormState = {
       ...formData,
       ownerPhone: cleanPhoneNumber(formData.ownerPhone),
     };
@@ -141,7 +198,10 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
       if (isEdit && initialData) {
         await adminService.updateGamecenter(initialData.id, payload);
       } else {
-        await adminService.createGamecenter(payload);
+        await adminService.createGamecenter({
+          ...payload,
+          ownerId: selectedOwnerId,
+        });
       }
       onSuccess();
       onClose();
@@ -196,6 +256,54 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
           <h4 className="text-xs font-bold text-[var(--primary)] border-b border-[var(--border-subtle)] pb-1.5">
             اطلاعات مسئول و موقعیت
           </h4>
+
+          {!isEdit && (
+            <div className="flex flex-col gap-1 w-full">
+              <label
+                htmlFor="gamecenter-owner"
+                className="text-xs font-bold text-[var(--text-muted)]"
+              >
+                مالک گیمنت *
+              </label>
+              <select
+                id="gamecenter-owner"
+                value={selectedOwnerId}
+                onChange={(e) => handleOwnerSelect(e.target.value)}
+                disabled={usersLoading || isSubmitting}
+                className={`h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border text-sm text-[var(--text-white)] outline-none focus:border-[var(--primary)] disabled:opacity-50 ${
+                  errors.ownerId
+                    ? "border-[var(--accent-red)]"
+                    : "border-[var(--border-subtle)]"
+                }`}
+              >
+                <option value="" className="bg-[var(--bg-card)]">
+                  {usersLoading ? "در حال دریافت کاربران..." : "انتخاب مالک"}
+                </option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id} className="bg-[var(--bg-card)]">
+                    {u.fullName}
+                    {u.phone ? ` — ${u.phone}` : ""}
+                  </option>
+                ))}
+              </select>
+              {errors.ownerId && (
+                <span className="text-xs font-medium text-[var(--accent-red)]">
+                  {errors.ownerId}
+                </span>
+              )}
+              {usersError && (
+                <span className="text-xs font-medium text-[var(--accent-red)]">
+                  {usersError}
+                </span>
+              )}
+              {!usersLoading && !usersError && users.length === 0 && (
+                <span className="text-xs text-[var(--text-muted)]">
+                  کاربری برای انتخاب پیدا نشد. ابتدا کاربر را از بخش کاربران ثبت کنید.
+                </span>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Input
               label="نام و نام خانوادگی مسئول *"
