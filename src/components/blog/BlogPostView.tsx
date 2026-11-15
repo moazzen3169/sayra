@@ -116,7 +116,7 @@ useEffect(() => {
 
   const current = state && state.key === key ? state : null;
   const post = current?.post;
-  const relatedItems = related && related.slug === slug ? related.items : [];
+  const relatedItems = related && related.slug === decodedSlug ? related.items : [];
 
   const goBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -235,7 +235,14 @@ useEffect(() => {
                   />
                 </div>
 
-                <BlogArticleContent blocks={post.content} />
+                <BlogArticleContent
+                  blocks={post.content}
+                  relatedArticles={
+                    post.relatedArticles?.length
+                      ? post.relatedArticles
+                      : relatedItems
+                  }
+                />
 
                 <footer className="flex flex-col gap-4 border-t border-[var(--border-subtle)] pt-4">
                   {post.tags.length > 0 && (

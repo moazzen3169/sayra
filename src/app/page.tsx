@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+
 import { BottomBar, TabType } from "@/components/BottomBar";
 import { DiscountedGamecenterCard } from "@/components/DiscountedGamecenterCard";
 import { BannerSlider } from "@/components/BannerSlider";
@@ -150,7 +152,7 @@ export default function HomePage() {
   );
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
+    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-14 lg:pb-0">
       <Header
         locationName={selectedCity}
         onCityChange={(city) => setSelectedCity(city)}
@@ -262,6 +264,9 @@ export default function HomePage() {
       </main>
 
       <BottomBar activeTab={activeTab} onTabChange={setActiveTab} />
+                  <Footer />
+
     </div>
+
   );
 }

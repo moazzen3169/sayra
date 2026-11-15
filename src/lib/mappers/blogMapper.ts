@@ -210,6 +210,54 @@ function blockToPlainText(block: BlogContentBlock): string {
 
 
 
+const ALLOWED_PARAGRAPH_NODE_TYPES = new Set([
+  "text",
+  "strong",
+  "code",
+  "italic",
+  "underline",
+  "strike",
+  "link",
+  "inline_code",
+  "emoji",
+  "mention",
+  "highlight",
+  "subscript",
+  "superscript",
+  "keyboard",
+  "small",
+  "mark",
+]);
+
+const OPENING_HOUR_DAYS = new Set([
+  "saturday",
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+]);
+
+const TIME_HHMM_REGEX = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+
+const MAP_PROVIDERS = new Set([
+  "google",
+  "openstreetmap",
+  "leaflet",
+  "mapbox",
+  "neshan",
+  "balad",
+]);
+
+function isParagraphNodeNonEmpty(node: unknown): boolean {
+  if (!isRecord(node)) return false;
+  const val = typeof node.value === "string" ? node.value.trim() : "";
+  if (val.length > 0) return true;
+  const children = Array.isArray(node.children) ? node.children : [];
+  return children.some(isParagraphNodeNonEmpty);
+}
+
 function validateApiBlock(block: RawBlock, index: number): void {
   const type = asString(block.type);
   const data = block.data;
@@ -223,9 +271,10 @@ function validateApiBlock(block: RawBlock, index: number): void {
   if (
     typeof block.version !== "number" ||
     !Number.isInteger(block.version) ||
-    block.version < 1
+    block.version < 1 ||
+    block.version > 1
   ) {
-    throw new Error(`${prefix}: فیلد version باید عدد صحیح مثبت باشد.`);
+    throw new Error(`${prefix}: فیلد version باید عدد صحیح ۱ باشد.`);
   }
 
   if (
@@ -269,9 +318,25 @@ function validateApiBlock(block: RawBlock, index: number): void {
       }
       break;
 
-    case "paragraph":
+    case "paragraph": {
       requireArray("content");
+      const nodes = data.content as unknown[];
+      if (nodes.length === 0 || !nodes.some(isParagraphNodeNonEmpty)) {
+        throw new Error(`${prefix}: متن پاراگراف نباید خالی باشد.`);
+      }
+      for (const node of nodes) {
+        if (
+          !isRecord(node) ||
+          typeof node.type !== "string" ||
+          !ALLOWED_PARAGRAPH_NODE_TYPES.has(node.type)
+        ) {
+          throw new Error(
+            `${prefix}: نوع node در پاراگراف معتبر نیست (${isRecord(node) ? String(node.type) : "نامشخص"}).`
+          );
+        }
+      }
       break;
+    }
 
     case "image":
       if (!isPositiveInteger(data.media_id)) {
@@ -291,6 +356,12 @@ function validateApiBlock(block: RawBlock, index: number): void {
         throw new Error(
           `${prefix}: media_ids باید شامل حداقل یک شناسه رسانه معتبر باشد.`
         );
+      }
+      if (
+        data.layout !== undefined &&
+        !["grid", "slider"].includes(String(data.layout))
+      ) {
+        throw new Error(`${prefix}: layout گالری باید grid یا slider باشد.`);
       }
       break;
 
@@ -333,6 +404,12 @@ function validateApiBlock(block: RawBlock, index: number): void {
 
     case "video":
       if (
+        data.provider !== undefined &&
+        !["local", "youtube", "vimeo"].includes(String(data.provider))
+      ) {
+        throw new Error(`${prefix}: provider ویدئو باید local، youtube یا vimeo باشد.`);
+      }
+      if (
         !isPositiveInteger(data.media_id) &&
         !(
           typeof data.external_url === "string" &&
@@ -347,26 +424,40 @@ function validateApiBlock(block: RawBlock, index: number): void {
 
     case "embed":
       requireString("url");
+      if (
+        data.embed_type !== undefined &&
+        !["twitter", "instagram", "iframe"].includes(String(data.embed_type))
+      ) {
+        throw new Error(`${prefix}: embed_type باید twitter، instagram یا iframe باشد.`);
+      }
       break;
 
     case "button":
       requireString("label");
       requireString("url");
+      if (
+        data.target !== undefined &&
+        !["_blank", "_self"].includes(String(data.target))
+      ) {
+        throw new Error(`${prefix}: target دکمه باید _blank یا _self باشد.`);
+      }
       break;
 
     case "accordion":
       requireArray("items");
 
       if (
+        (data.items as unknown[]).length === 0 ||
         !(data.items as unknown[]).every(
           (item) =>
             isRecord(item) &&
             typeof item.title === "string" &&
+            item.title.trim().length > 0 &&
             typeof item.content === "string"
         )
       ) {
         throw new Error(
-          `${prefix}: هر آیتم باید title و content متنی داشته باشد.`
+          `${prefix}: هر آیتم باید title غیرخالی و content متنی داشته باشد.`
         );
       }
       break;
@@ -375,15 +466,18 @@ function validateApiBlock(block: RawBlock, index: number): void {
       requireArray("questions");
 
       if (
+        (data.questions as unknown[]).length === 0 ||
         !(data.questions as unknown[]).every(
           (item) =>
             isRecord(item) &&
             typeof item.q === "string" &&
-            typeof item.a === "string"
+            item.q.trim().length > 0 &&
+            typeof item.a === "string" &&
+            item.a.trim().length > 0
         )
       ) {
         throw new Error(
-          `${prefix}: هر پرسش باید فیلدهای q و a متنی داشته باشد.`
+          `${prefix}: هر پرسش باید فیلدهای غیرخالی q و a داشته باشد.`
         );
       }
       break;
@@ -440,19 +534,38 @@ function validateApiBlock(block: RawBlock, index: number): void {
           (item) =>
             isRecord(item) &&
             typeof item.day === "string" &&
+            OPENING_HOUR_DAYS.has(item.day) &&
             typeof item.open === "string" &&
-            typeof item.close === "string"
+            TIME_HHMM_REGEX.test(item.open) &&
+            typeof item.close === "string" &&
+            TIME_HHMM_REGEX.test(item.close)
         )
       ) {
-        throw new Error(`${prefix}: opening_hours معتبر نیست.`);
+        throw new Error(
+          `${prefix}: opening_hours باید شامل روز هفته معتبر (saturday تا friday) و ساعت با فرمت HH:MM باشد.`
+        );
       }
 
       if (
         !isRecord(map) ||
         typeof map.provider !== "string" ||
-        typeof map.zoom !== "number"
+        !MAP_PROVIDERS.has(map.provider) ||
+        typeof map.zoom !== "number" ||
+        !Number.isInteger(map.zoom) ||
+        map.zoom < 1 ||
+        map.zoom > 20
       ) {
-        throw new Error(`${prefix}: map معتبر نیست.`);
+        throw new Error(
+          `${prefix}: map باید دارای provider معتبر و zoom بین ۱ تا ۲۰ باشد.`
+        );
+      }
+
+      if (
+        data.media_id !== undefined &&
+        data.media_id !== null &&
+        !isPositiveInteger(data.media_id)
+      ) {
+        throw new Error(`${prefix}: media_id باید عدد صحیح مثبت یا null باشد.`);
       }
 
       break;
@@ -463,21 +576,31 @@ function validateApiBlock(block: RawBlock, index: number): void {
       requireArray("events");
 
       if (
+        data.orientation !== undefined &&
+        !["vertical", "horizontal"].includes(String(data.orientation))
+      ) {
+        throw new Error(`${prefix}: orientation باید vertical یا horizontal باشد.`);
+      }
+
+      if (
+        (data.events as unknown[]).length === 0 ||
         !(data.events as unknown[]).every(
           (event) =>
             isRecord(event) &&
             typeof event.id === "string" &&
+            event.id.trim().length > 0 &&
             typeof event.title === "string" &&
+            event.title.trim().length > 0 &&
             typeof event.description === "string" &&
+            event.description.trim().length > 0 &&
             isRecord(event.date) &&
-            ["year", "date", "range"].includes(
-              String(event.date.type)
-            ) &&
-            typeof event.date.value === "string"
+            ["year", "date", "range"].includes(String(event.date.type)) &&
+            typeof event.date.value === "string" &&
+            event.date.value.trim().length > 0
         )
       ) {
         throw new Error(
-          `${prefix}: هر رویداد باید id، date، title و description معتبر داشته باشد.`
+          `${prefix}: خط زمانی باید حداقل یک رویداد با id، date، title و description غیرخالی داشته باشد.`
         );
       }
       break;
@@ -807,27 +930,40 @@ export function mapBlocksToApi(blocks?: BlogContentBlock[]): {
     };
   }
 
+  if (blocks.length > 200) {
+    throw new Error("حداکثر تعداد بلوک مجاز در یک مقاله ۲۰۰ بلوک است.");
+  }
+
   const contentBlocks: ArticleContentBlockDto[] = [];
   const contentPieces: string[] = [];
+  const usedIds = new Set<string>();
 
   /**
    * UI model is flattened.
-   * API model stores block-specific fields inside data.
+   * API model stores block-specific fields inside data,
+   * while id, version, order, type, settings, metadata, meta live on the envelope.
    */
   const append = (raw: RawBlock) => {
+    let candidateId =
+      typeof raw.id === "string" && raw.id.trim()
+        ? raw.id.trim()
+        : createBlockId();
+
+    while (usedIds.has(candidateId)) {
+      candidateId = createBlockId();
+    }
+    usedIds.add(candidateId);
+
     const normalized: RawBlock = {
       ...raw,
-      id:
-        typeof raw.id === "string" && raw.id.trim()
-          ? raw.id
-          : createBlockId(),
+      id: candidateId,
       version:
         typeof raw.version === "number" &&
         Number.isInteger(raw.version) &&
         raw.version > 0
           ? raw.version
           : 1,
-      order: contentBlocks.length,
+      order: contentBlocks.length + 1,
     };
 
     const {
@@ -835,6 +971,9 @@ export function mapBlocksToApi(blocks?: BlogContentBlock[]): {
       version,
       order,
       type,
+      settings,
+      metadata,
+      meta,
       data: existingData,
       ...rest
     } = normalized;
@@ -842,17 +981,37 @@ export function mapBlocksToApi(blocks?: BlogContentBlock[]): {
     /**
      * Support both flattened UI objects and already enveloped blocks.
      * Existing data is merged first, then flattened fields override it.
+     * Strip read-only expanded fields injected by backend (media, medias, articles).
      */
     const payload: RawBlock = {
       ...(isRecord(existingData) ? existingData : {}),
       ...rest,
     };
+    delete payload.media;
+    delete payload.medias;
+    delete payload.articles;
+
+    if (type === "timeline" && Array.isArray(payload.events)) {
+      payload.events = payload.events.map((ev) => {
+        if (!isRecord(ev)) return ev;
+        const cleanEv = { ...ev };
+        delete cleanEv.media;
+        return cleanEv;
+      });
+    }
 
     const envelope: RawBlock = {
       id,
       version,
       order,
       type,
+      ...(isRecord(settings) && Object.keys(settings).length > 0
+        ? { settings }
+        : {}),
+      ...(isRecord(metadata) && Object.keys(metadata).length > 0
+        ? { metadata }
+        : {}),
+      ...(isRecord(meta) && Object.keys(meta).length > 0 ? { meta } : {}),
       data: payload,
     };
 
@@ -944,11 +1103,6 @@ export function mapBlocksToApi(blocks?: BlogContentBlock[]): {
       ...(block as unknown as RawBlock),
     };
 
-    /**
-     * Remove compatibility-only fields from the API payload.
-     */
-    delete raw.text;
-
     if (block.type === "paragraph") {
       const paragraph = block as Extract<
         BlogContentBlock,
@@ -964,6 +1118,10 @@ export function mapBlocksToApi(blocks?: BlogContentBlock[]): {
             },
           ];
 
+      /**
+       * Remove compatibility-only text field from paragraph API payload.
+       */
+      delete raw.text;
       raw.content = content;
     }
 
@@ -1059,6 +1217,12 @@ export function mapArticleDetailToUi(
   return {
     ...summary,
     content: blocks,
+    seoTitle: dto.seo_title || "",
+    seoDescription: dto.seo_description || "",
+    canonicalUrl: dto.canonical_url ?? null,
+    relatedArticles: Array.isArray(dto.related_articles)
+      ? dto.related_articles.map(mapArticleListToSummary)
+      : [],
   };
 }
 
@@ -1084,11 +1248,14 @@ export function mapAdminInputToCreateRequest(
     content,
     content_blocks,
     status: mapUiStatusToApi(input.status),
-    visibility: "public",
+    visibility: input.visibility || "public",
     is_hot: Boolean(input.featured),
     category_id: categoryId,
     tag_ids: tagIds,
     cover_image_id: coverImageId,
+    seo_title: input.seoTitle?.trim() || undefined,
+    seo_description: input.seoDescription?.trim() || undefined,
+    canonical_url: input.canonicalUrl ?? undefined,
     publish_at: input.publishedAt || null,
   };
 }
@@ -1122,8 +1289,24 @@ export function mapAdminInputToPatchRequest(
     patch.status = mapUiStatusToApi(input.status);
   }
 
+  if (input.visibility !== undefined) {
+    patch.visibility = input.visibility;
+  }
+
   if (input.featured !== undefined) {
     patch.is_hot = Boolean(input.featured);
+  }
+
+  if (input.seoTitle !== undefined) {
+    patch.seo_title = input.seoTitle.trim();
+  }
+
+  if (input.seoDescription !== undefined) {
+    patch.seo_description = input.seoDescription.trim();
+  }
+
+  if (input.canonicalUrl !== undefined) {
+    patch.canonical_url = input.canonicalUrl;
   }
 
   if (input.publishedAt !== undefined) {

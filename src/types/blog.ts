@@ -49,6 +49,20 @@ export type BlogBlockType =
   | "timeline"
   | "related_articles";
 
+export interface BlogBlockSettings {
+  align?: "left" | "center" | "right" | "justify";
+  spacing?: "xs" | "sm" | "md" | "lg" | "xl" | "none";
+  theme?: string;
+  visibility?: "visible" | "hidden";
+  animation?: string;
+  width?: "contained" | "full_width" | "narrow";
+  container?: string;
+  responsive?: Record<string, unknown>;
+  custom_class?: string | null;
+  variant?: string;
+  appearance?: string;
+}
+
 /**
  * فیلدهای مشترک بلوک‌ها.
  *
@@ -59,6 +73,9 @@ export interface BlogBlockBase {
   id?: string;
   version?: number;
   order?: number;
+  settings?: BlogBlockSettings;
+  metadata?: Record<string, unknown>;
+  meta?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -367,10 +384,19 @@ export interface AdminBlogPostInput {
   tagIds?: number[];
   featured?: boolean;
   status: BlogPostStatus;
+  visibility?: "public" | "private" | "unlisted";
+  seoTitle?: string;
+  seoDescription?: string;
+  canonicalUrl?: string | null;
   publishedAt?: string;
   content: BlogContentBlock[];
 }
 
 export interface BlogPostDetail extends BlogPostSummary {
   content: BlogContentBlock[];
+  visibility?: "public" | "private" | "unlisted";
+  seoTitle?: string;
+  seoDescription?: string;
+  canonicalUrl?: string | null;
+  relatedArticles?: BlogPostSummary[];
 }

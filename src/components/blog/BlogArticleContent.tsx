@@ -1,10 +1,16 @@
 
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import { BLOG_API_BASE_URL } from "@/lib/api/config";
+import type { BlogPostSummary } from "@/types/blog";
 
 type UnknownRecord = Record<string, unknown>;
 
 interface BlogArticleContentProps {
   blocks: unknown[];
+  relatedArticles?: BlogPostSummary[];
 }
 
 function isRecord(value: unknown): value is UnknownRecord {
@@ -78,6 +84,59 @@ function externalUrl(value: unknown): string | null {
   } catch {
     return null;
   }
+}
+
+function resolveMediaUrl(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const trimmed = value.trim();
+  if (
+    trimmed.startsWith("/") &&
+    !trimmed.startsWith("//") &&
+    !trimmed.includes("\\")
+  ) {
+    try {
+      return new URL(trimmed, BLOG_API_BASE_URL).toString();
+    } catch {
+      return trimmed;
+    }
+  }
+  return safeUrl(trimmed);
+}
+
+function toVideoEmbedUrl(url: string, provider?: string): string {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+
+    if (
+      provider === "youtube" ||
+      host.includes("youtube.com") ||
+      host.includes("youtu.be")
+    ) {
+      if (host.includes("youtu.be")) {
+        const videoId = parsed.pathname.replace(/^\/+/, "").split("/")[0];
+        if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+      }
+      if (parsed.pathname.startsWith("/shorts/")) {
+        const videoId = parsed.pathname.replace("/shorts/", "").split("/")[0];
+        if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+      }
+      const v = parsed.searchParams.get("v");
+      if (v) return `https://www.youtube.com/embed/${v}`;
+    }
+
+    if (provider === "vimeo" || host.includes("vimeo.com")) {
+      if (!host.includes("player.vimeo.com")) {
+        const videoId = parsed.pathname.replace(/^\/+/, "").split("/")[0];
+        if (videoId && /^\d+$/.test(videoId)) {
+          return `https://player.vimeo.com/video/${videoId}`;
+        }
+      }
+    }
+  } catch {
+    // Fallback to original URL
+  }
+  return url;
 }
 
 function RichTextNodes({ nodes }: { nodes: unknown[] }) {
@@ -218,19 +277,23 @@ function ParagraphContent({ block }: { block: UnknownRecord }) {
 
 function ImageBlock({ block }: { block: UnknownRecord }) {
   const media = isRecord(block.media) ? block.media : {};
-  const src = safeUrl(
+  const src = resolveMediaUrl(
     getString(block, "url", "src", "image_url") ||
       getString(media, "url", "src")
   );
 
-  const alt = getString(block, "alt", "alt_text") ||
+  const alt =
+    getString(block, "alt", "alt_text") ||
     getString(media, "alt_text") ||
     "تصویر مقاله";
 
   const caption = getString(block, "caption");
-  const objectFit = block.object_fit === "contain" ||
+  const objectFit =
+    block.object_fit === "contain" ||
     block.object_fit === "cover" ||
-    block.object_fit === "fill"
+    block.object_fit === "fill" ||
+    block.object_fit === "none" ||
+    block.object_fit === "scale-down"
       ? block.object_fit
       : "cover";
 
@@ -247,7 +310,7 @@ function ImageBlock({ block }: { block: UnknownRecord }) {
     <img
       src={src}
       alt={alt}
-      loading={block.lazy === false ? "eager" : "lazy"}
+      loading={block.lazy === false || block.loading === "eager" ? "eager" : "lazy"}
       decoding="async"
       className="max-h-[680px] w-full rounded-card"
       style={{ objectFit }}
@@ -279,14 +342,49 @@ function ImageBlock({ block }: { block: UnknownRecord }) {
   );
 }
 
+function getAspectClass(ratio?: unknown): string {
+  switch (ratio) {
+    case "16:9":
+      return "aspect-video";
+    case "1:1":
+      return "aspect-square";
+    case "3:4":
+      return "aspect-[3/4]";
+    case "4:3":
+    default:
+      return "aspect-[4/3]";
+  }
+}
+
 function GalleryBlock({ block }: { block: UnknownRecord }) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  const medias = asArray(block.medias);
   const images = asArray(block.images);
   const mediaItems = asArray(block.media);
   const mediaIds = asArray(block.media_ids);
 
-  const items = images.length > 0 ? images : mediaItems;
+  const rawItems =
+    medias.length > 0 ? medias : images.length > 0 ? images : mediaItems;
 
-  if (items.length === 0) {
+  const resolvedItems = rawItems
+    .map((item, index) => {
+      const media = isRecord(item) ? item : {};
+      const src = resolveMediaUrl(
+        typeof item === "string"
+          ? item
+          : getString(media, "url", "src", "image_url")
+      );
+      if (!src) return null;
+      return {
+        key: String(media.id ?? index),
+        src,
+        alt: getString(media, "alt", "alt_text") || `تصویر ${index + 1}`,
+      };
+    })
+    .filter((item): item is { key: string; src: string; alt: string } => item !== null);
+
+  if (resolvedItems.length === 0) {
     return (
       <div className="rounded-card border border-dashed border-[var(--border-subtle)] p-4 text-center text-xs text-[var(--text-muted)]">
         گالری شامل {mediaIds.length} رسانه است؛ برای نمایش تصاویر باید URL
@@ -296,41 +394,93 @@ function GalleryBlock({ block }: { block: UnknownRecord }) {
   }
 
   const layout = block.layout === "slider" ? "slider" : "grid";
+  const aspectClass = getAspectClass(block.aspect_ratio);
 
   return (
-    <div
-      className={
-        layout === "slider"
-          ? "flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2"
-          : "grid grid-cols-2 gap-3 md:grid-cols-3"
-      }
-    >
-      {items.map((item, index) => {
-        const media = isRecord(item) ? item : {};
-        const src = safeUrl(
-          typeof item === "string"
-            ? item
-            : getString(media, "url", "src", "image_url")
-        );
-
-        if (!src) return null;
-
-        return (
-          <img
-            key={String(media.id ?? index)}
-            src={src}
-            alt={getString(media, "alt", "alt_text") || `تصویر ${index + 1}`}
-            loading="lazy"
-            decoding="async"
+    <>
+      <div
+        className={
+          layout === "slider"
+            ? "flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2"
+            : "grid grid-cols-2 gap-3 md:grid-cols-3"
+        }
+      >
+        {resolvedItems.map((item, index) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setLightboxIndex(index)}
             className={
               layout === "slider"
-                ? "h-64 w-[80%] shrink-0 snap-start rounded-card object-cover sm:w-[60%]"
-                : "aspect-[4/3] w-full rounded-card object-cover"
+                ? "group relative h-64 w-[80%] shrink-0 snap-start overflow-hidden rounded-card sm:w-[60%]"
+                : `group relative ${aspectClass} w-full overflow-hidden rounded-card`
             }
-          />
-        );
-      })}
-    </div>
+          >
+            <img
+              src={item.src}
+              alt={item.alt}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+          </button>
+        ))}
+      </div>
+
+      {lightboxIndex !== null && resolvedItems[lightboxIndex] && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
+          onClick={() => setLightboxIndex(null)}
+        >
+          <div
+            className="relative flex max-h-[90vh] max-w-4xl flex-col items-center gap-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={resolvedItems[lightboxIndex].src}
+              alt={resolvedItems[lightboxIndex].alt}
+              className="max-h-[80vh] w-auto rounded-card object-contain"
+            />
+            <div className="flex items-center gap-3 text-xs text-white">
+              <button
+                type="button"
+                onClick={() =>
+                  setLightboxIndex((prev) =>
+                    prev !== null
+                      ? (prev - 1 + resolvedItems.length) % resolvedItems.length
+                      : 0
+                  )
+                }
+                className="rounded-lg border border-white/20 px-3 py-1.5 hover:bg-white/10"
+              >
+                قبلی
+              </button>
+              <span>
+                {lightboxIndex + 1} / {resolvedItems.length}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setLightboxIndex((prev) =>
+                    prev !== null ? (prev + 1) % resolvedItems.length : 0
+                  )
+                }
+                className="rounded-lg border border-white/20 px-3 py-1.5 hover:bg-white/10"
+              >
+                بعدی
+              </button>
+              <button
+                type="button"
+                onClick={() => setLightboxIndex(null)}
+                className="rounded-lg border border-white/20 px-3 py-1.5 hover:bg-white/10"
+              >
+                بستن
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -338,7 +488,7 @@ function VideoBlock({ block }: { block: UnknownRecord }) {
   const media = isRecord(block.media) ? block.media : {};
   const provider = asString(block.provider);
   const external = externalUrl(block.external_url);
-  const localSrc = safeUrl(
+  const localSrc = resolveMediaUrl(
     getString(block, "url", "src", "video_url") ||
       getString(media, "url", "src")
   );
@@ -352,10 +502,12 @@ function VideoBlock({ block }: { block: UnknownRecord }) {
       );
     }
 
+    const embedSrc = toVideoEmbedUrl(external, provider);
+
     return (
       <div className="aspect-video overflow-hidden rounded-card bg-black">
         <iframe
-          src={external}
+          src={embedSrc}
           title="ویدئوی مقاله"
           className="h-full w-full"
           loading="lazy"
@@ -435,19 +587,49 @@ function TableBlock({ block }: { block: UnknownRecord }) {
 }
 
 function CodeBlock({ block }: { block: UnknownRecord }) {
+  const [copied, setCopied] = useState(false);
   const code = asString(block.code);
   const language = asString(block.language);
+  const showLineNumbers = block.show_line_numbers === true;
   if (!code) return null;
+
+  const lines = code.split("\n");
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Ignore clipboard failure
+    }
+  };
 
   return (
     <div className="overflow-hidden rounded-card border border-[var(--border-subtle)] bg-[#111827] text-slate-100">
-      {language && (
-        <div className="border-b border-white/10 px-4 py-2 text-xs text-slate-300">
-          {language}
-        </div>
-      )}
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-2 text-xs text-slate-300">
+        <span>{language || "code"}</span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="rounded px-2 py-0.5 text-[11px] text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          {copied ? "کپی شد ✓" : "کپی کد"}
+        </button>
+      </div>
       <pre className="overflow-x-auto p-4 text-left text-xs leading-7" dir="ltr">
-        <code>{code}</code>
+        <code>
+          {showLineNumbers
+            ? lines.map((line, i) => (
+                <span key={i} className="table-row">
+                  <span className="table-cell select-none pe-4 text-right text-slate-500">
+                    {i + 1}
+                  </span>
+                  <span className="table-cell">{line + "\n"}</span>
+                </span>
+              ))
+            : code}
+        </code>
       </pre>
     </div>
   );
@@ -516,20 +698,53 @@ function FaqBlock({ block }: { block: UnknownRecord }) {
     <section className="flex flex-col gap-3">
       <h3 className="text-base font-bold">سؤالات متداول</h3>
       {questions.map((item, index) => (
-        <div
+        <details
           key={String(item.id ?? index)}
-          className="rounded-card border border-[var(--border-subtle)] p-4"
+          className="group rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/20 p-4"
         >
-          <h4 className="font-semibold leading-7">
-            {asString(item.q, "سؤال")}
-          </h4>
-          <p className="mt-2 text-sm leading-8 text-[var(--text-muted)]">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 font-semibold leading-7">
+            <span>{asString(item.q, "سؤال")}</span>
+            <span className="text-xs text-[var(--primary)] transition-transform group-open:rotate-180">
+              ▼
+            </span>
+          </summary>
+          <p className="mt-2 border-t border-[var(--border-subtle)] pt-3 text-sm leading-8 text-[var(--text-muted)]">
             {asString(item.a)}
           </p>
-        </div>
+        </details>
       ))}
     </section>
   );
+}
+
+const PERSIAN_DAY_LABELS: Record<string, string> = {
+  saturday: "شنبه",
+  sunday: "یکشنبه",
+  monday: "دوشنبه",
+  tuesday: "سه‌شنبه",
+  wednesday: "چهارشنبه",
+  thursday: "پنج‌شنبه",
+  friday: "جمعه",
+};
+
+function getLocationMapUrl(
+  provider: string,
+  latitude: number,
+  longitude: number,
+  zoom: number
+): string {
+  switch (provider) {
+    case "openstreetmap":
+    case "leaflet":
+      return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=${zoom}/${latitude}/${longitude}`;
+    case "neshan":
+      return `https://neshan.org/maps/@${latitude},${longitude},${zoom}z`;
+    case "balad":
+      return `https://balad.ir/#${zoom}/${latitude}/${longitude}`;
+    case "google":
+    default:
+      return `https://www.google.com/maps?q=${latitude},${longitude}&z=${zoom}`;
+  }
 }
 
 function LocationBlock({ block }: { block: UnknownRecord }) {
@@ -537,6 +752,7 @@ function LocationBlock({ block }: { block: UnknownRecord }) {
   const coordinates = isRecord(block.coordinates) ? block.coordinates : {};
   const contact = isRecord(block.contact) ? block.contact : {};
   const map = isRecord(block.map) ? block.map : {};
+  const media = isRecord(block.media) ? block.media : {};
 
   const latitude = coordinates.latitude;
   const longitude = coordinates.longitude;
@@ -547,8 +763,10 @@ function LocationBlock({ block }: { block: UnknownRecord }) {
     typeof longitude === "number" &&
     Number.isFinite(longitude);
 
+  const mapProvider = asString(map.provider, "google");
+  const mapZoom = getNumber(map, "zoom", 15);
   const mapUrl = hasCoordinates
-    ? `https://www.google.com/maps?q=${latitude},${longitude}`
+    ? getLocationMapUrl(mapProvider, latitude, longitude, mapZoom)
     : null;
 
   const addressText = [
@@ -559,16 +777,28 @@ function LocationBlock({ block }: { block: UnknownRecord }) {
   ]
     .filter((item) => typeof item === "string" && item.trim())
     .join("، ");
+  const postalCode = asString(address.postal_code);
 
   const hours = asArray(block.opening_hours).filter(isRecord);
 
   const description = asString(block.description);
   const phone = asString(contact.phone);
   const email = asString(contact.email);
+  const website = safeUrl(contact.website);
   const embedUrl = externalUrl(map.embed_url);
+  const imageSrc = resolveMediaUrl(getString(media, "url", "src"));
 
   return (
     <section className="flex flex-col gap-3 rounded-card border border-[var(--border-subtle)] p-4">
+      {imageSrc && (
+        <img
+          src={imageSrc}
+          alt={asString(block.title, "تصویر موقعیت مکانی")}
+          loading="lazy"
+          className="max-h-56 w-full rounded-card object-cover"
+        />
+      )}
+
       <h3 className="text-base font-bold">
         {asString(block.title, "موقعیت مکانی")}
       </h3>
@@ -580,30 +810,57 @@ function LocationBlock({ block }: { block: UnknownRecord }) {
       )}
 
       {addressText && (
-        <p className="text-sm leading-7">{addressText}</p>
-      )}
-
-      {phone && (
-        <p className="text-sm" dir="ltr">
-          تلفن: {phone}
+        <p className="text-sm leading-7">
+          {addressText}
+          {postalCode ? ` (کد پستی: ${postalCode})` : ""}
         </p>
       )}
 
-      {email && (
-        <p className="text-sm" dir="ltr">
-          ایمیل: {email}
-        </p>
-      )}
+      <div className="flex flex-wrap gap-4 text-sm">
+        {phone && (
+          <a
+            href={`tel:${phone}`}
+            className="text-[var(--primary)] hover:underline"
+            dir="ltr"
+          >
+            تلفن: {phone}
+          </a>
+        )}
+
+        {email && (
+          <a
+            href={`mailto:${email}`}
+            className="text-[var(--primary)] hover:underline"
+            dir="ltr"
+          >
+            ایمیل: {email}
+          </a>
+        )}
+
+        {website && (
+          <a
+            href={website}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--primary)] hover:underline"
+          >
+            وب‌سایت
+          </a>
+        )}
+      </div>
 
       {hours.length > 0 && (
         <div className="flex flex-col gap-1 text-xs text-[var(--text-muted)]">
-          <span className="font-semibold">ساعات کاری</span>
-          {hours.map((item, index) => (
-            <span key={index}>
-              {asString(item.day)}: {asString(item.open)} تا{" "}
-              {asString(item.close)}
-            </span>
-          ))}
+          <span className="font-semibold text-[var(--text-white)]">ساعات کاری</span>
+          {hours.map((item, index) => {
+            const dayKey = asString(item.day).toLowerCase();
+            return (
+              <span key={index}>
+                {PERSIAN_DAY_LABELS[dayKey] || asString(item.day)}: {asString(item.open)} تا{" "}
+                {asString(item.close)}
+              </span>
+            );
+          })}
         </div>
       )}
 
@@ -653,11 +910,14 @@ function TimelineBlock({ block }: { block: UnknownRecord }) {
         {events.map((event, index) => {
           const date = isRecord(event.date) ? event.date : {};
           const media = isRecord(event.media) ? event.media : {};
-          const imageSrc = safeUrl(
+          const metadata = isRecord(event.metadata) ? event.metadata : {};
+          const imageSrc = resolveMediaUrl(
             getString(event, "image_url", "url") ||
               getString(media, "url")
           );
           const eventDescription = asString(event.description);
+          const eventLocation = asString(metadata.location);
+          const eventCategory = asString(metadata.category);
 
           return (
             <article
@@ -672,9 +932,21 @@ function TimelineBlock({ block }: { block: UnknownRecord }) {
                 <span className="absolute -start-[27px] top-2 h-3 w-3 rounded-full border-2 border-[var(--primary)] bg-[var(--bg-body)]" />
               )}
 
-              <span className="text-xs font-semibold text-[var(--primary)]">
-                {asString(date.value)}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-[var(--primary)]">
+                  {asString(date.value)}
+                </span>
+                {eventCategory && (
+                  <span className="rounded-full bg-[var(--foreground)] px-2 py-0.5 text-[11px] text-[var(--text-muted)]">
+                    {eventCategory}
+                  </span>
+                )}
+                {eventLocation && (
+                  <span className="text-[11px] text-[var(--text-muted)]">
+                    • {eventLocation}
+                  </span>
+                )}
+              </div>
 
               <h4 className="font-bold leading-7">
                 {asString(event.title)}
@@ -702,7 +974,10 @@ function TimelineBlock({ block }: { block: UnknownRecord }) {
   );
 }
 
-function BlockRenderer({ block }: { block: UnknownRecord }) {
+function renderBlockContent(
+  block: UnknownRecord,
+  relatedArticles?: BlogPostSummary[]
+): React.ReactNode {
   switch (block.type) {
     case "heading": {
       const text = getString(block, "text");
@@ -846,14 +1121,63 @@ function BlockRenderer({ block }: { block: UnknownRecord }) {
           (typeof id === "string" && id.trim().length > 0)
       );
 
-      if (ids.length === 0) return null;
+      const expandedArticles = asArray(block.articles).filter(isRecord);
+      const matchedFromContext = (relatedArticles || []).filter((item) =>
+        ids.some((id) => String(id) === String(item.id))
+      );
+
+      if (ids.length === 0 && expandedArticles.length === 0) return null;
 
       return (
-        <aside className="rounded-card border border-[var(--border-subtle)] p-4">
-          <h3 className="mb-2 font-bold">مقاله‌های مرتبط</h3>
-          <p className="text-xs leading-6 text-[var(--text-muted)]">
-            شناسهٔ مقاله‌های مرتبط: {ids.map(String).join("، ")}
-          </p>
+        <aside className="flex flex-col gap-3 rounded-card border border-[var(--border-subtle)] p-4">
+          <h3 className="text-sm font-bold">مقاله‌های مرتبط</h3>
+          {matchedFromContext.length > 0 ? (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {matchedFromContext.map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/blog/${encodeURIComponent(item.slug)}`}
+                  className="flex flex-col gap-1 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/30 p-3 transition-colors hover:border-[var(--primary)]"
+                >
+                  <span className="text-sm font-semibold text-[var(--text-white)]">
+                    {item.title}
+                  </span>
+                  {item.excerpt && (
+                    <span className="line-clamp-2 text-xs text-[var(--text-muted)]">
+                      {item.excerpt}
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </div>
+          ) : expandedArticles.length > 0 ? (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {expandedArticles.map((item, idx) => {
+                const slug = asString(item.slug);
+                const title = asString(item.title, `مقاله ${idx + 1}`);
+                return slug ? (
+                  <Link
+                    key={String(item.id ?? idx)}
+                    href={`/blog/${encodeURIComponent(slug)}`}
+                    className="rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/30 p-3 text-sm font-semibold text-[var(--text-white)] transition-colors hover:border-[var(--primary)]"
+                  >
+                    {title}
+                  </Link>
+                ) : (
+                  <div
+                    key={String(item.id ?? idx)}
+                    className="rounded-card border border-[var(--border-subtle)] p-3 text-sm"
+                  >
+                    {title}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-xs leading-6 text-[var(--text-muted)]">
+              شناسهٔ مقاله‌های مرتبط: {ids.map(String).join("، ")}
+            </p>
+          )}
         </aside>
       );
     }
@@ -865,8 +1189,80 @@ function BlockRenderer({ block }: { block: UnknownRecord }) {
   }
 }
 
+function getBlockWrapperClasses(settings: UnknownRecord): string {
+  const classes: string[] = [];
+
+  switch (settings.align) {
+    case "left":
+      classes.push("text-left");
+      break;
+    case "center":
+      classes.push("text-center");
+      break;
+    case "right":
+      classes.push("text-right");
+      break;
+    case "justify":
+      classes.push("text-justify");
+      break;
+  }
+
+  switch (settings.spacing) {
+    case "none":
+      classes.push("my-0");
+      break;
+    case "xs":
+      classes.push("my-1");
+      break;
+    case "sm":
+      classes.push("my-2");
+      break;
+    case "lg":
+      classes.push("my-4");
+      break;
+    case "xl":
+      classes.push("my-6");
+      break;
+  }
+
+  switch (settings.width) {
+    case "narrow":
+      classes.push("mx-auto w-full max-w-xl");
+      break;
+    case "full_width":
+      classes.push("w-full");
+      break;
+  }
+
+  if (typeof settings.custom_class === "string" && settings.custom_class.trim()) {
+    classes.push(settings.custom_class.trim());
+  }
+
+  return classes.join(" ");
+}
+
+function BlockRenderer({
+  block,
+  relatedArticles,
+}: {
+  block: UnknownRecord;
+  relatedArticles?: BlogPostSummary[];
+}) {
+  const settings = isRecord(block.settings) ? block.settings : {};
+  if (settings.visibility === "hidden") {
+    return null;
+  }
+
+  const content = renderBlockContent(block, relatedArticles);
+  if (!content) return null;
+
+  const wrapperClass = getBlockWrapperClasses(settings);
+  return wrapperClass ? <div className={wrapperClass}>{content}</div> : content;
+}
+
 export const BlogArticleContent: React.FC<BlogArticleContentProps> = ({
   blocks,
+  relatedArticles,
 }) => {
   if (!Array.isArray(blocks) || blocks.length === 0) {
     return null;
@@ -882,7 +1278,13 @@ export const BlogArticleContent: React.FC<BlogArticleContentProps> = ({
             ? rawBlock.id
             : `${String(rawBlock.type ?? "block")}-${index}`;
 
-        return <BlockRenderer key={key} block={rawBlock} />;
+        return (
+          <BlockRenderer
+            key={key}
+            block={rawBlock}
+            relatedArticles={relatedArticles}
+          />
+        );
       })}
     </div>
   );
