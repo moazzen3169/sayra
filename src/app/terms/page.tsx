@@ -6,6 +6,8 @@ import { Header } from "@/components/Header";
 import { BottomBar } from "@/components/BottomBar";
 import { Icon } from "@/components/ui/Icon";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { Footer } from "@/components/Footer";
+
 
 interface TermSection {
   id: string;
@@ -883,7 +885,7 @@ export default function TermsAndRulesPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-16 selection:bg-[var(--primary)] selection:text-on-primary">
+    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-16 lg:pb-0 selection:bg-[var(--primary)] selection:text-on-primary">
       {/* Main Global Header */}
       <Header />
 
@@ -1121,6 +1123,8 @@ export default function TermsAndRulesPage() {
 
       {/* App Shell BottomBar for Mobile Navigation */}
       <BottomBar />
+      <Footer />
+
     </div>
   );
 }

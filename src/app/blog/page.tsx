@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
+import { Suspense } from "react";import { Footer } from "@/components/Footer";
 import { BlogListView } from "@/components/blog/BlogListView";
 
 export const metadata: Metadata = {
@@ -12,6 +12,8 @@ export default function BlogPage() {
   return (
     <Suspense fallback={null}>
       <BlogListView />
+      <Footer />
     </Suspense>
+
   );
 }
