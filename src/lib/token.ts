@@ -3,6 +3,9 @@ import {
   ACCESS_TOKEN_KEY,
   REFRESH_TOKEN_KEY,
   AUTH_USER_KEY,
+  ADMIN_ACCESS_TOKEN_KEY,
+  ADMIN_REFRESH_TOKEN_KEY,
+  ADMIN_AUTH_USER_KEY,
   BLOG_ACCESS_TOKEN_KEY,
   BLOG_REFRESH_TOKEN_KEY,
 } from "./api/config";
@@ -285,4 +288,109 @@ export async function refreshAccessToken(
   })();
 
   return refreshPromise;
+}
+
+// ==================================================
+// Platform Admin Tokens (sessionStorage)
+// ==================================================
+
+export function getAdminAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    return sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function getAdminRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    return sessionStorage.getItem(ADMIN_REFRESH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setAdminTokens(tokens: TokenPair): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    if (tokens.accessToken) {
+      sessionStorage.setItem(ADMIN_ACCESS_TOKEN_KEY, tokens.accessToken);
+    }
+
+    if (tokens.refreshToken) {
+      sessionStorage.setItem(ADMIN_REFRESH_TOKEN_KEY, tokens.refreshToken);
+    }
+  } catch {
+    throw new Error("ذخیره توکن‌های پنل ادمین در session مرورگر امکان‌پذیر نیست.");
+  }
+}
+
+export function clearAdminTokens(): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    sessionStorage.removeItem(ADMIN_ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(ADMIN_REFRESH_TOKEN_KEY);
+    sessionStorage.removeItem(ADMIN_AUTH_USER_KEY);
+  } catch {
+    // Ignore storage errors.
+  }
+}
+
+let adminRefreshPromise: Promise<string | null> | null = null;
+
+export async function refreshAdminAccessToken(
+  refreshCall: (
+    refreshToken: string
+  ) => Promise<{ accessToken: string; refreshToken?: string | null } | null>
+): Promise<string | null> {
+  const currentRefreshToken = getAdminRefreshToken();
+
+  if (!currentRefreshToken) {
+    clearAdminTokens();
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("sayra:admin-auth-expired"));
+    }
+    return null;
+  }
+
+  if (adminRefreshPromise) {
+    return adminRefreshPromise;
+  }
+
+  adminRefreshPromise = (async () => {
+    try {
+      const result = await refreshCall(currentRefreshToken);
+
+      if (result?.accessToken) {
+        setAdminTokens({
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken ?? currentRefreshToken,
+        });
+
+        return result.accessToken;
+      }
+
+      clearAdminTokens();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("sayra:admin-auth-expired"));
+      }
+      return null;
+    } catch {
+      clearAdminTokens();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("sayra:admin-auth-expired"));
+      }
+      return null;
+    } finally {
+      adminRefreshPromise = null;
+    }
+  })();
+
+  return adminRefreshPromise;
 }

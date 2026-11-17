@@ -8,7 +8,7 @@ import { AdminSidebar } from "@/components/admin/layout/AdminSidebar";
 import { AdminHeader } from "@/components/admin/layout/AdminHeader";
 
 import {
-  getAccessToken,
+  getAdminAccessToken,
   getBlogAccessToken,
 } from "@/lib/token";
 
@@ -37,10 +37,10 @@ export default function AdminLayout({
       return;
     }
 
-    // Blog and Platform have separate token stores.
+    // Blog and Platform Admin have separate token stores.
     const token = isBlogArea
       ? getBlogAccessToken()
-      : getAccessToken();
+      : getAdminAccessToken();
 
     if (token) {
       setAuthorized(true);
@@ -57,10 +57,17 @@ export default function AdminLayout({
     router,
   ]);
 
-  // Listen for an expired or revoked Blog session.
+  // Listen for an expired or revoked Blog or Admin session.
   useEffect(() => {
     const handleBlogAuthExpired = () => {
       if (!isBlogArea) return;
+
+      setAuthorized(false);
+      router.replace("/admin/login?tab=blog");
+    };
+
+    const handleAdminAuthExpired = () => {
+      if (isBlogArea) return;
 
       setAuthorized(false);
       router.replace("/admin/login");
@@ -70,11 +77,19 @@ export default function AdminLayout({
       "sayra:blog-auth-expired",
       handleBlogAuthExpired
     );
+    window.addEventListener(
+      "sayra:admin-auth-expired",
+      handleAdminAuthExpired
+    );
 
     return () => {
       window.removeEventListener(
         "sayra:blog-auth-expired",
         handleBlogAuthExpired
+      );
+      window.removeEventListener(
+        "sayra:admin-auth-expired",
+        handleAdminAuthExpired
       );
     };
   }, [isBlogArea, router]);

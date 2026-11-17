@@ -6,11 +6,14 @@ import {
 
 import {
   getAccessToken,
+  getAdminAccessToken,
   getBlogAccessToken,
   getBlogRefreshToken,
   setBlogTokens,
   refreshAccessToken,
+  refreshAdminAccessToken,
   clearTokens,
+  clearAdminTokens,
   clearBlogTokens,
 } from "../token";
 
@@ -79,7 +82,7 @@ export type Query = Record<
   QueryValue | QueryValue[]
 >;
 
-export type AuthScope = "platform" | "blog";
+export type AuthScope = "platform" | "admin" | "blog";
 
 export interface RequestOptions {
   query?: Query;
@@ -158,12 +161,29 @@ export function buildUrl(
 // Token Resolution
 // ==================================================
 
+function resolveAuthScope(scope?: AuthScope): AuthScope {
+  if (scope === "blog" || scope === "admin") {
+    return scope;
+  }
+
+  if (
+    typeof window !== "undefined" &&
+    typeof window.location?.pathname === "string" &&
+    window.location.pathname.startsWith("/admin") &&
+    !window.location.pathname.startsWith("/admin/blog")
+  ) {
+    return "admin";
+  }
+
+  return "platform";
+}
+
 function getTokenForScope(
   scope: AuthScope
 ): string | null {
-  return scope === "blog"
-    ? getBlogAccessToken()
-    : getAccessToken();
+  if (scope === "blog") return getBlogAccessToken();
+  if (scope === "admin") return getAdminAccessToken();
+  return getAccessToken();
 }
 
 // ==================================================
@@ -200,7 +220,7 @@ async function executeFetch<T>(
   }
 
   if (!options.skipAuth) {
-    const scope = options.authScope || "platform";
+    const scope = resolveAuthScope(options.authScope);
 
     const token =
       overrideToken !== undefined
@@ -352,7 +372,7 @@ if (!response.ok || json?.success === false) {
 
 async function performTokenRefresh(
   refreshToken: string
-): Promise<{ accessToken: string } | null> {
+): Promise<{ accessToken: string; refreshToken?: string } | null> {
   const base = API_BASE_URL.replace(/\/+$/, "");
 
   const response = await fetch(`${base}/auth/refresh`, {
@@ -374,11 +394,17 @@ async function performTokenRefresh(
     json?.data?.accessToken ||
     json?.accessToken;
 
+  const nextRefreshToken =
+    json?.data?.refreshToken ||
+    json?.refreshToken;
+
   if (json?.success === false || !accessToken) {
     return null;
   }
 
-  return { accessToken };
+  return nextRefreshToken
+    ? { accessToken, refreshToken: nextRefreshToken }
+    : { accessToken };
 }
 
 // ==================================================
@@ -488,7 +514,7 @@ async function request<T>(
   path: string,
   options: RequestOptions = {}
 ): Promise<ApiResponse<T>> {
-  const authScope = options.authScope || "platform";
+  const authScope = resolveAuthScope(options.authScope);
 
   const isRefreshRequest =
     path.includes("/auth/refresh") ||
@@ -496,7 +522,8 @@ async function request<T>(
 
   const isLoginRequest =
     path.includes("/auth/login") ||
-    path.includes("/auth/admin-login");
+    path.includes("/auth/admin-login") ||
+    path.includes("/auth/platform-admin/login");
 
   const shouldRetry =
     !options.skipAuth &&
@@ -525,7 +552,9 @@ if (
       const newToken =
         authScope === "blog"
           ? await refreshBlogAccessToken()
-          : await refreshAccessToken(performTokenRefresh);
+          : authScope === "admin"
+            ? await refreshAdminAccessToken(performTokenRefresh)
+            : await refreshAccessToken(performTokenRefresh);
 
       if (newToken) {
         return executeFetch<T>(
@@ -539,7 +568,9 @@ if (
         );
       }
 
-      if (authScope === "platform") {
+      if (authScope === "admin") {
+        clearAdminTokens();
+      } else if (authScope === "platform") {
         clearTokens();
       }
     }

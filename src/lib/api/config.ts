@@ -70,6 +70,13 @@ export const REFRESH_TOKEN_KEY = "sayra_refresh_token";
 export const AUTH_USER_KEY = "sayra_user_auth";
 
 /**
+ * Platform Admin Token Storage Keys (sessionStorage)
+ */
+export const ADMIN_ACCESS_TOKEN_KEY = "sayra_admin_access_token";
+export const ADMIN_REFRESH_TOKEN_KEY = "sayra_admin_refresh_token";
+export const ADMIN_AUTH_USER_KEY = "sayra_admin_user_auth";
+
+/**
  * Blog Platform Token Storage Keys
  *
  * These keys must never overlap with Platform Admin tokens.
