@@ -57,18 +57,20 @@ const MAP_PROVIDERS = [
 function BlockMediaUploader({
   label,
   mediaId,
+  initialPreviewUrl,
   accept = "image/*",
   onUploaded,
 }: {
   label: string;
   mediaId?: number | null;
+  initialPreviewUrl?: string | null;
   accept?: string;
   onUploaded: (id: number, url: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(initialPreviewUrl || null);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -141,6 +143,38 @@ const selectCls =
 const textareaCls =
   "w-full p-3 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] resize-y leading-6";
 const labelCls = "block text-[11px] font-bold text-[var(--text-muted)] mb-1";
+
+function RelatedArticlesInput({
+  ids,
+  onChangeIds,
+}: {
+  ids: number[];
+  onChangeIds: (ids: number[]) => void;
+}) {
+  const [text, setText] = useState(() => ids.join(", "));
+
+  return (
+    <div>
+      <label className={labelCls}>
+        شناسه‌های مقالات مرتبط (اعداد مثبت جداشده با کاما) *
+      </label>
+      <Input
+        value={text}
+        onChange={(e) => {
+          const val = e.target.value;
+          setText(val);
+          const parsed = val
+            .split(/[,،\s]+/)
+            .map((s) => Number(s.trim()))
+            .filter((n) => Number.isInteger(n) && n > 0);
+          onChangeIds(Array.from(new Set(parsed)));
+        }}
+        placeholder="مثلاً: 101, 102, 103"
+        dir="ltr"
+      />
+    </div>
+  );
+}
 
 export const BlockSettingsEditor: React.FC<{
   settings?: BlogBlockSettings;
@@ -444,12 +478,17 @@ export const BlockEditorFields: React.FC<BlockEditorFieldsProps> = ({
       );
     }
 
-    case "image":
+    case "image": {
+      const existingMediaUrl =
+        typeof (block as { media?: { url?: string } }).media?.url === "string"
+          ? (block as { media?: { url?: string } }).media?.url
+          : null;
       return (
         <div className="flex flex-col gap-3">
           <BlockMediaUploader
             label="آپلود تصویر از سیستم"
             mediaId={block.media_id}
+            initialPreviewUrl={existingMediaUrl}
             onUploaded={(id) => onChange({ ...block, media_id: id })}
           />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -506,6 +545,24 @@ export const BlockEditorFields: React.FC<BlockEditorFieldsProps> = ({
                 dir="ltr"
               />
             </div>
+            {block.link && (
+              <div>
+                <label className={labelCls}>نحوه باز شدن لینک (Target)</label>
+                <select
+                  value={block.target || "_self"}
+                  onChange={(e) =>
+                    onChange({
+                      ...block,
+                      target: e.target.value as "_blank" | "_self",
+                    })
+                  }
+                  className={selectCls}
+                >
+                  <option value="_self" className="bg-[var(--bg-card)]">همین صفحه (_self)</option>
+                  <option value="_blank" className="bg-[var(--bg-card)]">تب جدید (_blank)</option>
+                </select>
+              </div>
+            )}
             <div className="flex items-center gap-4 pt-5">
               <label className="flex items-center gap-2 text-xs text-[var(--text-white)]">
                 <input
@@ -520,6 +577,7 @@ export const BlockEditorFields: React.FC<BlockEditorFieldsProps> = ({
           </div>
         </div>
       );
+    }
 
     case "gallery": {
       const ids = Array.isArray(block.media_ids) ? block.media_ids : [];
@@ -794,12 +852,16 @@ export const BlockEditorFields: React.FC<BlockEditorFieldsProps> = ({
               <label className={labelCls}>منبع ویدئو (Provider)</label>
               <select
                 value={block.provider || "youtube"}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const nextProvider = e.target.value as "local" | "youtube" | "vimeo";
                   onChange({
                     ...block,
-                    provider: e.target.value as "local" | "youtube" | "vimeo",
-                  })
-                }
+                    provider: nextProvider,
+                    ...(nextProvider === "local"
+                      ? { external_url: undefined }
+                      : { media_id: undefined }),
+                  });
+                }}
                 className={selectCls}
               >
                 <option value="youtube" className="bg-[var(--bg-card)]">YouTube</option>
@@ -1519,23 +1581,10 @@ export const BlockEditorFields: React.FC<BlockEditorFieldsProps> = ({
     case "related_articles": {
       const ids = Array.isArray(block.article_ids) ? block.article_ids : [];
       return (
-        <div>
-          <label className={labelCls}>
-            شناسه‌های مقالات مرتبط (اعداد مثبت جداشده با کاما) *
-          </label>
-          <Input
-            value={ids.join(", ")}
-            onChange={(e) => {
-              const parsed = e.target.value
-                .split(",")
-                .map((s) => Number(s.trim()))
-                .filter((n) => Number.isInteger(n) && n > 0);
-              onChange({ ...block, article_ids: parsed });
-            }}
-            placeholder="مثلاً: 101, 102, 103"
-            dir="ltr"
-          />
-        </div>
+        <RelatedArticlesInput
+          ids={ids}
+          onChangeIds={(parsed) => onChange({ ...block, article_ids: parsed })}
+        />
       );
     }
 

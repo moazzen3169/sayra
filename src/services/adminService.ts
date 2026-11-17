@@ -1887,7 +1887,11 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     }
 
     const coverImageId =
-      input.coverImageId != null ? String(input.coverImageId) : undefined;
+      input.coverImageId != null &&
+      String(input.coverImageId).trim() !== "" &&
+      String(input.coverImageId).trim() !== "0"
+        ? String(input.coverImageId).trim()
+        : undefined;
     const requestBody = mapAdminInputToCreateRequest(
       input,
       categoryId,
@@ -1948,8 +1952,10 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
 
     const coverImageId =
       input.coverImageId !== undefined
-        ? input.coverImageId != null
-          ? String(input.coverImageId)
+        ? input.coverImageId != null &&
+          String(input.coverImageId).trim() !== "" &&
+          String(input.coverImageId).trim() !== "0"
+          ? String(input.coverImageId).trim()
           : null
         : undefined;
     const patchBody = mapAdminInputToPatchRequest(

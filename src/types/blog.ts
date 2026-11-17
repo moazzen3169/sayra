@@ -372,11 +372,15 @@ export type BlogContentBlock =
    ========================================================================== */
 
 export interface AdminBlogPostInput {
+  languageCode?: string;
   slug: string;
   title: string;
   excerpt: string;
+  shortDescription?: string | null;
   coverUrl: string;
   coverImageId?: string | number | null;
+  ogImageId?: string | number | null;
+  ogImageUrl?: string;
   category: string;
   authorName: string;
   readingMinutes: number;
@@ -385,18 +389,27 @@ export interface AdminBlogPostInput {
   featured?: boolean;
   status: BlogPostStatus;
   visibility?: "public" | "private" | "unlisted";
+  seriesId?: number | null;
+  relatedArticleIds?: number[];
   seoTitle?: string;
   seoDescription?: string;
   canonicalUrl?: string | null;
-  publishedAt?: string;
+  publishedAt?: string | null;
   content: BlogContentBlock[];
 }
 
 export interface BlogPostDetail extends BlogPostSummary {
+  languageCode?: string;
+  shortDescription?: string;
+  coverImageId?: string | null;
+  ogImageId?: string | null;
+  ogImageUrl?: string;
   content: BlogContentBlock[];
   visibility?: "public" | "private" | "unlisted";
+  seriesId?: number | null;
   seoTitle?: string;
   seoDescription?: string;
   canonicalUrl?: string | null;
   relatedArticles?: BlogPostSummary[];
+  structuredData?: Record<string, unknown>[];
 }

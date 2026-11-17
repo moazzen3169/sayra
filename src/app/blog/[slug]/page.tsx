@@ -27,14 +27,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const images = post.coverUrl ? [post.coverUrl] : [];
+  const seoTitle = post.seoTitle || post.title;
+  const seoDesc = post.seoDescription || post.excerpt;
+  const ogImg = post.ogImageUrl || post.coverUrl;
+  const images = ogImg ? [ogImg] : [];
 
   return {
-    title: `${post.title} | وبلاگ سایرا`,
-    description: post.excerpt,
+    title: `${seoTitle} | وبلاگ سایرا`,
+    description: seoDesc,
+    alternates: post.canonicalUrl ? { canonical: post.canonicalUrl } : undefined,
     openGraph: {
-      title: post.title,
-      description: post.excerpt,
+      title: seoTitle,
+      description: seoDesc,
       images,
       type: "article",
       publishedTime: post.publishedAt || undefined,
@@ -43,8 +47,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: post.title,
-      description: post.excerpt,
+      title: seoTitle,
+      description: seoDesc,
       images,
     },
   };

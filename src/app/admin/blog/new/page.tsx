@@ -1,5 +1,8 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import React from "react";
+import { BlogPostEditor } from "@/components/admin/blog/BlogPostEditor";
 
 export default function NewBlogPostPage() {
-  redirect("/admin/blog");
+  return <BlogPostEditor mode="create" />;
 }

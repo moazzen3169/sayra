@@ -8,7 +8,6 @@ import { AdminFilterBar } from "@/components/admin/AdminFilterBar";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
-import { BlogPostFormModal } from "@/components/admin/blog/BlogPostFormModal";
 import { BlogPostPreviewModal } from "@/components/admin/blog/BlogPostPreviewModal";
 import { BlogPostDeleteModal } from "@/components/admin/blog/BlogPostDeleteModal";
 import type { BlogPostDetail, BlogPostStatus, BlogCategory } from "@/types/blog";
@@ -31,11 +30,17 @@ export default function BlogAdminPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Modals & Actions
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-  const [editingPost, setEditingPost] = useState<BlogPostDetail | null>(null);
-
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewingPost, setPreviewingPost] = useState<BlogPostDetail | null>(null);
+
+  const handleOpenPreview = async (post: BlogPostDetail) => {
+    setPreviewingPost(post);
+    setIsPreviewModalOpen(true);
+    if (post.slug) {
+      const full = await adminService.getBlogPostById(post.slug);
+      if (full) setPreviewingPost(full);
+    }
+  };
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingPost, setDeletingPost] = useState<BlogPostDetail | null>(null);
@@ -169,10 +174,7 @@ export default function BlogAdminPage() {
         <div className="flex flex-col gap-0.5 max-w-[280px]">
           <button
             type="button"
-            onClick={() => {
-              setPreviewingPost(p);
-              setIsPreviewModalOpen(true);
-            }}
+            onClick={() => void handleOpenPreview(p)}
             className="font-bold text-sm text-[var(--text-white)] hover:text-[var(--primary)] transition-colors text-right truncate cursor-pointer"
           >
             {p.title}
@@ -270,10 +272,7 @@ export default function BlogAdminPage() {
           {/* Preview button */}
           <button
             type="button"
-            onClick={() => {
-              setPreviewingPost(p);
-              setIsPreviewModalOpen(true);
-            }}
+            onClick={() => void handleOpenPreview(p)}
             className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--foreground)]/40 transition-colors cursor-pointer"
             title="پیش‌نمایش مقاله"
           >
@@ -283,7 +282,7 @@ export default function BlogAdminPage() {
           {/* View on public site (if published) */}
           {p.status === "PUBLISHED" && (
             <Link
-              href={`/blog/${p.slug}`}
+              href={`/blog/${encodeURIComponent(p.slug)}`}
               target="_blank"
               className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--foreground)]/40 transition-colors"
               title="مشاهده در وبلاگ عمومی"
@@ -292,18 +291,14 @@ export default function BlogAdminPage() {
             </Link>
           )}
 
-          {/* Edit button */}
-          <button
-            type="button"
-            onClick={() => {
-              setEditingPost(p);
-              setIsFormModalOpen(true);
-            }}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-white)] hover:bg-[var(--foreground)]/40 transition-colors cursor-pointer"
+          {/* Edit link -> dedicated edit page */}
+          <Link
+            href={`/admin/blog/${encodeURIComponent(p.slug || p.id)}/edit`}
+            className="px-2 py-1 rounded-lg text-xs font-bold text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--foreground)]/40 transition-colors"
             title="ویرایش مقاله"
           >
-            <Icon name="user" size={18} />
-          </button>
+            ویرایش
+          </Link>
 
           {/* Delete button */}
           <button
@@ -333,17 +328,12 @@ export default function BlogAdminPage() {
               ایجاد، ویرایش، پیش‌نمایش، انتشار و مدیریت مقالات، اخبار و راهنماهای پلتفرم سایرا ({total} مقاله)
             </p>
           </div>
-          <Button
-            variant="primary"
-            onClick={() => {
-              setEditingPost(null);
-              setIsFormModalOpen(true);
-            }}
-            className="flex items-center gap-2 shrink-0"
+          <Link
+            href="/admin/blog/new"
+            className="inline-flex h-10 items-center gap-2 rounded-card bg-[var(--primary)] px-4 text-xs font-bold text-black transition-opacity hover:opacity-90 shrink-0"
           >
-            <Icon name="user" size={18} />
-            <span>ایجاد مقاله جدید</span>
-          </Button>
+            <span>+ ایجاد مقاله جدید</span>
+          </Link>
         </div>
 
         {/* Feedback Alert */}
@@ -482,20 +472,6 @@ export default function BlogAdminPage() {
           </div>
         )}
       </div>
-
-      {/* Create / Edit Form Modal */}
-      <BlogPostFormModal
-        isOpen={isFormModalOpen}
-        onClose={() => setIsFormModalOpen(false)}
-        initialData={editingPost}
-        onSuccess={() => {
-          showFeedback(
-            "success",
-            editingPost ? "اطلاعات مقاله با موفقیت بروزرسانی شد." : "مقاله جدید با موفقیت ذخیره گردید."
-          );
-          loadPosts();
-        }}
-      />
 
       {/* Live Preview Modal */}
       <BlogPostPreviewModal

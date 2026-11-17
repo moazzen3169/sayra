@@ -306,14 +306,32 @@ function ImageBlock({ block }: { block: UnknownRecord }) {
     );
   }
 
+  const focalPoint = isRecord(block.focal_point)
+    ? block.focal_point
+    : null;
+  const objectPosition =
+    focalPoint &&
+    typeof focalPoint.x === "number" &&
+    typeof focalPoint.y === "number"
+      ? `${focalPoint.x}% ${focalPoint.y}%`
+      : undefined;
+
+  const fetchPriority =
+    block.fetch_priority === "high" ||
+    block.fetch_priority === "low" ||
+    block.fetch_priority === "auto"
+      ? block.fetch_priority
+      : undefined;
+
   const image = (
     <img
       src={src}
       alt={alt}
       loading={block.lazy === false || block.loading === "eager" ? "eager" : "lazy"}
       decoding="async"
+      fetchPriority={fetchPriority}
       className="max-h-[680px] w-full rounded-card"
-      style={{ objectFit }}
+      style={{ objectFit, ...(objectPosition ? { objectPosition } : {}) }}
     />
   );
 

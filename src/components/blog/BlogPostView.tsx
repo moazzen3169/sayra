@@ -196,6 +196,16 @@ useEffect(() => {
 
             {post && (
               <article className="flex w-full flex-col gap-6">
+                {Array.isArray(post.structuredData) &&
+                  post.structuredData.map((schemaObj, idx) => (
+                    <script
+                      key={idx}
+                      type="application/ld+json"
+                      dangerouslySetInnerHTML={{
+                        __html: JSON.stringify(schemaObj),
+                      }}
+                    />
+                  ))}
                 <Link
                   href="/blog"
                   className="hidden h-11 items-center gap-1.5 self-start text-xs font-bold text-[var(--text-muted)] transition-colors hover:text-[var(--primary)] lg:flex"
