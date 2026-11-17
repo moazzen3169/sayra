@@ -6,6 +6,7 @@ import { AdminBreadcrumbs } from "@/components/admin/layout/AdminBreadcrumbs";
 import { Icon, IconName } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { SiteSettings } from "@/types/admin";
 import { adminService } from "@/services/adminService";
 
@@ -229,12 +230,25 @@ export default function SettingsAdminPage() {
     }
   };
 
-  if (isLoading || !formData) {
+  if (isLoading) {
     return (
       <AdminPageContainer>
         <div className="flex flex-col items-center justify-center py-24 gap-3 text-text-muted">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           <span className="text-sm">در حال بارگیری تنظیمات سیستم...</span>
+        </div>
+      </AdminPageContainer>
+    );
+  }
+
+  if (!formData) {
+    return (
+      <AdminPageContainer>
+        <div className="bg-card-bg border border-border rounded-card p-8">
+          <ErrorState
+            description={saveErrorMessage || "خطا در بارگیری تنظیمات سیستم از سرور."}
+            onRetry={loadSettings}
+          />
         </div>
       </AdminPageContainer>
     );

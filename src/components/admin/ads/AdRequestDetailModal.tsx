@@ -22,19 +22,22 @@ export const AdRequestDetailModal: React.FC<AdRequestDetailModalProps> = ({
   adRequest,
   onStatusUpdated,
 }) => {
-  const [actionType, setActionType] = useState<"APPROVE" | "REJECT" | null>(null);
+  const [actionType, setActionType] = useState<"APPROVE" | "REJECT" | "REMOVE" | null>(null);
   const [decisionReason, setDecisionReason] = useState("");
+  const [durationDays, setDurationDays] = useState<string>("");
+  const [priority, setPriority] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   if (!isOpen || !adRequest) return null;
 
-  const isApproved = adRequest.status === "APPROVED";
+  const isApproved = adRequest.status === "APPROVED" || adRequest.status === "ACTIVE";
   const isRejected = adRequest.status === "REJECTED";
 
   const getStatusBadge = () => {
     switch (adRequest.status) {
       case "APPROVED":
+      case "ACTIVE":
         return <Badge variant="success">تأیید شده (فعال)</Badge>;
       case "REJECTED":
         return <Badge variant="danger">لغو / رد شده</Badge>;
@@ -57,15 +60,32 @@ export const AdRequestDetailModal: React.FC<AdRequestDetailModalProps> = ({
     setErrorMessage("");
 
     try {
+      if (actionType === "REMOVE") {
+        await adminService.deleteAdRequest(adRequest.id);
+        setActionType(null);
+        setDecisionReason("");
+        onStatusUpdated();
+        onClose();
+        return;
+      }
+
       const newStatus = actionType === "APPROVE" ? "APPROVED" : "REJECTED";
       await adminService.updateAdRequestStatus(
         adRequest.id,
         newStatus,
-        decisionReason.trim() || undefined
+        decisionReason.trim() || undefined,
+        actionType === "APPROVE"
+          ? {
+              durationDays: durationDays ? Number(durationDays) : undefined,
+              priority: priority ? Number(priority) : undefined,
+            }
+          : undefined
       );
 
       setActionType(null);
       setDecisionReason("");
+      setDurationDays("");
+      setPriority("");
       onStatusUpdated();
     } catch (err: unknown) {
       const e = err as Error;
@@ -211,30 +231,70 @@ export const AdRequestDetailModal: React.FC<AdRequestDetailModalProps> = ({
 
           {/* Action Input Box */}
           {actionType && (
-            <div className="p-4 rounded-card bg-[var(--bg-body)] border border-[var(--primary)]/40 space-y-3 animate-fadeIn">
-              <h4 className="text-xs font-bold text-[var(--text-white)] flex items-center gap-2">
+            <div className="p-4 rounded-card bg-body-bg border border-primary/40 space-y-3">
+              <h4 className="text-xs font-bold text-text-white flex items-center gap-2">
                 <Icon name={actionType === "APPROVE" ? "check" : "alert"} size={16} />
                 <span>
-                  {actionType === "APPROVE" ? "تأیید و انتشار تبلیغ" : "رد یا لغو درخواست تبلیغ"}
+                  {actionType === "APPROVE"
+                    ? "تأیید و انتشار تبلیغ"
+                    : actionType === "REMOVE"
+                      ? "تأیید برداشتن دستی تبلیغ"
+                      : "رد یا لغو درخواست تبلیغ"}
                 </span>
               </h4>
 
-              <div>
-                <label className="text-xs text-[var(--text-muted)] block mb-1">
-                  توضیحات یا دلیل تصمیم {actionType === "REJECT" ? "(الزامی)" : "(اختیاری)"}:
-                </label>
-                <textarea
-                  rows={3}
-                  value={decisionReason}
-                  onChange={(e) => setDecisionReason(e.target.value)}
-                  placeholder={
-                    actionType === "APPROVE"
-                      ? "توضیحات اختیاری درباره انتشار بنر..."
-                      : "علت رد یا لغو تبلیغ (مانند عدم رعایت قوانین یا کیفیت نامناسب تصویر)..."
-                  }
-                  className="w-full p-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] resize-none"
-                />
-              </div>
+              {actionType === "REMOVE" ? (
+                <p className="text-xs text-text-muted leading-relaxed">
+                  آیا از برداشتن و حذف کامل این تبلیغ از اسلایدر و لیست پلتفرم مطمئن هستید؟ این عمل قابل بازگشت نیست.
+                </p>
+              ) : (
+                <>
+                  {actionType === "APPROVE" && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-text-muted block mb-1">
+                          مدت نمایش (روز):
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={durationDays || String(adRequest.durationDays || 30)}
+                          onChange={(e) => setDurationDays(e.target.value)}
+                          className="w-full h-10 px-3 rounded-card bg-foreground/40 border border-border-subtle text-xs text-text-white outline-none focus:border-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-text-muted block mb-1">
+                          اولویت نمایش:
+                        </label>
+                        <input
+                          type="number"
+                          value={priority || String(adRequest.priority ?? 0)}
+                          onChange={(e) => setPriority(e.target.value)}
+                          className="w-full h-10 px-3 rounded-card bg-foreground/40 border border-border-subtle text-xs text-text-white outline-none focus:border-primary"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-xs text-text-muted block mb-1">
+                      توضیحات یا دلیل تصمیم {actionType === "REJECT" ? "(الزامی)" : "(اختیاری)"}:
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={decisionReason}
+                      onChange={(e) => setDecisionReason(e.target.value)}
+                      placeholder={
+                        actionType === "APPROVE"
+                          ? "توضیحات اختیاری درباره انتشار بنر..."
+                          : "علت رد یا لغو تبلیغ..."
+                      }
+                      className="w-full p-3 rounded-card bg-foreground/40 border border-border-subtle text-xs text-text-white outline-none focus:border-primary resize-none"
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="flex items-center gap-3 pt-1">
                 <Button
@@ -243,7 +303,11 @@ export const AdRequestDetailModal: React.FC<AdRequestDetailModalProps> = ({
                   onClick={handleConfirmAction}
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? "در حال ثبت..." : "ثبت تصمیم"}
+                  {isSubmitting
+                    ? "در حال انجام..."
+                    : actionType === "REMOVE"
+                      ? "تأیید و برداشتن تبلیغ"
+                      : "ثبت تصمیم"}
                 </Button>
                 <Button
                   variant="secondary"
@@ -263,8 +327,8 @@ export const AdRequestDetailModal: React.FC<AdRequestDetailModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--foreground)]/20 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <div className="px-6 py-4 border-t border-border-subtle bg-foreground/20 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             {(!isApproved || isRejected) && (
               <Button
                 variant="primary"
@@ -283,7 +347,7 @@ export const AdRequestDetailModal: React.FC<AdRequestDetailModalProps> = ({
 
             {(!isRejected || isApproved) && (
               <Button
-                variant="danger"
+                variant="secondary"
                 size="sm"
                 onClick={() => {
                   setActionType("REJECT");
@@ -296,6 +360,20 @@ export const AdRequestDetailModal: React.FC<AdRequestDetailModalProps> = ({
                 <span>{isApproved ? "لغو تبلیغ تأیید شده" : "رد درخواست"}</span>
               </Button>
             )}
+
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => {
+                setActionType("REMOVE");
+                setErrorMessage("");
+              }}
+              disabled={isSubmitting || actionType === "REMOVE"}
+              className="flex items-center gap-1.5"
+            >
+              <Icon name="close" size={16} />
+              <span>برداشتن دستی تبلیغ</span>
+            </Button>
           </div>
 
           <Button variant="secondary" size="sm" onClick={onClose}>

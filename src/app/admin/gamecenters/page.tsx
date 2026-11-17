@@ -163,9 +163,9 @@ export default function GamecentersAdminPage() {
       key: "rating",
       header: "امتیاز",
       render: (gc) => (
-        <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--accent-star)]">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-warning">
           <Icon name="star" size={14} />
-          <span>{gc.rating ?? "۴.۵"}</span>
+          <span>{typeof gc.rating === "number" ? gc.rating.toFixed(1) : "-"}</span>
         </div>
       ),
     },
@@ -289,45 +289,56 @@ export default function GamecentersAdminPage() {
           }}
           searchPlaceholder="جستجو نام، اسلاگ، مسئول، تلفن..."
         >
-          {/* Status Filter */}
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-[var(--text-muted)] font-medium">وضعیت:</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-              className="h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] cursor-pointer"
-            >
-              <option value="all" className="bg-[var(--bg-card)]">همه وضعیت‌ها</option>
-              <option value="active" className="bg-[var(--bg-card)]">فقط فعال</option>
-              <option value="inactive" className="bg-[var(--bg-card)]">فقط غیرفعال</option>
-            </select>
+          {/* Quick Status Tabs */}
+          <div className="flex items-center gap-1 p-1 rounded-card bg-foreground/30 border border-border-subtle">
+            {[
+              { id: "all", label: "همه" },
+              { id: "active", label: "فعال" },
+              { id: "inactive", label: "غیرفعال" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setStatusFilter(tab.id);
+                  setPage(1);
+                }}
+                className={`px-3 py-1.5 rounded-child text-xs font-bold transition-colors cursor-pointer ${
+                  statusFilter === tab.id
+                    ? "bg-primary text-on-primary"
+                    : "text-text-muted hover:text-text-white"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           {/* City Filter */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-[var(--text-muted)] font-medium">شهر:</span>
+            <span className="text-text-muted font-medium">شهر:</span>
             <select
               value={cityFilter}
               onChange={(e) => {
                 setCityFilter(e.target.value);
                 setPage(1);
               }}
-              className="h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] cursor-pointer"
+              className="h-10 px-3 rounded-card bg-foreground/40 border border-border-subtle text-xs text-text-white outline-none focus:border-primary cursor-pointer"
             >
-              <option value="all" className="bg-[var(--bg-card)]">همه شهرها</option>
-              <option value="تهران" className="bg-[var(--bg-card)]">تهران</option>
-              <option value="تبریز" className="bg-[var(--bg-card)]">تبریز</option>
-              <option value="شیراز" className="bg-[var(--bg-card)]">شیراز</option>
-              <option value="اصفهان" className="bg-[var(--bg-card)]">اصفهان</option>
+              <option value="all" className="bg-card-bg">همه شهرها</option>
+              {Array.from(new Set(data.map((item) => item.city).filter((c) => c && c !== "-"))).map(
+                (cityName) => (
+                  <option key={cityName} value={cityName} className="bg-card-bg">
+                    {cityName}
+                  </option>
+                )
+              )}
             </select>
           </div>
 
           {/* Sorting */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-[var(--text-muted)] font-medium">مرتب‌سازی:</span>
+            <span className="text-text-muted font-medium">مرتب‌سازی:</span>
             <select
               value={`${sortBy}-${sortOrder}`}
               onChange={(e) => {
@@ -335,12 +346,12 @@ export default function GamecentersAdminPage() {
                 setSortBy(sb);
                 setSortOrder(so as "asc" | "desc");
               }}
-              className="h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] cursor-pointer"
+              className="h-10 px-3 rounded-card bg-foreground/40 border border-border-subtle text-xs text-text-white outline-none focus:border-primary cursor-pointer"
             >
-              <option value="createdAt-desc" className="bg-[var(--bg-card)]">جدیدترین</option>
-              <option value="createdAt-asc" className="bg-[var(--bg-card)]">قدیمی‌ترین</option>
-              <option value="name-asc" className="bg-[var(--bg-card)]">نام (الف تا ی)</option>
-              <option value="rating-desc" className="bg-[var(--bg-card)]">بیشترین امتیاز</option>
+              <option value="createdAt-desc" className="bg-card-bg">جدیدترین</option>
+              <option value="createdAt-asc" className="bg-card-bg">قدیمی‌ترین</option>
+              <option value="name-asc" className="bg-card-bg">نام (الف تا ی)</option>
+              <option value="rating-desc" className="bg-card-bg">بیشترین امتیاز</option>
             </select>
           </div>
         </AdminFilterBar>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { adminService } from "@/services/adminService";
 import { KPI_DEFINITIONS } from "@/types/analytics";
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/Badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { formatPrice } from "@/lib/format";
 
 export default function AdminDashboardPage() {
@@ -19,7 +20,9 @@ export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
-  useEffect(() => {
+  const loadDashboard = useCallback(() => {
+    setIsLoading(true);
+    setIsError(false);
     adminService
       .getDashboardData()
       .then((res) => {
@@ -31,6 +34,10 @@ export default function AdminDashboardPage() {
         setIsLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
 
   const reservationColumns: Column<AdminRecentReservation>[] = [
     {
@@ -131,6 +138,27 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* Quick Actions Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {[
+          { href: "/admin/gamecenters", label: "مدیریت گیمنت‌ها", icon: "gamepad" as const },
+          { href: "/admin/ads", label: "تبلیغات و بنرها", icon: "tag" as const },
+          { href: "/admin/tickets", label: "تیکت‌های پشتیبانی", icon: "ticket" as const },
+          { href: "/admin/users", label: "مدیریت کاربران", icon: "user" as const },
+          { href: "/admin/campaigns", label: "کمپین و تخفیف", icon: "star" as const },
+          { href: "/admin/reports", label: "گزارش‌های تحلیلی", icon: "calendar" as const },
+        ].map((action) => (
+          <Link
+            key={action.href}
+            href={action.href}
+            className="flex items-center gap-2.5 p-3 rounded-card bg-card-bg border border-border hover:border-primary text-xs font-bold text-text-white hover:text-primary transition-colors"
+          >
+            <Icon name={action.icon} size={16} className="text-primary shrink-0" />
+            <span className="truncate">{action.label}</span>
+          </Link>
+        ))}
+      </div>
+
       {/* Section 2: Key Indicators */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -151,8 +179,11 @@ export default function AdminDashboardPage() {
             ))}
           </div>
         ) : isError || !data ? (
-          <div className="bg-card-bg border border-border rounded-card p-6 text-center text-accent-red">
-            خطا در بارگذاری اطلاعات شاخص‌های کلیدی
+          <div className="bg-card-bg border border-border rounded-card p-6">
+            <ErrorState
+              description="خطا در بارگذاری اطلاعات شاخص‌های کلیدی از سرور"
+              onRetry={loadDashboard}
+            />
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">

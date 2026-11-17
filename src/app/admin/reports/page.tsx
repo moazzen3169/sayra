@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { analyticsService } from "@/services/analyticsService";
 import { KPI_DEFINITIONS, AnalyticsReportData, AnalyticsFilterParams } from "@/types/analytics";
 import { AdminPageContainer } from "@/components/admin/layout/AdminPageContainer";
@@ -9,6 +9,7 @@ import { AnalyticsChart } from "@/components/admin/AnalyticsChart";
 import { AdminDataTable, Column } from "@/components/admin/AdminDataTable";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { formatPrice } from "@/lib/format";
 
 export default function ReportsAdminPage() {
@@ -21,8 +22,9 @@ export default function ReportsAdminPage() {
   const [selectedMetric, setSelectedMetric] = useState<"reservations" | "amount">("amount");
   const [selectedCity, setSelectedCity] = useState("all");
 
-  useEffect(() => {
+  const loadReports = useCallback(() => {
     setIsLoading(true);
+    setIsError(false);
     analyticsService
       .getAnalyticsReport({
         dateRange,
@@ -38,6 +40,10 @@ export default function ReportsAdminPage() {
         setIsLoading(false);
       });
   }, [dateRange, selectedMetric, selectedCity]);
+
+  useEffect(() => {
+    loadReports();
+  }, [loadReports]);
 
   const performanceColumns: Column<AnalyticsReportData["gamecenterPerformance"][0]>[] = [
     {
@@ -115,9 +121,9 @@ export default function ReportsAdminPage() {
                 key={b.id}
                 type="button"
                 onClick={() => setDateRange(b.id as any)}
-                className={`px-2.5 py-1 text-xs rounded transition-colors font-bold ${
+                className={`px-2.5 py-1 text-xs rounded transition-colors font-bold cursor-pointer ${
                   dateRange === b.id
-                    ? "bg-primary text-primary-text"
+                    ? "bg-primary text-on-primary"
                     : "text-text-muted hover:text-text-white hover:bg-foreground/20"
                 }`}
               >
@@ -134,10 +140,18 @@ export default function ReportsAdminPage() {
               onChange={(e) => setSelectedCity(e.target.value)}
               className="bg-foreground/30 border border-border-subtle text-text-white text-xs rounded px-2 py-1 focus:outline-none focus:border-primary"
             >
-              <option value="all">همه شهرها</option>
-              <option value="تهران">تهران</option>
-              <option value="تبریز">تبریز</option>
-              <option value="شیراز">شیراز</option>
+              <option value="all" className="bg-card-bg">همه شهرها</option>
+              {Array.from(
+                new Set(
+                  (data?.gamecenterPerformance || [])
+                    .map((g) => g.city)
+                    .filter((c) => c && c !== "-")
+                )
+              ).map((cityName) => (
+                <option key={cityName} value={cityName} className="bg-card-bg">
+                  {cityName}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -156,8 +170,11 @@ export default function ReportsAdminPage() {
             ))}
           </div>
         ) : isError || !data ? (
-          <div className="bg-card-bg border border-border rounded-card p-6 text-center text-accent-red">
-            خطا در بارگذاری گزارش‌های تحلیلی
+          <div className="bg-card-bg border border-border rounded-card p-6">
+            <ErrorState
+              description="خطا در بارگذاری گزارش‌های تحلیلی از سرور"
+              onRetry={loadReports}
+            />
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

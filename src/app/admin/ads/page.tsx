@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { AdRequestDetailModal } from "@/components/admin/ads/AdRequestDetailModal";
+import { AdminCreateAdModal } from "@/components/admin/ads/AdminCreateAdModal";
+import { Modal } from "@/components/ui/Modal";
 import { AdminAdRequest } from "@/types/admin";
 import { adminService } from "@/services/adminService";
 
@@ -28,6 +30,10 @@ export default function AdsAdminPage() {
   // Modal State
   const [selectedAd, setSelectedAd] = useState<AdminAdRequest | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [removingAd, setRemovingAd] = useState<AdminAdRequest | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [quickApprovingId, setQuickApprovingId] = useState<string | null>(null);
 
   // Feedback Notification
   const [feedback, setFeedback] = useState<{ type: "success" | "danger"; message: string } | null>(null);
@@ -76,9 +82,38 @@ export default function AdsAdminPage() {
     setIsDetailModalOpen(true);
   };
 
+  const handleQuickApprove = async (ad: AdminAdRequest) => {
+    setQuickApprovingId(ad.id);
+    try {
+      await adminService.updateAdRequestStatus(ad.id, "APPROVED", "تأیید سریع توسط ادمین");
+      showFeedback("success", `تبلیغ «${ad.title}» با موفقیت تأیید شد.`);
+      loadAdRequests();
+    } catch (err: unknown) {
+      showFeedback("danger", (err as Error)?.message || "خطا در تأیید تبلیغ.");
+    } finally {
+      setQuickApprovingId(null);
+    }
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!removingAd) return;
+    setIsRemoving(true);
+    try {
+      await adminService.deleteAdRequest(removingAd.id);
+      showFeedback("success", `تبلیغ «${removingAd.title}» با موفقیت برداشته شد.`);
+      setRemovingAd(null);
+      loadAdRequests();
+    } catch (err: unknown) {
+      showFeedback("danger", (err as Error)?.message || "خطا در برداشتن تبلیغ.");
+    } finally {
+      setIsRemoving(false);
+    }
+  };
+
   const getStatusBadge = (status: AdminAdRequest["status"]) => {
     switch (status) {
       case "APPROVED":
+      case "ACTIVE":
         return <Badge variant="success">تأیید شده</Badge>;
       case "REJECTED":
         return <Badge variant="danger">لغو / رد شده</Badge>;
@@ -96,8 +131,8 @@ export default function AdsAdminPage() {
       header: "گیمنت",
       render: (ad) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-bold text-sm text-[var(--text-white)]">{ad.gamecenterName}</span>
-          <span className="text-[11px] text-[var(--text-subtle)] dir-ltr text-right">{ad.gamecenterId}</span>
+          <span className="font-bold text-sm text-text-white">{ad.gamecenterName}</span>
+          <span className="text-xs text-text-subtle dir-ltr text-right">{ad.gamecenterId || "-"}</span>
         </div>
       ),
     },
@@ -106,25 +141,25 @@ export default function AdsAdminPage() {
       header: "صاحب گیمنت",
       render: (ad) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-bold text-xs text-[var(--text-white)]">{ad.ownerName}</span>
-          <span className="text-xs text-[var(--text-muted)] dir-ltr text-right">{ad.ownerPhone}</span>
+          <span className="font-bold text-xs text-text-white">{ad.ownerName}</span>
+          <span className="text-xs text-text-muted dir-ltr text-right">{ad.ownerPhone}</span>
         </div>
       ),
     },
     {
       key: "title",
-      header: "جزئیات درخواست تبلیغات",
+      header: "جزئیات تبلیغ",
       render: (ad) => (
         <div className="flex flex-col gap-0.5 max-w-[260px]">
-          <span className="font-bold text-xs text-[var(--text-white)] truncate">{ad.title}</span>
-          <span className="text-[11px] text-[var(--text-muted)] truncate">{ad.description}</span>
-          <span className="text-[10px] text-[var(--primary)]">مدت: {ad.durationDays} روز</span>
+          <span className="font-bold text-xs text-text-white truncate">{ad.title}</span>
+          <span className="text-xs text-text-muted truncate">{ad.description || "-"}</span>
+          <span className="text-xs text-primary">مدت: {ad.durationDays} روز</span>
         </div>
       ),
     },
     {
       key: "status",
-      header: "وضعیت درخواست",
+      header: "وضعیت",
       render: (ad) => getStatusBadge(ad.status),
     },
     {
@@ -132,9 +167,9 @@ export default function AdsAdminPage() {
       header: "تاریخ ثبت",
       render: (ad) => (
         <div className="flex flex-col gap-0.5">
-          <span className="text-xs text-[var(--text-white)]">{ad.submittedAt}</span>
+          <span className="text-xs text-text-white">{ad.submittedAt}</span>
           {ad.updatedAt && (
-            <span className="text-[10px] text-[var(--text-subtle)]">ویرایش: {ad.updatedAt}</span>
+            <span className="text-xs text-text-subtle">ویرایش: {ad.updatedAt}</span>
           )}
         </div>
       ),
@@ -144,15 +179,37 @@ export default function AdsAdminPage() {
       header: "عملیات",
       className: "text-left",
       render: (ad) => (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-1.5">
+          {ad.status === "PENDING" && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => handleQuickApprove(ad)}
+              disabled={quickApprovingId === ad.id}
+              className="flex items-center gap-1"
+            >
+              <Icon name="check" size={14} />
+              <span>{quickApprovingId === ad.id ? "..." : "تأیید"}</span>
+            </Button>
+          )}
           <Button
             variant="secondary"
             size="sm"
             onClick={() => handleOpenDetail(ad)}
-            className="flex items-center gap-1.5"
+            className="flex items-center gap-1"
           >
-            <Icon name="info" size={16} />
-            <span>مشاهده جزئیات و اقدام</span>
+            <Icon name="info" size={14} />
+            <span>جزئیات</span>
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={() => setRemovingAd(ad)}
+            title="برداشتن دستی تبلیغ"
+            className="flex items-center gap-1"
+          >
+            <Icon name="close" size={14} />
+            <span>برداشتن</span>
           </Button>
         </div>
       ),
@@ -162,14 +219,22 @@ export default function AdsAdminPage() {
   return (
     <AdminPageContainer>
       <div className="flex flex-col gap-6 w-full">
-        {/* Header Title */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
+        {/* Header Title & Create Action */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border-subtle pb-4">
           <div className="flex flex-col gap-1">
-            <h1 className="text-page-title text-[var(--text-white)]">مدیریت درخواست‌های تبلیغات</h1>
-            <p className="text-secondary text-[var(--text-muted)]">
-              بررسی درخواست‌های تبلیغاتی گیمنت‌ها، بنرهای پیشنهادی، تصمیم‌گیری جهت انتشار یا لغو ({total} درخواست)
+            <h1 className="text-page-title text-text-white">مدیریت تبلیغات</h1>
+            <p className="text-secondary text-text-muted">
+              بررسی درخواست‌های تبلیغاتی، برداشتن دستی تبلیغ یا ایجاد تبلیغ تأییدشده توسط مدیر ({total} مورد)
             </p>
           </div>
+          <Button
+            variant="primary"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center gap-2 shrink-0"
+          >
+            <Icon name="tag" size={18} />
+            <span>ایجاد تبلیغ تأیید شده</span>
+          </Button>
         </div>
 
         {/* Feedback Alert */}
@@ -177,8 +242,8 @@ export default function AdsAdminPage() {
           <div
             className={`p-4 rounded-card text-xs font-bold flex items-center gap-2 transition-all ${
               feedback.type === "success"
-                ? "bg-[var(--accent-green)]/15 border border-[var(--accent-green)]/30 text-[var(--accent-green)]"
-                : "bg-[var(--accent-red)]/15 border border-[var(--accent-red)]/30 text-[var(--accent-red)]"
+                ? "bg-accent-green/15 border border-accent-green/30 text-accent-green"
+                : "bg-accent-red/15 border border-accent-red/30 text-accent-red"
             }`}
           >
             <Icon name={feedback.type === "success" ? "check" : "alert"} size={18} />
@@ -195,28 +260,37 @@ export default function AdsAdminPage() {
           }}
           searchPlaceholder="جستجو عنوان تبلیغ، گیمنت، صاحب یا تلفن..."
         >
-          {/* Status Filter */}
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-[var(--text-muted)] font-medium">وضعیت:</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-              className="h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] cursor-pointer"
-            >
-              <option value="all" className="bg-[var(--bg-card)]">همه درخواست‌ها</option>
-              <option value="PENDING" className="bg-[var(--bg-card)]">در انتظار بررسی</option>
-              <option value="APPROVED" className="bg-[var(--bg-card)]">تأیید شده (فعال)</option>
-              <option value="REJECTED" className="bg-[var(--bg-card)]">رد / لغو شده</option>
-              <option value="EXPIRED" className="bg-[var(--bg-card)]">منقضی شده</option>
-            </select>
+          {/* Quick Status Tabs */}
+          <div className="flex flex-wrap items-center gap-1 p-1 rounded-card bg-foreground/30 border border-border-subtle">
+            {[
+              { id: "all", label: "همه" },
+              { id: "PENDING", label: "در انتظار" },
+              { id: "APPROVED", label: "تأیید شده" },
+              { id: "ACTIVE", label: "فعال" },
+              { id: "REJECTED", label: "رد شده" },
+              { id: "EXPIRED", label: "منقضی" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setStatusFilter(tab.id);
+                  setPage(1);
+                }}
+                className={`px-3 py-1.5 rounded-child text-xs font-bold transition-colors cursor-pointer ${
+                  statusFilter === tab.id
+                    ? "bg-primary text-on-primary"
+                    : "text-text-muted hover:text-text-white"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           {/* Sorting */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-[var(--text-muted)] font-medium">مرتب‌سازی:</span>
+            <span className="text-text-muted font-medium">مرتب‌سازی:</span>
             <select
               value={`${sortBy}-${sortOrder}`}
               onChange={(e) => {
@@ -224,11 +298,11 @@ export default function AdsAdminPage() {
                 setSortBy(sb);
                 setSortOrder(so as "asc" | "desc");
               }}
-              className="h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] cursor-pointer"
+              className="h-10 px-3 rounded-card bg-foreground/40 border border-border-subtle text-xs text-text-white outline-none focus:border-primary cursor-pointer"
             >
-              <option value="submittedAt-desc" className="bg-[var(--bg-card)]">جدیدترین</option>
-              <option value="submittedAt-asc" className="bg-[var(--bg-card)]">قدیمی‌ترین</option>
-              <option value="title-asc" className="bg-[var(--bg-card)]">عنوان (الف تا ی)</option>
+              <option value="submittedAt-desc" className="bg-card-bg">جدیدترین</option>
+              <option value="submittedAt-asc" className="bg-card-bg">قدیمی‌ترین</option>
+              <option value="title-asc" className="bg-card-bg">عنوان (الف تا ی)</option>
             </select>
           </div>
         </AdminFilterBar>
@@ -296,10 +370,53 @@ export default function AdsAdminPage() {
         }}
         adRequest={selectedAd}
         onStatusUpdated={() => {
-          showFeedback("success", "نتیجه درخواست تبلیغات با موفقیت به‌روزرسانی شد.");
+          showFeedback("success", "تغییرات تبلیغ با موفقیت اعمال شد.");
           loadAdRequests();
         }}
       />
+
+      {/* Admin Create Approved Ad Modal */}
+      <AdminCreateAdModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreated={() => {
+          showFeedback("success", "تبلیغ جدید با وضعیت تأیید شده ایجاد و منتشر شد.");
+          loadAdRequests();
+        }}
+      />
+
+      {/* Confirm Manual Removal Modal */}
+      <Modal
+        isOpen={Boolean(removingAd)}
+        onClose={() => !isRemoving && setRemovingAd(null)}
+        title="برداشتن دستی تبلیغ"
+        className="max-w-md"
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-xs text-text-muted leading-relaxed">
+            آیا از برداشتن و حذف کامل تبلیغ{" "}
+            <span className="font-bold text-text-white">«{removingAd?.title}»</span> مطمئن هستید؟
+          </p>
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-subtle">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setRemovingAd(null)}
+              disabled={isRemoving}
+            >
+              انصراف
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleConfirmRemove}
+              disabled={isRemoving}
+            >
+              {isRemoving ? "در حال برداشتن..." : "تأیید و برداشتن تبلیغ"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </AdminPageContainer>
   );
 }

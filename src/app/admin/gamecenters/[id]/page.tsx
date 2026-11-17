@@ -57,7 +57,7 @@ export default function GamecenterDetailPage({ params }: { params: Promise<{ id:
 
       const [tktList, revList, resList] = await Promise.all([
         adminService.getGamecenterTickets(item.id),
-        adminService.getGamecenterReviews(item.id),
+        adminService.getGamecenterReviews(item.slug || item.id),
         adminService.getGamecenterReservations(item.id),
       ]);
 
@@ -213,9 +213,11 @@ export default function GamecenterDetailPage({ params }: { params: Promise<{ id:
 
             <div className="flex flex-col gap-1">
               <span className="text-xs text-[var(--text-muted)] font-medium">امتیاز کاربران:</span>
-              <div className="flex items-center gap-1.5 font-bold text-[var(--accent-star)]">
+              <div className="flex items-center gap-1.5 font-bold text-warning">
                 <Icon name="star" size={16} />
-                <span>{gc.rating ?? "۴.۵"} از ۵</span>
+                <span>
+                  {typeof gc.rating === "number" ? `${gc.rating.toFixed(1)} از ۵` : "بدون امتیاز"}
+                </span>
               </div>
             </div>
 
@@ -378,8 +380,8 @@ export default function GamecenterDetailPage({ params }: { params: Promise<{ id:
                       <td className="py-3 px-3 text-[var(--text-white)]">
                         {res.date} • {res.timeSlot}
                       </td>
-                      <td className="py-3 px-3 font-bold text-[var(--text-white)]">
-                        {res.amount.toLocaleString("fa-IR")} تومان
+                      <td className="py-3 px-3 font-bold text-text-white">
+                        {Number(res.amount ?? 0).toLocaleString("fa-IR")} تومان
                       </td>
                       <td className="py-3 px-3">
                         <Badge

@@ -26,18 +26,6 @@ import {
   normalizeMediaUrl,
 } from "@/lib/media";
 import { cleanPhoneNumber } from "@/lib/format";
-import {
-  ADMIN_DASHBOARD_MOCK_DATA,
-  MOCK_ADMIN_GAMECENTERS,
-  MOCK_ADMIN_USERS,
-  MOCK_CANNED_RESPONSES,
-  MOCK_ADMIN_REVIEWS,
-  MOCK_ADMIN_USER_RESERVATIONS,
-  MOCK_ADMIN_OWNER_VERIFICATIONS,
-  MOCK_ADMIN_AD_REQUESTS,
-  MOCK_ADMIN_CAMPAIGNS,
-  MOCK_SITE_SETTINGS,
-} from "@/lib/mocks/admin.mock";
 import type {
   BlogPostDetail,
   BlogPostStatus,
@@ -70,64 +58,32 @@ import type {
   PostStatusApiEnum,
 } from "@/types/blogApi";
 
-// In-memory / LocalStorage state store for mock administrative data
-let gamecentersStore: AdminGamecenter[] = [...MOCK_ADMIN_GAMECENTERS];
-let usersStore: AdminUser[] = [...MOCK_ADMIN_USERS];
-let reviewsStore: AdminReview[] = [...MOCK_ADMIN_REVIEWS];
-let reservationsStore: AdminUserReservation[] = [
-  ...MOCK_ADMIN_USER_RESERVATIONS,
-];
-let verificationsStore: AdminOwnerVerification[] = [
-  ...MOCK_ADMIN_OWNER_VERIFICATIONS,
-];
-let adRequestsStore: AdminAdRequest[] = [...MOCK_ADMIN_AD_REQUESTS];
-let campaignsStore: AdminCampaign[] = [...MOCK_ADMIN_CAMPAIGNS];
-let siteSettingsStore: SiteSettings = { ...MOCK_SITE_SETTINGS };
-
-// Load from localStorage on client side if available
-if (typeof window !== "undefined") {
-  try {
-    const gcSaved = localStorage.getItem("sayra_admin_gamecenters");
-    if (gcSaved) gamecentersStore = JSON.parse(gcSaved);
-
-    const usrSaved = localStorage.getItem("sayra_admin_users");
-    if (usrSaved) usersStore = JSON.parse(usrSaved);
-
-    const revSaved = localStorage.getItem("sayra_admin_reviews");
-    if (revSaved) reviewsStore = JSON.parse(revSaved);
-
-    const resSaved = localStorage.getItem("sayra_admin_reservations");
-    if (resSaved) reservationsStore = JSON.parse(resSaved);
-
-    const verifSaved = localStorage.getItem("sayra_admin_verifications");
-    if (verifSaved) verificationsStore = JSON.parse(verifSaved);
-
-    const adsSaved = localStorage.getItem("sayra_admin_ads");
-    if (adsSaved) adRequestsStore = JSON.parse(adsSaved);
-
-    const cmpSaved = localStorage.getItem("sayra_admin_campaigns");
-    if (cmpSaved) campaignsStore = JSON.parse(cmpSaved);
-
-    const stgSaved = localStorage.getItem("sayra_admin_site_settings");
-    if (stgSaved) siteSettingsStore = JSON.parse(stgSaved);
-  } catch (e) {
-    console.warn("Failed to load admin mock store from localStorage", e);
+/**
+ * Safely extracts a string from a backend field that might be a primitive or an object.
+ * Prevents React Error #31 ("Objects are not valid as a React child").
+ */
+function toSafeText(value: unknown, fallback = ""): string {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    const candidate =
+      obj.name ??
+      obj.title ??
+      obj.fullName ??
+      obj.label ??
+      obj.addressLine ??
+      obj.address ??
+      obj.city;
+    if (typeof candidate === "string") return candidate;
+    if (typeof candidate === "number") return String(candidate);
   }
-}
-
-function persistStore(key: string, data: unknown) {
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(key, JSON.stringify(data));
-    } catch (e) {
-      console.warn("Failed to persist admin store", e);
-    }
-  }
+  return fallback;
 }
 
 /**
- * Service for handling Admin Panel operations.
- * Operates purely with mock data isolated from presentation components.
+ * Service for handling Admin Panel operations via real backend APIs.
  */
 
 function mapApiTicketToAdminTicket(raw: any): AdminTicket {
@@ -205,44 +161,195 @@ export const adminService = {
    * GET /platform-admin/operations/overview یا آمار محلی
    */
   async getDashboardData(signal?: AbortSignal): Promise<AdminDashboardData> {
-    let apiStats: any = null;
-    try {
-      const response = await apiClient.get<any>(
-        ENDPOINTS.platformAdmin.operationsOverview,
-        { signal },
-      );
-      apiStats = response.data?.data || response.data;
-    } catch {
-      // فال‌بک
+    const end = new Date();
+    const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [opsRes, finRes, reportRes, reservationsRes, adsRes, ticketStatsRes] =
+      await Promise.allSettled([
+        apiClient.get<any>(ENDPOINTS.platformAdmin.operationsOverview, { signal }),
+        apiClient.get<any>(ENDPOINTS.platformAdmin.financialsOverview, { signal }),
+        apiClient.get<any>(ENDPOINTS.platformAdmin.reports, {
+          query: { startDate: start.toISOString(), endDate: end.toISOString() },
+          signal,
+        }),
+        apiClient.get<any>(ENDPOINTS.platformAdmin.reservations, {
+          query: { page: 1, limit: 6 },
+          signal,
+        }),
+        apiClient.get<any>(ENDPOINTS.platformAdmin.adRequests, {
+          query: { status: "PENDING", page: 1, limit: 1 },
+          signal,
+        }),
+        apiClient.get<any>(ENDPOINTS.adminTickets.statistics, { signal }),
+      ]);
+
+    // If all core requests failed, propagate error
+    if (
+      opsRes.status === "rejected" &&
+      finRes.status === "rejected" &&
+      reportRes.status === "rejected"
+    ) {
+      throw opsRes.reason || reportRes.reason;
     }
 
-    const updatedStats = ADMIN_DASHBOARD_MOCK_DATA.stats.map((s) => {
-      if (s.id === "gamecenters_count") {
-        return {
-          ...s,
-          value: String(
-            apiStats?.totalGamingCenters ?? gamecentersStore.length,
-          ),
-        };
-      }
-      if (s.id === "users_count") {
-        return {
-          ...s,
-          value: String(apiStats?.totalUsers ?? usersStore.length),
-        };
-      }
-      if (s.id === "reservations_count" && apiStats?.totalReservations) {
-        return { ...s, value: String(apiStats.totalReservations) };
-      }
-      if (s.id === "monthly_turnover" && apiStats?.totalRevenue) {
-        return { ...s, value: String(apiStats.totalRevenue) };
-      }
-      return s;
-    });
+    const opsData =
+      opsRes.status === "fulfilled"
+        ? opsRes.value?.data?.data || opsRes.value?.data || {}
+        : {};
+    const finData =
+      finRes.status === "fulfilled"
+        ? finRes.value?.data?.data || finRes.value?.data || {}
+        : {};
+    const reportData =
+      reportRes.status === "fulfilled"
+        ? reportRes.value?.data?.data || reportRes.value?.data || {}
+        : {};
+    const ticketStats =
+      ticketStatsRes.status === "fulfilled"
+        ? ticketStatsRes.value?.data?.data || ticketStatsRes.value?.data || {}
+        : {};
+
+    const usersCount =
+      opsData.totalUsers ?? reportData.users?.totalUsers ?? null;
+    const gamecentersCount =
+      opsData.totalGamingCenters ??
+      reportData.gamingCenters?.totalGamingCenters ??
+      null;
+    const totalReservations =
+      opsData.totalReservations ??
+      reportData.reservations?.totalReservations ??
+      null;
+    const completedReservations =
+      opsData.completedReservations ??
+      reportData.reservations?.completedReservations ??
+      null;
+    const grossBookingValue =
+      finData.totalRevenue ??
+      opsData.totalRevenue ??
+      reportData.financials?.totalRevenue ??
+      null;
+    const netRevenue =
+      finData.platformCommission ??
+      reportData.financials?.platformCommission ??
+      null;
+
+    const stats: AdminDashboardData["stats"] = [
+      {
+        id: "users_count",
+        title: "تعداد کاربران",
+        value: usersCount !== null && usersCount !== undefined ? Number(usersCount).toLocaleString("fa-IR") : "---",
+        iconName: "user",
+      },
+      {
+        id: "gamecenters_count",
+        title: "تعداد گیمنت‌ها",
+        value: gamecentersCount !== null && gamecentersCount !== undefined ? Number(gamecentersCount).toLocaleString("fa-IR") : "---",
+        iconName: "gamepad",
+      },
+      {
+        id: "total_reservations",
+        title: "تعداد کل رزروها",
+        value: totalReservations !== null && totalReservations !== undefined ? Number(totalReservations).toLocaleString("fa-IR") : "---",
+        iconName: "calendar",
+      },
+      {
+        id: "completed_reservations",
+        title: "رزروهای تکمیل‌شده",
+        value: completedReservations !== null && completedReservations !== undefined ? Number(completedReservations).toLocaleString("fa-IR") : "---",
+        iconName: "check",
+      },
+      {
+        id: "gross_booking_value",
+        title: "مبلغ کل رزروها (ناخالص)",
+        value: grossBookingValue !== null && grossBookingValue !== undefined ? Number(grossBookingValue).toLocaleString("fa-IR") : "---",
+        unit: grossBookingValue !== null && grossBookingValue !== undefined ? "تومان" : undefined,
+        iconName: "wallet",
+      },
+      {
+        id: "net_revenue",
+        title: "درآمد خالص پلتفرم (کارمزد)",
+        value: netRevenue !== null && netRevenue !== undefined ? Number(netRevenue).toLocaleString("fa-IR") : "---",
+        unit: netRevenue !== null && netRevenue !== undefined ? "تومان" : undefined,
+        iconName: "star",
+      },
+    ];
+
+    const rawTimeSeries = Array.isArray(reportData.timeSeries)
+      ? reportData.timeSeries
+      : [];
+    const reservationTrend: AdminDashboardData["reservationTrend"] = rawTimeSeries.map((pt: any) => ({
+      label: pt.date ? formatDayLabel(pt.date) || String(pt.date) : "-",
+      count: Number(pt.reservationCount ?? pt.reservationsCount ?? 0),
+      amount: Number(pt.revenue ?? pt.totalAmount ?? 0),
+    }));
+
+    const rawReservations =
+      reservationsRes.status === "fulfilled"
+        ? unwrapTicketsList(reservationsRes.value?.data)
+        : [];
+    const recentReservations: AdminDashboardData["recentReservations"] =
+      rawReservations.map((r: any) => ({
+        id: String(r.id ?? ""),
+        reservationCode: String(r.reservationCode || r.id || "-"),
+        customerName: toSafeText(r.customer?.fullName || r.customerName, "کاربر"),
+        customerPhone: cleanPhoneNumber(r.customer?.phone || r.customerPhone || "") || "-",
+        gamecenterName: toSafeText(r.gamingCenter?.name || r.gamecenterName, "-"),
+        deviceName: toSafeText(r.station?.name || r.station?.type || r.deviceName, "-"),
+        date: r.reservationDate
+          ? formatDayLabel(r.reservationDate)
+          : r.startTime
+            ? formatDayLabel(r.startTime)
+            : "-",
+        timeSlot: r.startTime
+          ? `${formatClock(r.startTime, true)}${r.endTime ? ` تا ${formatClock(r.endTime, true)}` : ""}`
+          : "-",
+        amount: Number(r.finalPrice ?? r.totalPrice ?? r.amount ?? 0),
+        status: (r.status || "PENDING") as any,
+        paymentStatus: (r.payment?.status || "PENDING") as any,
+      }));
+
+    const pendingTicketsCount = Number(
+      ticketStats.open ?? ticketStats.pending ?? ticketStats.openTickets ?? 0
+    );
+    const pendingAdsCount =
+      adsRes.status === "fulfilled"
+        ? Number(
+            adsRes.value?.meta?.pagination?.total ??
+              unwrapTicketsList(adsRes.value?.data).length
+          )
+        : 0;
+
+    const pendingItems: AdminDashboardData["pendingItems"] = [];
+    if (pendingTicketsCount > 0) {
+      pendingItems.push({
+        id: "pending-tickets",
+        title: "تیکت‌های پشتیبانی باز",
+        subtitle: `${pendingTicketsCount.toLocaleString("fa-IR")} تیکت در انتظار پاسخ`,
+        type: "ticket",
+        date: "اکنون",
+        link: "/admin/tickets",
+        badgeText: `${pendingTicketsCount.toLocaleString("fa-IR")} باز`,
+        badgeVariant: "danger",
+      });
+    }
+    if (pendingAdsCount > 0) {
+      pendingItems.push({
+        id: "pending-ads",
+        title: "درخواست‌های تبلیغات در انتظار بررسی",
+        subtitle: `${pendingAdsCount.toLocaleString("fa-IR")} درخواست جدید برای بررسی`,
+        type: "gamecenter_review",
+        date: "اکنون",
+        link: "/admin/ads",
+        badgeText: `${pendingAdsCount.toLocaleString("fa-IR")} در انتظار`,
+        badgeVariant: "warning",
+      });
+    }
 
     return {
-      ...ADMIN_DASHBOARD_MOCK_DATA,
-      stats: updatedStats,
+      stats,
+      reservationTrend,
+      pendingItems,
+      recentReservations,
     };
   },
 
@@ -252,84 +359,96 @@ export const adminService = {
    * تبدیل شی خام دریافتی از اندپوینت‌های گیمنت به فرمت AdminGamecenter
    */
   mapRawGamingCenterToAdmin(raw: any): AdminGamecenter {
-    if (!raw) return raw;
+    if (!raw || typeof raw !== "object") return raw;
     const createdAtRaw = raw.createdAt || raw.created_at;
     const formattedCreatedAt = createdAtRaw
-      ? `${formatDayLabel(createdAtRaw)}`
-      : new Date().toLocaleDateString("fa-IR");
+      ? formatDayLabel(String(createdAtRaw)) || String(createdAtRaw)
+      : "-";
 
     const addresses = Array.isArray(raw.addresses) ? raw.addresses : [];
     const primaryAddress =
-      addresses.find((a: any) => a.isPrimary) || addresses[0];
+      addresses.find((a: any) => a?.isPrimary) || addresses[0];
 
-    const cityName = raw.city || primaryAddress?.city || "تهران";
+    const cityName =
+      toSafeText(raw.city) ||
+      toSafeText(primaryAddress?.city) ||
+      "-";
+
     const fullAddress =
-      raw.address ||
-      primaryAddress?.addressLine ||
-      primaryAddress?.address ||
-      raw.description ||
+      toSafeText(raw.address) ||
+      toSafeText(primaryAddress?.addressLine) ||
+      toSafeText(primaryAddress?.address) ||
+      toSafeText(raw.description) ||
       "آدرس ثبت نشده";
 
     const ownerName =
-      raw.ownerName ||
-      raw.managerName ||
-      raw.manager?.fullName ||
-      raw.manager?.name ||
-      raw.owner?.fullName ||
-      "مدیر مرکز";
+      toSafeText(raw.ownerName) ||
+      toSafeText(raw.managerName) ||
+      toSafeText(raw.manager?.fullName) ||
+      toSafeText(raw.manager?.name) ||
+      toSafeText(raw.owner?.fullName) ||
+      toSafeText(raw.owner?.name) ||
+      "-";
 
-    const ownerPhone = cleanPhoneNumber(
-      raw.ownerPhone ||
-        raw.managerPhone ||
-        raw.phone ||
-        raw.manager?.phone ||
-        raw.owner?.phone ||
-        "09120000000",
-    );
+    const rawPhone =
+      toSafeText(raw.ownerPhone) ||
+      toSafeText(raw.managerPhone) ||
+      toSafeText(raw.phone) ||
+      toSafeText(raw.manager?.phone) ||
+      toSafeText(raw.owner?.phone);
+    const ownerPhone = rawPhone ? cleanPhoneNumber(rawPhone) || rawPhone : "-";
 
     const logoUrl =
       raw.logoUrl ||
       raw.logo?.url ||
       (Array.isArray(raw.media)
-        ? raw.media.find((m: any) => m.purpose === "LOGO")?.url
+        ? raw.media.find((m: any) => m?.purpose === "LOGO")?.url
         : undefined);
 
     const coverUrl =
       raw.coverUrl ||
+      raw.coverImageUrl ||
       raw.cover?.url ||
       (Array.isArray(raw.media)
-        ? raw.media.find((m: any) => m.purpose === "COVER")?.url
+        ? raw.media.find((m: any) => m?.purpose === "COVER")?.url
         : undefined);
+
+    const rawRating =
+      typeof raw.rating === "number"
+        ? raw.rating
+        : typeof raw.raiting === "number"
+          ? raw.raiting
+          : undefined;
 
     return {
       id: String(raw.id ?? raw.gamingCenterId ?? raw.slug ?? ""),
-      name: raw.name || "گیمنت بدون نام",
-      slug: raw.slug || String(raw.id ?? raw.gamingCenterId ?? ""),
+      name: toSafeText(raw.name, "بدون نام"),
+      slug: toSafeText(raw.slug, String(raw.id ?? raw.gamingCenterId ?? "")),
       ownerName,
       ownerPhone,
       city: cityName,
       address: fullAddress,
-      description: raw.description || "",
+      description: toSafeText(raw.description, ""),
       isActive: raw.isActive !== undefined ? Boolean(raw.isActive) : true,
-      rating: typeof raw.rating === "number" ? raw.rating : 5.0,
+      rating: rawRating,
       stationsCount:
         typeof raw.stationsCount === "number"
           ? raw.stationsCount
-          : raw.stations?.length || 0,
+          : Array.isArray(raw.stations)
+            ? raw.stations.length
+            : 0,
       createdAt: formattedCreatedAt,
-      updatedAt: raw.updatedAt ? `${formatDayLabel(raw.updatedAt)}` : undefined,
-      phone: raw.phone || ownerPhone,
-      logoUrl: logoUrl ? normalizeMediaUrl(logoUrl) : undefined,
-      coverUrl: coverUrl ? normalizeMediaUrl(coverUrl) : undefined,
+      updatedAt: raw.updatedAt ? formatDayLabel(String(raw.updatedAt)) || undefined : undefined,
+      phone: toSafeText(raw.phone) || (ownerPhone !== "-" ? ownerPhone : undefined),
+      logoUrl: typeof logoUrl === "string" && logoUrl ? normalizeMediaUrl(logoUrl) : undefined,
+      coverUrl: typeof coverUrl === "string" && coverUrl ? normalizeMediaUrl(coverUrl) : undefined,
       media: Array.isArray(raw.media) ? raw.media : undefined,
     };
   },
 
   /**
    * دریافت لیست کلیه گیمنت‌های ثبت‌شده از طریق API پلتفرم ادمین
-   * طبق مستندات OpenAPI:
-   * اولویت ۱: GET /platform-admin/gaming-centers?page=1&limit=20&search=...
-   * فال‌بک: GET /gamingCenters?page=1&limit=20&search=...
+   * GET /platform-admin/gaming-centers (یا در صورت 403/404: GET /gamingCenters)
    */
   async getGamecenters(
     params: AdminListQueryParams = {},
@@ -345,23 +464,35 @@ export const adminService = {
       pageSize = 10,
     } = params;
 
-    let items: AdminGamecenter[] = [];
+    const queryPayload: Record<string, string | number> = {
+      page,
+      limit: Math.min(pageSize, 100),
+    };
+    if (search.trim()) {
+      queryPayload.search = search.trim();
+    }
+
+    let resData: any = null;
     let serverTotal: number | undefined;
     let serverTotalPages: number | undefined;
 
     try {
-      const queryPayload: Record<string, string | number> = {
-        page,
-        limit: Math.min(pageSize, 100),
-      };
-      if (search.trim()) {
-        queryPayload.search = search.trim();
+      const response = await apiClient.get<any>(
+        ENDPOINTS.gamingCenter.adminList,
+        {
+          query: queryPayload,
+          signal,
+        },
+      );
+      resData = response.data;
+      if (response.meta?.pagination) {
+        serverTotal = response.meta.pagination.total;
+        serverTotalPages = response.meta.pagination.totalPages;
       }
-
-      let resData: any = null;
-      try {
+    } catch (err: any) {
+      if (err?.status === 403 || err?.status === 404) {
         const response = await apiClient.get<any>(
-          ENDPOINTS.gamingCenter.adminList,
+          ENDPOINTS.gamingCenter.list,
           {
             query: queryPayload,
             signal,
@@ -372,115 +503,61 @@ export const adminService = {
           serverTotal = response.meta.pagination.total;
           serverTotalPages = response.meta.pagination.totalPages;
         }
-      } catch (err: any) {
-        if (err?.status === 403 || err?.status === 404) {
-          const response = await apiClient.get<any>(
-            ENDPOINTS.gamingCenter.list,
-            {
-              query: queryPayload,
-              signal,
-            },
-          );
-          resData = response.data;
-          if (response.meta?.pagination) {
-            serverTotal = response.meta.pagination.total;
-            serverTotalPages = response.meta.pagination.totalPages;
-          }
-        } else {
-          throw err;
-        }
+      } else {
+        throw err;
       }
-
-      let rawArray: any[] = [];
-      if (Array.isArray(resData)) {
-        rawArray = resData;
-      } else if (resData && typeof resData === "object") {
-        if (Array.isArray(resData.data)) rawArray = resData.data;
-        else if (Array.isArray(resData.items)) rawArray = resData.items;
-      }
-
-      items = rawArray.map(this.mapRawGamingCenterToAdmin);
-
-      // در صورت فیلترهای استاتوس یا شهر که ممکن است سرور اعمال نکرده باشد
-      if (status === "active") {
-        items = items.filter((gc) => gc.isActive);
-      } else if (status === "inactive") {
-        items = items.filter((gc) => !gc.isActive);
-      }
-      if (city && city !== "all") {
-        items = items.filter((gc) => gc.city === city);
-      }
-
-      // مرتب‌سازی کلاینت در صورت نیاز
-      items.sort((a, b) => {
-        const valA =
-          (a as unknown as Record<string, string | number>)[sortBy] ?? "";
-        const valB =
-          (b as unknown as Record<string, string | number>)[sortBy] ?? "";
-
-        if (typeof valA === "string" && typeof valB === "string") {
-          return sortOrder === "asc"
-            ? valA.localeCompare(valB, "fa")
-            : valB.localeCompare(valA, "fa");
-        }
-        if (typeof valA === "number" && typeof valB === "number") {
-          return sortOrder === "asc" ? valA - valB : valB - valA;
-        }
-        return 0;
-      });
-
-      const total = serverTotal ?? items.length;
-      const totalPages = serverTotalPages ?? (Math.ceil(total / pageSize) || 1);
-
-      return {
-        items,
-        total,
-        page,
-        pageSize,
-        totalPages,
-      };
-    } catch {
-      // در صورت بروز خطا در دسترسی به سرور بدون کرش کردن، استور محلی را همراه فیلترها بازمی‌گردانیم
-      let filtered = [...gamecentersStore];
-      if (search.trim()) {
-        const query = search.trim().toLowerCase();
-        filtered = filtered.filter(
-          (gc) =>
-            gc.name.toLowerCase().includes(query) ||
-            gc.slug.toLowerCase().includes(query) ||
-            gc.ownerName.toLowerCase().includes(query) ||
-            gc.ownerPhone.includes(query) ||
-            gc.city.toLowerCase().includes(query),
-        );
-      }
-      if (status === "active") {
-        filtered = filtered.filter((gc) => gc.isActive);
-      } else if (status === "inactive") {
-        filtered = filtered.filter((gc) => !gc.isActive);
-      }
-      if (city && city !== "all") {
-        filtered = filtered.filter((gc) => gc.city === city);
-      }
-
-      const total = filtered.length;
-      const totalPages = Math.ceil(total / pageSize) || 1;
-      const safePage = Math.max(1, Math.min(page, totalPages));
-      const start = (safePage - 1) * pageSize;
-      const paged = filtered.slice(start, start + pageSize);
-
-      return {
-        items: paged,
-        total,
-        page: safePage,
-        pageSize,
-        totalPages,
-      };
     }
+
+    let rawArray: any[] = [];
+    if (Array.isArray(resData)) {
+      rawArray = resData;
+    } else if (resData && typeof resData === "object") {
+      if (Array.isArray(resData.data)) rawArray = resData.data;
+      else if (Array.isArray(resData.items)) rawArray = resData.items;
+    }
+
+    let items = rawArray.map((item) => adminService.mapRawGamingCenterToAdmin(item));
+
+    if (status === "active") {
+      items = items.filter((gc) => gc.isActive);
+    } else if (status === "inactive") {
+      items = items.filter((gc) => !gc.isActive);
+    }
+    if (city && city !== "all") {
+      items = items.filter((gc) => gc.city === city);
+    }
+
+    items.sort((a, b) => {
+      const valA =
+        (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+      const valB =
+        (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+
+      if (typeof valA === "string" && typeof valB === "string") {
+        return sortOrder === "asc"
+          ? valA.localeCompare(valB, "fa")
+          : valB.localeCompare(valA, "fa");
+      }
+      if (typeof valA === "number" && typeof valB === "number") {
+        return sortOrder === "asc" ? valA - valB : valB - valA;
+      }
+      return 0;
+    });
+
+    const total = serverTotal ?? items.length;
+    const totalPages = serverTotalPages ?? (Math.ceil(total / pageSize) || 1);
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    };
   },
 
   /**
    * دریافت اطلاعات تکمیلی یک گیمنت با شناسه
-   * GET /gamingCenters/{id} یا GET /public/gamingCenters/{slug}
    */
   async getGamecenterById(
     id: string,
@@ -492,13 +569,11 @@ export const adminService = {
         { signal },
       );
       const resData = response.data?.data || response.data;
-      if (resData) {
-        return this.mapRawGamingCenterToAdmin(resData);
+      if (resData && typeof resData === "object" && !Array.isArray(resData)) {
+        return adminService.mapRawGamingCenterToAdmin(resData);
       }
-    } catch (err: any) {
-      if (err?.status !== 404 && err?.status !== 403) {
-        // نادیده گرفتن و تلاش از طریق اندپوینت عمومی اسلاگ
-      }
+    } catch {
+      // ادامه به اندپوینت بعدی
     }
 
     try {
@@ -507,17 +582,22 @@ export const adminService = {
         { signal },
       );
       const resData = response.data?.data || response.data;
-      if (resData) {
-        return this.mapRawGamingCenterToAdmin(resData);
+      if (resData && typeof resData === "object" && !Array.isArray(resData)) {
+        return adminService.mapRawGamingCenterToAdmin(resData);
       }
     } catch {
-      // فال‌بک به استور
+      // ادامه به لیست پلتفرم ادمین
     }
 
-    const localItem = gamecentersStore.find(
-      (g) => g.id === id || g.slug === id,
-    );
-    return localItem || null;
+    try {
+      const listRes = await adminService.getGamecenters({ pageSize: 100 }, signal);
+      const found = listRes.items.find((g) => g.id === id || g.slug === id);
+      if (found) return found;
+    } catch {
+      // ignore
+    }
+
+    return null;
   },
 
   /**
@@ -592,13 +672,8 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     throw new Error("گیم‌نت ثبت شد، اما شناسه آن از سرور دریافت نشد.");
   }
 
-  // ذخیره فقط پس از موفقیت ثبت در سرور
-  gamecentersStore.unshift(created);
-  persistStore("sayra_admin_gamecenters", gamecentersStore);
-
   return created;
 },
-
 
   /**
    * ویرایش کامل گیمنت شامل نام، اسلاگ، آدرس، تلفن و تنظیمات:
@@ -609,7 +684,6 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     id: string,
     input: Partial<AdminGamecenterInput>,
   ): Promise<AdminGamecenter> {
-    // ارسال درخواست به‌روزرسانی مشخصات اصلی
     const patchBody: Record<string, unknown> = {};
     if (input.name !== undefined) patchBody.name = input.name;
     if (input.address !== undefined) patchBody.address = input.address;
@@ -617,55 +691,41 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
       patchBody.phone = input.phone || input.ownerPhone;
     }
     if (input.slug !== undefined) patchBody.slug = input.slug;
+    if (input.description !== undefined) patchBody.description = input.description;
 
-    try {
-      await apiClient.patch(ENDPOINTS.gamingCenter.byId(id), patchBody);
-    } catch {
-      // اگر بک‌اند با 501 مواجه شد یا ساختار فیلدها متفاوت بود
+    let latestRaw: any = null;
+
+    if (Object.keys(patchBody).length > 0) {
+      const patchRes = await apiClient.patch<any>(ENDPOINTS.gamingCenter.byId(id), patchBody);
+      latestRaw = patchRes.data?.data || patchRes.data;
     }
 
-    // در صورت وجود تغییر در وضعیت فعال‌سازی
     if (input.isActive !== undefined) {
-      try {
-        await apiClient.patch(ENDPOINTS.gamingCenter.adminStatus(id), {
-          isActive: input.isActive,
-        });
-      } catch {
-        // نادیده گرفتن در صورت عدم پشتیبانی بک‌اند
-      }
+      const statusRes = await apiClient.patch<any>(ENDPOINTS.gamingCenter.adminStatus(id), {
+        isActive: input.isActive,
+      });
+      latestRaw = statusRes.data?.data || statusRes.data || latestRaw;
     }
 
-    // به‌روزرسانی در استور محلی
-    const index = gamecentersStore.findIndex(
-      (item) => item.id === id || item.slug === id,
-    );
-    let updated: AdminGamecenter;
-    if (index !== -1) {
-      updated = {
-        ...gamecentersStore[index],
-        ...input,
-        updatedAt: new Date().toLocaleDateString("fa-IR"),
-      };
-      gamecentersStore[index] = updated;
-    } else {
-      updated = {
-        id,
-        name: input.name || "گیمنت",
-        slug: input.slug || id,
-        ownerName: input.ownerName || "مدیر",
-        ownerPhone: cleanPhoneNumber(input.ownerPhone) || "09120000000",
-        city: input.city || "تهران",
-        address: input.address || "",
-        description: input.description,
-        isActive: input.isActive ?? true,
-        createdAt: new Date().toLocaleDateString("fa-IR"),
-        updatedAt: new Date().toLocaleDateString("fa-IR"),
-      };
-      gamecentersStore.unshift(updated);
+    if (latestRaw && typeof latestRaw === "object") {
+      return adminService.mapRawGamingCenterToAdmin(latestRaw);
     }
 
-    persistStore("sayra_admin_gamecenters", gamecentersStore);
-    return updated;
+    const refreshed = await adminService.getGamecenterById(id);
+    if (refreshed) return refreshed;
+
+    return {
+      id,
+      name: input.name || "گیمنت",
+      slug: input.slug || id,
+      ownerName: input.ownerName || "-",
+      ownerPhone: cleanPhoneNumber(input.ownerPhone) || "-",
+      city: input.city || "-",
+      address: input.address || "",
+      description: input.description,
+      isActive: input.isActive ?? true,
+      createdAt: "-",
+    };
   },
 
   /**
@@ -676,15 +736,19 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     const current = await this.getGamecenterById(id);
     const newStatus = !(current?.isActive ?? true);
 
-    try {
-      await apiClient.patch(ENDPOINTS.gamingCenter.adminStatus(id), {
-        isActive: newStatus,
-      });
-    } catch {
-      // فال‌بک
+    const response = await apiClient.patch<any>(ENDPOINTS.gamingCenter.adminStatus(id), {
+      isActive: newStatus,
+    });
+    const resData = response.data?.data || response.data;
+    if (resData && typeof resData === "object") {
+      return adminService.mapRawGamingCenterToAdmin({ ...current, ...resData, isActive: newStatus });
     }
-
-    return this.updateGamecenter(id, { isActive: newStatus });
+    if (current) {
+      return { ...current, isActive: newStatus };
+    }
+    const refreshed = await adminService.getGamecenterById(id);
+    if (refreshed) return { ...refreshed, isActive: newStatus };
+    throw new Error("بروزرسانی وضعیت گیمنت انجام نشد.");
   },
 
   /**
@@ -692,23 +756,7 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
    * DELETE /gamingCenters/{id}
    */
   async deleteGamecenter(id: string): Promise<boolean> {
-    try {
-      await apiClient.delete(ENDPOINTS.gamingCenter.byId(id));
-    } catch (err: any) {
-      // در صورتی که 404 نباشد و خطای سمت سرور باشد، خطا را نگه می‌داریم مگر اینکه محیط تستی باشد
-      if (err?.status && err.status >= 500) {
-        console.warn(
-          "Backend DELETE endpoint returned server error, proceeding with local cleanup",
-        );
-      }
-    }
-
-    const initialLength = gamecentersStore.length;
-    gamecentersStore = gamecentersStore.filter(
-      (item) => item.id !== id && item.slug !== id,
-    );
-    persistStore("sayra_admin_gamecenters", gamecentersStore);
-
+    await apiClient.delete(ENDPOINTS.gamingCenter.byId(id));
     return true;
   },
 
@@ -1048,7 +1096,7 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
   },
 
   async getCannedResponses(): Promise<CannedResponse[]> {
-    return Promise.resolve(MOCK_CANNED_RESPONSES);
+    return Promise.resolve([]);
   },
 
   /**
@@ -1061,14 +1109,10 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
         { role: "ADMIN", pageSize: 50 },
         signal,
       );
-      if (res.items.length > 0) {
-        return res.items;
-      }
+      return res.items;
     } catch {
-      // فال‌بک
+      return [];
     }
-    const admins = usersStore.filter((u) => u.role === "ADMIN");
-    return Promise.resolve(admins);
   },
 
   async getGamecenterTickets(
@@ -1083,18 +1127,74 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     }
   },
 
-  async getGamecenterReviews(gamecenterId: string): Promise<AdminReview[]> {
-    const items = reviewsStore.filter((r) => r.gamecenterId === gamecenterId);
-    return Promise.resolve(items);
+  async getGamecenterReviews(
+    gamecenterIdOrSlug: string,
+    signal?: AbortSignal,
+  ): Promise<AdminReview[]> {
+    try {
+      const response = await apiClient.get<any>(
+        ENDPOINTS.gamingCenter.ratings(gamecenterIdOrSlug),
+        { signal },
+      );
+      const rawArray = unwrapTicketsList(response.data);
+      return rawArray.map((r: any, idx: number) => ({
+        id: String(r.id ?? `rev-${idx}`),
+        userId: String(r.userId ?? r.customerId ?? ""),
+        userName: toSafeText(r.userName || r.customerName || r.authorName, "کاربر"),
+        gamecenterId: String(r.gamingCenterId ?? gamecenterIdOrSlug),
+        gamecenterName: toSafeText(r.gamingCenterName, ""),
+        rating: Number(r.rating ?? r.score ?? 0),
+        comment: toSafeText(r.comment || r.text || r.content, ""),
+        createdAt: r.createdAt ? formatDayLabel(String(r.createdAt)) || String(r.createdAt) : "-",
+        status: (r.status || "APPROVED") as AdminReview["status"],
+      }));
+    } catch {
+      return [];
+    }
   },
 
   async getGamecenterReservations(
     gamecenterId: string,
+    signal?: AbortSignal,
   ): Promise<AdminUserReservation[]> {
-    const items = reservationsStore.filter(
-      (r) => r.gamecenterId === gamecenterId,
-    );
-    return Promise.resolve(items);
+    try {
+      const response = await apiClient.get<any>(
+        ENDPOINTS.platformAdmin.reservations,
+        {
+          query: { page: 1, limit: 50, gamingCenterId: gamecenterId },
+          signal,
+        },
+      );
+      const rawArray = unwrapTicketsList(response.data);
+      return rawArray
+        .filter(
+          (r: any) =>
+            !r.gamingCenter?.id ||
+            r.gamingCenter.id === gamecenterId ||
+            r.gamingCenterId === gamecenterId,
+        )
+        .map((r: any) => ({
+          id: String(r.id ?? ""),
+          reservationCode: String(r.reservationCode || r.id || "-"),
+          userId: String(r.customer?.id ?? r.userId ?? ""),
+          gamecenterId: String(r.gamingCenter?.id ?? r.gamingCenterId ?? gamecenterId),
+          gamecenterName: toSafeText(r.gamingCenter?.name ?? r.gamecenterName, "-"),
+          deviceName: toSafeText(r.station?.name ?? r.station?.type ?? r.deviceName, "-"),
+          date: r.reservationDate
+            ? formatDayLabel(String(r.reservationDate))
+            : r.startTime
+              ? formatDayLabel(String(r.startTime))
+              : "-",
+          timeSlot: r.startTime
+            ? `${formatClock(String(r.startTime), true)}${r.endTime ? ` تا ${formatClock(String(r.endTime), true)}` : ""}`
+            : "-",
+          amount: Number(r.finalPrice ?? r.totalPrice ?? r.amount ?? 0),
+          status: (r.status || "PENDING") as AdminUserReservation["status"],
+          paymentStatus: (r.payment?.status || "PENDING") as AdminUserReservation["paymentStatus"],
+        }));
+    } catch {
+      return [];
+    }
   },
 
   // ==================== USERS ====================
@@ -1103,26 +1203,31 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
    * تبدیل کاربر خام سرور به فرمت AdminUser
    */
   mapRawUserToAdmin(raw: any): AdminUser {
-    if (!raw) return raw;
+    if (!raw || typeof raw !== "object") return raw;
     const createdAtFormatted = raw.createdAt
-      ? formatDayLabel(raw.createdAt)
-      : new Date().toLocaleDateString("fa-IR");
+      ? formatDayLabel(String(raw.createdAt)) || String(raw.createdAt)
+      : "-";
+
+    const fullName =
+      toSafeText(raw.fullName) ||
+      toSafeText(raw.name) ||
+      ([toSafeText(raw.firstName), toSafeText(raw.lastName)].filter(Boolean).join(" ") || "کاربر");
 
     return {
-      id: String(raw.id),
-      fullName: raw.fullName || raw.name || "کاربر",
-      phone: raw.phone || "",
-      email: raw.email || undefined,
-      nationalId: raw.nationalId || undefined,
+      id: String(raw.id ?? ""),
+      fullName,
+      phone: toSafeText(raw.phone, "-"),
+      email: toSafeText(raw.email) || undefined,
+      nationalId: toSafeText(raw.nationalId) || undefined,
       role: (raw.role || "USER") as AdminUser["role"],
       isActive: raw.isActive !== undefined ? Boolean(raw.isActive) : true,
-      registeredVia: raw.registeredVia || "OTP",
-      reservationsCount: raw.reservationsCount ?? 0,
-      totalSpentAmount: raw.totalSpentAmount ?? 0,
+      registeredVia: toSafeText(raw.registeredVia, "OTP"),
+      reservationsCount: Number(raw.reservationsCount ?? 0),
+      totalSpentAmount: Number(raw.totalSpentAmount ?? 0),
       createdAt: createdAtFormatted,
-      lastLogin: raw.lastLogin ? formatDayLabel(raw.lastLogin) : undefined,
-      gamingCenterId: raw.gamingCenterId,
-      gamingCenterName: raw.gamingCenterName,
+      lastLogin: raw.lastLogin ? formatDayLabel(String(raw.lastLogin)) || undefined : undefined,
+      gamingCenterId: raw.gamingCenterId ? String(raw.gamingCenterId) : undefined,
+      gamingCenterName: toSafeText(raw.gamingCenterName) || undefined,
     };
   },
 
@@ -1144,71 +1249,31 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
       pageSize = 10,
     } = params;
 
-    try {
-      const queryPayload: Record<string, string | number | boolean> = {
-        page,
-        limit: Math.min(pageSize, 100),
-      };
-      if (search.trim()) queryPayload.search = search.trim();
-      if (role && role !== "all") queryPayload.role = role;
-      if (status === "active") queryPayload.isActive = true;
-      if (status === "inactive") queryPayload.isActive = false;
+    const queryPayload: Record<string, string | number | boolean> = {
+      page,
+      limit: Math.min(pageSize, 100),
+    };
+    if (search.trim()) queryPayload.search = search.trim();
+    if (role && role !== "all") queryPayload.role = role;
+    if (status === "active") queryPayload.isActive = true;
+    if (status === "inactive") queryPayload.isActive = false;
 
-      const response = await apiClient.get<any>(ENDPOINTS.platformAdmin.users, {
-        query: queryPayload,
-        signal,
-      });
+    const response = await apiClient.get<any>(ENDPOINTS.platformAdmin.users, {
+      query: queryPayload,
+      signal,
+    });
 
-      const resData = response.data;
-      let rawArray: any[] = [];
-      if (Array.isArray(resData)) rawArray = resData;
-      else if (resData && typeof resData === "object") {
-        if (Array.isArray(resData.data)) rawArray = resData.data;
-        else if (Array.isArray(resData.items)) rawArray = resData.items;
-      }
-
-      if (rawArray.length > 0) {
-        const items = rawArray.map(this.mapRawUserToAdmin);
-        const total = response.meta?.pagination?.total ?? items.length;
-        const totalPages =
-          response.meta?.pagination?.totalPages ??
-          (Math.ceil(total / pageSize) || 1);
-        return {
-          items,
-          total,
-          page,
-          pageSize,
-          totalPages,
-        };
-      }
-    } catch {
-      // در صورت عدم دسترسی سرور فال‌بک به استور
+    const resData = response.data;
+    let rawArray: any[] = [];
+    if (Array.isArray(resData)) rawArray = resData;
+    else if (resData && typeof resData === "object") {
+      if (Array.isArray(resData.data)) rawArray = resData.data;
+      else if (Array.isArray(resData.items)) rawArray = resData.items;
     }
 
-    let filtered = [...usersStore];
+    const items = rawArray.map((u) => adminService.mapRawUserToAdmin(u));
 
-    if (search.trim()) {
-      const query = search.trim().toLowerCase();
-      filtered = filtered.filter(
-        (u) =>
-          u.fullName.toLowerCase().includes(query) ||
-          u.phone.includes(query) ||
-          (u.email && u.email.toLowerCase().includes(query)) ||
-          (u.nationalId && u.nationalId.includes(query)),
-      );
-    }
-
-    if (status === "active") {
-      filtered = filtered.filter((u) => u.isActive);
-    } else if (status === "inactive") {
-      filtered = filtered.filter((u) => !u.isActive);
-    }
-
-    if (role && role !== "all") {
-      filtered = filtered.filter((u) => u.role === role);
-    }
-
-    filtered.sort((a, b) => {
+    items.sort((a, b) => {
       const valA =
         (a as unknown as Record<string, string | number>)[sortBy] ?? "";
       const valB =
@@ -1219,20 +1284,18 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
           ? valA.localeCompare(valB, "fa")
           : valB.localeCompare(valA, "fa");
       }
-
       return 0;
     });
 
-    const total = filtered.length;
-    const totalPages = Math.ceil(total / pageSize) || 1;
-    const safePage = Math.max(1, Math.min(page, totalPages));
-    const start = (safePage - 1) * pageSize;
-    const items = filtered.slice(start, start + pageSize);
+    const total = response.meta?.pagination?.total ?? items.length;
+    const totalPages =
+      response.meta?.pagination?.totalPages ??
+      (Math.ceil(total / pageSize) || 1);
 
     return {
       items,
       total,
-      page: safePage,
+      page,
       pageSize,
       totalPages,
     };
@@ -1248,18 +1311,25 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
         { signal },
       );
       const resData = response.data?.data || response.data;
-      if (resData) return this.mapRawUserToAdmin(resData);
+      if (resData && typeof resData === "object") {
+        return adminService.mapRawUserToAdmin(resData);
+      }
     } catch {
-      // فال‌بک
+      // GET /platform-admin/users/{id} may not exist in OpenAPI; look up via list
     }
-    const usr = usersStore.find((u) => u.id === id);
-    return Promise.resolve(usr || null);
+
+    try {
+      const listRes = await adminService.getUsers({ pageSize: 100 }, signal);
+      return listRes.items.find((u) => u.id === id) || null;
+    } catch {
+      return null;
+    }
   },
 
   async createUser(input: AdminUserInput): Promise<AdminUser> {
     const parts = (input.fullName || "").trim().split(" ");
     const firstName = parts[0] || input.fullName || "کاربر";
-    const lastName = parts.slice(1).join(" ") || "سایرا";
+    const lastName = parts.slice(1).join(" ") || "";
 
     const payload = {
       gamingCenterId: input.gamingCenterId || "platform-wide",
@@ -1271,32 +1341,15 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
       isActive: input.isActive ?? true,
     };
 
-    try {
-      const response = await apiClient.post<any>(
-        ENDPOINTS.platformAdmin.users,
-        payload,
-      );
-      const resData = response.data?.data || response.data;
-      if (resData) {
-        const created = this.mapRawUserToAdmin({ ...resData, ...input });
-        usersStore.unshift(created);
-        persistStore("sayra_admin_users", usersStore);
-        return created;
-      }
-    } catch {
-      // فال‌بک
+    const response = await apiClient.post<any>(
+      ENDPOINTS.platformAdmin.users,
+      payload,
+    );
+    const resData = response.data?.data || response.data;
+    if (!resData || typeof resData !== "object") {
+      throw new Error("پاسخ معتبری از سرور برای ایجاد کاربر دریافت نشد.");
     }
-
-    const newId = `usr-${Date.now()}`;
-    const newUser: AdminUser = {
-      id: newId,
-      ...input,
-      createdAt: new Date().toLocaleDateString("fa-IR"),
-    };
-
-    usersStore.unshift(newUser);
-    persistStore("sayra_admin_users", usersStore);
-    return Promise.resolve(newUser);
+    return adminService.mapRawUserToAdmin({ ...resData, ...input });
   },
 
   async updateUser(
@@ -1307,90 +1360,100 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     if (input.fullName) {
       const parts = input.fullName.trim().split(" ");
       payload.firstName = parts[0] || input.fullName;
-      payload.lastName = parts.slice(1).join(" ") || "سایرا";
+      payload.lastName = parts.slice(1).join(" ") || "";
     }
     if (input.phone) payload.phone = cleanPhoneNumber(input.phone);
     if (input.email !== undefined) payload.email = input.email;
     if (input.isActive !== undefined) payload.isActive = input.isActive;
 
-    try {
-      await apiClient.patch(ENDPOINTS.platformAdmin.userById(id), payload);
-    } catch {
-      // فال‌بک
+    const response = await apiClient.patch<any>(
+      ENDPOINTS.platformAdmin.userById(id),
+      payload,
+    );
+    const resData = response.data?.data || response.data;
+    if (resData && typeof resData === "object") {
+      return adminService.mapRawUserToAdmin(resData);
     }
 
-    const index = usersStore.findIndex((u) => u.id === id);
-    if (index !== -1) {
-      const updated: AdminUser = {
-        ...usersStore[index],
-        ...input,
-        updatedAt: new Date().toLocaleDateString("fa-IR"),
-      };
-      usersStore[index] = updated;
-      persistStore("sayra_admin_users", usersStore);
-      return updated;
-    }
+    const refreshed = await adminService.getUserById(id);
+    if (refreshed) return refreshed;
 
-    const updated: AdminUser = {
+    return {
       id,
       fullName: input.fullName || "کاربر",
-      phone: input.phone || "",
+      phone: input.phone || "-",
       email: input.email,
       role: input.role || "USER",
       isActive: input.isActive ?? true,
-      registeredVia: "OTP",
-      reservationsCount: 0,
-      totalSpentAmount: 0,
-      createdAt: new Date().toLocaleDateString("fa-IR"),
+      createdAt: "-",
     };
-    usersStore.unshift(updated);
-    persistStore("sayra_admin_users", usersStore);
-    return updated;
   },
 
   async toggleUserStatus(id: string): Promise<AdminUser> {
     const current = await this.getUserById(id);
     const newStatus = !(current?.isActive ?? true);
 
-    try {
-      await apiClient.patch(ENDPOINTS.platformAdmin.userStatus(id), {
-        isActive: newStatus,
-      });
-    } catch {
-      // فال‌بک
+    const response = await apiClient.patch<any>(
+      ENDPOINTS.platformAdmin.userStatus(id),
+      { isActive: newStatus },
+    );
+    const resData = response.data?.data || response.data;
+    if (resData && typeof resData === "object") {
+      return adminService.mapRawUserToAdmin({ ...current, ...resData, isActive: newStatus });
     }
-
-    const index = usersStore.findIndex((u) => u.id === id);
-    if (index !== -1) {
-      const updated: AdminUser = {
-        ...usersStore[index],
-        isActive: newStatus,
-        updatedAt: new Date().toLocaleDateString("fa-IR"),
-      };
-      usersStore[index] = updated;
-      persistStore("sayra_admin_users", usersStore);
-      return updated;
+    if (current) {
+      return { ...current, isActive: newStatus };
     }
-
-    return this.updateUser(id, { isActive: newStatus });
+    throw new Error("بروزرسانی وضعیت کاربر انجام نشد.");
   },
 
   async deleteUser(id: string): Promise<boolean> {
-    try {
-      await apiClient.delete(ENDPOINTS.platformAdmin.userById(id));
-    } catch {
-      // فال‌بک
-    }
-
-    const initialLength = usersStore.length;
-    usersStore = usersStore.filter((u) => u.id !== id);
-    persistStore("sayra_admin_users", usersStore);
+    await apiClient.delete(ENDPOINTS.platformAdmin.userById(id));
     return true;
   },
 
-  async getUserReservations(userId: string): Promise<AdminUserReservation[]> {
-    const items = reservationsStore.filter((r) => r.userId === userId);
-    return Promise.resolve(items);
+  async getUserReservations(
+    userId: string,
+    signal?: AbortSignal,
+  ): Promise<AdminUserReservation[]> {
+    try {
+      const response = await apiClient.get<any>(
+        ENDPOINTS.platformAdmin.reservations,
+        {
+          query: { page: 1, limit: 50, customerId: userId },
+          signal,
+        },
+      );
+      const rawArray = unwrapTicketsList(response.data);
+      return rawArray
+        .filter(
+          (r: any) =>
+            !r.customer?.id ||
+            r.customer.id === userId ||
+            r.userId === userId,
+        )
+        .map((r: any) => ({
+          id: String(r.id ?? ""),
+          reservationCode: String(r.reservationCode || r.id || "-"),
+          userId: String(r.customer?.id ?? r.userId ?? userId),
+          gamecenterId: String(r.gamingCenter?.id ?? r.gamingCenterId ?? ""),
+          gamecenterName: toSafeText(r.gamingCenter?.name ?? r.gamecenterName, "-"),
+          deviceName: toSafeText(r.station?.name ?? r.station?.type ?? r.deviceName, "-"),
+          date: r.reservationDate
+            ? formatDayLabel(String(r.reservationDate))
+            : r.startTime
+              ? formatDayLabel(String(r.startTime))
+              : "-",
+          timeSlot: r.startTime
+            ? `${formatClock(String(r.startTime), true)}${r.endTime ? ` تا ${formatClock(String(r.endTime), true)}` : ""}`
+            : "-",
+          amount: Number(r.finalPrice ?? r.totalPrice ?? r.amount ?? 0),
+          status: (r.status || "PENDING") as AdminUserReservation["status"],
+          paymentStatus: (r.payment?.status || "PENDING") as AdminUserReservation["paymentStatus"],
+        }));
+    } catch {
+      return [];
+    }
   },
 
   async getUserTickets(
@@ -1405,9 +1468,8 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     }
   },
 
-  async getUserReviews(userId: string): Promise<AdminReview[]> {
-    const items = reviewsStore.filter((r) => r.userId === userId);
-    return Promise.resolve(items);
+  async getUserReviews(_userId: string): Promise<AdminReview[]> {
+    return Promise.resolve([]);
   },
 
   // ==================== OWNER VERIFICATION ====================
@@ -1415,125 +1477,29 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
   async getOwnerVerifications(
     params: AdminListQueryParams = {},
   ): Promise<AdminPaginatedResult<AdminOwnerVerification>> {
-    const {
-      search = "",
-      status = "all",
-      city = "all",
-      sortBy = "submittedAt",
-      sortOrder = "desc",
-      page = 1,
-      pageSize = 10,
-    } = params;
-
-    let filtered = [...verificationsStore];
-
-    // Filter by Search (Owner Name, Gamecenter Name, Phone, National ID)
-    if (search.trim()) {
-      const query = search.trim().toLowerCase();
-      filtered = filtered.filter(
-        (v) =>
-          v.ownerName.toLowerCase().includes(query) ||
-          v.gamecenterName.toLowerCase().includes(query) ||
-          v.ownerPhone.includes(query) ||
-          v.ownerNationalId.includes(query) ||
-          v.gamecenterCity.toLowerCase().includes(query),
-      );
-    }
-
-    // Filter by Status
-    if (status && status !== "all") {
-      filtered = filtered.filter((v) => v.status === status);
-    }
-
-    // Filter by City
-    if (city && city !== "all") {
-      filtered = filtered.filter((v) => v.gamecenterCity === city);
-    }
-
-    // Sort
-    filtered.sort((a, b) => {
-      const valA =
-        (a as unknown as Record<string, string | number>)[sortBy] ?? "";
-      const valB =
-        (b as unknown as Record<string, string | number>)[sortBy] ?? "";
-
-      if (typeof valA === "string" && typeof valB === "string") {
-        return sortOrder === "asc"
-          ? valA.localeCompare(valB, "fa")
-          : valB.localeCompare(valA, "fa");
-      }
-
-      return 0;
-    });
-
-    // Pagination
-    const total = filtered.length;
-    const totalPages = Math.ceil(total / pageSize) || 1;
-    const safePage = Math.max(1, Math.min(page, totalPages));
-    const start = (safePage - 1) * pageSize;
-    const items = filtered.slice(start, start + pageSize);
-
+    const { page = 1, pageSize = 10 } = params;
     return Promise.resolve({
-      items,
-      total,
-      page: safePage,
+      items: [],
+      total: 0,
+      page,
       pageSize,
-      totalPages,
+      totalPages: 1,
     });
   },
 
   async getOwnerVerificationById(
-    id: string,
+    _id: string,
   ): Promise<AdminOwnerVerification | null> {
-    const item = verificationsStore.find((v) => v.id === id);
-    return Promise.resolve(item || null);
+    return Promise.resolve(null);
   },
 
   async updateOwnerVerificationStatus(
-    id: string,
-    status: "APPROVED" | "REJECTED",
-    reason?: string,
-    adminName: string = "مدیر پشتیبانی سایرا",
+    _id: string,
+    _status: "APPROVED" | "REJECTED",
+    _reason?: string,
+    _adminName?: string,
   ): Promise<AdminOwnerVerification> {
-    const index = verificationsStore.findIndex((v) => v.id === id);
-    if (index === -1) {
-      throw new Error("درخواست احراز هویت مورد نظر یافت نشد.");
-    }
-
-    const current = verificationsStore[index];
-    const isModification =
-      current.status !== "PENDING" && current.status !== status;
-    const nowFormatted =
-      new Date().toLocaleDateString("fa-IR") +
-      " - " +
-      new Date().toLocaleTimeString("fa-IR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-
-    const newLog = {
-      id: `log-${Date.now()}`,
-      adminName,
-      action: isModification ? ("MODIFIED" as const) : status,
-      note:
-        reason ||
-        (status === "APPROVED"
-          ? "درخواست احراز هویت تأیید شد."
-          : "درخواست احراز هویت رد شد."),
-      date: nowFormatted,
-    };
-
-    const updated: AdminOwnerVerification = {
-      ...current,
-      status,
-      rejectionReason: status === "REJECTED" ? reason : undefined,
-      updatedAt: nowFormatted,
-      reviewLogs: [newLog, ...(current.reviewLogs || [])],
-    };
-
-    verificationsStore[index] = updated;
-    persistStore("sayra_admin_verifications", verificationsStore);
-    return Promise.resolve(updated);
+    throw new Error("سرویس احراز هویت صاحبان گیمنت در سرور فعال نیست.");
   },
 
   // ==================== ADVERTISING REQUESTS ====================
@@ -1542,32 +1508,32 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
    * تبدیل شی خام تبلیغ سرور به فرمت AdminAdRequest
    */
   mapRawAdRequestToAdmin(raw: any): AdminAdRequest {
-    if (!raw) return raw;
+    if (!raw || typeof raw !== "object") return raw;
     const submittedAtFormatted = raw.createdAt
-      ? `${formatDayLabel(raw.createdAt)}`
-      : new Date().toLocaleDateString("fa-IR");
+      ? formatDayLabel(String(raw.createdAt)) || String(raw.createdAt)
+      : "-";
 
     return {
-      id: String(raw.id),
-      title: raw.title || "درخواست تبلیغات",
-      description: raw.description || "",
-      bannerUrl: raw.bannerUrl ? normalizeMediaUrl(raw.bannerUrl) : "",
-      destinationUrl: raw.destinationUrl || "",
+      id: String(raw.id ?? ""),
+      title: toSafeText(raw.title, "درخواست تبلیغات"),
+      description: toSafeText(raw.description, ""),
+      bannerUrl: raw.bannerUrl ? normalizeMediaUrl(String(raw.bannerUrl)) : "",
+      destinationUrl: toSafeText(raw.destinationUrl, ""),
       targetPosition: "HOMEPAGE_BANNER",
-      durationDays: raw.durationDays || raw.proposedDurationDays || 30,
-      priority: raw.priority || 0,
-      price: 0,
+      durationDays: Number(raw.durationDays || raw.proposedDurationDays || 30),
+      priority: Number(raw.priority ?? 0),
+      price: Number(raw.price ?? 0),
       status: (raw.status || "PENDING") as AdminAdRequest["status"],
-      decisionReason: raw.decisionReason,
-      adminNote: raw.adminNote,
-      startDate: raw.startDate ? formatDayLabel(raw.startDate) : undefined,
-      endDate: raw.endDate ? formatDayLabel(raw.endDate) : undefined,
+      decisionReason: toSafeText(raw.decisionReason) || undefined,
+      adminNote: toSafeText(raw.adminNote) || undefined,
+      startDate: raw.startDate ? formatDayLabel(String(raw.startDate)) || undefined : undefined,
+      endDate: raw.endDate ? formatDayLabel(String(raw.endDate)) || undefined : undefined,
       submittedAt: submittedAtFormatted,
-      updatedAt: raw.updatedAt ? `${formatDayLabel(raw.updatedAt)}` : undefined,
-      gamecenterId: raw.gamingCenterId || "gc-1",
-      gamecenterName: raw.gamingCenterName || "گیمنت سایرا",
-      ownerName: raw.ownerName || "مدیر گیم‌نت",
-      ownerPhone: raw.ownerPhone || "09120000000",
+      updatedAt: raw.updatedAt ? formatDayLabel(String(raw.updatedAt)) || undefined : undefined,
+      gamecenterId: String(raw.gamingCenterId ?? raw.gamingCenter?.id ?? ""),
+      gamecenterName: toSafeText(raw.gamingCenterName ?? raw.gamingCenter?.name, "-"),
+      ownerName: toSafeText(raw.ownerName ?? raw.owner?.fullName, "-"),
+      ownerPhone: cleanPhoneNumber(toSafeText(raw.ownerPhone ?? raw.owner?.phone)) || "-",
     };
   },
 
@@ -1588,67 +1554,32 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
       pageSize = 10,
     } = params;
 
-    try {
-      const queryPayload: Record<string, string | number> = {
-        page,
-        limit: Math.min(pageSize, 100),
-      };
-      if (search.trim()) queryPayload.search = search.trim();
-      if (status && status !== "all") queryPayload.status = status;
+    const queryPayload: Record<string, string | number> = {
+      page,
+      limit: Math.min(pageSize, 100),
+    };
+    if (search.trim()) queryPayload.search = search.trim();
+    if (status && status !== "all") queryPayload.status = status;
 
-      const response = await apiClient.get<any>(
-        ENDPOINTS.platformAdmin.adRequests,
-        {
-          query: queryPayload,
-          signal,
-        },
-      );
+    const response = await apiClient.get<any>(
+      ENDPOINTS.platformAdmin.adRequests,
+      {
+        query: queryPayload,
+        signal,
+      },
+    );
 
-      const resData = response.data;
-      let rawArray: any[] = [];
-      if (Array.isArray(resData)) rawArray = resData;
-      else if (resData && typeof resData === "object") {
-        if (Array.isArray(resData.data)) rawArray = resData.data;
-        else if (Array.isArray(resData.items)) rawArray = resData.items;
-      }
-
-      if (rawArray.length > 0) {
-        const items = rawArray.map(this.mapRawAdRequestToAdmin);
-        const total = response.meta?.pagination?.total ?? items.length;
-        const totalPages =
-          response.meta?.pagination?.totalPages ??
-          (Math.ceil(total / pageSize) || 1);
-        return {
-          items,
-          total,
-          page,
-          pageSize,
-          totalPages,
-        };
-      }
-    } catch {
-      // فال‌بک
+    const resData = response.data;
+    let rawArray: any[] = [];
+    if (Array.isArray(resData)) rawArray = resData;
+    else if (resData && typeof resData === "object") {
+      if (Array.isArray(resData.data)) rawArray = resData.data;
+      else if (Array.isArray(resData.items)) rawArray = resData.items;
     }
 
-    let filtered = [...adRequestsStore];
+    const items = rawArray.map((item) => adminService.mapRawAdRequestToAdmin(item));
 
-    if (search.trim()) {
-      const query = search.trim().toLowerCase();
-      filtered = filtered.filter(
-        (ad) =>
-          ad.title.toLowerCase().includes(query) ||
-          ad.description.toLowerCase().includes(query) ||
-          ad.gamecenterName.toLowerCase().includes(query) ||
-          ad.ownerName.toLowerCase().includes(query) ||
-          ad.ownerPhone.includes(query),
-      );
-    }
-
-    if (status && status !== "all") {
-      filtered = filtered.filter((ad) => ad.status === status);
-    }
-
-    filtered.sort((a, b) => {
+    items.sort((a, b) => {
       const valA =
         (a as unknown as Record<string, string | number>)[sortBy] ?? "";
       const valB =
@@ -1659,23 +1590,128 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
           ? valA.localeCompare(valB, "fa")
           : valB.localeCompare(valA, "fa");
       }
-
       return 0;
     });
 
-    const total = filtered.length;
-    const totalPages = Math.ceil(total / pageSize) || 1;
-    const safePage = Math.max(1, Math.min(page, totalPages));
-    const start = (safePage - 1) * pageSize;
-    const items = filtered.slice(start, start + pageSize);
+    const total = response.meta?.pagination?.total ?? items.length;
+    const totalPages =
+      response.meta?.pagination?.totalPages ??
+      (Math.ceil(total / pageSize) || 1);
 
     return {
       items,
       total,
-      page: safePage,
+      page,
       pageSize,
       totalPages,
     };
+  },
+
+  /**
+   * آپلود بنر تبلیغاتی برای ایجاد مستقیم تبلیغ توسط ادمین
+   */
+  async uploadAdBanner(gamingCenterId: string, file: File): Promise<string> {
+    if (gamingCenterId) {
+      try {
+        const fd = new FormData();
+        fd.append("banner", file);
+        const res = await apiClient.post<any>(
+          ENDPOINTS.owner.advertisementUpload(gamingCenterId),
+          fd,
+        );
+        const url = extractMediaUrl(res.data);
+        if (url) return url;
+      } catch (err: any) {
+        if (err?.status !== 403 && err?.status !== 404) {
+          throw err;
+        }
+      }
+    }
+
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await apiClient.post<any>(
+      ENDPOINTS.platformAdmin.mediaUpload,
+      fd,
+    );
+    const url = extractMediaUrl(res.data);
+    if (!url) {
+      throw new Error("آپلود تصویر بنر با خطا مواجه شد.");
+    }
+    return url;
+  },
+
+  /**
+   * ایجاد مستقیم تبلیغ با دسترسی کامل ادمین و تأیید خودکار (APPROVED):
+   * 1. POST /gamingCenters/{gamingCenterId}/advertisements
+   * 2. PATCH /platform-admin/ad-requests/{id}/status -> APPROVED
+   */
+  async createApprovedAd(input: {
+    gamingCenterId?: string;
+    title: string;
+    description?: string;
+    bannerUrl: string;
+    destinationUrl?: string;
+    durationDays?: number;
+    priority?: number;
+    startDate?: string;
+    endDate?: string;
+    adminNote?: string;
+  }): Promise<AdminAdRequest> {
+    if (!input.gamingCenterId?.trim()) {
+      throw new Error(
+        "ایجاد تبلیغ بدون انتخاب گیمنت نیازمند اندپوینت اختصاصی ادمین در سرور است که هنوز در API بک‌اند پیاده‌سازی نشده است."
+      );
+    }
+
+    const durationDays = Number(input.durationDays) || 30;
+    let createRes: any;
+    try {
+      createRes = await apiClient.post<any>(
+        ENDPOINTS.owner.advertisements(input.gamingCenterId.trim()),
+        {
+          title: input.title.trim(),
+          description: input.description?.trim() || undefined,
+          bannerUrl: input.bannerUrl.trim(),
+          destinationUrl: input.destinationUrl?.trim() || undefined,
+          proposedDurationDays: durationDays,
+        },
+      );
+    } catch (err: any) {
+      const detailsStr = JSON.stringify(err?.details || "");
+      if (err?.status === 404 && detailsStr.includes("ownerId")) {
+        throw new Error(
+          "سرور برای ثبت تبلیغ، شناسه مالک (Owner) مرتبط با توکن ادمین را پیدا نکرد. برای ایجاد تبلیغ مستقیم توسط ادمین کل، باید اندپوینت اختصاصی ادمین در بک‌اند اضافه شود."
+        );
+      }
+      throw err;
+    }
+
+    const createdRaw = createRes.data?.data || createRes.data;
+    const createdId = String(createdRaw?.id ?? "");
+    if (!createdId) {
+      throw new Error("پاسخ معتبری برای ثبت تبلیغ از سرور دریافت نشد.");
+    }
+
+    const statusPayload: Record<string, unknown> = {
+      status: "APPROVED",
+      durationDays,
+      priority: Number(input.priority ?? 0),
+    };
+    if (input.startDate) statusPayload.startDate = input.startDate;
+    if (input.endDate) statusPayload.endDate = input.endDate;
+    if (input.adminNote?.trim()) statusPayload.adminNote = input.adminNote.trim();
+
+    const approveRes = await apiClient.patch<any>(
+      ENDPOINTS.platformAdmin.adRequestStatus(createdId),
+      statusPayload,
+    );
+    const approvedRaw = approveRes.data?.data || approveRes.data || createdRaw;
+    return adminService.mapRawAdRequestToAdmin({
+      ...createdRaw,
+      ...approvedRaw,
+      status: "APPROVED",
+    });
   },
 
   /**
@@ -1686,73 +1722,59 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     id: string,
     status: "APPROVED" | "REJECTED",
     decisionReason?: string,
+    options?: {
+      durationDays?: number;
+      priority?: number;
+      adminNote?: string;
+    },
   ): Promise<AdminAdRequest> {
     const payload: Record<string, unknown> = {
       status,
       decisionReason:
         decisionReason || (status === "APPROVED" ? "تأیید شد" : "رد شد"),
     };
-
-    try {
-      await apiClient.patch(
-        ENDPOINTS.platformAdmin.adRequestStatus(id),
-        payload,
-      );
-    } catch {
-      // فال‌بک
+    if (options?.durationDays !== undefined) {
+      payload.durationDays = Number(options.durationDays);
+    }
+    if (options?.priority !== undefined) {
+      payload.priority = Number(options.priority);
+    }
+    if (options?.adminNote) {
+      payload.adminNote = options.adminNote;
     }
 
-    const index = adRequestsStore.findIndex((ad) => ad.id === id);
-    const nowFormatted =
-      new Date().toLocaleDateString("fa-IR") +
-      " - " +
-      new Date().toLocaleTimeString("fa-IR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-
-    if (index !== -1) {
-      const updated: AdminAdRequest = {
-        ...adRequestsStore[index],
-        status,
-        decisionReason,
-        updatedAt: nowFormatted,
-      };
-
-      adRequestsStore[index] = updated;
-      persistStore("sayra_admin_ads", adRequestsStore);
-      return updated;
+    const response = await apiClient.patch<any>(
+      ENDPOINTS.platformAdmin.adRequestStatus(id),
+      payload,
+    );
+    const resData = response.data?.data || response.data;
+    if (resData && typeof resData === "object") {
+      return adminService.mapRawAdRequestToAdmin(resData);
     }
-
-    const updated: AdminAdRequest = {
+    return {
       id,
-      title: "تبلیغ",
+      title: "-",
       description: "",
       bannerUrl: "",
       targetPosition: "HOMEPAGE_BANNER",
-      durationDays: 30,
+      durationDays: options?.durationDays ?? 30,
       price: 0,
       status,
       decisionReason,
-      submittedAt: nowFormatted,
-      gamecenterId: "gc-1",
-      gamecenterName: "گیمنت",
-      ownerName: "مدیر",
-      ownerPhone: "09120000000",
+      submittedAt: "-",
+      gamecenterId: "",
+      gamecenterName: "-",
+      ownerName: "-",
+      ownerPhone: "-",
     };
-    adRequestsStore.unshift(updated);
-    persistStore("sayra_admin_ads", adRequestsStore);
-    return updated;
   },
 
+  /**
+   * برداشتن دستی / حذف تبلیغ:
+   * DELETE /platform-admin/ad-requests/{id}
+   */
   async deleteAdRequest(id: string): Promise<boolean> {
-    try {
-      await apiClient.delete(ENDPOINTS.platformAdmin.adRequestById(id));
-    } catch {
-      // فال‌بک
-    }
-    adRequestsStore = adRequestsStore.filter((ad) => ad.id !== id);
-    persistStore("sayra_admin_ads", adRequestsStore);
+    await apiClient.delete(ENDPOINTS.platformAdmin.adRequestById(id));
     return true;
   },
 
@@ -2218,80 +2240,39 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
       pageSize = 10,
     } = params;
 
-    try {
-      const queryPayload: Record<string, string | number> = {
-        page,
-        limit: Math.min(pageSize, 100),
-      };
-      if (search.trim()) queryPayload.search = search.trim();
-      if (status && status !== "all") queryPayload.status = status;
-      if (discountType && discountType !== "all")
-        queryPayload.discountType = discountType;
-      if (scopeType && scopeType !== "all") queryPayload.scopeType = scopeType;
+    const queryPayload: Record<string, string | number> = {
+      page,
+      limit: Math.min(pageSize, 100),
+    };
+    if (search.trim()) queryPayload.search = search.trim();
+    if (status && status !== "all") queryPayload.status = status;
+    if (discountType && discountType !== "all")
+      queryPayload.discountType = discountType;
+    if (scopeType && scopeType !== "all") queryPayload.scopeType = scopeType;
 
-      const response = await apiClient.get<any>(
-        ENDPOINTS.platformAdmin.campaigns,
-        {
-          query: queryPayload,
-          signal,
-        },
-      );
+    const response = await apiClient.get<any>(
+      ENDPOINTS.platformAdmin.campaigns,
+      {
+        query: queryPayload,
+        signal,
+      },
+    );
 
-      const resData = response.data;
-      let rawArray: any[] = [];
-      if (Array.isArray(resData)) rawArray = resData;
-      else if (resData && typeof resData === "object") {
-        if (Array.isArray(resData.data)) rawArray = resData.data;
-        else if (Array.isArray(resData.items)) rawArray = resData.items;
-      }
-
-      if (rawArray.length > 0) {
-        const items = rawArray.map(this.mapRawCampaignToAdmin);
-        const total = response.meta?.pagination?.total ?? items.length;
-        const totalPages =
-          response.meta?.pagination?.totalPages ??
-          (Math.ceil(total / pageSize) || 1);
-        return {
-          items,
-          total,
-          page,
-          pageSize,
-          totalPages,
-        };
-      }
-    } catch {
-      // فال‌بک
+    const resData = response.data;
+    let rawArray: any[] = [];
+    if (Array.isArray(resData)) rawArray = resData;
+    else if (resData && typeof resData === "object") {
+      if (Array.isArray(resData.data)) rawArray = resData.data;
+      else if (Array.isArray(resData.items)) rawArray = resData.items;
     }
 
-    let filtered = [...campaignsStore];
-
-    if (search.trim()) {
-      const query = search.trim().toLowerCase();
-      filtered = filtered.filter(
-        (c) =>
-          c.title.toLowerCase().includes(query) ||
-          c.code.toLowerCase().includes(query) ||
-          (c.description && c.description.toLowerCase().includes(query)),
-      );
-    }
-
-    if (status && status !== "all") {
-      filtered = filtered.filter((c) => c.status === status);
-    }
-
-    if (discountType && discountType !== "all") {
-      filtered = filtered.filter((c) => c.discountType === discountType);
-    }
-
-    if (scopeType && scopeType !== "all") {
-      filtered = filtered.filter((c) => c.scopeType === scopeType);
-    }
+    let items = rawArray.map((c) => adminService.mapRawCampaignToAdmin(c));
 
     if (targetAudience && targetAudience !== "all") {
-      filtered = filtered.filter((c) => c.targetAudience === targetAudience);
+      items = items.filter((c) => c.targetAudience === targetAudience);
     }
 
-    filtered.sort((a, b) => {
+    items.sort((a, b) => {
       const valA =
         (a as unknown as Record<string, string | number>)[sortBy] ?? "";
       const valB =
@@ -2310,16 +2291,15 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
       return 0;
     });
 
-    const total = filtered.length;
-    const totalPages = Math.ceil(total / pageSize) || 1;
-    const safePage = Math.max(1, Math.min(page, totalPages));
-    const start = (safePage - 1) * pageSize;
-    const items = filtered.slice(start, start + pageSize);
+    const total = response.meta?.pagination?.total ?? items.length;
+    const totalPages =
+      response.meta?.pagination?.totalPages ??
+      (Math.ceil(total / pageSize) || 1);
 
     return {
       items,
       total,
-      page: safePage,
+      page,
       pageSize,
       totalPages,
     };
@@ -2335,12 +2315,19 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
         { signal },
       );
       const resData = response.data?.data || response.data;
-      if (resData) return this.mapRawCampaignToAdmin(resData);
+      if (resData && typeof resData === "object") {
+        return adminService.mapRawCampaignToAdmin(resData);
+      }
     } catch {
-      // فال‌بک
+      // Fallback to searching list
     }
-    const item = campaignsStore.find((c) => c.id === id);
-    return Promise.resolve(item || null);
+
+    try {
+      const listRes = await adminService.getCampaigns({ pageSize: 100 }, signal);
+      return listRes.items.find((c) => c.id === id) || null;
+    } catch {
+      return null;
+    }
   },
 
   /**
@@ -2371,45 +2358,15 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
       status: input.status || "ACTIVE",
     };
 
-    try {
-      const response = await apiClient.post<any>(
-        ENDPOINTS.platformAdmin.campaigns,
-        payload,
-      );
-      const resData = response.data?.data || response.data;
-      if (resData) {
-        const created = this.mapRawCampaignToAdmin({ ...resData, ...input });
-        campaignsStore.unshift(created);
-        persistStore("sayra_admin_campaigns", campaignsStore);
-        return created;
-      }
-    } catch {
-      // فال‌بک
-    }
-
-    const codeExists = campaignsStore.some(
-      (c) => c.code.trim().toUpperCase() === input.code.trim().toUpperCase(),
+    const response = await apiClient.post<any>(
+      ENDPOINTS.platformAdmin.campaigns,
+      payload,
     );
-    if (codeExists) {
-      throw new Error(
-        "کد تخفیف وارد شده تکراری است. لطفاً کد دیگری انتخاب کنید.",
-      );
+    const resData = response.data?.data || response.data;
+    if (!resData || typeof resData !== "object") {
+      throw new Error("پاسخ معتبری از سرور برای ایجاد کمپین دریافت نشد.");
     }
-
-    const nowFormatted = new Date().toLocaleDateString("fa-IR");
-    const newId = `cmp-${Date.now()}`;
-
-    const newCampaign: AdminCampaign = {
-      id: newId,
-      ...input,
-      code: input.code.trim().toUpperCase(),
-      usedCount: 0,
-      createdAt: nowFormatted,
-    };
-
-    campaignsStore.unshift(newCampaign);
-    persistStore("sayra_admin_campaigns", campaignsStore);
-    return newCampaign;
+    return adminService.mapRawCampaignToAdmin({ ...resData, ...input });
   },
 
   /**
@@ -2429,30 +2386,19 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
       payload.discountValue = Number(input.discountValue);
     if (input.status) payload.status = input.status;
 
-    try {
-      await apiClient.patch(ENDPOINTS.platformAdmin.campaignById(id), payload);
-    } catch {
-      // فال‌بک
+    const response = await apiClient.patch<any>(
+      ENDPOINTS.platformAdmin.campaignById(id),
+      payload,
+    );
+    const resData = response.data?.data || response.data;
+    if (resData && typeof resData === "object") {
+      return adminService.mapRawCampaignToAdmin(resData);
     }
 
-    const index = campaignsStore.findIndex((c) => c.id === id);
-    const nowFormatted = new Date().toLocaleDateString("fa-IR");
+    const refreshed = await adminService.getCampaignById(id);
+    if (refreshed) return refreshed;
 
-    if (index !== -1) {
-      const current = campaignsStore[index];
-      const updated: AdminCampaign = {
-        ...current,
-        ...input,
-        code: input.code ? input.code.trim().toUpperCase() : current.code,
-        updatedAt: nowFormatted,
-      };
-
-      campaignsStore[index] = updated;
-      persistStore("sayra_admin_campaigns", campaignsStore);
-      return updated;
-    }
-
-    const updated: AdminCampaign = {
+    return {
       id,
       title: input.title || "کمپین",
       code: (input.code || id).toUpperCase(),
@@ -2461,41 +2407,21 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
       scopeType: input.scopeType || "GLOBAL",
       targetAudience: input.targetAudience || "ALL_USERS",
       usedCount: 0,
-      startDate: nowFormatted,
-      endDate: nowFormatted,
+      startDate: "-",
+      endDate: "-",
       status: input.status || "ACTIVE",
-      createdAt: nowFormatted,
+      createdAt: "-",
     };
-    campaignsStore.unshift(updated);
-    persistStore("sayra_admin_campaigns", campaignsStore);
-    return updated;
   },
 
   async toggleCampaignStatus(id: string): Promise<AdminCampaign> {
     const current = await this.getCampaignById(id);
     const newStatus = current?.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-
-    try {
-      await apiClient.patch(ENDPOINTS.platformAdmin.campaignById(id), {
-        status: newStatus,
-      });
-    } catch {
-      // فال‌بک
-    }
-
     return this.updateCampaign(id, { status: newStatus });
   },
 
   async deleteCampaign(id: string): Promise<boolean> {
-    try {
-      await apiClient.delete(ENDPOINTS.platformAdmin.campaignById(id));
-    } catch {
-      // فال‌بک
-    }
-
-    const initialLength = campaignsStore.length;
-    campaignsStore = campaignsStore.filter((c) => c.id !== id);
-    persistStore("sayra_admin_campaigns", campaignsStore);
+    await apiClient.delete(ENDPOINTS.platformAdmin.campaignById(id));
     return true;
   },
 
@@ -2510,80 +2436,56 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
 
     return {
       general: {
-        siteTitle: rawSettings.siteTitle ?? siteSettingsStore.general.siteTitle,
-        supportPhone:
-          rawSettings.supportPhone ?? siteSettingsStore.general.supportPhone,
-        supportEmail:
-          rawSettings.supportEmail ?? siteSettingsStore.general.supportEmail,
-        centralAddress:
-          rawSettings.centralAddress ??
-          siteSettingsStore.general.centralAddress,
+        siteTitle: toSafeText(rawSettings.siteTitle, ""),
+        supportPhone: toSafeText(rawSettings.supportPhone, ""),
+        supportEmail: toSafeText(rawSettings.supportEmail, ""),
+        centralAddress: toSafeText(rawSettings.centralAddress, ""),
         maintenanceMode: Boolean(rawSettings.maintenanceMode),
-        maintenanceMessage:
-          rawSettings.maintenanceMessage ??
-          siteSettingsStore.general.maintenanceMessage ??
-          "",
+        maintenanceMessage: toSafeText(rawSettings.maintenanceMessage, ""),
       },
       reservation: {
         platformCommissionPercent:
           typeof rawSettings.platformCommissionPercent === "number"
             ? rawSettings.platformCommissionPercent
-            : siteSettingsStore.reservation.platformCommissionPercent,
+            : 0,
         maxAdvanceBookingDays:
           typeof rawSettings.maxAdvanceBookingDays === "number"
             ? rawSettings.maxAdvanceBookingDays
-            : siteSettingsStore.reservation.maxAdvanceBookingDays,
+            : 0,
         onlinePaymentTimeoutMinutes:
           typeof rawSettings.onlinePaymentTimeoutMinutes === "number"
             ? rawSettings.onlinePaymentTimeoutMinutes
-            : siteSettingsStore.reservation.onlinePaymentTimeoutMinutes,
+            : 0,
         cancellationPenaltyPercent:
           typeof rawSettings.cancellationPenaltyPercent === "number"
             ? rawSettings.cancellationPenaltyPercent
-            : siteSettingsStore.reservation.cancellationPenaltyPercent,
+            : 0,
         freeCancellationHours:
           typeof rawSettings.freeCancellationHours === "number"
             ? rawSettings.freeCancellationHours
-            : siteSettingsStore.reservation.freeCancellationHours,
+            : 0,
       },
       notification: {
-        autoSendBookingSms:
-          rawSettings.autoSendBookingSms !== undefined
-            ? Boolean(rawSettings.autoSendBookingSms)
-            : siteSettingsStore.notification.autoSendBookingSms,
-        autoSendReminderSms:
-          rawSettings.autoSendReminderSms !== undefined
-            ? Boolean(rawSettings.autoSendReminderSms)
-            : siteSettingsStore.notification.autoSendReminderSms,
-        welcomeSmsTemplate:
-          rawSettings.welcomeSmsTemplate ??
-          siteSettingsStore.notification.welcomeSmsTemplate,
+        autoSendBookingSms: Boolean(rawSettings.autoSendBookingSms),
+        autoSendReminderSms: Boolean(rawSettings.autoSendReminderSms),
+        welcomeSmsTemplate: toSafeText(rawSettings.welcomeSmsTemplate, ""),
         reviewApprovalPolicy:
           rawSettings.reviewApprovalPolicy === "MANUAL" ? "MANUAL" : "AUTO",
       },
       securityInfo: {
         smsGatewayConnected:
           rawInfra.smsGatewayStatus === "OPERATIONAL" ||
-          rawInfra.smsGatewayStatus === "ACTIVE" ||
-          siteSettingsStore.securityInfo.smsGatewayConnected,
-        smsGatewayProvider:
-          rawInfra.smsProvider ??
-          siteSettingsStore.securityInfo.smsGatewayProvider,
+          rawInfra.smsGatewayStatus === "ACTIVE",
+        smsGatewayProvider: toSafeText(rawInfra.smsProvider, "-"),
         paymentGatewayConnected:
           rawInfra.paymentGatewayStatus === "OPERATIONAL" ||
-          rawInfra.paymentGatewayStatus === "ACTIVE" ||
-          siteSettingsStore.securityInfo.paymentGatewayConnected,
-        paymentGatewayProvider:
-          rawInfra.paymentProvider ??
-          siteSettingsStore.securityInfo.paymentGatewayProvider,
-        sslCertificateStatus:
-          rawInfra.sslStatus ??
-          siteSettingsStore.securityInfo.sslCertificateStatus,
-        apiVersion:
-          rawInfra.apiVersion ?? siteSettingsStore.securityInfo.apiVersion,
+          rawInfra.paymentGatewayStatus === "ACTIVE",
+        paymentGatewayProvider: toSafeText(rawInfra.paymentProvider, "-"),
+        sslCertificateStatus: toSafeText(rawInfra.sslStatus, "-"),
+        apiVersion: toSafeText(rawInfra.apiVersion, "-"),
         lastBackupDate: rawInfra.lastSuccessfulBackupAt
-          ? formatDayLabel(rawInfra.lastSuccessfulBackupAt)
-          : siteSettingsStore.securityInfo.lastBackupDate,
+          ? formatDayLabel(String(rawInfra.lastSuccessfulBackupAt)) || "-"
+          : "-",
       },
     };
   },
@@ -2622,25 +2524,15 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
    * GET /platform-admin/settings
    */
   async getSiteSettings(signal?: AbortSignal): Promise<SiteSettings> {
-    try {
-      const response = await apiClient.get<any>(
-        ENDPOINTS.platformAdmin.settings,
-        { signal },
-      );
-      const apiData = response.data?.data || response.data;
-      if (apiData) {
-        const mapped = this.mapApiSettingsToUi(apiData);
-        siteSettingsStore = JSON.parse(JSON.stringify(mapped));
-        persistStore("sayra_admin_site_settings", siteSettingsStore);
-        return mapped;
-      }
-    } catch (err: any) {
-      if (err?.status && err.status !== 404 && err.status !== 403) {
-        throw err;
-      }
+    const response = await apiClient.get<any>(
+      ENDPOINTS.platformAdmin.settings,
+      { signal },
+    );
+    const apiData = response.data?.data || response.data;
+    if (!apiData || typeof apiData !== "object") {
+      throw new Error("پاسخ معتبری برای تنظیمات سیستم از سرور دریافت نشد.");
     }
-
-    return JSON.parse(JSON.stringify(siteSettingsStore));
+    return this.mapApiSettingsToUi(apiData);
   },
 
   /**
@@ -2649,35 +2541,22 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
    */
   async updateSiteSettings(newSettings: SiteSettings): Promise<SiteSettings> {
     const payload = this.mapUiSettingsToApiInput(newSettings);
-
-    try {
-      const response = await apiClient.put<any>(
-        ENDPOINTS.platformAdmin.settings,
-        payload,
-      );
-      const apiData = response.data?.data || response.data;
-      if (apiData) {
-        const mapped = this.mapApiSettingsToUi({
-          settings: apiData,
-          infrastructure: {
-            smsProvider: newSettings.securityInfo.smsGatewayProvider,
-            paymentProvider: newSettings.securityInfo.paymentGatewayProvider,
-            sslStatus: newSettings.securityInfo.sslCertificateStatus,
-            apiVersion: newSettings.securityInfo.apiVersion,
-          },
-        });
-        siteSettingsStore = JSON.parse(JSON.stringify(mapped));
-        persistStore("sayra_admin_site_settings", siteSettingsStore);
-        return mapped;
-      }
-    } catch (err: any) {
-      if (err?.status && err.status !== 404 && err.status !== 403) {
-        throw err;
-      }
+    const response = await apiClient.put<any>(
+      ENDPOINTS.platformAdmin.settings,
+      payload,
+    );
+    const apiData = response.data?.data || response.data;
+    if (apiData && typeof apiData === "object") {
+      return this.mapApiSettingsToUi({
+        settings: apiData,
+        infrastructure: {
+          smsProvider: newSettings.securityInfo.smsGatewayProvider,
+          paymentProvider: newSettings.securityInfo.paymentGatewayProvider,
+          sslStatus: newSettings.securityInfo.sslCertificateStatus,
+          apiVersion: newSettings.securityInfo.apiVersion,
+        },
+      });
     }
-
-    siteSettingsStore = JSON.parse(JSON.stringify(newSettings));
-    persistStore("sayra_admin_site_settings", siteSettingsStore);
-    return JSON.parse(JSON.stringify(siteSettingsStore));
+    return newSettings;
   },
 };

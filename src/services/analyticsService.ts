@@ -1,99 +1,203 @@
-import { AnalyticsFilterParams, AnalyticsReportData } from "@/types/analytics";
+import { apiClient } from "@/lib/api/client";
+import { ENDPOINTS } from "@/lib/api/endpoints";
+import { formatDayLabel } from "@/lib/reservationUi";
 import {
-  MOCK_ANALYTICS_REPORT,
-  MOCK_TREND_7D,
-  MOCK_TREND_30D,
-  MOCK_TREND_90D,
-} from "@/lib/mocks/analytics.mock";
+  AnalyticsFilterParams,
+  AnalyticsReportData,
+  AnalyticsTrendPoint,
+} from "@/types/analytics";
+
+function getRangeDates(dateRange: AnalyticsFilterParams["dateRange"]) {
+  const end = new Date();
+  const daysMap: Record<AnalyticsFilterParams["dateRange"], number> = {
+    "7d": 7,
+    "30d": 30,
+    "90d": 90,
+    "12m": 365,
+  };
+  const labelMap: Record<AnalyticsFilterParams["dateRange"], string> = {
+    "7d": "۷ روز گذشته",
+    "30d": "۳۰ روز گذشته",
+    "90d": "۹۰ روز گذشته",
+    "12m": "۱۲ ماه گذشته",
+  };
+  const start = new Date(end.getTime() - daysMap[dateRange] * 24 * 60 * 60 * 1000);
+  return {
+    startDate: start.toISOString(),
+    endDate: end.toISOString(),
+    periodLabel: labelMap[dateRange],
+  };
+}
+
+function calcChangePercent(current: number, previous: number): number {
+  if (!previous) return current > 0 ? 100 : 0;
+  return Number((((current - previous) / previous) * 100).toFixed(1));
+}
 
 export const analyticsService = {
   /**
-   * Fetch executive dashboard and analytical report data.
-   * Dynamically adjusts trends, KPIs and filters based on parameters.
+   * Fetch executive dashboard and analytical report data from real backend endpoints.
    */
-  async getAnalyticsReport(params: AnalyticsFilterParams): Promise<AnalyticsReportData> {
+  async getAnalyticsReport(
+    params: AnalyticsFilterParams,
+    signal?: AbortSignal
+  ): Promise<AnalyticsReportData> {
     const { dateRange = "7d", gamecenterId = "all", city = "all" } = params;
+    const { startDate, endDate, periodLabel } = getRangeDates(dateRange);
 
-    let selectedTrend = MOCK_TREND_7D;
-    let periodLabel = "۷ روز گذشته";
-    let isForecastAvailable = true;
-
-    if (dateRange === "30d") {
-      selectedTrend = MOCK_TREND_30D;
-      periodLabel = "۳۰ روز گذشته";
-    } else if (dateRange === "90d") {
-      selectedTrend = MOCK_TREND_90D;
-      periodLabel = "۹۰ روز گذشته";
-    } else if (dateRange === "12m") {
-      // For 12m, historical window is insufficient for accurate monthly prediction model
-      selectedTrend = MOCK_TREND_90D;
-      periodLabel = "۱۲ ماه گذشته";
-      isForecastAvailable = false;
-    }
-
-    // Filter gamecenter performance list
-    let filteredPerformance = [...MOCK_ANALYTICS_REPORT.gamecenterPerformance];
+    const query: Record<string, string> = {
+      startDate,
+      endDate,
+    };
     if (gamecenterId && gamecenterId !== "all") {
-      filteredPerformance = filteredPerformance.filter((g) => g.gamecenterId === gamecenterId);
+      query.gamingCenterId = gamecenterId;
     }
     if (city && city !== "all") {
-      filteredPerformance = filteredPerformance.filter((g) => g.city === city);
+      query.city = city;
     }
 
-    // Multiply amounts/counts if a single gamecenter is selected to reflect mock subset
-    const multiplier = gamecenterId !== "all" ? 0.35 : 1;
+    const [reportRes, ticketStatsRes] = await Promise.allSettled([
+      apiClient.get<any>(ENDPOINTS.platformAdmin.reports, { query, signal }),
+      apiClient.get<any>(ENDPOINTS.adminTickets.statistics, { signal }),
+    ]);
 
-    const adjustedTrend = selectedTrend.map((pt) => ({
-      ...pt,
-      reservationsCount: Math.round(pt.reservationsCount * multiplier),
-      grossAmount: Math.round(pt.grossAmount * multiplier),
-      completedAmount: Math.round(pt.completedAmount * multiplier),
-    }));
+    if (reportRes.status === "rejected") {
+      throw reportRes.reason;
+    }
 
-    const totalRes = adjustedTrend.reduce((acc, curr) => acc + curr.reservationsCount, 0);
-    const grossAmt = adjustedTrend.reduce((acc, curr) => acc + curr.grossAmount, 0);
-    const completedAmt = adjustedTrend.reduce((acc, curr) => acc + curr.completedAmount, 0);
+    const raw = reportRes.value?.data?.data || reportRes.value?.data || {};
+    const financials = raw.financials || {};
+    const reservations = raw.reservations || {};
+    const users = raw.users || {};
+    const gamingCenters = raw.gamingCenters || {};
+    const comparison = raw.comparison || {};
+    const rawTimeSeries = Array.isArray(raw.timeSeries) ? raw.timeSeries : [];
+    const rawTopCenters = Array.isArray(gamingCenters.topGamingCenters)
+      ? gamingCenters.topGamingCenters
+      : [];
 
-    const report: AnalyticsReportData = {
-      ...MOCK_ANALYTICS_REPORT,
+    const trendData: AnalyticsTrendPoint[] = rawTimeSeries.map((pt: any) => {
+      const dateStr = String(pt.date || "");
+      const formattedLabel = dateStr ? formatDayLabel(dateStr) || dateStr : "-";
+      return {
+        date: dateStr,
+        label: formattedLabel,
+        reservationsCount: Number(pt.reservationCount ?? pt.reservationsCount ?? 0),
+        grossAmount: Number(pt.revenue ?? pt.grossAmount ?? 0),
+        completedAmount: Number(pt.completedRevenue ?? pt.revenue ?? 0),
+        newUsers: Number(pt.newUsers ?? 0),
+        ticketsCount: Number(pt.ticketsCount ?? 0),
+      };
+    });
+
+    const totalReservationsCurrent = Number(reservations.totalReservations ?? 0);
+    const totalReservationsPrev = Number(
+      comparison.previousReservations ?? comparison.reservations?.totalReservations ?? 0
+    );
+
+    const grossCurrent = Number(financials.totalRevenue ?? 0);
+    const grossPrev = Number(
+      comparison.previousRevenue ?? comparison.financials?.totalRevenue ?? 0
+    );
+
+    const completedCurrent = Number(
+      financials.totalPaidAmount ?? financials.gamingCentersRevenue ?? financials.totalRevenue ?? 0
+    );
+    const completedPrev = Number(
+      comparison.previousPaidAmount ?? comparison.financials?.totalPaidAmount ?? 0
+    );
+
+    const activeUsersCurrent = Number(users.activeUsers ?? users.totalUsers ?? 0);
+    const activeUsersPrev = Number(
+      comparison.previousActiveUsers ?? comparison.users?.activeUsers ?? 0
+    );
+
+    let ticketResolutionRate = 0;
+    if (ticketStatsRes.status === "fulfilled") {
+      const tStats = ticketStatsRes.value?.data?.data || ticketStatsRes.value?.data || {};
+      const totalTickets = Number(tStats.total ?? tStats.totalTickets ?? 0);
+      const resolvedTickets = Number(
+        tStats.resolved ??
+          tStats.closed ??
+          Number(tStats.answered ?? 0) + Number(tStats.closed ?? 0)
+      );
+      if (typeof tStats.resolutionRate === "number") {
+        ticketResolutionRate = Number(tStats.resolutionRate.toFixed(1));
+      } else if (totalTickets > 0) {
+        ticketResolutionRate = Number(((resolvedTickets / totalTickets) * 100).toFixed(1));
+      }
+    }
+
+    let gamecenterPerformance = rawTopCenters.map((c: any) => {
+      const totalRes = Number(c.reservationsCount ?? c.totalReservations ?? 0);
+      const completedRes = Number(c.completedReservations ?? totalRes);
+      const completionRate =
+        typeof c.completionRate === "number"
+          ? c.completionRate
+          : totalRes > 0
+            ? Math.round((completedRes / totalRes) * 100)
+            : 0;
+
+      const cityVal =
+        typeof c.city === "string"
+          ? c.city
+          : c.city && typeof c.city === "object"
+            ? String(c.city.name || c.city.title || "-")
+            : "-";
+
+      return {
+        gamecenterId: String(c.id ?? c.gamingCenterId ?? ""),
+        gamecenterName: String(c.name ?? c.gamingCenterName ?? "-"),
+        city: cityVal,
+        reservationsCount: totalRes,
+        totalAmount: Number(c.revenue ?? c.totalAmount ?? 0),
+        completionRate,
+        rating: Number(c.rating ?? c.raiting ?? 0),
+      };
+    });
+
+    if (city && city !== "all") {
+      gamecenterPerformance = gamecenterPerformance.filter(
+        (g: { city: string }) => g.city === city
+      );
+    }
+
+    return {
       timePeriodLabel: periodLabel,
       kpis: {
         totalReservations: {
-          current: totalRes,
-          previous: Math.round(totalRes * 0.88),
-          changePercent: 13.6,
+          current: totalReservationsCurrent,
+          previous: totalReservationsPrev,
+          changePercent: calcChangePercent(totalReservationsCurrent, totalReservationsPrev),
         },
         grossAmount: {
-          current: grossAmt,
-          previous: Math.round(grossAmt * 0.87),
-          changePercent: 14.9,
+          current: grossCurrent,
+          previous: grossPrev,
+          changePercent: calcChangePercent(grossCurrent, grossPrev),
         },
         completedAmount: {
-          current: completedAmt,
-          previous: Math.round(completedAmt * 0.87),
-          changePercent: 14.9,
+          current: completedCurrent,
+          previous: completedPrev,
+          changePercent: calcChangePercent(completedCurrent, completedPrev),
         },
-        activeUsers: MOCK_ANALYTICS_REPORT.kpis.activeUsers,
-        ticketResolutionRate: MOCK_ANALYTICS_REPORT.kpis.ticketResolutionRate,
+        activeUsers: {
+          current: activeUsersCurrent,
+          previous: activeUsersPrev,
+          changePercent: calcChangePercent(activeUsersCurrent, activeUsersPrev),
+        },
+        ticketResolutionRate: {
+          current: ticketResolutionRate,
+          previous: 0,
+          changePercent: 0,
+        },
       },
-      trendData: adjustedTrend,
-      gamecenterPerformance: filteredPerformance,
-      forecast: isForecastAvailable
-        ? {
-            ...MOCK_ANALYTICS_REPORT.forecast,
-            forecastPoints: MOCK_ANALYTICS_REPORT.forecast.forecastPoints?.map((p) => ({
-              ...p,
-              predictedReservations: Math.round(p.predictedReservations * multiplier),
-              predictedAmount: Math.round(p.predictedAmount * multiplier),
-            })),
-          }
-        : {
-            isAvailable: false,
-            unavailableReason:
-              "تاریخچه ۱۲ ماهه متوالی با تفکیک روزانه/هفتگی دیتابیس برای اجرای مدل پیش‌بینی در دسترس نیست. حداقل ۳ ماه تاریخچه منسجم برای فعال‌سازی پیش‌بینی سالانه مورد نیاز است.",
-          },
+      trendData,
+      gamecenterPerformance,
+      forecast: {
+        isAvailable: false,
+        unavailableReason:
+          "مدل پیش‌بینی خودکار تنها زمانی فعال می‌شود که داده‌های تاریخی کافی توسط سرور ارائه شود.",
+      },
     };
-
-    return Promise.resolve(report);
   },
 };

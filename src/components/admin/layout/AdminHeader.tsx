@@ -13,6 +13,7 @@ export interface AdminHeaderProps {
 const ROUTE_TITLE_MAP: Record<string, string> = {
   "/admin": "داشبورد مدیریت",
   "/admin/gamecenters": "مدیریت گیمنت‌ها",
+  "/admin/catalog": "کاتالوگ دستگاه‌ها",
   "/admin/tickets": "تیکت‌های پشتیبانی",
   "/admin/blog": "مدیریت وبلاگ",
   "/admin/owners": "احراز هویت صاحبان گیمنت",
@@ -27,10 +28,22 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   onToggleMobileMenu,
 }) => {
   const pathname = usePathname();
-  const title = ROUTE_TITLE_MAP[pathname] || "پنل مدیریت";
+  const matchedBase = Object.keys(ROUTE_TITLE_MAP)
+    .filter((key) => key !== "/admin" && pathname.startsWith(key))
+    .sort((a, b) => b.length - a.length)[0];
+
+  const title =
+    ROUTE_TITLE_MAP[pathname] ||
+    (matchedBase ? ROUTE_TITLE_MAP[matchedBase] : "پنل مدیریت");
 
   const getBreadcrumbs = () => {
     if (pathname === "/admin") return [];
+    if (matchedBase && pathname !== matchedBase) {
+      return [
+        { label: ROUTE_TITLE_MAP[matchedBase], href: matchedBase },
+        { label: "جزئیات" },
+      ];
+    }
     return [{ label: title }];
   };
 
