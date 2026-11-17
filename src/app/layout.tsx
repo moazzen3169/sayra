@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { CityProvider } from "@/context/CityContext";
 
 export const metadata: Metadata = {
   title: "سایرا | Sayra - پلتفرم جامع گیمینگ سنترها",
@@ -16,9 +17,11 @@ export default function RootLayout({
     <html lang="fa" dir="rtl">
       <body>
         <AuthProvider>
-          <div className="app-container">
-            {children}
-          </div>
+          <CityProvider>
+            <div className="app-container">
+              {children}
+            </div>
+          </CityProvider>
         </AuthProvider>
       </body>
     </html>

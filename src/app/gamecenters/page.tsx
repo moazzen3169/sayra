@@ -22,6 +22,7 @@ import {
   GamecenterFilterParams,
 } from "@/services/gamecentersPageService";
 import { toPersianDigits } from "@/lib/format";
+import { useCity } from "@/context/CityContext";
 
 const CATEGORIES = [
   { id: "all", name: "همه دستگاه‌ها" },
@@ -55,27 +56,34 @@ function GamecentersContent() {
   const categoryParam = searchParams.get("category") || "all";
   const sortParam =
     (searchParams.get("sort") as GamecenterFilterParams["sort"]) || "default";
-  const cityParam = searchParams.get("city") || "تبریز";
+  const cityParam = searchParams.get("city")?.trim() || "";
   const pageParam = parseInt(searchParams.get("page") || "1", 10);
   const currentPage = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
 
+  const { selectedCity: contextCity, isCityReady, setCity } = useCity();
+  const selectedCity = cityParam || contextCity;
+
   const [searchInput, setSearchInput] = useState(queryParam);
-  const [selectedCity, setSelectedCity] = useState(cityParam);
 
   // Live centers state
   const [allCenters, setAllCenters] = useState<GamecenterListItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch real centers from API
+  // Fetch real centers from API filtered by city query parameter
   useEffect(() => {
+    if (!cityParam && !isCityReady) return;
+
     const controller = new AbortController();
 
     async function fetchCenters() {
       try {
         setIsLoading(true);
         setError(null);
-        const data = await gamecentersPageService.loadAllCenters(controller.signal);
+        const data = await gamecentersPageService.loadAllCenters({
+          city: selectedCity,
+          signal: controller.signal,
+        });
         setAllCenters(data);
       } catch (err) {
         if ((err as Error)?.name !== "AbortError") {
@@ -92,17 +100,12 @@ function GamecentersContent() {
     return () => {
       controller.abort();
     };
-  }, []);
+  }, [selectedCity, cityParam, isCityReady]);
 
   // Sync search input if query param changes in URL
   useEffect(() => {
     setSearchInput(queryParam);
   }, [queryParam]);
-
-  // Sync city state if city param changes
-  useEffect(() => {
-    setSelectedCity(cityParam);
-  }, [cityParam]);
 
   // Update query params helper
   const updateQueryParams = (
@@ -168,15 +171,14 @@ function GamecentersContent() {
     [allCenters],
   );
 
-  // Filtered centers based on current filter/search/city/sort
+  // Filtered centers based on current filter/search/sort (city is filtered on backend)
   const filteredCenters = useMemo(() => {
     return gamecentersPageService.filterCenters(allCenters, {
       q: queryParam,
       category: categoryParam,
       sort: sortParam,
-      city: selectedCity,
     });
-  }, [allCenters, queryParam, categoryParam, sortParam, selectedCity]);
+  }, [allCenters, queryParam, categoryParam, sortParam]);
 
   // Pagination calculation (12 items per page)
   const totalItems = filteredCenters.length;
@@ -197,7 +199,7 @@ function GamecentersContent() {
       <Header
         locationName={selectedCity}
         onCityChange={(city) => {
-          setSelectedCity(city);
+          setCity(city);
           updateQueryParams({ city }, true);
         }}
       />

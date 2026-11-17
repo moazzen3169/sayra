@@ -23,6 +23,7 @@ import { GroupBookingSheet } from "@/components/gamecenter/GroupBookingSheet";
 import { GamesMarquee } from "@/components/gamecenter/GamesMarquee";
 import { GamecenterInfoCard } from "@/components/gamecenter/GamecenterInfoCard";
 import { useAuth } from "@/context/AuthContext";
+import { useCity } from "@/context/CityContext";
 import { useDeviceCategories } from "@/hooks/gaming-center/use-device-categories";
 import { isAbortError } from "@/lib/api/client";
 import { formatPrice, toPersianDigits } from "@/lib/format";
@@ -243,7 +244,7 @@ export default function GameCenterDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const [selectedCity, setSelectedCity] = useState("تبریز");
+  const { selectedCity, setCity } = useCity();
 
   const router = useRouter();
   const { id: gamingCenterSlug } = use(params);
@@ -375,7 +376,7 @@ export default function GameCenterDetailPage({
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-32 lg:pb-12">
       <Header
         locationName={selectedCity}
-        onCityChange={(city) => setSelectedCity(city)}
+        onCityChange={(city) => setCity(city)}
       />
 
       <main className="flex-1 desk:pt-[var(--header-h)] pt-[var(--header-m-h)] flex flex-col gap-6 pt-3">

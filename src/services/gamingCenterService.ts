@@ -127,13 +127,35 @@ export interface GameStationInfo extends GameStation {
 
 export type { AvailabilitySlot, AvailabilitySlotsParams };
 
+export interface ListGamingCentersParams {
+  city?: string;
+  signal?: AbortSignal;
+}
+
 export const gamingCenterService = {
   /**
    * دریافت لیست عمومی گیمنت‌ها
-   * GET /gamingCenters
+   * GET /gamingCenters?city=...
    */
-  async listGamingCenters(signal?: AbortSignal): Promise<PublicGamingCenter[]> {
-    const response = await apiClient.get<unknown>(ENDPOINTS.gamingCenter.list, { signal });
+  async listGamingCenters(
+    paramsOrSignal?: AbortSignal | ListGamingCentersParams
+  ): Promise<PublicGamingCenter[]> {
+    const isSignal =
+      paramsOrSignal &&
+      typeof paramsOrSignal === "object" &&
+      "aborted" in paramsOrSignal;
+    const signal = isSignal
+      ? (paramsOrSignal as AbortSignal)
+      : (paramsOrSignal as ListGamingCentersParams | undefined)?.signal;
+    const city = isSignal
+      ? undefined
+      : (paramsOrSignal as ListGamingCentersParams | undefined)?.city?.trim();
+
+    const query = city ? { city } : undefined;
+    const response = await apiClient.get<unknown>(ENDPOINTS.gamingCenter.list, {
+      query,
+      signal,
+    });
     const resData = response.data;
     if (Array.isArray(resData)) {
       return resData as PublicGamingCenter[];

@@ -32,12 +32,13 @@ import {
 import { isAbortError } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { BannerItem } from "@/types/home";
+import { useCity } from "@/context/CityContext";
 
 export default function HomePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>("home");
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>("ps5");
-  const [selectedCity, setSelectedCity] = useState("تبریز");
+  const { selectedCity, isCityReady, setCity } = useCity();
   const [banners, setBanners] = useState<BannerItem[]>([]);
   const [bannersLoading, setBannersLoading] = useState(true);
 
@@ -95,6 +96,8 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    if (!isCityReady) return;
+
     const controller = new AbortController();
     let active = true;
 
@@ -102,7 +105,7 @@ export default function HomePage() {
     setCentersError(null);
 
     gamecentersPageService
-      .loadAllCenters(controller.signal)
+      .loadAllCenters({ city: selectedCity, signal: controller.signal })
       .then((data) => {
         if (!active) return;
         setCenters(data);
@@ -120,19 +123,15 @@ export default function HomePage() {
       active = false;
       controller.abort();
     };
-  }, [reloadToken]);
+  }, [selectedCity, isCityReady, reloadToken]);
 
-  const cityCenters = useMemo(
-    () => gamecentersPageService.filterCenters(centers, { city: selectedCity }),
-    [centers, selectedCity]
-  );
   const popularCenters = useMemo(
-    () => gamecentersPageService.getPopularCenters(cityCenters),
-    [cityCenters]
+    () => gamecentersPageService.getPopularCenters(centers),
+    [centers]
   );
   const featuredCenters = useMemo(
-    () => gamecentersPageService.getFeaturedCenters(cityCenters),
-    [cityCenters]
+    () => gamecentersPageService.getFeaturedCenters(centers),
+    [centers]
   );
 
   const handleCategorySelect = (id: string) => {
@@ -155,7 +154,7 @@ export default function HomePage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-14 lg:pb-0">
       <Header
         locationName={selectedCity}
-        onCityChange={(city) => setSelectedCity(city)}
+        onCityChange={(city) => setCity(city)}
       />
 
       <main className="flex-1 p-4 flex flex-col gap-6 lg:gap-8 pt-[var(--header-m-h)]  desk:pt-[var(--header-h)]">
@@ -185,7 +184,7 @@ export default function HomePage() {
         </section>
 
         {/* ۳. بخش گیمنت‌های تخفیف‌دار */}
-        <DiscountedCentersSection city={selectedCity} />
+        <DiscountedCentersSection city={selectedCity} enabled={isCityReady} />
 
         {/* خطای دریافت لیست گیمنت‌ها */}
         {centersError && (

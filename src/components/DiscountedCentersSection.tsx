@@ -15,11 +15,13 @@ import { DiscountedGamecenterCard } from "./DiscountedGamecenterCard";
 
 export interface DiscountedCentersSectionProps {
   city?: string;
+  enabled?: boolean;
   className?: string;
 }
 
 export const DiscountedCentersSection: React.FC<DiscountedCentersSectionProps> = ({
   city,
+  enabled = true,
   className = "",
 }) => {
   const [items, setItems] = useState<DiscountedCenter[]>([]);
@@ -29,6 +31,8 @@ export const DiscountedCentersSection: React.FC<DiscountedCentersSectionProps> =
   const isSingleCard = items.length === 1;
 
   useEffect(() => {
+    if (!enabled) return;
+
     const controller = new AbortController();
 
     async function fetchDiscountedCenters() {
@@ -53,7 +57,7 @@ export const DiscountedCentersSection: React.FC<DiscountedCentersSectionProps> =
     return () => {
       controller.abort();
     };
-  }, [city]);
+  }, [city, enabled]);
 
   const handleContainerClickCapture = useCallback(
     (e: React.MouseEvent) => {

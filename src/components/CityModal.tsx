@@ -1,39 +1,21 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ModalShell } from "./ModalShell";
+import {
+  locationService,
+  type ProvinceItem,
+  type CityItem,
+} from "@/services/locationService";
+import { isAbortError } from "@/lib/api/client";
+import { DEFAULT_PROVINCE_ID, useCity } from "@/context/CityContext";
 
 export interface CityModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedCity: string;
-  onSelectCity: (city: string) => void;
+  onSelectCity: (city: string, provinceId?: string) => void;
 }
-
-const CITIES = [
-  { id: "tabriz", name: "تبریز", popular: true, province: "آذربایجان شرقی" },
-  { id: "tehran", name: "تهران", popular: true, province: "تهران" },
-  { id: "isfahan", name: "اصفهان", popular: true, province: "اصفهان" },
-  { id: "mashhad", name: "مشهد", popular: true, province: "خراسان رضوی" },
-  { id: "shiraz", name: "شیراز", popular: true, province: "فارس" },
-  { id: "karaj", name: "کرج", popular: true, province: "البرز" },
-  { id: "ahvaz", name: "اهواز", popular: true, province: "خوزستان" },
-  { id: "rasht", name: "رشت", popular: true, province: "گیلان" },
-  { id: "kish", name: "کیش", popular: true, province: "هرمزگان" },
-  { id: "qom", name: "قم", popular: false, province: "قم" },
-  { id: "kerman", name: "کرمان", popular: false, province: "کرمان" },
-  { id: "urmia", name: "ارومیه", popular: false, province: "آذربایجان غربی" },
-  { id: "yazd", name: "یزد", popular: false, province: "یزد" },
-  { id: "hamadan", name: "همدان", popular: false, province: "همدان" },
-  { id: "zanjan", name: "زنجان", popular: false, province: "زنجان" },
-  { id: "kermanshah", name: "کرمانشاه", popular: false, province: "کرمانشاه" },
-  { id: "sari", name: "ساری", popular: false, province: "مازندران" },
-  { id: "gorgan", name: "گرگان", popular: false, province: "گلستان" },
-  { id: "arak", name: "اراک", popular: false, province: "مرکزی" },
-  { id: "ardabil", name: "اردبیل", popular: false, province: "اردبیل" },
-  { id: "qazvin", name: "قزوین", popular: false, province: "قزوین" },
-  { id: "bandarabbas", name: "بندرعباس", popular: false, province: "هرمزگان" },
-];
 
 const normalizeText = (value: string) =>
   value
@@ -43,40 +25,158 @@ const normalizeText = (value: string) =>
     .trim()
     .toLowerCase();
 
+function resolveInitialProvinceId(
+  provinces: ProvinceItem[],
+  preferredProvinceId: string
+): string {
+  if (provinces.length === 0) return "";
+  const exact = provinces.find((p) => p.id === preferredProvinceId);
+  if (exact) return exact.id;
+
+  const eastAz = provinces.find(
+    (p) =>
+      p.id === DEFAULT_PROVINCE_ID ||
+      normalizeText(p.name).includes("آذربایجان شرقی")
+  );
+  if (eastAz) return eastAz.id;
+
+  return provinces[0].id;
+}
+
 export const CityModal: React.FC<CityModalProps> = ({
   isOpen,
   onClose,
   selectedCity,
   onSelectCity,
 }) => {
+  const { selectedProvinceId } = useCity();
+
   const [searchQuery, setSearchQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+
+  const [provinces, setProvinces] = useState<ProvinceItem[]>([]);
+  const [provincesLoading, setProvincesLoading] = useState(false);
+  const [provincesError, setProvincesError] = useState<string | null>(null);
+  const [provincesReloadToken, setProvincesReloadToken] = useState(0);
+
+  const [activeProvinceId, setActiveProvinceId] = useState<string>("");
+
+  const [cities, setCities] = useState<CityItem[]>([]);
+  const [citiesLoading, setCitiesLoading] = useState(false);
+  const [citiesError, setCitiesError] = useState<string | null>(null);
+  const [citiesReloadToken, setCitiesReloadToken] = useState(0);
 
   useEffect(() => {
     if (!isOpen) return;
     setSearchQuery("");
   }, [isOpen]);
 
-  const filteredCities = useMemo(() => {
-    const query = normalizeText(searchQuery);
+  // Fetch provinces when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
 
-    if (!query) return CITIES;
+    const controller = new AbortController();
+    let active = true;
 
-    return CITIES.filter((city) =>
-      normalizeText(`${city.name} ${city.province}`).includes(query)
-    );
-  }, [searchQuery]);
+    setProvincesLoading(true);
+    setProvincesError(null);
 
-  const popularCities = useMemo(
-    () => CITIES.filter((city) => city.popular),
-    []
+    locationService
+      .getProvinces(controller.signal)
+      .then((list) => {
+        if (!active) return;
+        setProvinces(list);
+        setActiveProvinceId((prev) => {
+          if (prev && list.some((p) => p.id === prev)) return prev;
+          return resolveInitialProvinceId(list, selectedProvinceId);
+        });
+      })
+      .catch((err) => {
+        if (!active || isAbortError(err)) return;
+        setProvincesError(
+          (err as Error)?.message || "خطا در دریافت لیست استان‌ها"
+        );
+      })
+      .finally(() => {
+        if (active) setProvincesLoading(false);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [isOpen, selectedProvinceId, provincesReloadToken]);
+
+  // Fetch cities when activeProvinceId changes
+  useEffect(() => {
+    if (!isOpen || !activeProvinceId) return;
+
+    const controller = new AbortController();
+    let active = true;
+
+    setCitiesLoading(true);
+    setCitiesError(null);
+
+    locationService
+      .getCities(activeProvinceId, controller.signal)
+      .then((list) => {
+        if (!active) return;
+        setCities(list);
+      })
+      .catch((err) => {
+        if (!active || isAbortError(err)) return;
+        setCities([]);
+        setCitiesError(
+          (err as Error)?.message || "خطا در دریافت لیست شهرها"
+        );
+      })
+      .finally(() => {
+        if (active) setCitiesLoading(false);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [isOpen, activeProvinceId, citiesReloadToken]);
+
+  const activeProvince = useMemo(
+    () => provinces.find((p) => p.id === activeProvinceId),
+    [provinces, activeProvinceId]
   );
 
-  const handleSelectCity = (city: string) => {
-    onSelectCity(city);
-    setSearchQuery("");
-    onClose();
-  };
+  const filteredProvinces = useMemo(() => {
+    const query = normalizeText(searchQuery);
+    if (!query) return provinces;
+    const matched = provinces.filter((p) =>
+      normalizeText(p.name).includes(query)
+    );
+    return matched.length > 0 ? matched : provinces;
+  }, [provinces, searchQuery]);
+
+  const filteredCities = useMemo(() => {
+    const query = normalizeText(searchQuery);
+    if (!query) return cities;
+    // If user typed a province name, show all cities of the selected province
+    if (
+      activeProvince &&
+      normalizeText(activeProvince.name).includes(query)
+    ) {
+      return cities;
+    }
+    return cities.filter((city) =>
+      normalizeText(city.name).includes(query)
+    );
+  }, [cities, searchQuery, activeProvince]);
+
+  const handleSelectCity = useCallback(
+    (cityName: string) => {
+      onSelectCity(cityName, activeProvinceId || undefined);
+      setSearchQuery("");
+      onClose();
+    },
+    [onSelectCity, activeProvinceId, onClose]
+  );
 
   const headerTitle = (
     <div className="relative min-w-0 flex-1">
@@ -128,48 +228,104 @@ export const CityModal: React.FC<CityModalProps> = ({
       focusRef={searchRef}
     >
       <div className="mx-auto w-full max-w-[var(--max-mini-app-width)] px-4 py-5 sm:px-6 sm:py-7">
-        {!searchQuery.trim() && (
-          <section className="mb-7">
-            <h3 className="mb-3 text-xs font-bold text-[var(--text-muted)]">
-              شهرهای پرطرفدار
+        {/* Provinces Section */}
+        <section className="mb-7">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-xs font-bold text-[var(--text-muted)]">
+              انتخاب استان
             </h3>
+            {provinces.length > 0 && (
+              <span className="text-xs text-[var(--text-muted)]">
+                {provinces.length} استان
+              </span>
+            )}
+          </div>
 
+          {provincesLoading ? (
+            <div className="flex flex-wrap gap-2" aria-busy="true">
+              {Array.from({ length: 8 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="h-9 w-24 animate-pulse rounded-full bg-[var(--bg-card)] border border-[var(--border-subtle)]"
+                />
+              ))}
+            </div>
+          ) : provincesError ? (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4">
+              <span className="text-xs text-[var(--text-muted)]">
+                {provincesError}
+              </span>
+              <button
+                type="button"
+                onClick={() => setProvincesReloadToken((v) => v + 1)}
+                className="shrink-0 text-xs font-bold text-[var(--primary)]"
+              >
+                تلاش مجدد
+              </button>
+            </div>
+          ) : (
             <div className="flex flex-wrap gap-2">
-              {popularCities.map((city) => {
-                const isSelected = selectedCity === city.name;
+              {filteredProvinces.map((province) => {
+                const isActive = activeProvinceId === province.id;
 
                 return (
                   <button
-                    key={city.id}
+                    key={province.id}
                     type="button"
-                    onClick={() => handleSelectCity(city.name)}
-                    aria-pressed={isSelected}
+                    onClick={() => setActiveProvinceId(province.id)}
+                    aria-pressed={isActive}
                     className={`rounded-full border px-3.5 py-2 text-xs font-medium transition-colors ${
-                      isSelected
-                        ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
+                      isActive
+                        ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)] font-bold"
                         : "border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
                     }`}
                   >
-                    {city.name}
+                    {province.name}
                   </button>
                 );
               })}
             </div>
-          </section>
-        )}
+          )}
+        </section>
 
+        {/* Cities Section */}
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-xs font-bold text-[var(--text-muted)]">
-              {searchQuery.trim() ? "نتایج جستجو" : "همه شهرها"}
+              {activeProvince
+                ? `شهرهای استان ${activeProvince.name}`
+                : "شهرها"}
             </h3>
 
-            <span className="text-xs text-[var(--text-muted)]">
-              {filteredCities.length} شهر
-            </span>
+            {!citiesLoading && !citiesError && (
+              <span className="text-xs text-[var(--text-muted)]">
+                {filteredCities.length} شهر
+              </span>
+            )}
           </div>
 
-          {filteredCities.length > 0 ? (
+          {citiesLoading || provincesLoading ? (
+            <div className="divide-y divide-[var(--border-subtle)]" aria-busy="true">
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <div key={idx} className="py-4 flex items-center justify-between">
+                  <div className="h-4 w-32 animate-pulse rounded bg-[var(--bg-card)]" />
+                </div>
+              ))}
+            </div>
+          ) : citiesError ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <p className="text-sm font-medium text-[var(--text-white)]">
+                {citiesError}
+              </p>
+              <button
+                type="button"
+                onClick={() => setCitiesReloadToken((v) => v + 1)}
+                className="mt-4 text-sm font-bold text-[var(--primary)]"
+              >
+                تلاش مجدد
+              </button>
+            </div>
+          ) : filteredCities.length > 0 ? (
             <div className="divide-y divide-[var(--border-subtle)]">
               {filteredCities.map((city) => {
                 const isSelected = selectedCity === city.name;
@@ -193,9 +349,11 @@ export const CityModal: React.FC<CityModalProps> = ({
                         {city.name}
                       </div>
 
-                      <div className="mt-1 text-xs text-[var(--text-muted)]">
-                        {city.province}
-                      </div>
+                      {activeProvince && (
+                        <div className="mt-1 text-xs text-[var(--text-muted)]">
+                          {activeProvince.name}
+                        </div>
+                      )}
                     </div>
 
                     {isSelected && (
@@ -219,20 +377,24 @@ export const CityModal: React.FC<CityModalProps> = ({
               })}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="flex flex-col items-center justify-center py-16 text-center">
               <p className="text-sm font-medium text-[var(--text-white)]">
                 شهری پیدا نشد
               </p>
               <p className="mt-2 text-xs text-[var(--text-muted)]">
-                نام شهر یا استان را بررسی کن.
+                {searchQuery.trim()
+                  ? "عبارت جستجو را تغییر دهید یا استان دیگری انتخاب کنید."
+                  : "برای این استان شهری ثبت نشده است."}
               </p>
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="mt-4 text-sm font-bold text-[var(--primary)]"
-              >
-                نمایش همه شهرها
-              </button>
+              {searchQuery.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="mt-4 text-sm font-bold text-[var(--primary)]"
+                >
+                  پاک کردن جستجو
+                </button>
+              )}
             </div>
           )}
         </section>

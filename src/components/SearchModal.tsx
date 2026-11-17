@@ -105,7 +105,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     setIsLoadingCenters(true);
 
     gamecentersPageService
-      .loadAllCenters(controller.signal)
+      .loadAllCenters({ city: selectedCity, signal: controller.signal })
       .then((data) => {
         setCenters(data);
       })
@@ -121,7 +121,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     return () => {
       controller.abort();
     };
-  }, [isOpen]);
+  }, [isOpen, selectedCity]);
 
   // Reset query when opened
   useEffect(() => {
@@ -133,18 +133,11 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     if (!hasQuery) return [];
 
     return centers.filter((center) => {
-      const centerCity = center.city || center.location;
-      const matchesCity =
-        !selectedCity ||
-        selectedCity === "همه" ||
-        !centerCity ||
-        normalizeText(centerCity).includes(normalizeText(selectedCity));
-
       const searchableText = buildCenterSearchText(center);
 
-      return matchesCity && searchableText.includes(normalizedQuery);
+      return searchableText.includes(normalizedQuery);
     });
-  }, [normalizedQuery, hasQuery, centers, selectedCity]);
+  }, [normalizedQuery, hasQuery, centers]);
 
   const filteredDevices = useMemo(() => {
     if (!hasQuery) return [];

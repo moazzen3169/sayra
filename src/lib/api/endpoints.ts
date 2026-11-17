@@ -264,4 +264,8 @@ export const ENDPOINTS = {
   advertisements: {
     publicSlider: "/public/advertisements/slider",
   },
+  locations: {
+    provinces: "/locations/provinces",
+    cities: (provinceId: string) => `/locations/provinces/${enc(provinceId)}/cities`,
+  },
 } as const;

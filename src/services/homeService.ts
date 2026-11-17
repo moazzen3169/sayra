@@ -87,10 +87,10 @@ export const homeService = {
     if (params?.signal?.aborted) {
       throw new DOMException("Aborted", "AbortError");
     }
-    const all = await gamecentersPageService.loadAllCenters(params?.signal);
-    const inCity = params?.city
-      ? gamecentersPageService.filterCenters(all, { city: params.city })
-      : all;
+    const inCity = await gamecentersPageService.loadAllCenters({
+      city: params?.city,
+      signal: params?.signal,
+    });
 
     return gamecentersPageService
       .getDiscountedCenters(inCity)

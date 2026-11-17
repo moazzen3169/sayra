@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { useCity } from "@/context/CityContext";
 import { toPersianDigits } from "@/lib/format";
 import { customerNotificationService } from "@/services/customerNotificationService";
 import { AppImage } from "@/components/common/AppImage";
@@ -22,7 +23,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  locationName = "تبریز",
+  locationName,
   unreadNotificationsCount,
   onLocationClick,
   onNotificationClick,
@@ -30,8 +31,9 @@ export const Header: React.FC<HeaderProps> = ({
   onCityChange,
 }) => {
   const { isLoggedIn, role, logout } = useAuth();
+  const { selectedCity, setCity } = useCity();
 
-  const [currentCity, setCurrentCity] = useState(locationName);
+  const currentCity = locationName ?? selectedCity;
   const [unreadCount, setUnreadCount] = useState<number>(
     unreadNotificationsCount ?? 0,
   );
@@ -137,8 +139,8 @@ export const Header: React.FC<HeaderProps> = ({
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, []);
 
-  const handleCitySelect = (city: string) => {
-    setCurrentCity(city);
+  const handleCitySelect = (city: string, provinceId?: string) => {
+    setCity(city, provinceId);
     onCityChange?.(city);
   };
 

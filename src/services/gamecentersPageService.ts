@@ -235,11 +235,13 @@ export function buildCenterSearchText(item: GamecenterListItem): string {
 
 export const gamecentersPageService = {
   /**
-   * Fetches real gaming centers from GET /gamingCenters and maps to list items.
+   * Fetches real gaming centers from GET /gamingCenters (optionally filtered by city query) and maps to list items.
    * No static mock fallback is used at runtime.
    */
-  async loadAllCenters(signal?: AbortSignal): Promise<GamecenterListItem[]> {
-    const centers = await gamingCenterService.listGamingCenters(signal);
+  async loadAllCenters(
+    paramsOrSignal?: AbortSignal | { city?: string; signal?: AbortSignal }
+  ): Promise<GamecenterListItem[]> {
+    const centers = await gamingCenterService.listGamingCenters(paramsOrSignal);
     return centers
       .filter((c) => c.isActive !== false)
       .map((c) => mapPublicGamingCenterToListItem(c));
