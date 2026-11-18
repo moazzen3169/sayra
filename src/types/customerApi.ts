@@ -89,6 +89,15 @@ export interface PublicGamingCenter {
   name: string;
   slug: string;
   isActive?: boolean;
+  allowOnlineBooking?: boolean;
+  onlineReservationEnabled?: boolean;
+  isReservationEnabled?: boolean;
+  reservationEnabled?: boolean;
+  bookingEnabled?: boolean;
+  settings?: {
+    allowOnlineBooking?: boolean;
+    onlineReservationEnabled?: boolean;
+  } | null;
   description?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -116,6 +125,16 @@ export interface PublicGamingCenter {
   coverImageUrl?: string | null;
   coverImages?: string[] | null;
   banner?: string | null;
+  games?: Array<
+    | string
+    | {
+        id?: string;
+        title?: string;
+        name?: string;
+        gameTitle?: string;
+        coverImageUrl?: string | null;
+      }
+  > | null;
 
   // اطلاعات تخفیف و قیمت‌گذاری
   hasDiscount?: boolean;

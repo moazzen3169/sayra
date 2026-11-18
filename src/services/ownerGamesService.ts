@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
+import { ownerService } from "@/services/ownerService";
 
 const asRecord = (v: unknown): Record<string, unknown> | null =>
   v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
@@ -12,6 +13,21 @@ function extractTitle(item: unknown): string | null {
   return typeof t === "string" && t.trim() ? t.trim() : null;
 }
 
+function normalizeGameList(items: unknown): string[] {
+  if (!Array.isArray(items)) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const item of items) {
+    const title = extractTitle(item);
+    if (!title) continue;
+    const key = title.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(title);
+  }
+  return result;
+}
+
 export const ownerGamesService = {
   /**
    * بازی‌های انتخاب‌شده‌ی گیمنت از GET /gamingCenters/{id}
@@ -21,13 +37,28 @@ export const ownerGamesService = {
     const response = await apiClient.get<unknown>(ENDPOINTS.owner.center(centerId), { signal });
     const root = asRecord(response.data);
     const center = asRecord(root?.data) ?? root;
-    const games = center?.games;
-    if (!Array.isArray(games)) return [];
+    return normalizeGameList(center?.games);
+  },
 
-    const titles = games
-      .map(extractTitle)
-      .filter((t): t is string => typeof t === "string");
-    return Array.from(new Set(titles));
+  /**
+   * افزودن بازی‌ها از کاتالوگ مرکزی به گیمنت:
+   * POST /gamingCenters/{centerId}/stations/games/from-catalog
+   */
+  async addGamesFromCatalog(
+    centerId: string,
+    gameCatalogIds: string[],
+    signal?: AbortSignal
+  ): Promise<{ addedGames: string[]; allGames: string[] }> {
+    const ids = gameCatalogIds.map((id) => id.trim()).filter(Boolean);
+    if (ids.length === 0) {
+      return { addedGames: [], allGames: [] };
+    }
+
+    const res = await ownerService.addGamesFromCatalog(centerId, ids, signal);
+    return {
+      addedGames: normalizeGameList(res?.addedGames),
+      allGames: normalizeGameList(res?.allGames),
+    };
   },
 
   /**

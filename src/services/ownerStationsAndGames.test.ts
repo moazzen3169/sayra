@@ -234,4 +234,33 @@ describe("ownerService: Station & Games Management", () => {
       apiClient.patch = originalPatch;
     }
   });
+
+  it("adds games from catalog via ownerGamesService.addGamesFromCatalog and normalizes titles", async () => {
+    let capturedUrl = "";
+    let capturedBody: any = null;
+
+    const originalPost = apiClient.post;
+    apiClient.post = (async (url: string, body: any) => {
+      capturedUrl = url;
+      capturedBody = body;
+      return {
+        data: {
+          addedGames: ["FC 25", { title: "GTA V" }],
+          allGames: ["FC 25", { title: "GTA V" }, "gta v"],
+        },
+      };
+    }) as any;
+
+    try {
+      const { ownerGamesService } = await import("./ownerGamesService");
+      const res = await ownerGamesService.addGamesFromCatalog(centerId, ["g1", "g2"]);
+
+      expect(capturedUrl).toBe(ENDPOINTS.owner.gamesFromCatalog(centerId));
+      expect(capturedBody).toEqual({ gameCatalogIds: ["g1", "g2"] });
+      expect(res.addedGames).toEqual(["FC 25", "GTA V"]);
+      expect(res.allGames).toEqual(["FC 25", "GTA V"]);
+    } finally {
+      apiClient.post = originalPost;
+    }
+  });
 });

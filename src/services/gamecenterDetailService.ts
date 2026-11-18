@@ -343,12 +343,16 @@ const fetchStationsPromise = (async (): Promise<GameStationInfo[]> => {
   return [];
 })();
 
+  const hasCenterGames = Array.isArray(center.games) && center.games.length > 0;
+
   const [stationsRes, addressesRes, mediaRes, ratingsRes, gamesCatalogRes] = await Promise.allSettled([
     fetchStationsPromise,
     gamingCenterService.getPublicAddresses(targetSlug, signal),
     gamingCenterService.getPublicMedia(targetSlug, signal),
     gamingCenterService.getPublicRatings(targetSlug, signal),
-    catalogService.listGames({ isActive: true, limit: 50 }, signal),
+    hasCenterGames
+      ? catalogService.listGames({ isActive: true, limit: 100 }, signal)
+      : Promise.resolve([]),
   ]);
 
   let stations: GameStationInfo[] = [];
@@ -381,14 +385,46 @@ const fetchStationsPromise = (async (): Promise<GameStationInfo[]> => {
   const galleryImages = mapMediaToGalleryImages(mediaList);
   const reviews = mapRatingsToReviews(ratings);
 
-  // واکشی بازی‌ها از /catalog/games
-  let games: GameItem[] = [];
-  if (gamesCatalogRes.status === "fulfilled" && Array.isArray(gamesCatalogRes.value)) {
-    games = gamesCatalogRes.value.map((g) => ({
-      id: g.id,
-      name: g.title,
-      logo: g.coverImageUrl || "",
-    }));
+  // فقط بازی‌های انتخاب‌شده‌ی همین گیمنت (center.games) نمایش داده می‌شوند
+  // و از کاتالوگ صرفاً برای تکمیل تصویر کاور و شناسه استفاده می‌شود.
+  const catalogList =
+    gamesCatalogRes.status === "fulfilled" && Array.isArray(gamesCatalogRes.value)
+      ? gamesCatalogRes.value
+      : [];
+  const catalogByTitle = new Map(
+    catalogList.map((g) => [g.title.trim().toLowerCase(), g])
+  );
+  const catalogById = new Map(catalogList.map((g) => [g.id, g]));
+
+  const games: GameItem[] = [];
+  if (Array.isArray(center.games)) {
+    const seen = new Set<string>();
+    for (const raw of center.games) {
+      let title = "";
+      let rawId: string | undefined;
+      let rawLogo = "";
+
+      if (typeof raw === "string") {
+        title = raw.trim();
+      } else if (raw && typeof raw === "object") {
+        const candidateTitle = raw.title ?? raw.name ?? raw.gameTitle;
+        if (typeof candidateTitle === "string") title = candidateTitle.trim();
+        if (typeof raw.id === "string" && raw.id.trim()) rawId = raw.id.trim();
+        if (typeof raw.coverImageUrl === "string") rawLogo = raw.coverImageUrl;
+      }
+
+      if (!title) continue;
+      const key = title.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const matched = (rawId ? catalogById.get(rawId) : undefined) ?? catalogByTitle.get(key);
+      games.push({
+        id: matched?.id ?? rawId ?? title,
+        name: title,
+        logo: rawLogo || matched?.coverImageUrl || "",
+      });
+    }
   }
 
   return {

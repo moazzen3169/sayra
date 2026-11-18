@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
 import { GamesSection } from "@/components/owner/stations/GamesSection";
 import { StationCategoryGrid } from "@/components/owner/stations/StationCategoryGrid";
 import {
-  AddStationModal,
   DeleteStationModal,
   EditStationModal,
 } from "@/components/owner/stations/StationModals";
@@ -33,6 +33,7 @@ import { ownerService } from "@/services/ownerService";
 import type { DeviceCatalogItem } from "@/types/catalog";
 
 export default function OwnerStationsPage() {
+  const router = useRouter();
   // گیمنت از روی توکن کاربر توسط OwnerContext تشخیص داده می‌شود
   const { centerId, center, isCenterLoading, verificationStatus } = useOwner();
   const canEdit = verificationStatus === "APPROVED";
@@ -43,7 +44,6 @@ export default function OwnerStationsPage() {
   const [reload, setReload] = useState(0);
 
   const [catalogDevices, setCatalogDevices] = useState<DeviceCatalogItem[]>([]);
-  const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [catalogReload, setCatalogReload] = useState(0);
 
@@ -53,10 +53,20 @@ export default function OwnerStationsPage() {
   const [toast, setToast] = useState<string | null>(null);
   const tableRef = useRef<HTMLElement>(null);
 
-  // مودال‌ها (هر لحظه فقط یکی)
-  const [addOpen, setAddOpen] = useState(false);
+  // مودال‌های ویرایش و حذف (هر لحظه فقط یکی)
   const [editing, setEditing] = useState<GameStationInfo | null>(null);
   const [deleting, setDeleting] = useState<GameStationInfo | null>(null);
+
+  // نمایش پیام بازگشت از صفحات ایجاد دستگاه یا بازی
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const toastMsg = params.get("toast");
+    if (!toastMsg) return;
+    window.history.replaceState({}, "", "/owner/stations");
+    const timer = setTimeout(() => setToast(toastMsg), 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   // دستگاه‌های گیمنت: GET /gamingCenters/{id}/stations
   useEffect(() => {
@@ -66,22 +76,9 @@ export default function OwnerStationsPage() {
 
     ownerService
       .listStations(centerId, controller.signal)
-      .then((data: any) => {
+      .then((data) => {
         if (!active) return;
-        let stationList: GameStationInfo[] = [];
-        if (Array.isArray(data)) {
-          stationList = data;
-        } else if (data && typeof data === "object") {
-          if (Array.isArray(data.data)) stationList = data.data;
-          else if (data.data && typeof data.data === "object" && Array.isArray(data.data.data)) {
-            stationList = data.data.data;
-          } else if (Array.isArray(data.stations)) {
-            stationList = data.stations;
-          } else if (Array.isArray(data.items)) {
-            stationList = data.items;
-          }
-        }
-        setStations(stationList);
+        setStations(Array.isArray(data) ? data : []);
         setStationsError(null);
       })
       .catch((e) => {
@@ -110,9 +107,6 @@ export default function OwnerStationsPage() {
       .catch((e) => {
         if (!active || isAbortError(e)) return;
         setCatalogError(getErrorMessage(e));
-      })
-      .finally(() => {
-        if (active) setCatalogLoading(false);
       });
 
     return () => {
@@ -163,7 +157,6 @@ export default function OwnerStationsPage() {
   const refresh = useCallback(() => setReload((v) => v + 1), []);
 
   const retryCatalog = () => {
-    setCatalogLoading(true);
     setCatalogReload((v) => v + 1);
   };
 
@@ -179,7 +172,6 @@ export default function OwnerStationsPage() {
   };
 
   const handleSaved = (message: string, updatedStation?: GameStationInfo) => {
-    setAddOpen(false);
     setEditing(null);
     setDeleting(null);
     setToast(message);
@@ -190,6 +182,17 @@ export default function OwnerStationsPage() {
       );
     }
     refresh();
+  };
+
+  const navigateToNewStation = () => {
+    const params = new URLSearchParams();
+    if (selectedGroup) {
+      params.set("mode", selectedGroup.catalogId ? "catalog" : "custom");
+      if (selectedGroup.catalogId) params.set("catalogId", selectedGroup.catalogId);
+      if (selectedGroup.deviceType) params.set("stationType", selectedGroup.deviceType);
+    }
+    const qs = params.toString();
+    router.push(qs ? `/owner/stations/new?${qs}` : "/owner/stations/new");
   };
 
   if (!centerId && !isCenterLoading) {
@@ -233,7 +236,7 @@ export default function OwnerStationsPage() {
             title="دسته‌های دستگاه"
             subtitle={center?.name ? `دستگاه‌های ${center.name}` : undefined}
             action={
-              <Button onClick={() => setAddOpen(true)} disabled={!canEdit}>
+              <Button onClick={navigateToNewStation} disabled={!canEdit}>
                 <span className="flex items-center gap-1.5">
                   <Icon name="plus" size={16} />
                   <span>افزودن دستگاه</span>
@@ -349,22 +352,6 @@ export default function OwnerStationsPage() {
           />
         )}
       </main>
-
-      {addOpen && centerId && (
-        <AddStationModal
-          centerId={centerId}
-          catalogDevices={catalogDevices}
-          catalogLoading={catalogLoading}
-          catalogError={catalogError}
-          onRetryCatalog={retryCatalog}
-          initialMode={selectedGroup && !selectedGroup.catalogId ? "custom" : "catalog"}
-          initialCatalogId={selectedGroup?.catalogId ?? undefined}
-          initialStationType={selectedGroup?.deviceType}
-          onClose={() => setAddOpen(false)}
-          onSaved={handleSaved}
-          onChanged={refresh}
-        />
-      )}
 
       {editing && centerId && (
         <EditStationModal

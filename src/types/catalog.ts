@@ -83,3 +83,21 @@ export interface GameCatalogQueryParams {
   isActive?: boolean;
   search?: string;
 }
+
+export interface CreateGameCatalogInput {
+  title: string;
+  coverImageUrl?: string;
+  supportedPlatforms: DeviceType[];
+  genre?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface UpdateGameCatalogInput {
+  title?: string;
+  coverImageUrl?: string | null;
+  supportedPlatforms?: DeviceType[];
+  genre?: string | null;
+  description?: string | null;
+  isActive?: boolean;
+}

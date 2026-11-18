@@ -28,7 +28,12 @@ import { useDeviceCategories } from "@/hooks/gaming-center/use-device-categories
 import { isAbortError } from "@/lib/api/client";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { getEffectiveStationPricing } from "@/lib/stationPricing";
-import { formatDayLabel, getErrorMessage } from "@/lib/reservationUi";
+import {
+  formatDayLabel,
+  getErrorMessage,
+  isCenterReservationDisabled,
+  RESERVATION_DISABLED_MESSAGE,
+} from "@/lib/reservationUi";
 import { loadGamecenterDetail } from "@/services/gamecenterDetailService";
 import type { GamecenterDetail } from "@/types/gamecenter";
 import type { BannerItem } from "@/types/home";
@@ -76,6 +81,7 @@ interface BookingCtaProps {
   onPick: () => void;
   onBook: () => void;
   variant: "bar" | "card";
+  reservationDisabled?: boolean;
 }
 
 const BookingCta: React.FC<BookingCtaProps> = ({
@@ -85,10 +91,15 @@ const BookingCta: React.FC<BookingCtaProps> = ({
   onPick,
   onBook,
   variant,
+  reservationDisabled = false,
 }) => {
-  const has = deviceCount > 0;
+  const has = !reservationDisabled && deviceCount > 0;
 
-  const info = has ? (
+  const info = reservationDisabled ? (
+    <span className="text-xs font-bold text-[var(--accent-red)]">
+      رزرو این گیم‌نت غیرفعال است
+    </span>
+  ) : has ? (
     <div className="flex flex-col min-w-0">
       <span className="text-xs text-[var(--text-muted)]">
         {toPersianDigits(deviceCount)} دستگاه انتخاب کردی
@@ -109,14 +120,21 @@ const BookingCta: React.FC<BookingCtaProps> = ({
   const button = (
     <button
       type="button"
+      aria-disabled={reservationDisabled}
       onClick={has ? onBook : onPick}
       className={`h-12 rounded-card font-bold text-sm transition-all active:scale-[0.98] ${
-        has
+        reservationDisabled
+          ? "bg-[var(--foreground)] text-[var(--text-muted)] opacity-70 cursor-not-allowed"
+          : has
           ? "bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary"
           : "bg-[var(--foreground)] text-[var(--text-white)]"
       } ${variant === "bar" ? "px-5 shrink-0" : "w-full"}`}
     >
-      {has ? "انتخاب روز و ساعت" : "انتخاب دستگاه"}
+      {reservationDisabled
+        ? "رزرو غیرفعال"
+        : has
+        ? "انتخاب روز و ساعت"
+        : "انتخاب دستگاه"}
     </button>
   );
 
@@ -279,6 +297,21 @@ export default function GameCenterDetailPage({
 
   // UI
   const [showAllReviews, setShowAllReviews] = useState(false);
+  const [reservationError, setReservationError] = useState<string | null>(null);
+
+  const reservationDisabled = useMemo(
+    () => isCenterReservationDisabled(detail?.center),
+    [detail],
+  );
+
+  useEffect(() => {
+    setReservationError(null);
+  }, [gamingCenterSlug]);
+
+  const triggerReservationDisabledError = useCallback(() => {
+    setReservationError(RESERVATION_DISABLED_MESSAGE);
+    scrollToId("stations");
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -328,6 +361,10 @@ export default function GameCenterDetailPage({
 
   const handleSelectionChange = useCallback(
     (key: string, stations: PhysicalStation[]) => {
+      if (reservationDisabled) {
+        triggerReservationDisabledError();
+        return;
+      }
       setSelection((prev) => {
         const copy = { ...prev };
         if (stations.length === 0) delete copy[key];
@@ -335,7 +372,18 @@ export default function GameCenterDetailPage({
         return copy;
       });
     },
-    [],
+    [reservationDisabled, triggerReservationDisabledError],
+  );
+
+  const handleOpenCategory = useCallback(
+    (category: DeviceCategory) => {
+      if (reservationDisabled) {
+        triggerReservationDisabledError();
+        return;
+      }
+      setActiveCategory(category);
+    },
+    [reservationDisabled, triggerReservationDisabledError],
   );
 
   const galleryItems: BannerItem[] = useMemo(() => {
@@ -457,8 +505,17 @@ export default function GameCenterDetailPage({
                 summary={summary}
                 deviceCount={deviceCount}
                 hourly={hourly}
-                onPick={() => scrollToId("stations")}
-                onBook={() => setIsSheetOpen(true)}
+                reservationDisabled={reservationDisabled}
+                onPick={() =>
+                  reservationDisabled
+                    ? triggerReservationDisabledError()
+                    : scrollToId("stations")
+                }
+                onBook={() =>
+                  reservationDisabled
+                    ? triggerReservationDisabledError()
+                    : setIsSheetOpen(true)
+                }
               />
             </aside>
 
@@ -472,15 +529,37 @@ export default function GameCenterDetailPage({
                 <SectionTitle
                   step={1}
                   title="انتخاب دستگاه"
-                  hint="دستگاهت رو انتخاب کن و رزرو رو شروع کن"
+                  hint={
+                    reservationDisabled
+                      ? "رزرو آنلاین این گیم‌نت در حال حاضر غیرفعال است"
+                      : "دستگاهت رو انتخاب کن و رزرو رو شروع کن"
+                  }
                 />
+                {reservationError && (
+                  <div
+                    role="alert"
+                    className="flex items-center justify-between gap-3 rounded-card border border-[var(--accent-red)]/40 bg-[var(--accent-red)]/10 px-4 py-3 text-xs font-bold text-[var(--accent-red)]"
+                  >
+                    <span>{reservationError}</span>
+                    <button
+                      type="button"
+                      onClick={() => setReservationError(null)}
+                      aria-label="بستن پیام خطا"
+                      className="shrink-0 rounded-full px-2 py-0.5 text-xs hover:bg-[var(--accent-red)]/15"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
                 <DevicePicker
                   categories={categories}
                   isLoading={isCategoriesLoading}
                   error={categoriesError}
                   onRetry={refetchCategories}
                   selection={selection}
-                  onOpen={setActiveCategory}
+                  onOpen={handleOpenCategory}
+                  reservationDisabled={reservationDisabled}
+                  onDisabledAttempt={triggerReservationDisabledError}
                 />
               </section>
 
@@ -570,13 +649,22 @@ export default function GameCenterDetailPage({
           summary={summary}
           deviceCount={deviceCount}
           hourly={hourly}
-          onPick={() => scrollToId("stations")}
-          onBook={() => setIsSheetOpen(true)}
+          reservationDisabled={reservationDisabled}
+          onPick={() =>
+            reservationDisabled
+              ? triggerReservationDisabledError()
+              : scrollToId("stations")
+          }
+          onBook={() =>
+            reservationDisabled
+              ? triggerReservationDisabledError()
+              : setIsSheetOpen(true)
+          }
         />
       )}
 
       {/* مودال تمام‌صفحه‌ی انتخاب دستگاه‌های یک دسته */}
-      {activeCategory && (
+      {activeCategory && !reservationDisabled && (
         <DeviceSelectModal
           gamingCenterSlug={gamingCenterSlug}
           category={activeCategory}
@@ -589,7 +677,7 @@ export default function GameCenterDetailPage({
       )}
 
       {/* مودال تمام‌صفحه‌ی انتخاب روز و ساعت + ثبت رزرو گروهی */}
-      {isSheetOpen && detail && selectedStations.length > 0 && (
+      {isSheetOpen && detail && !reservationDisabled && selectedStations.length > 0 && (
         <GroupBookingSheet
           gamingCenterId={detail.center.id}
           gamingCenterSlug={gamingCenterSlug}

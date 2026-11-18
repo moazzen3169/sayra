@@ -1,10 +1,12 @@
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import type {
+  CreateGameCatalogInput,
   DeviceCatalogItem,
   DeviceCatalogQueryParams,
   GameCatalogItem,
   GameCatalogQueryParams,
+  UpdateGameCatalogInput,
 } from "@/types/catalog";
 
 function unwrapListResponse<T>(payload: unknown): T[] {
@@ -125,10 +127,13 @@ export const catalogService = {
     if (params?.isActive !== undefined) query.isActive = params.isActive;
     if (params?.search) query.search = params.search;
 
-    const response = await apiClient.get<any>(ENDPOINTS.catalog.adminDevices, {
-      query,
-      signal,
-    });
+    const response = await apiClient.get<{ pagination?: { total?: number; page?: number; limit?: number; totalPages?: number } }>(
+      ENDPOINTS.catalog.adminDevices,
+      {
+        query,
+        signal,
+      }
+    );
 
     const resData = response.data;
     const items = unwrapListResponse<DeviceCatalogItem>(resData);
@@ -155,7 +160,7 @@ export const catalogService = {
     },
     signal?: AbortSignal
   ): Promise<DeviceCatalogItem> {
-    const { data } = await apiClient.post<any>(
+    const { data } = await apiClient.post<unknown>(
       ENDPOINTS.catalog.adminDevices,
       payload,
       { signal }
@@ -168,7 +173,7 @@ export const catalogService = {
    * GET /platform-admin/catalog/devices/{id}
    */
   async getAdminDeviceById(id: string, signal?: AbortSignal): Promise<DeviceCatalogItem> {
-    const { data } = await apiClient.get<any>(
+    const { data } = await apiClient.get<unknown>(
       ENDPOINTS.catalog.adminDeviceById(id),
       { signal }
     );
@@ -190,7 +195,7 @@ export const catalogService = {
     },
     signal?: AbortSignal
   ): Promise<DeviceCatalogItem> {
-    const { data } = await apiClient.patch<any>(
+    const { data } = await apiClient.patch<unknown>(
       ENDPOINTS.catalog.adminDeviceById(id),
       payload,
       { signal }
@@ -204,5 +209,81 @@ export const catalogService = {
    */
   async deleteAdminDevice(id: string, signal?: AbortSignal): Promise<void> {
     await apiClient.delete(ENDPOINTS.catalog.adminDeviceById(id), { signal });
+  },
+
+  /**
+   * List all games in catalog (Platform Admin)
+   * GET /platform-admin/catalog/games
+   */
+  async listAdminGames(
+    params?: GameCatalogQueryParams,
+    signal?: AbortSignal
+  ): Promise<{ items: GameCatalogItem[]; total: number; page: number; limit: number; totalPages: number }> {
+    const query: Record<string, string | number | boolean | undefined> = {};
+    if (params?.page !== undefined) query.page = params.page;
+    if (params?.limit !== undefined) query.limit = params.limit;
+    if (params?.platform) query.platform = params.platform;
+    if (params?.genre) query.genre = params.genre;
+    if (params?.isActive !== undefined) query.isActive = params.isActive;
+    if (params?.search) query.search = params.search;
+
+    const response = await apiClient.get<{ pagination?: { total?: number; page?: number; limit?: number; totalPages?: number } }>(
+      ENDPOINTS.catalog.adminGames,
+      {
+        query,
+        signal,
+      }
+    );
+
+    const resData = response.data;
+    const items = unwrapListResponse<GameCatalogItem>(resData);
+    const pagination = resData?.pagination || response.meta?.pagination;
+    const total = pagination?.total ?? items.length;
+    const page = pagination?.page ?? (params?.page || 1);
+    const limit = pagination?.limit ?? (params?.limit || 20);
+    const totalPages = pagination?.totalPages ?? (Math.ceil(total / limit) || 1);
+
+    return { items, total, page, limit, totalPages };
+  },
+
+  /**
+   * Create new game in global catalog (Platform Admin)
+   * POST /platform-admin/catalog/games
+   */
+  async createAdminGame(
+    payload: CreateGameCatalogInput,
+    signal?: AbortSignal
+  ): Promise<GameCatalogItem> {
+    const { data } = await apiClient.post<unknown>(
+      ENDPOINTS.catalog.adminGames,
+      payload,
+      { signal }
+    );
+    return unwrapSingleResponse<GameCatalogItem>(data);
+  },
+
+  /**
+   * Update game in catalog (Platform Admin)
+   * PATCH /platform-admin/catalog/games/{id}
+   */
+  async updateAdminGame(
+    id: string,
+    payload: UpdateGameCatalogInput,
+    signal?: AbortSignal
+  ): Promise<GameCatalogItem> {
+    const { data } = await apiClient.patch<unknown>(
+      ENDPOINTS.catalog.adminGameById(id),
+      payload,
+      { signal }
+    );
+    return unwrapSingleResponse<GameCatalogItem>(data);
+  },
+
+  /**
+   * Soft-delete game in catalog (Platform Admin)
+   * DELETE /platform-admin/catalog/games/{id}
+   */
+  async deleteAdminGame(id: string, signal?: AbortSignal): Promise<void> {
+    await apiClient.delete(ENDPOINTS.catalog.adminGameById(id), { signal });
   },
 };

@@ -30,6 +30,10 @@ interface DevicePickerProps {
   /** دستگاه‌های انتخاب‌شده به تفکیک دسته */
   selection: Record<string, PhysicalStation[]>;
   onOpen: (category: DeviceCategory) => void;
+  /** غیرفعال بودن رزرو آنلاین برای این گیم‌نت */
+  reservationDisabled?: boolean;
+  /** فراخوانی هنگام تلاش برای انتخاب دستگاه در حالت رزرو غیرفعال */
+  onDisabledAttempt?: () => void;
 }
 
 export const DevicePicker: React.FC<DevicePickerProps> = ({
@@ -39,6 +43,8 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({
   onRetry,
   selection,
   onOpen,
+  reservationDisabled = false,
+  onDisabledAttempt,
 }) => {
   const isDraggingRef = useRef(false);
 
@@ -143,21 +149,32 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({
                 <div
                   role="button"
                   tabIndex={0}
+                  aria-disabled={reservationDisabled}
                   onClick={() => {
                     if (isDraggingRef.current) return;
+                    if (reservationDisabled) {
+                      onDisabledAttempt?.();
+                      return;
+                    }
                     onOpen(cat);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
+                      if (reservationDisabled) {
+                        onDisabledAttempt?.();
+                        return;
+                      }
                       onOpen(cat);
                     }
                   }}
                   className={cn(
-                    "group flex h-full w-full cursor-pointer flex-col gap-3 rounded-card border p-3 text-right transition-all select-none",
-                    selected
-                      ? "border-[var(--primary)] bg-[var(--primary-muted)]"
-                      : "border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-color)]"
+                    "group flex h-full w-full flex-col gap-3 rounded-card border p-3 text-right transition-all select-none",
+                    reservationDisabled
+                      ? "cursor-not-allowed border-[var(--border-subtle)] bg-[var(--bg-card)] opacity-60"
+                      : selected
+                      ? "cursor-pointer border-[var(--primary)] bg-[var(--primary-muted)]"
+                      : "cursor-pointer border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-color)]"
                   )}
                 >
                   <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card bg-[var(--foreground)]/40">
@@ -185,9 +202,22 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({
                     </span>
                   </div>
 
-                  <span className="mt-auto flex h-11 w-full items-center justify-center gap-1.5 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)] text-sm font-bold text-[var(--text-white)] transition-colors group-hover:bg-[var(--border-color)]">
-                    <Icon name={selected ? "edit" : "plus"} size={16} />
-                    <span>{selected ? "تغییر انتخاب" : "انتخاب"}</span>
+                  <span
+                    className={cn(
+                      "mt-auto flex h-11 w-full items-center justify-center gap-1.5 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)] text-sm font-bold transition-colors",
+                      reservationDisabled
+                        ? "text-[var(--text-muted)]"
+                        : "text-[var(--text-white)] group-hover:bg-[var(--border-color)]"
+                    )}
+                  >
+                    {reservationDisabled ? (
+                      <span>رزرو غیرفعال</span>
+                    ) : (
+                      <>
+                        <Icon name={selected ? "edit" : "plus"} size={16} />
+                        <span>{selected ? "تغییر انتخاب" : "انتخاب"}</span>
+                      </>
+                    )}
                   </span>
                 </div>
               </CarouselItem>

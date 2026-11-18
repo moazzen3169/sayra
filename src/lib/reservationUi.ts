@@ -2,6 +2,24 @@ import { APP_TIME_ZONE } from "@/lib/api/config";
 import { ApiError } from "@/lib/api/client";
 import { toPersianDigits } from "@/lib/format";
 import type { PaymentState, ReservationStatus } from "@/types/reservation";
+import type { PublicGamingCenter } from "@/types/customerApi";
+
+export const RESERVATION_DISABLED_MESSAGE =
+  "این گیمنت قابلیت رزرو ندارد و در حال حاضر غیرفعال است.";
+
+export function isCenterReservationDisabled(center?: PublicGamingCenter | null): boolean {
+  if (!center) return false;
+  return (
+    center.isActive === false ||
+    center.allowOnlineBooking === false ||
+    center.onlineReservationEnabled === false ||
+    center.isReservationEnabled === false ||
+    center.reservationEnabled === false ||
+    center.bookingEnabled === false ||
+    center.settings?.allowOnlineBooking === false ||
+    center.settings?.onlineReservationEnabled === false
+  );
+}
 
 /* ---------- Status ---------- */
 
