@@ -467,31 +467,7 @@ export default function OwnerEditPage() {
                 </div>
               </div>
 
-              {/* شماره تماس و کد پستی */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-[var(--text-white)]">شماره تماس مجموعه</label>
-                  <input
-                    type="tel"
-                    dir="ltr"
-                    placeholder="02188888888"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className={`${inputClass} text-left font-mono`}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-[var(--text-white)]">کد پستی (اختیاری)</label>
-                  <input
-                    type="text"
-                    dir="ltr"
-                    placeholder="کد پستی ۱۰ رقمی"
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value)}
-                    className={`${inputClass} text-left font-mono`}
-                  />
-                </div>
-              </div>
+
 
               {/* آدرس دقیق */}
               <div className="flex flex-col gap-1.5">

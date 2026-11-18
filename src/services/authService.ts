@@ -5,11 +5,10 @@ import { cleanPhoneNumber, isValidIranPhone } from "@/lib/format";
 import { ContractGapError } from "@/types/customerApi";
 
 /**
- * مسیر ویرایش پروفایل مشتری طبق OpenAPI v1.0-LOCKED: PATCH /customer/me
- * (مسیر GET /auth/me برای خواندن پروفایل است و PATCH ندارد.)
- * TODO: به ENDPOINTS منتقل شود.
+ * مسیرهای پروفایل کاربر و مشتری طبق OpenAPI:
+ * - کاربر احرازشده (Staff/Manager/Admin/User): GET/PATCH /auth/me
+ * - مشتری: GET/PATCH /customer/me
  */
-const CUSTOMER_ME_PATH = "/customer/me";
 
 export interface AuthUser {
   id: string;
@@ -173,13 +172,17 @@ export const authService = {
   },
 
   /**
-   * ویرایش مشخصات پروفایل مشتری لاگین‌شده
-   * PATCH /customer/me  (OpenAPI v1.0-LOCKED)
-   * Body: { fullName: string }  (۲ تا ۱۰۰ کاراکتر)
+   * ویرایش مشخصات پروفایل کاربر یا مشتری لاگین‌شده
+   * - برای نقش‌های غیرمشتری (actorType === "USER" یا مدیر/پرسنل/ادمین): PATCH /auth/me
+   * - برای مشتری: PATCH /customer/me و در صورت خطای 403/404/405، fallback خودکار به PATCH /auth/me
+   * Body: { fullName: string } (۲ تا ۱۰۰ کاراکتر)
    *
    * خطاهای سرور عمداً بدون تغییر منتشر می‌شوند تا موفقیت جعلی نمایش داده نشود.
    */
-  async updateProfile(data: { fullName?: string }): Promise<AuthUser> {
+  async updateProfile(
+    data: { fullName?: string },
+    options?: { actorType?: string; role?: string }
+  ): Promise<AuthUser> {
     const payload: { fullName?: string } = {};
     if (data.fullName !== undefined) {
       const name = data.fullName.trim();
@@ -188,9 +191,46 @@ export const authService = {
       }
       payload.fullName = name;
     }
-    const response = await apiClient.patch<any>(CUSTOMER_ME_PATH, payload);
-    const raw = response.data;
-    return (raw && typeof raw === "object" && raw.data ? raw.data : raw) as AuthUser;
+
+    const unwrap = (raw: unknown): AuthUser => {
+      if (raw && typeof raw === "object" && "data" in raw && raw.data) {
+        return raw.data as AuthUser;
+      }
+      return raw as AuthUser;
+    };
+
+    const actorUpper = String(options?.actorType ?? "").trim().toUpperCase();
+    const roleUpper = String(options?.role ?? "").trim().toUpperCase();
+    const isStaffOrUserActor =
+      actorUpper === "USER" ||
+      ["ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "MANAGER", "OWNER", "STAFF"].includes(roleUpper);
+
+    if (isStaffOrUserActor) {
+      const response = await apiClient.patch<AuthUser | { data?: AuthUser }>(
+        ENDPOINTS.auth.me,
+        payload
+      );
+      return unwrap(response.data);
+    }
+
+    try {
+      const response = await apiClient.patch<AuthUser | { data?: AuthUser }>(
+        ENDPOINTS.auth.customerMe,
+        payload
+      );
+      return unwrap(response.data);
+    } catch (err: unknown) {
+      const errObj = err as { status?: number; response?: { status?: number } };
+      const status = errObj?.status ?? errObj?.response?.status;
+      if (status === 403 || status === 404 || status === 405) {
+        const fallbackResponse = await apiClient.patch<AuthUser | { data?: AuthUser }>(
+          ENDPOINTS.auth.me,
+          payload
+        );
+        return unwrap(fallbackResponse.data);
+      }
+      throw err;
+    }
   },
 
   /**

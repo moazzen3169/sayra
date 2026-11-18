@@ -247,10 +247,15 @@ export default function ProfilePage() {
     // Scenario B: Phone number is the same, only updating name
     setEditLoading(true);
     try {
-      // Real API request to PATCH /api/v1/customer/me
-      const updatedUser = await authService.updateProfile({
-        fullName: cleanFullName,
-      });
+      const updatedUser = await authService.updateProfile(
+        {
+          fullName: cleanFullName,
+        },
+        {
+          actorType: user?.actorType,
+          role: user?.role,
+        },
+      );
 
       const resolvedName = updatedUser?.fullName || cleanFullName;
 
@@ -259,7 +264,9 @@ export default function ProfilePage() {
         cleanCurrentPhone,
         user?.token,
         undefined,
-        user?.role || "USER",
+        updatedUser?.role || user?.role || "USER",
+        updatedUser?.actorType || user?.actorType,
+        updatedUser?.gamingCenterId || user?.gamingCenterId,
       );
 
       setEditSuccess(true);
@@ -333,6 +340,9 @@ export default function ProfilePage() {
         user?.fullName ||
         "کاربر سایرا";
       const resolvedRole = authRes?.user?.role || user?.role || "USER";
+      const resolvedActorType = authRes?.user?.actorType || user?.actorType;
+      const resolvedCenterId =
+        authRes?.user?.gamingCenterId || user?.gamingCenterId;
 
       const normalizedPhone = cleanPhoneNumber(pendingPhone);
       login(
@@ -341,14 +351,22 @@ export default function ProfilePage() {
         token || user?.token,
         authRes?.refreshToken,
         resolvedRole,
+        resolvedActorType,
+        resolvedCenterId,
       );
 
       // If full name was updated during phone change, update profile via API
       if (editFullName.trim()) {
         try {
-          await authService.updateProfile({
-            fullName: editFullName.trim(),
-          });
+          await authService.updateProfile(
+            {
+              fullName: editFullName.trim(),
+            },
+            {
+              actorType: resolvedActorType,
+              role: resolvedRole,
+            },
+          );
         } catch {
           // ignore error if secondary to OTP verification
         }

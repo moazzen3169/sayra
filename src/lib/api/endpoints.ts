@@ -10,9 +10,9 @@ export const ENDPOINTS = {
     otpVerify: "/auth/customer/otp/verify",
     refresh: "/auth/refresh",
     logout: "/auth/logout",
-    /** فقط GET */
+    /** خواندن و ویرایش پروفایل کاربر احرازشده (GET / PATCH) */
     me: "/auth/me",
-    /** ویرایش پروفایل مشتری؛ طبق OpenAPI تأیید شود */
+    /** خواندن و ویرایش پروفایل مشتری (GET / PATCH) */
     customerMe: "/customer/me",
     // Staff / Manager Auth APIs
     userOtpRequest: "/auth/customer/otp/request",
