@@ -10,6 +10,7 @@ import { generateDays, mapCalendarDaysToDateOptions } from "@/lib/dates";
 import type { DateOption } from "@/lib/dates";
 import { cleanPhoneNumber, formatPrice, isValidIranPhone, toEnglishDigits, toPersianDigits } from "@/lib/format";
 import { formatClock, formatSlotHourEnglish, getErrorMessage } from "@/lib/reservationUi";
+import { getGroupReservationErrorMessage } from "@/lib/groupReservationErrors";
 import { getEffectiveStationPricing } from "@/lib/stationPricing";
 import { calendarService } from "@/services/calendarService";
 import { gamingCenterService } from "@/services/gamingCenterService";
@@ -116,6 +117,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
   );
   const [note, setNote] = useState(() => savedDraft?.note ?? "");
   const [clientError, setClientError] = useState<string | null>(null);
+  const [isLeadTimeError, setIsLeadTimeError] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // مرحله ۲ از بازبینی: مرحله نمایش خلاصه نهایی و قیمت قبل از درگاه
@@ -126,7 +128,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
 
-  const { checkout, submit, isSubmitting, error: apiError } =
+  const { checkout, submit, isSubmitting, error: apiError, resetError } =
     useGroupReservation(gamingCenterSlug);
 
   const isActionBusy = isSubmitting || isPaying;
@@ -445,14 +447,44 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
     return 5; // مرحله ۵: بررسی و پرداخت نهایی
   }, [has, isLoggedIn]);
 
+  const LEAD_TIME_MIN_MS = 15 * 60 * 1000;
+  const LEAD_TIME_ERROR_MSG =
+    "رزرو باید حداقل ۱۵ دقیقه پیش از زمان شروع انتخاب‌شده ثبت شود. لطفاً ساعتی با فاصله بیشتر (حداقل ۱۵ دقیقه بعد از الان) انتخاب کنید.";
+
+  const hasLessThanLeadTime = (startIso?: string): boolean => {
+    if (!startIso) return false;
+    const ms = new Date(startIso).getTime();
+    if (Number.isNaN(ms)) return false;
+    return ms - Date.now() < LEAD_TIME_MIN_MS;
+  };
+
+  const handleBackToTimeSelection = () => {
+    setClientError(null);
+    setIsLeadTimeError(false);
+    resetError();
+    setSelectedKeys([]);
+    setRetryToken((v) => v + 1);
+    setIsReviewStage(false);
+  };
+
   // کلیک روی دکمه ثبت اولیه یا ادامه به بررسی
   const handleProceed = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (isActionBusy) return;
     setClientError(null);
+    setIsLeadTimeError(false);
+    resetError();
 
     if (!has || tooShort) {
       setClientError(disabledReason);
+      return;
+    }
+
+    if (hasLessThanLeadTime(selectedSlots[0]?.startTime)) {
+      setIsLeadTimeError(true);
+      setClientError(LEAD_TIME_ERROR_MSG);
+      setSelectedKeys([]);
+      setRetryToken((v) => v + 1);
       return;
     }
 
@@ -470,6 +502,14 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
   const handleConfirmAndPay = async () => {
     if (isActionBusy) return;
     setClientError(null);
+    setIsLeadTimeError(false);
+    resetError();
+
+    if (hasLessThanLeadTime(selectedSlots[0]?.startTime)) {
+      setIsLeadTimeError(true);
+      setClientError(LEAD_TIME_ERROR_MSG);
+      return;
+    }
 
     const cleanPhone = cleanPhoneNumber(phone || user?.phone || "");
     const targetName = (fullName || user?.fullName || "").trim();
@@ -560,6 +600,9 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
       if (err?.status === 401 || err?.code === "UNAUTHORIZED") {
         setIsAuthModalOpen(true);
       } else {
+        if (err?.code === "LEAD_TIME_TOO_SHORT") {
+          setIsLeadTimeError(true);
+        }
         setClientError(getErrorMessage(err));
       }
     }
@@ -594,7 +637,9 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
       }`
     : "هنوز ساعتی انتخاب نشده";
 
-  const errorText = clientError || apiError?.message || null;
+  const errorText = clientError || (apiError ? getGroupReservationErrorMessage(apiError) : null);
+  const showLeadTimeBackAction =
+    isReviewStage && (isLeadTimeError || apiError?.code === "LEAD_TIME_TOO_SHORT");
 
   return (
     <div
@@ -611,7 +656,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
         <div className="mx-auto flex h-16 w-full max-w-[1100px] items-center gap-3 px-4">
           <button
             type="button"
-            onClick={isReviewStage ? () => setIsReviewStage(false) : onClose}
+            onClick={isReviewStage ? handleBackToTimeSelection : onClose}
             disabled={isActionBusy}
             aria-label="بازگشت"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--text-white)] transition-colors hover:bg-[var(--bg-card)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:opacity-40"
@@ -899,9 +944,18 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
               {errorText && (
                 <div
                   role="alert"
-                  className="rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-3 text-xs font-bold leading-6 text-[var(--accent-red)]"
+                  className="rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-3 text-xs font-bold leading-6 text-[var(--accent-red)] flex flex-col gap-2.5 items-start"
                 >
-                  {errorText}
+                  <span>{errorText}</span>
+                  {showLeadTimeBackAction && (
+                    <button
+                      type="button"
+                      onClick={handleBackToTimeSelection}
+                      className="inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-child bg-[var(--accent-red)] text-[var(--text-white)] text-xs font-bold hover:opacity-90 transition-opacity active:scale-[0.98]"
+                    >
+                      <span>بازگشت و انتخاب تایم جدید</span>
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1082,9 +1136,18 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
               {errorText && (
                 <div
                   role="alert"
-                  className="rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-3 text-xs font-bold leading-6 text-[var(--accent-red)]"
+                  className="rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-3 text-xs font-bold leading-6 text-[var(--accent-red)] flex flex-col gap-2.5 items-start"
                 >
-                  {errorText}
+                  <span>{errorText}</span>
+                  {showLeadTimeBackAction && (
+                    <button
+                      type="button"
+                      onClick={handleBackToTimeSelection}
+                      className="inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-child bg-[var(--accent-red)] text-[var(--text-white)] text-xs font-bold hover:opacity-90 transition-opacity active:scale-[0.98]"
+                    >
+                      <span>بازگشت و انتخاب تایم جدید</span>
+                    </button>
+                  )}
                 </div>
               )}
 

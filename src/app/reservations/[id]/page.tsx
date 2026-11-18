@@ -1,6 +1,7 @@
 "use client";
 
 import React, { use, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GamecenterDetailHeader } from "@/components/GamecenterDetailHeader";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -369,8 +370,28 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
             <section className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 desk:p-5 flex flex-col gap-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3 min-w-0">
                 <div className="flex flex-col gap-1 min-w-0 flex-1">
-                  <h1 className="text-base font-bold text-[var(--text-white)] break-words leading-tight">
-                    {reservation.gamingCenterName ?? "گیمنت"}
+                  <h1 className="text-base font-bold leading-tight">
+                    {reservation.gamingCenterId ? (
+                      <Link
+                        href={`/gamecenter/${encodeURIComponent(reservation.gamingCenterId)}`}
+                        className="inline-flex items-center gap-1 text-[var(--text-white)] hover:text-[var(--primary)] underline decoration-[var(--border-color)] hover:decoration-[var(--primary)] underline-offset-4 transition-colors break-words"
+                      >
+                        <span>{reservation.gamingCenterName ?? "گیمنت"}</span>
+                        <svg
+                          className="w-3.5 h-3.5 text-[var(--primary)] shrink-0 transform rotate-180"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2.2}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                    ) : (
+                      <span className="text-[var(--text-white)] break-words">
+                        {reservation.gamingCenterName ?? "گیمنت"}
+                      </span>
+                    )}
                   </h1>
                   {reservation.gamingCenterAddress && (
                     <p className="text-xs text-[var(--text-muted)] break-words leading-relaxed">
@@ -597,13 +618,51 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
               )}
 
               {canCancel && (
-                <button
-                  type="button"
-                  onClick={() => setIsCancelConfirmOpen(true)}
-                  className="h-12 w-full rounded-card bg-transparent border border-[var(--accent-red)]/50 hover:bg-[var(--accent-red)]/10 text-[var(--accent-red)] text-sm font-bold active:scale-[0.98] transition-all"
-                >
-                  لغو رزرو
-                </button>
+                <div className="flex flex-col gap-3 mt-1">
+                  <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex flex-col gap-2.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-white)]">
+                      <svg
+                        className="w-4 h-4 text-[var(--primary)] shrink-0"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <span>شرایط لغو رزرو</span>
+                    </div>
+                    <ul className="flex flex-col gap-1.5 text-xs text-[var(--text-muted)] leading-relaxed list-disc pr-4">
+                      <li>
+                        در صورت لغو رزرو تا حداقل <strong className="text-[var(--text-white)]">۲۴ ساعت پیش از زمان دقیق شروع</strong>، کل مبلغ پرداختی به کیف پول شما بازگردانده می‌شود.
+                      </li>
+                      <li>
+                        درخواست لغو در فاصله <strong className="text-[var(--text-white)]">کمتر از ۲۴ ساعت</strong> مانده به شروع رزرو، مشمول بازپرداخت خودکار وجه نخواهد بود.
+                      </li>
+                      <li>
+                        امکان ویرایش مستقیم تاریخ، ساعت یا تعداد دستگاه‌های رزرو تأییدشده وجود ندارد؛ برای تغییر باید مطابق شرایط فوق رزرو را لغو و مجدداً ثبت کنید.
+                      </li>
+                    </ul>
+                    <Link
+                      href="/terms"
+                      className="text-xs font-bold text-[var(--primary)] hover:underline w-fit mt-0.5"
+                    >
+                      مشاهده قوانین و مقررات کامل ←
+                    </Link>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsCancelConfirmOpen(true)}
+                    className="h-12 w-full rounded-card bg-transparent border border-[var(--accent-red)]/50 hover:bg-[var(--accent-red)]/10 text-[var(--accent-red)] text-sm font-bold active:scale-[0.98] transition-all"
+                  >
+                    لغو رزرو
+                  </button>
+                </div>
               )}
             </section>
           </>

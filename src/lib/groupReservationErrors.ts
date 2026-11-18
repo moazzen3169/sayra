@@ -23,6 +23,8 @@ export function getGroupReservationErrorMessage(
       return "متأسفانه یک یا چند دستگاه در این بازه زمانی توسط کاربر دیگری رزرو شده است. لطفاً ساعت یا دستگاه دیگری را انتخاب نمایید.";
     case "RESERVATION_START_TIME_IN_PAST":
       return "زمان شروع رزرو باید در آینده باشد. لطفاً ساعت جدیدی را انتخاب کنید.";
+    case "LEAD_TIME_TOO_SHORT":
+      return "رزرو باید حداقل ۱۵ دقیقه پیش از زمان شروع انتخاب‌شده ثبت شود. لطفاً ساعتی با فاصله بیشتر (حداقل ۱۵ دقیقه بعد از الان) انتخاب کنید.";
     case "INVALID_DURATION":
       return rawMsg || "مدت زمان رزرو با قوانین دستگاه‌های انتخابی همخوانی ندارد.";
     case "ACTIVE_RESERVATION_LIMIT_REACHED":

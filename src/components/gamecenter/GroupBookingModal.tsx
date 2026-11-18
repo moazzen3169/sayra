@@ -9,6 +9,7 @@ import type {
 import { cleanPhoneNumber, formatPrice, isValidIranPhone, toPersianDigits, toEnglishDigits } from "@/lib/format";
 import { getEffectiveStationPricing } from "@/lib/stationPricing";
 import { useGroupReservation } from "@/hooks/gaming-center/use-group-reservation";
+import { getGroupReservationErrorMessage } from "@/lib/groupReservationErrors";
 import { useAuth } from "@/context/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 
@@ -439,7 +440,7 @@ export const GroupBookingModal: React.FC<GroupBookingModalProps> = ({
               role="alert"
               className="p-3 rounded-lg bg-[var(--accent-red)]/15 border border-[var(--accent-red)]/40 text-[var(--accent-red)] text-xs font-bold leading-relaxed"
             >
-              {clientError || apiError?.message}
+              {clientError || getGroupReservationErrorMessage(apiError)}
             </div>
           )}
 

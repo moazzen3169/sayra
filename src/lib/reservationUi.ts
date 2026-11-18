@@ -166,6 +166,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   RESERVATION_OVERLAP: "این زمان با رزرو دیگری هم‌پوشانی دارد. لطفاً زمان دیگری انتخاب کنید.",
   OVERLAP_CONFLICT: "این زمان پر است. لطفاً یک زمان خالی دیگر را انتخاب کنید.",
   RESERVATION_START_TIME_IN_PAST: "زمان انتخاب شده گذشته است. ساعت‌های بعدی را انتخاب کنید.",
+  LEAD_TIME_TOO_SHORT:
+    "رزرو باید حداقل ۱۵ دقیقه پیش از زمان شروع انتخاب‌شده ثبت شود. لطفاً ساعتی با فاصله بیشتر (حداقل ۱۵ دقیقه بعد از الان) انتخاب کنید.",
   ONLINE_RESERVATION_DISABLED: "رزرو آنلاین این گیم‌نت در حال حاضر فعال نیست.",
   IDEMPOTENCY_REQUEST_IN_PROGRESS: "درخواست شما در حال پردازش است، لطفاً کمی صبر کنید.",
   IDEMPOTENCY_KEY_REQUIRED: "رزرو انجام نشد. لطفاً دوباره تلاش کنید.",
@@ -212,6 +214,7 @@ const SLOT_CONFLICT_CODES = new Set([
   "RESERVATION_OVERLAP",
   "OVERLAP_CONFLICT",
   "RESERVATION_START_TIME_IN_PAST",
+  "LEAD_TIME_TOO_SHORT",
 ]);
 
 /** خطاهایی که یعنی Availability تغییر کرده و باید دوباره از Backend گرفته شود */

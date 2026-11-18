@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatPrice, toPersianDigits } from "@/lib/format";
@@ -49,8 +50,30 @@ export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({ 
       {/* Top Header: Gaming Center Name + Status Badge */}
       <div className="flex items-start justify-between gap-3 min-w-0">
         <div className="flex flex-col gap-1 min-w-0">
-          <h3 className="text-base font-bold text-[var(--text-white)] break-words leading-tight">
-            {reservation.gamingCenterName ?? "گیمنت"}
+          <h3 className="text-base font-bold leading-tight">
+            {reservation.gamingCenterId ? (
+              <Link
+                href={`/gamecenter/${encodeURIComponent(reservation.gamingCenterId)}`}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 text-[var(--text-white)] hover:text-[var(--primary)] underline decoration-[var(--border-color)] hover:decoration-[var(--primary)] underline-offset-4 transition-colors break-words"
+              >
+                <span>{reservation.gamingCenterName ?? "گیمنت"}</span>
+                <svg
+                  className="w-3.5 h-3.5 text-[var(--primary)] shrink-0 transform rotate-180"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            ) : (
+              <span className="text-[var(--text-white)] break-words">
+                {reservation.gamingCenterName ?? "گیمنت"}
+              </span>
+            )}
           </h3>
           {reservation.gamingCenterAddress && (
             <p className="text-xs text-[var(--text-muted)] break-words leading-relaxed line-clamp-1">
