@@ -1,11 +1,15 @@
-import { apiClient } from "@/lib/api/client";
+import { apiClient, ApiError } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import type {
+  CreateDeviceTypeInput,
   CreateGameCatalogInput,
   DeviceCatalogItem,
   DeviceCatalogQueryParams,
+  DeviceTypeQueryParams,
+  DynamicDeviceType,
   GameCatalogItem,
   GameCatalogQueryParams,
+  UpdateDeviceTypeInput,
   UpdateGameCatalogInput,
 } from "@/types/catalog";
 
@@ -285,5 +289,167 @@ export const catalogService = {
    */
   async deleteAdminGame(id: string, signal?: AbortSignal): Promise<void> {
     await apiClient.delete(ENDPOINTS.catalog.adminGameById(id), { signal });
+  },
+
+  /* =========================================================================
+     Device Types Endpoints (/catalog/device-types & /platform-admin/catalog/device-types)
+     ========================================================================= */
+
+  /**
+   * List all active device types (public / gaming center manager)
+   * GET /catalog/device-types
+   */
+  async listDeviceTypes(
+    params?: DeviceTypeQueryParams,
+    signal?: AbortSignal
+  ): Promise<DynamicDeviceType[]> {
+    const query: Record<string, string | number | boolean | undefined> = {};
+    if (params?.page !== undefined) query.page = params.page;
+    if (params?.limit !== undefined) query.limit = params.limit;
+    if (params?.category) query.category = params.category;
+    if (params?.isActive !== undefined) query.isActive = params.isActive;
+    if (params?.search) query.search = params.search;
+
+    const { data } = await apiClient.get<unknown>(ENDPOINTS.catalog.deviceTypes, {
+      query,
+      signal,
+    });
+    return unwrapListResponse<DynamicDeviceType>(data);
+  },
+
+  /**
+   * Get device type by ID (public / gaming center manager)
+   * GET /catalog/device-types/{id}
+   */
+  async getDeviceTypeById(id: string, signal?: AbortSignal): Promise<DynamicDeviceType> {
+    const { data } = await apiClient.get<unknown>(ENDPOINTS.catalog.deviceTypeById(id), {
+      signal,
+    });
+    return unwrapSingleResponse<DynamicDeviceType>(data);
+  },
+
+  /**
+   * List device types (Platform Admin)
+   * GET /platform-admin/catalog/device-types (fallback to /platform-admin/device-types on 404)
+   */
+  async listAdminDeviceTypes(
+    params?: DeviceTypeQueryParams,
+    signal?: AbortSignal
+  ): Promise<{ items: DynamicDeviceType[]; total: number; page: number; limit: number; totalPages: number }> {
+    const query: Record<string, string | number | boolean | undefined> = {};
+    if (params?.page !== undefined) query.page = params.page;
+    if (params?.limit !== undefined) query.limit = params.limit;
+    if (params?.category) query.category = params.category;
+    if (params?.isActive !== undefined) query.isActive = params.isActive;
+    if (params?.extraControllerEnabled !== undefined) {
+      query.extraControllerEnabled = params.extraControllerEnabled;
+    }
+    if (params?.search) query.search = params.search;
+
+    let response;
+    try {
+      response = await apiClient.get<{ pagination?: { total?: number; page?: number; limit?: number; totalPages?: number } }>(
+        ENDPOINTS.catalog.adminDeviceTypes,
+        { query, signal, authScope: "admin" }
+      );
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        response = await apiClient.get<{ pagination?: { total?: number; page?: number; limit?: number; totalPages?: number } }>(
+          ENDPOINTS.catalog.adminPlatformDeviceTypes,
+          { query, signal, authScope: "admin" }
+        );
+      } else {
+        throw err;
+      }
+    }
+
+    const resData = response.data;
+    const items = unwrapListResponse<DynamicDeviceType>(resData);
+    const pagination = resData?.pagination || response.meta?.pagination;
+    const total = pagination?.total ?? items.length;
+    const page = pagination?.page ?? (params?.page || 1);
+    const limit = pagination?.limit ?? (params?.limit || 20);
+    const totalPages = pagination?.totalPages ?? (Math.ceil(total / limit) || 1);
+
+    return { items, total, page, limit, totalPages };
+  },
+
+  /**
+   * Create new dynamic device type (Platform Admin)
+   * POST /platform-admin/catalog/device-types
+   */
+  async createAdminDeviceType(
+    payload: CreateDeviceTypeInput,
+    signal?: AbortSignal
+  ): Promise<DynamicDeviceType> {
+    try {
+      const { data } = await apiClient.post<unknown>(
+        ENDPOINTS.catalog.adminDeviceTypes,
+        payload,
+        { signal, authScope: "admin" }
+      );
+      return unwrapSingleResponse<DynamicDeviceType>(data);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        const { data } = await apiClient.post<unknown>(
+          ENDPOINTS.catalog.adminPlatformDeviceTypes,
+          payload,
+          { signal, authScope: "admin" }
+        );
+        return unwrapSingleResponse<DynamicDeviceType>(data);
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * Update device type (Platform Admin)
+   * PATCH /platform-admin/catalog/device-types/{id}
+   */
+  async updateAdminDeviceType(
+    id: string,
+    payload: UpdateDeviceTypeInput,
+    signal?: AbortSignal
+  ): Promise<DynamicDeviceType> {
+    try {
+      const { data } = await apiClient.patch<unknown>(
+        ENDPOINTS.catalog.adminDeviceTypeById(id),
+        payload,
+        { signal, authScope: "admin" }
+      );
+      return unwrapSingleResponse<DynamicDeviceType>(data);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        const { data } = await apiClient.patch<unknown>(
+          ENDPOINTS.catalog.adminPlatformDeviceTypeById(id),
+          payload,
+          { signal, authScope: "admin" }
+        );
+        return unwrapSingleResponse<DynamicDeviceType>(data);
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * Delete device type (Platform Admin)
+   * DELETE /platform-admin/catalog/device-types/{id}
+   */
+  async deleteAdminDeviceType(id: string, signal?: AbortSignal): Promise<void> {
+    try {
+      await apiClient.delete(ENDPOINTS.catalog.adminDeviceTypeById(id), {
+        signal,
+        authScope: "admin",
+      });
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        await apiClient.delete(ENDPOINTS.catalog.adminPlatformDeviceTypeById(id), {
+          signal,
+          authScope: "admin",
+        });
+        return;
+      }
+      throw err;
+    }
   },
 };

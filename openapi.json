@@ -1071,6 +1071,11 @@
             "example": 2,
             "description": "Hours before reservation start time within which cancellation is permitted"
           },
+          "allowOnlineBooking": {
+            "type": "boolean",
+            "example": true,
+            "description": "Indicates whether customers can make online reservations for the gaming center"
+          },
           "hourlyRate": {
             "type": "number",
             "description": "Lowest hourly rate among registered active stations (or fallback default hourly rate)"
@@ -3314,6 +3319,141 @@
           "404": { "$ref": "#/components/responses/NotFoundError" }
         },
         "operationId": "delete_platform_admin_catalog_device_types_id"
+      }
+    },
+    "/platform-admin/device-types": {
+      "get": {
+        "summary": "List dynamic device types (Platform Admin)",
+        "tags": ["PlatformAdmin"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+            }
+          },
+          {
+            "name": "isActive",
+            "in": "query",
+            "schema": { "type": "boolean" }
+          },
+          {
+            "name": "extraControllerEnabled",
+            "in": "query",
+            "schema": { "type": "boolean" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of device types",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          }
+        },
+        "operationId": "get_platform_admin_device_types"
+      },
+      "post": {
+        "summary": "Create dynamic device type (Platform Admin)",
+        "tags": ["PlatformAdmin"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateDeviceTypeInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Device type created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          }
+        },
+        "operationId": "post_platform_admin_device_types"
+      }
+    },
+    "/platform-admin/device-types/{id}": {
+      "get": {
+        "summary": "Get dynamic device type by ID (Platform Admin)",
+        "tags": ["PlatformAdmin"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Device type details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          }
+        },
+        "operationId": "get_platform_admin_device_types_id"
+      },
+      "patch": {
+        "summary": "Update dynamic device type (Platform Admin)",
+        "tags": ["PlatformAdmin"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateDeviceTypeInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Device type updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          }
+        },
+        "operationId": "patch_platform_admin_device_types_id"
+      },
+      "delete": {
+        "summary": "Delete dynamic device type (Platform Admin)",
+        "tags": ["PlatformAdmin"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": { "204": { "description": "Device type deleted" } },
+        "operationId": "delete_platform_admin_device_types_id"
       }
     },
     "/platform-admin/catalog/devices": {

@@ -29,6 +29,24 @@ function validateGroupReservationPayload(
     throw new Error("دستگاه‌های انتخاب‌شده تکراری هستند.");
   }
 
+  for (const item of payload.items) {
+    if (item.extraControllers) {
+      for (const ec of item.extraControllers) {
+        if (!ec.extraControllerId?.trim()) {
+          throw new Error("شناسه دسته اضافی نامعتبر است.");
+        }
+        if (
+          typeof ec.quantity !== "number" ||
+          !Number.isInteger(ec.quantity) ||
+          ec.quantity < 1 ||
+          ec.quantity > 100
+        ) {
+          throw new Error("تعداد دسته اضافی باید عدد صحیح بین ۱ تا ۱۰۰ باشد.");
+        }
+      }
+    }
+  }
+
   if (!payload.startTime) {
     throw new Error("زمان شروع رزرو مشخص نشده است.");
   }
@@ -65,6 +83,22 @@ function validateGroupReservationPayload(
   };
 }
 
+function serializeReservationItems(items: GroupReservationPayload["items"]) {
+  return items.map((it) => {
+    const validExtras = (it.extraControllers ?? [])
+      .filter((ec) => ec.quantity > 0 && ec.extraControllerId?.trim())
+      .map((ec) => ({
+        extraControllerId: ec.extraControllerId.trim(),
+        quantity: ec.quantity,
+      }));
+    return {
+      stationId: it.stationId,
+      ...(it.staffId ? { staffId: it.staffId } : {}),
+      ...(validExtras.length > 0 ? { extraControllers: validExtras } : {}),
+    };
+  });
+}
+
 export const groupReservationApi = {
   /**
    * روند جدید پرداخت آنلاین (Payment-First Flow):
@@ -87,7 +121,7 @@ export const groupReservationApi = {
     const requestBody: Record<string, unknown> = {
       startTime: startDate.toISOString(),
       durationMinutes: payload.durationMinutes,
-      items: payload.items.map((it) => ({ stationId: it.stationId })),
+      items: serializeReservationItems(payload.items),
       customer: {
         fullName: payload.customer.fullName.trim(),
         phone: cleanCustomerPhone,
@@ -142,7 +176,7 @@ export const groupReservationApi = {
     const requestBody: Record<string, unknown> = {
       startTime: startDate.toISOString(),
       durationMinutes: payload.durationMinutes,
-      items: payload.items.map((it) => ({ stationId: it.stationId })),
+      items: serializeReservationItems(payload.items),
       customer: {
         fullName: payload.customer.fullName.trim(),
         phone: cleanCustomerPhone,

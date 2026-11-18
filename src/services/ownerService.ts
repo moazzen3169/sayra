@@ -1,5 +1,5 @@
 
-import { apiClient } from "@/lib/api/client";
+import { apiClient, ApiError } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import {
   extractMediaItems,
@@ -7,6 +7,11 @@ import {
   normalizeMediaUrl,
 } from "@/lib/media";
 import type { GameStationInfo } from "@/services/gamingCenterService";
+import type {
+  ExtraControllerConfigInput,
+  StationExtraController,
+  StationExtraControllersResult,
+} from "@/types/gaming-center/station.types";
 import type {
   CenterSettings,
   CommissionListParams,
@@ -1108,12 +1113,29 @@ export const ownerService = {
       body.description = payload.description;
     }
 
-    const res = await apiClient.post<GameStationInfo>(
+    if (payload.deviceTypeId) {
+      body.deviceTypeId = payload.deviceTypeId;
+    }
+
+    if (payload.extraControllers && payload.extraControllers.length > 0) {
+      body.extraControllers = payload.extraControllers.map((ec) => ({
+        controllerType: ec.controllerType.trim(),
+        quantity: ec.quantity,
+        hourlyPrice: ec.hourlyPrice,
+        isActive: ec.isActive ?? true,
+      }));
+    }
+
+    const res = await apiClient.post<unknown>(
       ENDPOINTS.owner.stations(centerId),
       body
     );
 
-    return res.data;
+    const raw = res.data;
+    if (raw && typeof raw === "object" && "data" in raw && (raw as { data?: unknown }).data && typeof (raw as { data: unknown }).data === "object") {
+      return (raw as { data: GameStationInfo }).data;
+    }
+    return raw as GameStationInfo;
   },
 
   async createStationsFromCatalog(
@@ -1150,6 +1172,241 @@ export const ownerService = {
     }
 
     return [];
+  },
+
+  async listStationExtraControllers(
+    centerId: string,
+    stationId: string,
+    signal?: AbortSignal
+  ): Promise<StationExtraControllersResult> {
+    const res = await apiClient.get<unknown>(
+      ENDPOINTS.owner.stationExtraControllers(centerId, stationId),
+      { signal }
+    );
+
+    const raw = res.data;
+    const payload =
+      raw && typeof raw === "object" && "data" in raw && (raw as { data?: unknown }).data !== undefined
+        ? (raw as { data: unknown }).data
+        : raw;
+
+    if (Array.isArray(payload)) {
+      return {
+        extraControllerEnabled: true,
+        extraControllers: payload as StationExtraController[],
+      };
+    }
+
+    if (payload && typeof payload === "object") {
+      const rec = payload as Record<string, unknown>;
+      const list = Array.isArray(rec.extraControllers)
+        ? (rec.extraControllers as StationExtraController[])
+        : Array.isArray(rec.items)
+          ? (rec.items as StationExtraController[])
+          : Array.isArray(rec.data)
+            ? (rec.data as StationExtraController[])
+            : [];
+
+      const enabled =
+        typeof rec.extraControllerEnabled === "boolean"
+          ? rec.extraControllerEnabled
+          : typeof rec.enabled === "boolean"
+            ? rec.enabled
+            : undefined;
+
+      return {
+        extraControllerEnabled: enabled,
+        extraControllers: list,
+      };
+    }
+
+    return { extraControllers: [] };
+  },
+
+  async replaceStationExtraControllers(
+    centerId: string,
+    stationId: string,
+    extraControllers: ExtraControllerConfigInput[],
+    signal?: AbortSignal
+  ): Promise<StationExtraController[]> {
+    const normalized = extraControllers.map((ec) => ({
+      controllerType: ec.controllerType.trim(),
+      quantity: ec.quantity,
+      hourlyPrice: ec.hourlyPrice,
+      isActive: ec.isActive ?? true,
+    }));
+
+    try {
+      const res = await apiClient.put<unknown>(
+        ENDPOINTS.owner.stationExtraControllers(centerId, stationId),
+        { extraControllers: normalized },
+        { signal }
+      );
+
+      const raw = res.data;
+      const payload =
+        raw && typeof raw === "object" && "data" in raw && (raw as { data?: unknown }).data !== undefined
+          ? (raw as { data: unknown }).data
+          : raw;
+
+      if (Array.isArray(payload)) return payload as StationExtraController[];
+      if (payload && typeof payload === "object") {
+        const rec = payload as Record<string, unknown>;
+        if (Array.isArray(rec.extraControllers)) return rec.extraControllers as StationExtraController[];
+        if (Array.isArray(rec.items)) return rec.items as StationExtraController[];
+      }
+      return [];
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 400 || err.status === 500)) {
+        const current = await ownerService
+          .listStationExtraControllers(centerId, stationId, signal)
+          .catch(() => ({ extraControllers: [] as StationExtraController[] }));
+        return ownerService.syncStationExtraControllers(
+          centerId,
+          stationId,
+          normalized,
+          current.extraControllers,
+          signal
+        );
+      }
+      throw err;
+    }
+  },
+
+  async syncStationExtraControllers(
+    centerId: string,
+    stationId: string,
+    nextConfigs: Array<ExtraControllerConfigInput & { existingId?: string }>,
+    existingConfigs: StationExtraController[] = [],
+    signal?: AbortSignal
+  ): Promise<StationExtraController[]> {
+    const existingById = new Map(existingConfigs.map((c) => [c.id, c]));
+    const existingByType = new Map(
+      existingConfigs.map((c) => [c.controllerType.trim().toLowerCase(), c])
+    );
+
+    const keptIds = new Set<string>();
+    const results: StationExtraController[] = [];
+
+    for (const cfg of nextConfigs) {
+      const trimmedType = cfg.controllerType.trim();
+      const isActive = cfg.isActive ?? true;
+      const matched =
+        (cfg.existingId ? existingById.get(cfg.existingId) : undefined) ??
+        existingByType.get(trimmedType.toLowerCase());
+
+      if (matched) {
+        keptIds.add(matched.id);
+        const changed =
+          matched.controllerType.trim() !== trimmedType ||
+          matched.quantity !== cfg.quantity ||
+          matched.hourlyPrice !== cfg.hourlyPrice ||
+          (matched.isActive ?? true) !== isActive;
+
+        if (changed) {
+          const updated = await ownerService.updateStationExtraController(
+            centerId,
+            stationId,
+            matched.id,
+            {
+              controllerType: trimmedType,
+              quantity: cfg.quantity,
+              hourlyPrice: cfg.hourlyPrice,
+              isActive,
+            },
+            signal
+          );
+          results.push(updated);
+        } else {
+          results.push(matched);
+        }
+      } else {
+        const created = await ownerService.createStationExtraController(
+          centerId,
+          stationId,
+          {
+            controllerType: trimmedType,
+            quantity: cfg.quantity,
+            hourlyPrice: cfg.hourlyPrice,
+            isActive,
+          },
+          signal
+        );
+        results.push(created);
+      }
+    }
+
+    for (const prev of existingConfigs) {
+      if (!keptIds.has(prev.id)) {
+        await ownerService.deleteStationExtraController(
+          centerId,
+          stationId,
+          prev.id,
+          signal
+        );
+      }
+    }
+
+    return results;
+  },
+
+  async createStationExtraController(
+    centerId: string,
+    stationId: string,
+    payload: ExtraControllerConfigInput,
+    signal?: AbortSignal
+  ): Promise<StationExtraController> {
+    const res = await apiClient.post<unknown>(
+      ENDPOINTS.owner.stationExtraControllers(centerId, stationId),
+      {
+        controllerType: payload.controllerType.trim(),
+        quantity: payload.quantity,
+        hourlyPrice: payload.hourlyPrice,
+        isActive: payload.isActive ?? true,
+      },
+      { signal }
+    );
+    const raw = res.data;
+    if (raw && typeof raw === "object" && "data" in raw && (raw as { data?: unknown }).data) {
+      return (raw as { data: StationExtraController }).data;
+    }
+    return raw as StationExtraController;
+  },
+
+  async updateStationExtraController(
+    centerId: string,
+    stationId: string,
+    extraControllerId: string,
+    payload: ExtraControllerConfigInput,
+    signal?: AbortSignal
+  ): Promise<StationExtraController> {
+    const res = await apiClient.patch<unknown>(
+      ENDPOINTS.owner.stationExtraControllerDetail(centerId, stationId, extraControllerId),
+      {
+        controllerType: payload.controllerType.trim(),
+        quantity: payload.quantity,
+        hourlyPrice: payload.hourlyPrice,
+        isActive: payload.isActive ?? true,
+      },
+      { signal }
+    );
+    const raw = res.data;
+    if (raw && typeof raw === "object" && "data" in raw && (raw as { data?: unknown }).data) {
+      return (raw as { data: StationExtraController }).data;
+    }
+    return raw as StationExtraController;
+  },
+
+  async deleteStationExtraController(
+    centerId: string,
+    stationId: string,
+    extraControllerId: string,
+    signal?: AbortSignal
+  ): Promise<void> {
+    await apiClient.delete(
+      ENDPOINTS.owner.stationExtraControllerDetail(centerId, stationId, extraControllerId),
+      { signal }
+    );
   },
 
   async addGamesFromCatalog(

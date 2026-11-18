@@ -24,7 +24,12 @@ import {
 import { getErrorMessage, stationImageFor } from "@/lib/reservationUi";
 import { catalogService } from "@/services/catalogService";
 import { ownerService } from "@/services/ownerService";
-import type { DeviceCatalogItem } from "@/types/catalog";
+import {
+  ExtraControllersEditor,
+  validateExtraControllerRows,
+  type ExtraControllerDraftRow,
+} from "@/components/owner/stations/ExtraControllersEditor";
+import type { DeviceCatalogItem, DynamicDeviceType } from "@/types/catalog";
 import type { StationInput } from "@/types/owner";
 
 type StationType = StationInput["stationType"];
@@ -43,6 +48,7 @@ function NewStationContent() {
     : "PC";
 
   const [catalogDevices, setCatalogDevices] = useState<DeviceCatalogItem[]>([]);
+  const [deviceTypes, setDeviceTypes] = useState<DynamicDeviceType[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [catalogReload, setCatalogReload] = useState(0);
@@ -50,10 +56,12 @@ function NewStationContent() {
   const [mode, setMode] = useState<"catalog" | "custom">(initialMode);
   const [catalogId, setCatalogId] = useState(initialCatalogId);
   const [type, setType] = useState<string>(initialStationType);
+  const [selectedDeviceTypeId, setSelectedDeviceTypeId] = useState<string>("");
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [isVip, setIsVip] = useState(false);
+  const [extraControllerRows, setExtraControllerRows] = useState<ExtraControllerDraftRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
@@ -61,17 +69,21 @@ function NewStationContent() {
     name?: string;
     price?: string;
     quantity?: string;
+    extraControllers?: string;
   }>({});
 
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
 
-    catalogService
-      .listDevices({ isActive: true, limit: 100 }, controller.signal)
-      .then((items) => {
+    Promise.all([
+      catalogService.listDevices({ isActive: true, limit: 100 }, controller.signal),
+      catalogService.listDeviceTypes({ isActive: true, limit: 100 }, controller.signal).catch(() => []),
+    ])
+      .then(([items, types]) => {
         if (!active) return;
         setCatalogDevices(items);
+        setDeviceTypes(types);
         setCatalogError(null);
       })
       .catch((e) => {
@@ -99,6 +111,53 @@ function NewStationContent() {
     () => catalogDevices.find((d) => d.id === effectiveCatalogId) ?? null,
     [catalogDevices, effectiveCatalogId]
   );
+
+  const customDeviceTypeOptions = useMemo(() => {
+    if (deviceTypes.length > 0) {
+      return deviceTypes.map((dt) => ({
+        value: dt.id,
+        label: `${dt.name} (${stationTypeLabel(dt.category)})`,
+      }));
+    }
+    return STATION_TYPE_OPTIONS;
+  }, [deviceTypes]);
+
+  const effectiveCustomTypeValue = useMemo(() => {
+    if (deviceTypes.length > 0) {
+      if (selectedDeviceTypeId && deviceTypes.some((dt) => dt.id === selectedDeviceTypeId)) {
+        return selectedDeviceTypeId;
+      }
+      const matched =
+        deviceTypes.find((dt) => dt.category.toUpperCase() === type.toUpperCase()) ??
+        deviceTypes[0];
+      return matched?.id ?? "";
+    }
+    return type;
+  }, [deviceTypes, selectedDeviceTypeId, type]);
+
+  const activeDynamicDeviceType = useMemo<DynamicDeviceType | null>(() => {
+    if (mode === "catalog") {
+      if (!selectedCatalogDevice) return null;
+      if (selectedCatalogDevice.deviceTypeRef) return selectedCatalogDevice.deviceTypeRef;
+      if (selectedCatalogDevice.deviceTypeId) {
+        const byId = deviceTypes.find((dt) => dt.id === selectedCatalogDevice.deviceTypeId);
+        if (byId) return byId;
+      }
+      const cat = String(selectedCatalogDevice.deviceType ?? "").toUpperCase();
+      return (
+        deviceTypes.find((dt) => dt.category.toUpperCase() === cat && dt.extraControllerEnabled) ??
+        deviceTypes.find((dt) => dt.category.toUpperCase() === cat) ??
+        null
+      );
+    }
+
+    if (deviceTypes.length > 0) {
+      return deviceTypes.find((dt) => dt.id === effectiveCustomTypeValue) ?? null;
+    }
+    return null;
+  }, [mode, selectedCatalogDevice, deviceTypes, effectiveCustomTypeValue]);
+
+  const supportsExtraControllers = Boolean(activeDynamicDeviceType?.extraControllerEnabled);
 
   const maxQuantity = mode === "catalog" ? 100 : 50;
 
@@ -139,6 +198,13 @@ function NewStationContent() {
       errors.quantity = `تعداد را بین ۱ تا ${toPersianDigits(maxQuantity)} وارد کنید.`;
     }
 
+    const extraValidation = supportsExtraControllers
+      ? validateExtraControllerRows(extraControllerRows)
+      : { configs: [] };
+    if (extraValidation.error) {
+      errors.extraControllers = extraValidation.error;
+    }
+
     setFieldErrors(errors);
     setError(null);
     if (Object.keys(errors).length > 0 || hourlyPrice === null || count === null) return;
@@ -153,11 +219,28 @@ function NewStationContent() {
           customNamePrefix: trimmedName || undefined,
           isVip,
         });
+
+        if (supportsExtraControllers && extraValidation.configs.length > 0 && created.length > 0) {
+          await Promise.all(
+            created.map((st) =>
+              ownerService.syncStationExtraControllers(
+                centerId,
+                st.id,
+                extraValidation.configs,
+                []
+              )
+            )
+          );
+        }
+
         const n = created.length > 0 ? created.length : count;
         const msg = `${toPersianDigits(n)} دستگاه به گیمنت اضافه شد.`;
         router.push(`/owner/stations?toast=${encodeURIComponent(msg)}`);
         return;
       }
+
+      const resolvedStationType = (activeDynamicDeviceType?.category ?? type) as StationType;
+      const resolvedDeviceTypeId = activeDynamicDeviceType?.id;
 
       let ok = 0;
       let lastError: unknown = null;
@@ -165,7 +248,12 @@ function NewStationContent() {
         try {
           await ownerService.createStation(centerId, {
             name: count > 1 ? `${trimmedName} ${toPersianDigits(i)}` : trimmedName,
-            stationType: type as StationType,
+            stationType: resolvedStationType,
+            deviceTypeId: resolvedDeviceTypeId,
+            extraControllers:
+              supportsExtraControllers && extraValidation.configs.length > 0
+                ? extraValidation.configs
+                : undefined,
             hourlyPrice,
             isVip,
           });
@@ -336,6 +424,9 @@ function NewStationContent() {
                       <Badge variant="neutral">
                         {stationTypeLabel(String(selectedCatalogDevice.deviceType ?? ""))}
                       </Badge>
+                      {supportsExtraControllers && (
+                        <Badge variant="success">پشتیبانی از دسته اضافی</Badge>
+                      )}
                     </div>
                     {selectedCatalogDevice.description && (
                       <p className="line-clamp-2 text-xs leading-5 text-[var(--text-muted)]">
@@ -350,12 +441,25 @@ function NewStationContent() {
             <div className="flex flex-col gap-1.5">
               <span className="text-xs font-bold text-[var(--text-muted)]">نوع دستگاه</span>
               <SearchableSelect
-                options={STATION_TYPE_OPTIONS}
-                value={type}
-                onChange={setType}
+                options={customDeviceTypeOptions}
+                value={effectiveCustomTypeValue}
+                onChange={(val) => {
+                  if (deviceTypes.length > 0) {
+                    setSelectedDeviceTypeId(val);
+                    const matched = deviceTypes.find((dt) => dt.id === val);
+                    if (matched) setType(matched.category);
+                  } else {
+                    setType(val);
+                  }
+                }}
                 placeholder="انتخاب نوع دستگاه"
                 searchPlaceholder="جستجوی نوع…"
               />
+              {activeDynamicDeviceType && supportsExtraControllers && (
+                <span className="text-[11px] font-bold text-[var(--accent-green)]">
+                  این نوع دستگاه از دسته اضافی پشتیبانی می‌کند.
+                </span>
+              )}
             </div>
           )}
 
@@ -414,6 +518,20 @@ function NewStationContent() {
               </span>
             </div>
           </label>
+
+          {supportsExtraControllers && (
+            <ExtraControllersEditor
+              rows={extraControllerRows}
+              onChange={(nextRows) => {
+                setExtraControllerRows(nextRows);
+                if (fieldErrors.extraControllers) {
+                  setFieldErrors((prev) => ({ ...prev, extraControllers: undefined }));
+                }
+              }}
+              disabled={saving || !canEdit}
+              error={fieldErrors.extraControllers}
+            />
+          )}
 
           {error && (
             <div

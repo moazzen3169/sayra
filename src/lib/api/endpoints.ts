@@ -34,6 +34,8 @@ export const ENDPOINTS = {
     addresses: (slug: string) => `/public/gamingCenters/${enc(slug)}/addresses`,
     stations: (gamingCenterId: string) => `/gamingCenters/${enc(gamingCenterId)}/stations`,
     publicStations: (slug: string) => `/gamingCenters/${enc(slug)}/stations`,
+    stationExtraControllers: (slug: string, stationId: string) =>
+      `/public/gamingCenters/${enc(slug)}/stations/${enc(stationId)}/extra-controllers`,
     publicGames: (slug: string) => `/public/gamingCenters/${enc(slug)}/stations/games`,
     deviceCategories: (slug: string) => `/gamingCenters/${enc(slug)}/device-categories`,
     groupReservations: (slug: string) => `/public/gamingCenters/${enc(slug)}/group-reservations`,
@@ -144,10 +146,16 @@ export const ENDPOINTS = {
   catalog: {
     devices: "/catalog/devices",
     deviceById: (id: string) => `/catalog/devices/${enc(id)}`,
+    deviceTypes: "/catalog/device-types",
+    deviceTypeById: (id: string) => `/catalog/device-types/${enc(id)}`,
     games: "/catalog/games",
     gameById: (id: string) => `/catalog/games/${enc(id)}`,
     adminDevices: "/platform-admin/catalog/devices",
     adminDeviceById: (id: string) => `/platform-admin/catalog/devices/${enc(id)}`,
+    adminDeviceTypes: "/platform-admin/catalog/device-types",
+    adminDeviceTypeById: (id: string) => `/platform-admin/catalog/device-types/${enc(id)}`,
+    adminPlatformDeviceTypes: "/platform-admin/device-types",
+    adminPlatformDeviceTypeById: (id: string) => `/platform-admin/device-types/${enc(id)}`,
     adminGames: "/platform-admin/catalog/games",
     adminGameById: (id: string) => `/platform-admin/catalog/games/${enc(id)}`,
   },
@@ -246,6 +254,10 @@ export const ENDPOINTS = {
     schedules: (c: string) => `/gamingCenters/${enc(c)}/schedules`,
     stations: (c: string) => `/gamingCenters/${enc(c)}/stations`,
     stationsFromCatalog: (c: string) => `/gamingCenters/${enc(c)}/stations/from-catalog`,
+    stationExtraControllers: (c: string, s: string) =>
+      `/gamingCenters/${enc(c)}/stations/${enc(s)}/extra-controllers`,
+    stationExtraControllerDetail: (c: string, s: string, extraControllerId: string) =>
+      `/gamingCenters/${enc(c)}/stations/${enc(s)}/extra-controllers/${enc(extraControllerId)}`,
     games: (c: string) => `/gamingCenters/${enc(c)}/stations/games`,
     gameDetail: (c: string, gameId: string) => `/gamingCenters/${enc(c)}/stations/games/${enc(gameId)}`,
     gamesFromCatalog: (c: string) => `/gamingCenters/${enc(c)}/stations/games/from-catalog`,

@@ -2,8 +2,15 @@
 
 import React, { useRef } from "react";
 import type { DateOption } from "@/lib/dates";
+import {
+  getTotalSelectedExtraCount,
+  type ExtraControllerSelectionMap,
+} from "@/lib/extraControllers";
 import { formatPrice, toPersianDigits } from "@/lib/format";
-import type { PhysicalStation } from "@/types/gaming-center/station.types";
+import type {
+  PhysicalStation,
+  StationExtraController,
+} from "@/types/gaming-center/station.types";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -46,6 +53,14 @@ interface TimeStepProps {
   errorText: string | null;
   showLeadTimeAction: boolean;
   onLeadTimeReset: () => void;
+  extraByStation: Record<string, StationExtraController[]>;
+  extraSelection: ExtraControllerSelectionMap;
+  onExtraQtyChange: (
+    stationId: string,
+    ctrl: StationExtraController,
+    nextQty: number
+  ) => void;
+  extraNotice?: string | null;
 }
 
 export const TimeStep: React.FC<TimeStepProps> = ({
@@ -73,8 +88,16 @@ export const TimeStep: React.FC<TimeStepProps> = ({
   errorText,
   showLeadTimeAction,
   onLeadTimeReset,
+  extraByStation,
+  extraSelection,
+  onExtraQtyChange,
+  extraNotice,
 }) => {
   const dateListRef = useRef<HTMLDivElement>(null);
+  const stationsWithExtras = stations.filter(
+    (st) => (extraByStation[st.id]?.length ?? 0) > 0
+  );
+  const totalExtraCount = getTotalSelectedExtraCount(extraSelection, stations);
 
   const scrollDates = (dir: "next" | "prev") => {
     dateListRef.current?.scrollBy({
@@ -244,6 +267,97 @@ export const TimeStep: React.FC<TimeStepProps> = ({
             </div>
           )}
         </section>
+
+        {/* دسته‌های اضافی */}
+        {stationsWithExtras.length > 0 && (
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-section-title text-[var(--text-white)]">
+                دسته‌های اضافی
+              </h3>
+              {hasSelection && (
+                <span className="text-[11px] text-[var(--text-muted)]">
+                  موجودی برای بازه انتخاب‌شده
+                </span>
+              )}
+            </div>
+
+            {extraNotice && (
+              <InlineAlert variant="info">
+                <span className="text-xs">{extraNotice}</span>
+              </InlineAlert>
+            )}
+
+            <div className="flex flex-col gap-3">
+              {stationsWithExtras.map((st) => {
+                const ctrls = extraByStation[st.id] ?? [];
+                return (
+                  <div
+                    key={st.id}
+                    className="rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-3.5 flex flex-col gap-2.5"
+                  >
+                    <span className="text-xs font-bold text-[var(--text-white)]">
+                      {st.name}
+                    </span>
+                    <div className="flex flex-col gap-2">
+                      {ctrls.map((ctrl) => {
+                        const selectedQty =
+                          extraSelection[st.id]?.[ctrl.id]?.quantity ?? 0;
+                        const maxAvail = Math.max(
+                          0,
+                          ctrl.availableQuantity ?? ctrl.quantity ?? 0
+                        );
+                        return (
+                          <div
+                            key={ctrl.id}
+                            className="flex items-center justify-between gap-3 rounded-child border border-[var(--border-subtle)] bg-[var(--foreground)]/20 px-3 py-2"
+                          >
+                            <div className="flex min-w-0 flex-col gap-0.5">
+                              <span className="truncate text-xs font-bold text-[var(--text-white)]">
+                                {ctrl.controllerType}
+                              </span>
+                              <span className="text-[11px] text-[var(--text-muted)]">
+                                {formatPrice(ctrl.hourlyPrice)} تومان / ساعت · موجود:{" "}
+                                {toPersianDigits(maxAvail)} عدد
+                              </span>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <button
+                                type="button"
+                                disabled={isActionBusy || selectedQty <= 0}
+                                aria-label={`کاهش ${ctrl.controllerType} برای ${st.name}`}
+                                onClick={() =>
+                                  onExtraQtyChange(st.id, ctrl, selectedQty - 1)
+                                }
+                                className="flex h-8 w-8 items-center justify-center rounded-child border border-[var(--border-subtle)] bg-[var(--bg-card)] text-xs font-bold text-[var(--text-white)] disabled:opacity-35 cursor-pointer disabled:cursor-not-allowed"
+                              >
+                                <Icon name="minus" size={14} />
+                              </button>
+                              <span className="min-w-6 text-center text-xs font-bold text-[var(--primary)]">
+                                {toPersianDigits(selectedQty)}
+                              </span>
+                              <button
+                                type="button"
+                                disabled={isActionBusy || selectedQty >= maxAvail}
+                                aria-label={`افزایش ${ctrl.controllerType} برای ${st.name}`}
+                                onClick={() =>
+                                  onExtraQtyChange(st.id, ctrl, selectedQty + 1)
+                                }
+                                className="flex h-8 w-8 items-center justify-center rounded-child border border-[var(--border-subtle)] bg-[var(--bg-card)] text-xs font-bold text-[var(--text-white)] disabled:opacity-35 cursor-pointer disabled:cursor-not-allowed"
+                              >
+                                <Icon name="plus" size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
 
       {/* سایدبار دسکتاپ */}
@@ -272,6 +386,14 @@ export const TimeStep: React.FC<TimeStepProps> = ({
                 : "ساعت را انتخاب کنید"}
             </dd>
           </div>
+          {totalExtraCount > 0 && (
+            <div className="flex items-start justify-between gap-3">
+              <dt className="shrink-0 text-secondary text-[var(--text-muted)]">دسته اضافی</dt>
+              <dd className="text-left text-xs font-bold text-[var(--primary)]">
+                {toPersianDigits(totalExtraCount)} عدد
+              </dd>
+            </div>
+          )}
         </dl>
 
         <div className="flex items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-4">

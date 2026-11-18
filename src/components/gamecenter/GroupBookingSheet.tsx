@@ -18,10 +18,21 @@ import {
 import { formatClock, formatSlotHourEnglish } from "@/lib/reservationUi";
 import { getGroupReservationErrorMessage } from "@/lib/groupReservationErrors";
 import { getEffectiveStationPricing } from "@/lib/stationPricing";
+import {
+  getExtraSelectionHourlyTotal,
+  getStationExtraSelectionsList,
+  setStationExtraControllerQuantity,
+  toExtraControllerSelectionInputs,
+  type ExtraControllerSelectionMap,
+} from "@/lib/extraControllers";
 import { calendarService } from "@/services/calendarService";
 import { gamingCenterService } from "@/services/gamingCenterService";
+import { stationApi } from "@/services/gaming-center/station.api";
 import type { AvailabilitySlot } from "@/services/gamingCenterService";
-import type { PhysicalStation } from "@/types/gaming-center/station.types";
+import type {
+  PhysicalStation,
+  StationExtraController,
+} from "@/types/gaming-center/station.types";
 import type {
   GroupReservation,
   GroupReservationPayload,
@@ -44,6 +55,8 @@ interface GroupBookingSheetProps {
   gamingCenterName: string;
   gamingCenterAddress?: string;
   stations: PhysicalStation[];
+  initialExtraSelection?: ExtraControllerSelectionMap;
+  onExtraSelectionChange?: (next: ExtraControllerSelectionMap) => void;
   initialCustomer?: { fullName: string; phone: string; email?: string };
   onClose: () => void;
   onSuccess?: (reservation: GroupReservation) => void;
@@ -81,6 +94,8 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
   gamingCenterName,
   gamingCenterAddress,
   stations,
+  initialExtraSelection,
+  onExtraSelectionChange,
   initialCustomer,
   onClose,
 }) => {
@@ -120,6 +135,43 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
 
   const [isReviewStage, setIsReviewStage] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
+
+  const [extraSelection, setExtraSelection] = useState<ExtraControllerSelectionMap>(() => {
+    if (initialExtraSelection && Object.keys(initialExtraSelection).length > 0) {
+      return initialExtraSelection;
+    }
+    if (savedDraft?.extraControllerSelections) {
+      const restored: ExtraControllerSelectionMap = {};
+      for (const [stId, items] of Object.entries(savedDraft.extraControllerSelections)) {
+        if (!stations.some((s) => s.id === stId)) continue;
+        restored[stId] = {};
+        for (const item of items) {
+          restored[stId][item.extraControllerId] = {
+            extraController: {
+              id: item.extraControllerId,
+              stationId: stId,
+              controllerType: item.controllerType,
+              quantity: item.quantity,
+              hourlyPrice: item.hourlyPrice,
+              isActive: true,
+            },
+            quantity: item.quantity,
+          };
+        }
+      }
+      return restored;
+    }
+    return {};
+  });
+  const [extraByStation, setExtraByStation] = useState<
+    Record<string, StationExtraController[]>
+  >({});
+  const [extraNotice, setExtraNotice] = useState<string | null>(null);
+
+  const updateExtraSelection = (next: ExtraControllerSelectionMap) => {
+    setExtraSelection(next);
+    onExtraSelectionChange?.(next);
+  };
 
   const { checkout, submit, isSubmitting, error: apiError, resetError } =
     useGroupReservation(gamingCenterSlug);
@@ -328,9 +380,140 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
 
   const durationMinutes = selectedSlots.reduce((a, s) => a + slotMinutes(s), 0);
   const durationHours = durationMinutes / 60;
-  const estimate = Math.round(totalHourly * durationHours);
+  const extraHourly = useMemo(
+    () => getExtraSelectionHourlyTotal(extraSelection, stations),
+    [extraSelection, stations]
+  );
+  const estimate = Math.round((totalHourly + extraHourly) * durationHours);
   const has = selectedSlots.length > 0;
   const tooShort = has && durationHours < minHours;
+
+  const selectedWindowStart = selectedSlots[0]?.startTime;
+  const selectedWindowEnd = useMemo(() => {
+    if (!selectedWindowStart || durationMinutes <= 0) return undefined;
+    const last = selectedSlots[selectedSlots.length - 1];
+    if (last?.endTime) return last.endTime;
+    const ms = Date.parse(selectedWindowStart);
+    if (Number.isNaN(ms)) return undefined;
+    return new Date(ms + durationMinutes * 60_000).toISOString();
+  }, [selectedWindowStart, selectedSlots, durationMinutes]);
+
+  useEffect(() => {
+    if (stationIds.length === 0) return;
+    let active = true;
+    const controller = new AbortController();
+
+    const windowParams =
+      selectedWindowStart && selectedWindowEnd
+        ? { startTime: selectedWindowStart, endTime: selectedWindowEnd }
+        : undefined;
+
+    Promise.all(
+      stationIds.map(async (stId) => {
+        try {
+          const list = await stationApi.getStationExtraControllers(
+            gamingCenterSlug,
+            stId,
+            windowParams,
+            controller.signal
+          );
+          return { stId, list };
+        } catch (err) {
+          if (isAbortError(err)) throw err;
+          return { stId, list: [] as StationExtraController[] };
+        }
+      })
+    )
+      .then((results) => {
+        if (!active) return;
+        const map: Record<string, StationExtraController[]> = {};
+        for (const r of results) {
+          map[r.stId] = r.list.filter((c) => c.isActive !== false);
+        }
+        setExtraByStation(map);
+
+        setExtraSelection((prev) => {
+          let changed = false;
+          let clampedAny = false;
+          const next: ExtraControllerSelectionMap = { ...prev };
+
+          for (const { stId, list } of results) {
+            const prevForSt = prev[stId];
+            if (!prevForSt) continue;
+            const byId = new Map(list.map((c) => [c.id, c]));
+            const updatedForSt = { ...prevForSt };
+
+            for (const [ctrlId, entry] of Object.entries(prevForSt)) {
+              const live = byId.get(ctrlId);
+              if (!live || live.isActive === false) {
+                delete updatedForSt[ctrlId];
+                changed = true;
+                clampedAny = true;
+                continue;
+              }
+              const maxAvail = Math.max(
+                0,
+                live.availableQuantity ?? live.quantity ?? 0
+              );
+              const clampedQty = Math.min(entry.quantity, maxAvail);
+              if (clampedQty !== entry.quantity) {
+                clampedAny = true;
+                changed = true;
+              }
+              if (clampedQty <= 0) {
+                delete updatedForSt[ctrlId];
+              } else {
+                if (
+                  live !== entry.extraController ||
+                  clampedQty !== entry.quantity
+                ) {
+                  updatedForSt[ctrlId] = {
+                    extraController: live,
+                    quantity: clampedQty,
+                  };
+                  changed = true;
+                }
+              }
+            }
+
+            if (Object.keys(updatedForSt).length === 0) {
+              delete next[stId];
+            } else {
+              next[stId] = updatedForSt;
+            }
+          }
+
+          if (clampedAny) {
+            setExtraNotice(
+              "تعداد برخی دسته‌های اضافی بر اساس موجودی بازه زمانی انتخاب‌شده به‌روزرسانی شد."
+            );
+          } else {
+            setExtraNotice(null);
+          }
+
+          if (changed) {
+            onExtraSelectionChange?.(next);
+            return next;
+          }
+          return prev;
+        });
+      })
+      .catch(() => {
+        // ignore abort
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [
+    gamingCenterSlug,
+    stationIdsKey,
+    stationIds,
+    selectedWindowStart,
+    selectedWindowEnd,
+    onExtraSelectionChange,
+  ]);
 
   const disabledReason = !has
     ? "ساعت را انتخاب کنید"
@@ -368,6 +551,22 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
           phone,
         },
         note,
+        extraControllerSelections: Object.fromEntries(
+          stations
+            .map((st) => {
+              const list = getStationExtraSelectionsList(extraSelection, st.id);
+              return [
+                st.id,
+                list.map((entry) => ({
+                  extraControllerId: entry.extraController.id,
+                  controllerType: entry.extraController.controllerType,
+                  hourlyPrice: entry.extraController.hourlyPrice,
+                  quantity: entry.quantity,
+                })),
+              ] as const;
+            })
+            .filter(([, list]) => list.length > 0)
+        ),
         grandTotal: estimate,
       });
     }
@@ -384,6 +583,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
     fullName,
     phone,
     note,
+    extraSelection,
     estimate,
     has,
   ]);
@@ -470,7 +670,13 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
       const payload: GroupReservationPayload = {
         startTime: selectedSlots[0].startTime,
         durationMinutes,
-        items: stations.map((st) => ({ stationId: st.id })),
+        items: stations.map((st) => {
+          const extras = toExtraControllerSelectionInputs(extraSelection, st.id);
+          return {
+            stationId: st.id,
+            ...(extras.length > 0 ? { extraControllers: extras } : {}),
+          };
+        }),
         customer: {
           fullName: targetName,
           phone: cleanPhone,
@@ -686,6 +892,20 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
             errorText={errorText}
             showLeadTimeAction={showLeadTimeAction}
             onLeadTimeReset={handleLeadTimeReset}
+            extraByStation={extraByStation}
+            extraSelection={extraSelection}
+            onExtraQtyChange={(stationId, ctrl, nextQty) => {
+              setExtraNotice(null);
+              updateExtraSelection(
+                setStationExtraControllerQuantity(
+                  extraSelection,
+                  stationId,
+                  ctrl,
+                  nextQty
+                )
+              );
+            }}
+            extraNotice={extraNotice}
           />
         ) : (
           <ReviewStep
@@ -694,6 +914,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
             rangeLabel={rangeLabel}
             durationHours={durationHours}
             stations={stations}
+            extraSelection={extraSelection}
             estimate={estimate}
             note={note}
             onNoteChange={setNote}

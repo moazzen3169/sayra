@@ -2,6 +2,10 @@
 
 import React, { useState } from "react";
 import type { DateOption } from "@/lib/dates";
+import {
+  getStationExtraSelectionsList,
+  type ExtraControllerSelectionMap,
+} from "@/lib/extraControllers";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { getEffectiveStationPricing } from "@/lib/stationPricing";
 import type { PhysicalStation } from "@/types/gaming-center/station.types";
@@ -15,6 +19,7 @@ interface ReviewStepProps {
   rangeLabel: string;
   durationHours: number;
   stations: PhysicalStation[];
+  extraSelection: ExtraControllerSelectionMap;
   estimate: number;
   note: string;
   onNoteChange: (val: string) => void;
@@ -35,6 +40,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   rangeLabel,
   durationHours,
   stations,
+  extraSelection,
   estimate,
   note,
   onNoteChange,
@@ -80,26 +86,44 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
             const pricing = getEffectiveStationPricing(st);
             const stPrice = Math.round(pricing.finalHourlyPrice * durationHours);
             const originalTotal = Math.round(pricing.originalHourlyPrice * durationHours);
+            const stExtras = getStationExtraSelectionsList(extraSelection, st.id);
 
             return (
-              <div
-                key={st.id}
-                className="flex items-center justify-between gap-3 text-xs"
-              >
-                <span className="font-bold text-[var(--text-white)] truncate">
-                  {st.name}
-                </span>
-                <div className="flex items-baseline gap-1.5 shrink-0">
-                  {pricing.hasDiscount && (
-                    <span className="text-secondary text-[var(--text-muted)] line-through">
-                      {formatPrice(originalTotal)}
-                    </span>
-                  )}
-                  <span className="font-bold text-[var(--text-white)]">
-                    {formatPrice(stPrice)}
+              <div key={st.id} className="flex flex-col gap-1">
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <span className="font-bold text-[var(--text-white)] truncate">
+                    {st.name}
                   </span>
-                  <span className="text-secondary text-[var(--text-muted)]">تومان</span>
+                  <div className="flex items-baseline gap-1.5 shrink-0">
+                    {pricing.hasDiscount && (
+                      <span className="text-secondary text-[var(--text-muted)] line-through">
+                        {formatPrice(originalTotal)}
+                      </span>
+                    )}
+                    <span className="font-bold text-[var(--text-white)]">
+                      {formatPrice(stPrice)}
+                    </span>
+                    <span className="text-secondary text-[var(--text-muted)]">تومان</span>
+                  </div>
                 </div>
+                {stExtras.map((entry) => {
+                  const extraCost = Math.round(
+                    entry.extraController.hourlyPrice * entry.quantity * durationHours
+                  );
+                  return (
+                    <div
+                      key={entry.extraController.id}
+                      className="flex items-center justify-between gap-3 pr-3 text-[11px] text-[var(--text-muted)]"
+                    >
+                      <span className="truncate">
+                        + {toPersianDigits(entry.quantity)} × {entry.extraController.controllerType}
+                      </span>
+                      <span className="shrink-0">
+                        {formatPrice(extraCost)} تومان
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             );
           })}

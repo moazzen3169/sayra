@@ -4,6 +4,7 @@ import { ENDPOINTS } from "@/lib/api/endpoints";
 import { addMockReservation } from "@/lib/reservations.mock";
 import { mergeGroupReservationsIntoSingle } from "@/lib/groupReservationGrouping";
 import type { Reservation, ReservationTimeProposal } from "@/types/reservation";
+import type { ExtraControllerSelectionInput } from "@/types/gaming-center/station.types";
 import { ContractGapError, PaymentInitResponse } from "@/types/customerApi";
 
 export interface CreateReservationInput {
@@ -16,6 +17,7 @@ export interface CreateReservationInput {
   customer: { fullName: string; phone: string; email?: string };
   staffId?: string;
   note?: string;
+  extraControllers?: ExtraControllerSelectionInput[];
 }
 
 /** فقط برای حالت Mock؛ در حالت واقعی همه‌چیز از پاسخ Backend می‌آید */
@@ -79,6 +81,9 @@ export const reservationService = {
         ...(input.durationHours ? { durationHours: input.durationHours } : {}),
         ...(input.staffId ? { staffId: input.staffId } : {}),
         ...(input.note ? { note: input.note } : {}),
+        ...(input.extraControllers && input.extraControllers.length > 0
+          ? { extraControllers: input.extraControllers }
+          : {}),
       },
       { headers: { "idempotency-key": input.idempotencyKey } }
     );

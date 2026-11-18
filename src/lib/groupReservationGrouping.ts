@@ -277,7 +277,14 @@ export function mergeGroupReservationsIntoSingle(
     coverImageUrl: r.stationSnapshot?.coverImageUrl ?? null,
     hourlyPrice: r.stationSnapshot?.hourlyPrice,
     totalPrice: r.totalPrice,
+    extraControllersTotalCost: r.extraControllersTotalCost,
+    extraControllers: r.extraControllers,
   }));
+
+  const extraControllersTotalCost = groupReservations.reduce(
+    (sum, r) => sum + (r.extraControllersTotalCost ?? 0),
+    0
+  );
 
   return {
     ...rep,
@@ -288,6 +295,8 @@ export function mergeGroupReservationsIntoSingle(
     status,
     paymentState,
     totalPrice: finalTotalPrice,
+    extraControllersTotalCost:
+      extraControllersTotalCost > 0 ? extraControllersTotalCost : undefined,
     items,
   };
 }

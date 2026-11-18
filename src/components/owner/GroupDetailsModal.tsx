@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { Modal } from "@/components/ui/Modal";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatReservationWhen, getPaymentLabel } from "@/lib/reservationUi";
@@ -122,22 +122,36 @@ export const GroupDetailsModal: React.FC<GroupDetailsModalProps> = ({
               return (
                 <div
                   key={res.id || idx}
-                  className="p-2.5 rounded-card bg-[var(--bg-body)] border border-[var(--border-subtle)] flex items-center justify-between"
+                  className="p-2.5 rounded-card bg-[var(--bg-body)] border border-[var(--border-subtle)] flex flex-col gap-2"
                 >
-                  <div className="flex flex-col gap-0.5">
-                    <span className="font-bold text-[var(--text-white)]">{name}</span>
-                    <span className="text-[11px] text-[var(--text-muted)]">
-                      نوع: {type} {hourly ? `• ساعتی ${formatPrice(hourly)} تومان` : ""}
-                    </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-bold text-[var(--text-white)]">{name}</span>
+                      <span className="text-[11px] text-[var(--text-muted)]">
+                        نوع: {type} {hourly ? `• ساعتی ${formatPrice(hourly)} تومان` : ""}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="font-black text-[var(--primary)]">
+                        {formatPrice(res.totalPrice ?? 0)} تومان
+                      </span>
+                      <span className="text-[10px] text-[var(--text-muted)]">
+                        وضعیت: {res.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="font-black text-[var(--primary)]">
-                      {formatPrice(res.totalPrice ?? 0)} تومان
-                    </span>
-                    <span className="text-[10px] text-[var(--text-muted)]">
-                      وضعیت: {res.status}
-                    </span>
-                  </div>
+                  {res.extraControllers && res.extraControllers.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 border-t border-[var(--border-subtle)]/50 pt-1.5">
+                      {res.extraControllers.map((ec) => (
+                        <span
+                          key={ec.id}
+                          className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-bold"
+                        >
+                          {toPersianDigits(ec.quantity)} × {ec.controllerType} ({formatPrice(ec.totalCost)} تومان)
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}

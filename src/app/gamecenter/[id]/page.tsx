@@ -38,6 +38,12 @@ import {
   getErrorMessage,
   isCenterReservationDisabled,
 } from "@/lib/reservationUi";
+import {
+  clearExtraControllersForStations,
+  getExtraSelectionHourlyTotal,
+  getTotalSelectedExtraCount,
+  type ExtraControllerSelectionMap,
+} from "@/lib/extraControllers";
 import { loadGamecenterDetail } from "@/services/gamecenterDetailService";
 import { stationApi } from "@/services/gaming-center/station.api";
 import type { GamecenterDetail } from "@/types/gamecenter";
@@ -115,6 +121,7 @@ function GameCenterDetailContent({
   } = useDeviceCategories(gamingCenterSlug);
 
   const [selection, setSelection] = useState<Record<string, PhysicalStation[]>>({});
+  const [extraSelection, setExtraSelection] = useState<ExtraControllerSelectionMap>({});
   const [activeCategory, setActiveCategory] = useState<DeviceCategory | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
@@ -152,15 +159,33 @@ function GameCenterDetailContent({
     [selection]
   );
   const deviceCount = selectedStations.length;
-  const hourly = selectedStations.reduce(
-    (a, s) => a + getEffectiveStationPricing(s).finalHourlyPrice,
-    0
+  const extraControllerCount = useMemo(
+    () => getTotalSelectedExtraCount(extraSelection, selectedStations),
+    [extraSelection, selectedStations]
   );
+  const extraHourly = useMemo(
+    () => getExtraSelectionHourlyTotal(extraSelection, selectedStations),
+    [extraSelection, selectedStations]
+  );
+  const hourly =
+    selectedStations.reduce(
+      (a, s) => a + getEffectiveStationPricing(s).finalHourlyPrice,
+      0
+    ) + extraHourly;
 
   const handleSelectionChange = useCallback(
     (key: string, stations: PhysicalStation[]) => {
       if (reservationDisabled) return;
       setSelection((prev) => {
+        const previousForKey = prev[key] ?? [];
+        const nextIds = new Set(stations.map((s) => s.id));
+        const removedIds = previousForKey
+          .filter((s) => !nextIds.has(s.id))
+          .map((s) => s.id);
+        if (removedIds.length > 0) {
+          setExtraSelection((ex) => clearExtraControllersForStations(ex, removedIds));
+        }
+
         const copy = { ...prev };
         if (stations.length === 0) delete copy[key];
         else copy[key] = stations;
@@ -178,26 +203,43 @@ function GameCenterDetailContent({
       if (category.deviceCount === 1) {
         const existing = selection[key] ?? [];
         if (existing.length > 0) {
-          handleSelectionChange(key, []);
-          return;
-        }
-        try {
-          const filter = category.catalogId
-            ? { catalogDeviceId: category.catalogId, limit: 1 }
-            : { stationType: category.deviceType, limit: 1 };
-          const res = await stationApi.getPhysicalStations(gamingCenterSlug, filter);
-          if (res.stations.length === 1) {
-            handleSelectionChange(key, [res.stations[0]]);
+          const existingHasExtras =
+            getTotalSelectedExtraCount(extraSelection, existing) > 0;
+          if (!existingHasExtras) {
+            handleSelectionChange(key, []);
             return;
           }
-        } catch {
-          // Fallback to opening the modal
+        } else {
+          try {
+            const filter = category.catalogId
+              ? { catalogDeviceId: category.catalogId, limit: 1 }
+              : { stationType: category.deviceType, limit: 1 };
+            const res = await stationApi.getPhysicalStations(gamingCenterSlug, filter);
+            if (res.stations.length === 1) {
+              const onlyStation = res.stations[0];
+              const extras = await stationApi
+                .getStationExtraControllers(gamingCenterSlug, onlyStation.id)
+                .catch(() => []);
+              if (extras.length === 0) {
+                handleSelectionChange(key, [onlyStation]);
+                return;
+              }
+            }
+          } catch {
+            // Fallback to opening the modal
+          }
         }
       }
 
       setActiveCategory(category);
     },
-    [reservationDisabled, selection, gamingCenterSlug, handleSelectionChange]
+    [
+      reservationDisabled,
+      selection,
+      extraSelection,
+      gamingCenterSlug,
+      handleSelectionChange,
+    ]
   );
 
   const galleryItems: BannerItem[] = useMemo(() => {
@@ -303,6 +345,9 @@ function GameCenterDetailContent({
                   <div className="flex flex-col gap-1">
                     <span className="text-card-title text-[var(--text-white)]">
                       {toPersianDigits(deviceCount)} دستگاه
+                      {extraControllerCount > 0
+                        ? ` · ${toPersianDigits(extraControllerCount)} دسته اضافی`
+                        : ""}
                     </span>
                     <span className="text-key-number text-[var(--primary)]">
                       {formatPrice(hourly)}{" "}
@@ -434,6 +479,9 @@ function GameCenterDetailContent({
             <div className="flex flex-col gap-0.5">
               <span className="text-card-title text-[var(--text-white)]">
                 {toPersianDigits(deviceCount)} دستگاه
+                {extraControllerCount > 0
+                  ? ` · ${toPersianDigits(extraControllerCount)} دسته اضافی`
+                  : ""}
               </span>
               <span className="text-secondary text-[var(--primary)]">
                 {formatPrice(hourly)} تومان / ساعت
@@ -453,6 +501,8 @@ function GameCenterDetailContent({
           onChange={(stations) =>
             handleSelectionChange(categoryKey(activeCategory), stations)
           }
+          extraSelection={extraSelection}
+          onExtraSelectionChange={setExtraSelection}
           onClose={() => setActiveCategory(null)}
           onContinue={() => {
             setActiveCategory(null);
@@ -468,6 +518,8 @@ function GameCenterDetailContent({
           gamingCenterName={detail.center.name}
           gamingCenterAddress={detail.address}
           stations={selectedStations}
+          initialExtraSelection={extraSelection}
+          onExtraSelectionChange={setExtraSelection}
           initialCustomer={
             user ? { fullName: user.fullName, phone: user.phone } : undefined
           }

@@ -1,5 +1,6 @@
 
 import type { Reservation } from "@/types/reservation";
+import type { ExtraControllerConfigInput } from "@/types/gaming-center/station.types";
 
 export type VerificationStatus =
   | "APPROVED"
@@ -178,6 +179,8 @@ export interface StationInput {
   stationType: "PC" | "PLAYSTATION" | "XBOX" | "SWITCH" | "VR";
   hourlyPrice: number;
   quantity?: number;
+  deviceTypeId?: string;
+  extraControllers?: ExtraControllerConfigInput[];
   defaultControllers?: number;
   maxExtraControllers?: number;
   extraControllerPrice?: number;

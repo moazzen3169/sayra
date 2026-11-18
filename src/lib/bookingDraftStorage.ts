@@ -38,6 +38,15 @@ export interface PersistedBookingDraft {
     email?: string;
   };
   note?: string;
+  extraControllerSelections?: Record<
+    string,
+    Array<{
+      extraControllerId: string;
+      controllerType: string;
+      hourlyPrice: number;
+      quantity: number;
+    }>
+  >;
   reservationId?: string;
   holdId?: string;
   paymentId?: string;

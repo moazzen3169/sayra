@@ -4,6 +4,7 @@ import type {
   PhysicalStation,
   PhysicalStationsFilter,
   PhysicalStationsPaginationMeta,
+  StationExtraController,
 } from "@/types/gaming-center/station.types";
 
 export interface GetStationsResult {
@@ -104,5 +105,57 @@ export const stationApi = {
       stations: activeStations,
       meta,
     };
+  },
+
+  /**
+   * دریافت دسته‌های اضافی موجود برای یک دستگاه در بازه زمانی مشخص
+   * GET /public/gamingCenters/{gamingCenterSlug}/stations/{stationId}/extra-controllers
+   */
+  async getStationExtraControllers(
+    gamingCenterSlug: string,
+    stationId: string,
+    params?: { startTime?: string; endTime?: string },
+    signal?: AbortSignal
+  ): Promise<StationExtraController[]> {
+    if (!gamingCenterSlug?.trim() || !stationId?.trim()) {
+      return [];
+    }
+
+    const query: Query = {};
+    if (params?.startTime) query.startTime = params.startTime;
+    if (params?.endTime) query.endTime = params.endTime;
+
+    const response = await apiClient.get<unknown>(
+      ENDPOINTS.gamingCenter.stationExtraControllers(
+        gamingCenterSlug.trim(),
+        stationId.trim()
+      ),
+      {
+        query: Object.keys(query).length > 0 ? query : undefined,
+        signal,
+      }
+    );
+
+    const resData = response.data;
+    const payload =
+      resData && typeof resData === "object" && "data" in resData && (resData as { data?: unknown }).data !== undefined
+        ? (resData as { data: unknown }).data
+        : resData;
+
+    let list: StationExtraController[] = [];
+    if (Array.isArray(payload)) {
+      list = payload as StationExtraController[];
+    } else if (payload && typeof payload === "object") {
+      const rec = payload as Record<string, unknown>;
+      if (Array.isArray(rec.extraControllers)) {
+        list = rec.extraControllers as StationExtraController[];
+      } else if (Array.isArray(rec.items)) {
+        list = rec.items as StationExtraController[];
+      } else if (Array.isArray(rec.data)) {
+        list = rec.data as StationExtraController[];
+      }
+    }
+
+    return list.filter((c) => c && c.id && c.isActive !== false);
   },
 };

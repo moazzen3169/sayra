@@ -1,11 +1,23 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useGamingCenterStations } from "@/hooks/gaming-center/use-gaming-center-stations";
+import { isAbortError } from "@/lib/api/client";
+import {
+  clearExtraControllersForStations,
+  getExtraSelectionHourlyTotal,
+  getTotalSelectedExtraCount,
+  setStationExtraControllerQuantity,
+  type ExtraControllerSelectionMap,
+} from "@/lib/extraControllers";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { getEffectiveStationPricing } from "@/lib/stationPricing";
+import { stationApi } from "@/services/gaming-center/station.api";
 import type { DeviceCategory } from "@/types/gaming-center/device-category.types";
-import type { PhysicalStation } from "@/types/gaming-center/station.types";
+import type {
+  PhysicalStation,
+  StationExtraController,
+} from "@/types/gaming-center/station.types";
 import { Icon } from "@/components/ui/Icon";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -23,6 +35,8 @@ interface DeviceSelectModalProps {
   /** دستگاه‌های انتخاب‌شده‌ی این دسته */
   selected: PhysicalStation[];
   onChange: (stations: PhysicalStation[]) => void;
+  extraSelection: ExtraControllerSelectionMap;
+  onExtraSelectionChange: (next: ExtraControllerSelectionMap) => void;
   onClose: () => void;
   onContinue?: () => void;
 }
@@ -32,6 +46,8 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
   category,
   selected,
   onChange,
+  extraSelection,
+  onExtraSelectionChange,
   onClose,
   onContinue,
 }) => {
@@ -54,6 +70,57 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
     [rawStations]
   );
 
+  const [extraByStation, setExtraByStation] = useState<
+    Record<string, StationExtraController[]>
+  >({});
+
+  const stationIdsKey = useMemo(
+    () => stations.map((s) => s.id).join(","),
+    [stations]
+  );
+
+  useEffect(() => {
+    if (stations.length === 0) return;
+    let active = true;
+    const controller = new AbortController();
+
+    Promise.all(
+      stations.map(async (st) => {
+        try {
+          const list = await stationApi.getStationExtraControllers(
+            gamingCenterSlug,
+            st.id,
+            undefined,
+            controller.signal
+          );
+          return { id: st.id, list };
+        } catch (err) {
+          if (isAbortError(err)) throw err;
+          return {
+            id: st.id,
+            list: Array.isArray(st.extraControllers) ? st.extraControllers : [],
+          };
+        }
+      })
+    )
+      .then((results) => {
+        if (!active) return;
+        const map: Record<string, StationExtraController[]> = {};
+        for (const r of results) {
+          map[r.id] = r.list.filter((c) => c.isActive !== false && (c.availableQuantity ?? c.quantity) > 0);
+        }
+        setExtraByStation(map);
+      })
+      .catch(() => {
+        // ignore abort
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [gamingCenterSlug, stationIdsKey, stations]);
+
   const autoSelectedRef = useRef(false);
   useEffect(() => {
     if (
@@ -70,18 +137,35 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
   const selectedIds = selected.map((s) => s.id);
   const count = selected.length;
   const has = count > 0;
-  const hourly = selected.reduce((sum, s) => {
-    const { finalHourlyPrice } = getEffectiveStationPricing(s);
-    return sum + finalHourlyPrice;
-  }, 0);
+  const extraCount = getTotalSelectedExtraCount(extraSelection, selected);
+  const extraHourly = getExtraSelectionHourlyTotal(extraSelection, selected);
+  const hourly =
+    selected.reduce((sum, s) => {
+      const { finalHourlyPrice } = getEffectiveStationPricing(s);
+      return sum + finalHourlyPrice;
+    }, 0) + extraHourly;
   const allSelected =
     stations.length > 0 && stations.every((s) => selectedIds.includes(s.id));
 
   const toggle = (st: PhysicalStation) => {
-    onChange(
-      selectedIds.includes(st.id)
-        ? selected.filter((s) => s.id !== st.id)
-        : [...selected, st]
+    if (selectedIds.includes(st.id)) {
+      onChange(selected.filter((s) => s.id !== st.id));
+      onExtraSelectionChange(clearExtraControllersForStations(extraSelection, [st.id]));
+    } else {
+      onChange([...selected, st]);
+    }
+  };
+
+  const handleExtraQtyChange = (
+    st: PhysicalStation,
+    ctrl: StationExtraController,
+    nextQty: number
+  ) => {
+    if (nextQty > 0 && !selectedIds.includes(st.id)) {
+      onChange([...selected, st]);
+    }
+    onExtraSelectionChange(
+      setStationExtraControllerQuantity(extraSelection, st.id, ctrl, nextQty)
     );
   };
 
@@ -90,8 +174,11 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
     onChange([...rest, ...stations]);
   };
 
-  const clearAll = () =>
-    onChange(selected.filter((s) => !stations.some((x) => x.id === s.id)));
+  const clearAll = () => {
+    const removedIds = stations.map((s) => s.id);
+    onChange(selected.filter((s) => !removedIds.includes(s.id)));
+    onExtraSelectionChange(clearExtraControllersForStations(extraSelection, removedIds));
+  };
 
   const showSkeleton = isLoading || (!hasFetched && !error);
 
@@ -114,6 +201,7 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
           <div className="flex flex-col gap-0.5">
             <span className="text-card-title text-[var(--text-white)]">
               {toPersianDigits(count)} دستگاه
+              {extraCount > 0 ? ` · ${toPersianDigits(extraCount)} دسته اضافی` : ""}
             </span>
             <span className="text-secondary text-[var(--primary)]">
               {formatPrice(hourly)} تومان / ساعت
@@ -178,88 +266,155 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
                 discountPercentage,
                 hasDiscount,
               } = getEffectiveStationPricing(st);
+              const stationExtras = extraByStation[st.id] ?? [];
 
               return (
-                <button
+                <div
                   key={st.id}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => toggle(st)}
                   className={cn(
-                    "flex flex-col gap-3 rounded-card border p-3 text-right transition-colors duration-150 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer",
+                    "flex flex-col justify-between gap-3 rounded-card border p-3 text-right transition-colors duration-150",
                     active
                       ? "border-[var(--primary)] bg-[var(--primary-muted)]"
                       : "border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-color)]"
                   )}
                 >
-                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card bg-[var(--foreground)]/40">
-                    <SafeImage
-                      src={st.coverImageUrl || category.coverImageUrl || ""}
-                      alt={st.name}
-                      fallbackSrc={PLACEHOLDERS.center}
-                      loading="lazy"
-                      draggable={false}
-                      className="h-full w-full object-cover"
-                    />
+                  <button
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => toggle(st)}
+                    className="flex flex-col gap-3 text-right focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-card cursor-pointer"
+                  >
+                    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card bg-[var(--foreground)]/40">
+                      <SafeImage
+                        src={st.coverImageUrl || category.coverImageUrl || ""}
+                        alt={st.name}
+                        fallbackSrc={PLACEHOLDERS.center}
+                        loading="lazy"
+                        draggable={false}
+                        className="h-full w-full object-cover"
+                      />
 
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        "absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full border transition-colors z-10",
-                        active
-                          ? "border-[var(--primary)] bg-[var(--primary)] text-on-primary"
-                          : "border-[var(--border-color)] bg-[var(--bg-body)]/60 text-transparent"
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full border transition-colors z-10",
+                          active
+                            ? "border-[var(--primary)] bg-[var(--primary)] text-on-primary"
+                            : "border-[var(--border-color)] bg-[var(--bg-body)]/60 text-transparent"
+                        )}
+                      >
+                        <Icon name="check" size={16} strokeWidth={2} />
+                      </span>
+
+                      {hasDiscount && (
+                        <div className="absolute right-2 top-2 z-10">
+                          <Badge variant="primary">
+                            {discountPercentage
+                              ? `${toPersianDigits(discountPercentage)}٪`
+                              : "تخفیف"}
+                          </Badge>
+                        </div>
                       )}
-                    >
-                      <Icon name="check" size={16} strokeWidth={2} />
-                    </span>
-
-                    {hasDiscount && (
-                      <div className="absolute right-2 top-2 z-10">
-                        <Badge variant="primary">
-                          {discountPercentage
-                            ? `${toPersianDigits(discountPercentage)}٪`
-                            : "تخفیف"}
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="truncate text-card-title text-[var(--text-white)]">
-                        {st.name}
-                      </h3>
-                      {st.isVip && <Badge variant="neutral">VIP</Badge>}
                     </div>
 
-                    <div className="flex flex-wrap items-baseline gap-1.5">
-                      {hasDiscount ? (
-                        <>
-                          <span className="text-card-title text-[var(--primary)]">
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="truncate text-card-title text-[var(--text-white)]">
+                          {st.name}
+                        </h3>
+                        {st.isVip && <Badge variant="neutral">VIP</Badge>}
+                      </div>
+
+                      <div className="flex flex-wrap items-baseline gap-1.5">
+                        {hasDiscount ? (
+                          <>
+                            <span className="text-card-title text-[var(--primary)]">
+                              {formatPrice(finalHourlyPrice)}
+                            </span>
+                            <span className="text-secondary text-[var(--text-muted)] line-through">
+                              {formatPrice(originalHourlyPrice)}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-card-title text-[var(--text-white)]">
                             {formatPrice(finalHourlyPrice)}
                           </span>
-                          <span className="text-secondary text-[var(--text-muted)] line-through">
-                            {formatPrice(originalHourlyPrice)}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-card-title text-[var(--text-white)]">
-                          {formatPrice(finalHourlyPrice)}
+                        )}
+                        <span className="text-secondary text-[var(--text-muted)]">
+                          تومان / ساعت
+                        </span>
+                      </div>
+
+                      {st.minRentHours > 1 && (
+                        <span className="text-secondary text-[var(--text-muted)]">
+                          حداقل {toPersianDigits(st.minRentHours)} ساعت
                         </span>
                       )}
-                      <span className="text-secondary text-[var(--text-muted)]">
-                        تومان / ساعت
-                      </span>
                     </div>
+                  </button>
 
-                    {st.minRentHours > 1 && (
-                      <span className="text-secondary text-[var(--text-muted)]">
-                        حداقل {toPersianDigits(st.minRentHours)} ساعت
+                  {stationExtras.length > 0 && (
+                    <div className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-2.5">
+                      <span className="text-[11px] font-bold text-[var(--text-muted)]">
+                        دسته اضافی قابل انتخاب:
                       </span>
-                    )}
-                  </div>
-                </button>
+                      <div className="flex flex-col gap-1.5">
+                        {stationExtras.map((ctrl) => {
+                          const selectedQty =
+                            extraSelection[st.id]?.[ctrl.id]?.quantity ?? 0;
+                          const maxAvail = Math.max(
+                            0,
+                            ctrl.availableQuantity ?? ctrl.quantity ?? 0
+                          );
+                          return (
+                            <div
+                              key={ctrl.id}
+                              className="flex items-center justify-between gap-2 rounded-child border border-[var(--border-subtle)] bg-[var(--bg-body)]/50 px-2 py-1.5"
+                            >
+                              <div className="flex min-w-0 flex-col">
+                                <span className="truncate text-[11px] font-bold text-[var(--text-white)]">
+                                  {ctrl.controllerType}
+                                </span>
+                                <span className="text-[10px] text-[var(--text-muted)]">
+                                  {formatPrice(ctrl.hourlyPrice)} تومان/ساعت
+                                  {" · "}
+                                  موجود: {toPersianDigits(maxAvail)}
+                                </span>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-1">
+                                <button
+                                  type="button"
+                                  disabled={selectedQty <= 0}
+                                  aria-label={`کاهش ${ctrl.controllerType}`}
+                                  onClick={() =>
+                                    handleExtraQtyChange(st, ctrl, selectedQty - 1)
+                                  }
+                                  className="flex h-7 w-7 items-center justify-center rounded-child border border-[var(--border-subtle)] bg-[var(--foreground)]/40 text-xs font-bold text-[var(--text-white)] disabled:opacity-35 cursor-pointer disabled:cursor-not-allowed"
+                                >
+                                  <Icon name="minus" size={14} />
+                                </button>
+                                <span className="min-w-5 text-center text-xs font-bold text-[var(--primary)]">
+                                  {toPersianDigits(selectedQty)}
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={selectedQty >= maxAvail}
+                                  aria-label={`افزایش ${ctrl.controllerType}`}
+                                  onClick={() =>
+                                    handleExtraQtyChange(st, ctrl, selectedQty + 1)
+                                  }
+                                  className="flex h-7 w-7 items-center justify-center rounded-child border border-[var(--border-subtle)] bg-[var(--foreground)]/40 text-xs font-bold text-[var(--text-white)] disabled:opacity-35 cursor-pointer disabled:cursor-not-allowed"
+                                >
+                                  <Icon name="plus" size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>

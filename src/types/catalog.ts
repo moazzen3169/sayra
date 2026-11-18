@@ -3,12 +3,57 @@
  * Matches Central Hardware Device and Video Game Catalogs (Playnest / Sayra API)
  */
 
-export type DeviceType = "PC" | "PLAYSTATION" | "XBOX" | "SWITCH" | "VR" | string;
+export type DeviceTypeCategory = "PC" | "PLAYSTATION" | "XBOX" | "SWITCH" | "VR";
+export type DeviceType = DeviceTypeCategory | string;
+
+export interface DynamicDeviceType {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  icon?: string | null;
+  category: DeviceTypeCategory | string;
+  isActive: boolean;
+  extraControllerEnabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface DeviceTypeQueryParams {
+  page?: number;
+  limit?: number;
+  category?: DeviceTypeCategory | string;
+  isActive?: boolean;
+  extraControllerEnabled?: boolean;
+  search?: string;
+}
+
+export interface CreateDeviceTypeInput {
+  name: string;
+  slug?: string;
+  description?: string;
+  icon?: string;
+  category?: DeviceTypeCategory | string;
+  isActive?: boolean;
+  extraControllerEnabled?: boolean;
+}
+
+export interface UpdateDeviceTypeInput {
+  name?: string;
+  slug?: string;
+  description?: string;
+  icon?: string;
+  category?: DeviceTypeCategory | string;
+  isActive?: boolean;
+  extraControllerEnabled?: boolean;
+}
 
 export interface DeviceCatalogItem {
   id: string;
   name: string;
   deviceType: DeviceType;
+  deviceTypeId?: string | null;
+  deviceTypeRef?: DynamicDeviceType | null;
   coverImageUrl?: string | null;
   description?: string | null;
   isActive: boolean;

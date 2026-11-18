@@ -498,58 +498,94 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                   {reservation.items.map((item, idx) => (
                     <div
                       key={item.id || idx}
-                      className="flex items-center justify-between gap-3 bg-[var(--bg-body)]/50 p-2.5 rounded-child border border-[var(--border-subtle)]"
+                      className="flex flex-col gap-2 bg-[var(--bg-body)]/50 p-2.5 rounded-child border border-[var(--border-subtle)]"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 shrink-0 rounded-child bg-[var(--foreground)]/50 border border-[var(--border-subtle)] flex items-center justify-center p-1.5 overflow-hidden">
-                          <AppImage
-                            src={item.coverImageUrl || stationImageFor(item.stationType)}
-                            fallbackSrc={stationImageFor(item.stationType)}
-                            alt={item.stationName ?? "ایستگاه"}
-                            className="w-full h-full object-contain"
-                            objectFit="contain"
-                          />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-bold text-[var(--text-white)] truncate">
-                            {item.stationName ?? "ایستگاه"}
-                          </span>
-                          {item.stationType && (
-                            <span className="text-[10px] text-[var(--text-muted)]">
-                              {item.stationType}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 shrink-0 rounded-child bg-[var(--foreground)]/50 border border-[var(--border-subtle)] flex items-center justify-center p-1.5 overflow-hidden">
+                            <AppImage
+                              src={item.coverImageUrl || stationImageFor(item.stationType)}
+                              fallbackSrc={stationImageFor(item.stationType)}
+                              alt={item.stationName ?? "ایستگاه"}
+                              className="w-full h-full object-contain"
+                              objectFit="contain"
+                            />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs font-bold text-[var(--text-white)] truncate">
+                              {item.stationName ?? "ایستگاه"}
                             </span>
-                          )}
+                            {item.stationType && (
+                              <span className="text-[10px] text-[var(--text-muted)]">
+                                {item.stationType}
+                              </span>
+                            )}
+                          </div>
                         </div>
+                        {item.totalPrice !== undefined && item.totalPrice > 0 && (
+                          <span className="text-xs font-bold text-[var(--text-muted)] shrink-0">
+                            {formatPrice(item.totalPrice)} تومان
+                          </span>
+                        )}
                       </div>
-                      {item.totalPrice !== undefined && item.totalPrice > 0 && (
-                        <span className="text-xs font-bold text-[var(--text-muted)] shrink-0">
-                          {formatPrice(item.totalPrice)} تومان
-                        </span>
+                      {item.extraControllers && item.extraControllers.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 border-t border-[var(--border-subtle)]/50 pt-1.5">
+                          {item.extraControllers.map((ec) => (
+                            <span
+                              key={ec.id}
+                              className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-bold"
+                            >
+                              {toPersianDigits(ec.quantity)} × {ec.controllerType} ({formatPrice(ec.totalCost)} تومان)
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="flex items-center gap-3.5 min-w-0 pb-2">
-                  <div className="w-30 aspect-[4/3] shrink-0 flex items-center justify-center ">
-                    <AppImage
-                      src={stationImageFor(reservation.stationSnapshot?.stationType)}
-                      fallbackSrc={stationImageFor(reservation.stationSnapshot?.stationType)}
-                      alt={reservation.stationSnapshot?.name ?? "ایستگاه"}
-                      className="w-full h-full object-cover"
-                      objectFit="cover"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1 min-w-0">
-                    <span className="text-sm font-bold text-[var(--text-white)] break-words">
-                      {reservation.stationSnapshot?.name ?? "—"}
-                    </span>
-                    {reservation.stationSnapshot?.stationType && (
-                      <span className="text-xs text-[var(--text-muted)] font-medium">
-                        دستگاه: {reservation.stationSnapshot.stationType}
+                <div className="flex flex-col gap-2.5 pb-2">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="w-30 aspect-[4/3] shrink-0 flex items-center justify-center ">
+                      <AppImage
+                        src={stationImageFor(reservation.stationSnapshot?.stationType)}
+                        fallbackSrc={stationImageFor(reservation.stationSnapshot?.stationType)}
+                        alt={reservation.stationSnapshot?.name ?? "ایستگاه"}
+                        className="w-full h-full object-cover"
+                        objectFit="cover"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <span className="text-sm font-bold text-[var(--text-white)] break-words">
+                        {reservation.stationSnapshot?.name ?? "—"}
                       </span>
-                    )}
+                      {reservation.stationSnapshot?.stationType && (
+                        <span className="text-xs text-[var(--text-muted)] font-medium">
+                          دستگاه: {reservation.stationSnapshot.stationType}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  {reservation.extraControllers && reservation.extraControllers.length > 0 && (
+                    <div className="flex flex-col gap-1.5 rounded-child bg-[var(--bg-body)]/50 border border-[var(--border-subtle)] p-2.5">
+                      <span className="text-[11px] font-bold text-[var(--text-muted)]">
+                        دسته‌های اضافی انتخاب‌شده:
+                      </span>
+                      {reservation.extraControllers.map((ec) => (
+                        <div
+                          key={ec.id}
+                          className="flex items-center justify-between gap-2 text-xs"
+                        >
+                          <span className="text-[var(--text-white)]">
+                            {toPersianDigits(ec.quantity)} × {ec.controllerType}
+                          </span>
+                          <span className="font-bold text-[var(--primary)]">
+                            {formatPrice(ec.totalCost)} تومان
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

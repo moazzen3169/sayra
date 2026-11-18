@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
+import { isAbortError } from "@/lib/api/client";
 import { toEnglishDigits, toPersianDigits } from "@/lib/format";
 import {
   STATION_TYPE_OPTIONS,
@@ -14,9 +15,16 @@ import {
   stationTypeLabel,
 } from "@/lib/ownerStations";
 import { getErrorMessage } from "@/lib/reservationUi";
+import { catalogService } from "@/services/catalogService";
 import type { GameStationInfo } from "@/services/gamingCenterService";
 import { ownerService } from "@/services/ownerService";
+import {
+  ExtraControllersEditor,
+  validateExtraControllerRows,
+  type ExtraControllerDraftRow,
+} from "@/components/owner/stations/ExtraControllersEditor";
 import type { DeviceCatalogItem } from "@/types/catalog";
+import type { StationExtraController } from "@/types/gaming-center/station.types";
 import type { StationInput } from "@/types/owner";
 
 /* ---------- اجزای مشترک ---------- */
@@ -337,9 +345,69 @@ export const EditStationModal: React.FC<EditStationModalProps> = ({
   const [price, setPrice] = useState(currentPrice !== null ? String(currentPrice) : "");
   const [isVip, setIsVip] = useState(Boolean(station.isVip));
   const [active, setActive] = useState(station.isActive !== false);
+  const [extraEnabled, setExtraEnabled] = useState(false);
+  const [extraLoading, setExtraLoading] = useState(true);
+  const [extraRows, setExtraRows] = useState<ExtraControllerDraftRow[]>([]);
+  const [existingExtras, setExistingExtras] = useState<StationExtraController[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string; price?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    price?: string;
+    extraControllers?: string;
+  }>({});
+
+  useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+
+    Promise.all([
+      ownerService.listStationExtraControllers(centerId, station.id, controller.signal).catch(() => null),
+      catalogService.listDeviceTypes({ isActive: true, limit: 100 }, controller.signal).catch(() => []),
+    ])
+      .then(([res, deviceTypes]) => {
+        if (!mounted) return;
+
+        const existing = res?.extraControllers ?? [];
+        const stationWithTypeId = station as GameStationInfo & { deviceTypeId?: string | null };
+        const matchedType =
+          (stationWithTypeId.deviceTypeId
+            ? deviceTypes.find((dt) => dt.id === stationWithTypeId.deviceTypeId)
+            : undefined) ??
+          deviceTypes.find(
+            (dt) => dt.category.toUpperCase() === String(station.stationType ?? "").toUpperCase()
+          );
+
+        const supported =
+          res?.extraControllerEnabled !== undefined
+            ? res.extraControllerEnabled
+            : existing.length > 0 || Boolean(matchedType?.extraControllerEnabled);
+
+        setExtraEnabled(supported);
+        setExistingExtras(existing);
+        setExtraRows(
+          existing.map((ec) => ({
+            localId: ec.id,
+            existingId: ec.id,
+            controllerType: ec.controllerType,
+            quantity: String(ec.quantity),
+            hourlyPrice: String(ec.hourlyPrice),
+            isActive: ec.isActive !== false,
+          }))
+        );
+      })
+      .catch((err) => {
+        if (!mounted || isAbortError(err)) return;
+      })
+      .finally(() => {
+        if (mounted) setExtraLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
+  }, [centerId, station]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -353,6 +421,14 @@ export const EditStationModal: React.FC<EditStationModalProps> = ({
     if (hourlyPrice === null || hourlyPrice <= 0) {
       errors.price = "قیمت هر ساعت را به تومان و با عدد وارد کنید.";
     }
+
+    const extraValidation = extraEnabled
+      ? validateExtraControllerRows(extraRows)
+      : { configs: [] };
+    if (extraValidation.error) {
+      errors.extraControllers = extraValidation.error;
+    }
+
     setFieldErrors(errors);
     setError(null);
     if (Object.keys(errors).length > 0 || hourlyPrice === null) return;
@@ -368,6 +444,15 @@ export const EditStationModal: React.FC<EditStationModalProps> = ({
         stationType: station.stationType,
         isActive: active,
       });
+
+      if (extraEnabled && (extraValidation.configs.length > 0 || existingExtras.length > 0)) {
+        await ownerService.syncStationExtraControllers(
+          centerId,
+          station.id,
+          extraValidation.configs,
+          existingExtras
+        );
+      }
 
       const updatedStation: GameStationInfo = {
         ...station,
@@ -387,7 +472,7 @@ export const EditStationModal: React.FC<EditStationModalProps> = ({
   };
 
   return (
-    <Modal isOpen onClose={saving ? noop : onClose} title="ویرایش دستگاه">
+    <Modal isOpen onClose={saving ? noop : onClose} title="ویرایش دستگاه" className="max-w-[560px]">
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <p className="text-xs text-[var(--text-muted)]">
           نوع دستگاه: <span className="font-bold text-[var(--text-white)]">{stationTypeLabel(station.stationType)}</span>
@@ -424,6 +509,24 @@ export const EditStationModal: React.FC<EditStationModalProps> = ({
           onChange={setActive}
           disabled={saving}
         />
+
+        {extraLoading ? (
+          <div className="h-16 animate-pulse rounded-card bg-[var(--foreground)]/30" />
+        ) : (
+          extraEnabled && (
+            <ExtraControllersEditor
+              rows={extraRows}
+              onChange={(nextRows) => {
+                setExtraRows(nextRows);
+                if (fieldErrors.extraControllers) {
+                  setFieldErrors((prev) => ({ ...prev, extraControllers: undefined }));
+                }
+              }}
+              disabled={saving}
+              error={fieldErrors.extraControllers}
+            />
+          )
+        )}
 
         <FormError message={error} />
 

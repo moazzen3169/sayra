@@ -1,3 +1,5 @@
+import type { ReservationExtraController } from "@/types/gaming-center/station.types";
+
 export type ReservationStatus =
   | "PENDING"
   | "CONFIRMED"
@@ -26,6 +28,9 @@ export interface Reservation {
   paymentState: PaymentState;
   totalHours: number;
   totalPrice: number;
+  extraControllersTotalCost?: number;
+  extraControllers?: ReservationExtraController[];
+  checkInCode?: string | null;
   stationSnapshot?: {
     name: string;
     hourlyPrice: number;
@@ -49,6 +54,8 @@ export interface Reservation {
     coverImageUrl?: string | null;
     hourlyPrice?: number;
     totalPrice?: number;
+    extraControllersTotalCost?: number;
+    extraControllers?: ReservationExtraController[];
   }>;
 
   // ⚠️ فیلدهای زیر در OpenAPI فعلی (v1.0-LOCKED) وجود ندارند.

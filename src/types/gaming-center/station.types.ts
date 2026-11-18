@@ -12,11 +12,53 @@ export interface StationPricing {
   durationHours?: number;
 }
 
+export interface StationExtraController {
+  id: string;
+  stationId: string;
+  gamingCenterId?: string;
+  controllerType: string;
+  quantity: number;
+  availableQuantity?: number;
+  hourlyPrice: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ExtraControllerConfigInput {
+  controllerType: string;
+  quantity: number;
+  hourlyPrice: number;
+  isActive?: boolean;
+}
+
+export interface ExtraControllerSelectionInput {
+  extraControllerId: string;
+  quantity: number;
+}
+
+export interface ReservationExtraController {
+  id: string;
+  reservationId?: string;
+  extraControllerId?: string | null;
+  controllerType: string;
+  quantity: number;
+  hourlyPrice: number;
+  totalCost: number;
+  createdAt?: string;
+}
+
+export interface StationExtraControllersResult {
+  extraControllerEnabled?: boolean;
+  extraControllers: StationExtraController[];
+}
+
 export interface PhysicalStation {
   id: string;
   gamingCenterId: string;
   name: string;
   stationType: string;
+  deviceTypeId?: string | null;
   catalogDeviceId: string | null;
   coverImageUrl: string | null;
   hourlyPrice: number;
@@ -29,6 +71,7 @@ export interface PhysicalStation {
   extraControllerPrice?: number;
   defaultControllers?: number;
   maxExtraControllers?: number;
+  extraControllers?: StationExtraController[];
   pricing?: StationPricing | null;
 }
 

@@ -1,3 +1,8 @@
+import type {
+  ExtraControllerSelectionInput,
+  ReservationExtraController,
+} from "./station.types";
+
 /**
  * Types for Group Reservation & Payment-First Flow
  * Based on:
@@ -69,6 +74,8 @@ export interface GroupReservationCheckoutResponse {
 
 export interface GroupReservationItemPayload {
   stationId: string;
+  staffId?: string;
+  extraControllers?: ExtraControllerSelectionInput[];
 }
 
 export interface GroupReservationPayload {
@@ -86,6 +93,8 @@ export interface GroupReservationItemResult {
   stationType?: string;
   hourlyPrice?: number;
   totalPrice?: number;
+  extraControllersTotalCost?: number;
+  extraControllers?: ReservationExtraController[];
 }
 
 export interface GroupReservation {
