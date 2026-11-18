@@ -24,6 +24,7 @@ export interface GamecenterReview {
 export interface GamecenterDetail {
   center: GamingCenterInfo;
   address: string;
+  location?: { lat: number; lng: number } | null;
   images: GamecenterImage[];
   stations: GameStationInfo[];
   stationsError?: string | null;

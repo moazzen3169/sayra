@@ -420,6 +420,28 @@ export const adminService = {
           ? raw.raiting
           : undefined;
 
+    const rawLat =
+      typeof raw.lat === "number"
+        ? raw.lat
+        : typeof raw.latitude === "number"
+          ? raw.latitude
+          : typeof primaryAddress?.lat === "number"
+            ? primaryAddress.lat
+            : typeof primaryAddress?.latitude === "number"
+              ? primaryAddress.latitude
+              : null;
+
+    const rawLng =
+      typeof raw.lng === "number"
+        ? raw.lng
+        : typeof raw.longitude === "number"
+          ? raw.longitude
+          : typeof primaryAddress?.lng === "number"
+            ? primaryAddress.lng
+            : typeof primaryAddress?.longitude === "number"
+              ? primaryAddress.longitude
+              : null;
+
     return {
       id: String(raw.id ?? raw.gamingCenterId ?? raw.slug ?? ""),
       name: toSafeText(raw.name, "بدون نام"),
@@ -428,6 +450,9 @@ export const adminService = {
       ownerPhone,
       city: cityName,
       address: fullAddress,
+      lat: rawLat !== null && Number.isFinite(rawLat) ? rawLat : null,
+      lng: rawLng !== null && Number.isFinite(rawLng) ? rawLng : null,
+      primaryAddressId: primaryAddress?.id ? String(primaryAddress.id) : undefined,
       description: toSafeText(raw.description, ""),
       isActive: raw.isActive !== undefined ? Boolean(raw.isActive) : true,
       rating: rawRating,
@@ -563,6 +588,8 @@ export const adminService = {
     id: string,
     signal?: AbortSignal,
   ): Promise<AdminGamecenter | null> {
+    let resolved: AdminGamecenter | null = null;
+
     try {
       const response = await apiClient.get<any>(
         ENDPOINTS.gamingCenter.byId(id),
@@ -570,34 +597,69 @@ export const adminService = {
       );
       const resData = response.data?.data || response.data;
       if (resData && typeof resData === "object" && !Array.isArray(resData)) {
-        return adminService.mapRawGamingCenterToAdmin(resData);
+        resolved = adminService.mapRawGamingCenterToAdmin(resData);
       }
     } catch {
       // ادامه به اندپوینت بعدی
     }
 
-    try {
-      const response = await apiClient.get<any>(
-        ENDPOINTS.gamingCenter.detail(id),
-        { signal },
-      );
-      const resData = response.data?.data || response.data;
-      if (resData && typeof resData === "object" && !Array.isArray(resData)) {
-        return adminService.mapRawGamingCenterToAdmin(resData);
+    if (!resolved) {
+      try {
+        const response = await apiClient.get<any>(
+          ENDPOINTS.gamingCenter.detail(id),
+          { signal },
+        );
+        const resData = response.data?.data || response.data;
+        if (resData && typeof resData === "object" && !Array.isArray(resData)) {
+          resolved = adminService.mapRawGamingCenterToAdmin(resData);
+        }
+      } catch {
+        // ادامه به لیست پلتفرم ادمین
       }
-    } catch {
-      // ادامه به لیست پلتفرم ادمین
     }
 
-    try {
-      const listRes = await adminService.getGamecenters({ pageSize: 100 }, signal);
-      const found = listRes.items.find((g) => g.id === id || g.slug === id);
-      if (found) return found;
-    } catch {
-      // ignore
+    if (!resolved) {
+      try {
+        const listRes = await adminService.getGamecenters({ pageSize: 100 }, signal);
+        const found = listRes.items.find((g) => g.id === id || g.slug === id);
+        if (found) resolved = found;
+      } catch {
+        // ignore
+      }
     }
 
-    return null;
+    if (resolved && (resolved.lat == null || resolved.lng == null) && resolved.slug) {
+      try {
+        const addrRes = await apiClient.get<any>(
+          ENDPOINTS.gamingCenter.addresses(resolved.slug),
+          { signal },
+        );
+        const addrList = Array.isArray(addrRes.data)
+          ? addrRes.data
+          : Array.isArray(addrRes.data?.data)
+            ? addrRes.data.data
+            : [];
+        const primary = addrList.find((a: any) => a?.isPrimary) || addrList[0];
+        if (primary) {
+          const lat = typeof primary.lat === "number" ? primary.lat : typeof primary.latitude === "number" ? primary.latitude : null;
+          const lng = typeof primary.lng === "number" ? primary.lng : typeof primary.longitude === "number" ? primary.longitude : null;
+          if (lat !== null && lng !== null) {
+            resolved.lat = lat;
+            resolved.lng = lng;
+          }
+          if (primary.id && !resolved.primaryAddressId) {
+            resolved.primaryAddressId = String(primary.id);
+          }
+          if (primary.city && (!resolved.city || resolved.city === "-")) {
+            resolved.city = toSafeText(primary.city, resolved.city);
+          }
+        }
+      } catch {
+        // ignore address lookup failure
+      }
+    }
+
+    return resolved;
   },
 
   /**
@@ -672,6 +734,30 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     throw new Error("گیم‌نت ثبت شد، اما شناسه آن از سرور دریافت نشد.");
   }
 
+  // ذخیره آدرس و مختصات نقشه (lat, lng) در صورت ارسال
+  const hasCoords =
+    typeof input.lat === "number" &&
+    Number.isFinite(input.lat) &&
+    typeof input.lng === "number" &&
+    Number.isFinite(input.lng);
+
+  if (hasCoords || (input.city?.trim() && input.address?.trim())) {
+    const addressBody: Record<string, unknown> = {
+      city: input.city?.trim() || "ارومیه",
+      addressLine: input.address?.trim() || "ثبت نشده",
+      isPrimary: true,
+    };
+    if (hasCoords) {
+      addressBody.lat = input.lat;
+      addressBody.lng = input.lng;
+    }
+    try {
+      await apiClient.post(ENDPOINTS.owner.addresses(created.id), addressBody);
+    } catch {
+      // اگر ثبت آدرس به هر دلیل با خطا مواجه شد، گیم‌نت ثبت‌شده را برمی‌گردانیم
+    }
+  }
+
   return created;
 },
 
@@ -698,6 +784,35 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     if (Object.keys(patchBody).length > 0) {
       const patchRes = await apiClient.patch<any>(ENDPOINTS.gamingCenter.byId(id), patchBody);
       latestRaw = patchRes.data?.data || patchRes.data;
+    }
+
+    const hasCoords =
+      typeof input.lat === "number" &&
+      Number.isFinite(input.lat) &&
+      typeof input.lng === "number" &&
+      Number.isFinite(input.lng);
+
+    if (hasCoords) {
+      const addressBody: Record<string, unknown> = {
+        lat: input.lat,
+        lng: input.lng,
+        isPrimary: true,
+      };
+      if (input.city?.trim()) addressBody.city = input.city.trim();
+      if (input.address?.trim()) addressBody.addressLine = input.address.trim();
+
+      if (input.primaryAddressId) {
+        await apiClient.patch(
+          ENDPOINTS.owner.addressDetail(id, input.primaryAddressId),
+          addressBody
+        );
+      } else {
+        await apiClient.post(ENDPOINTS.owner.addresses(id), {
+          city: input.city?.trim() || "ارومیه",
+          addressLine: input.address?.trim() || "ثبت نشده",
+          ...addressBody,
+        });
+      }
     }
 
     if (input.isActive !== undefined) {

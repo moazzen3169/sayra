@@ -7,6 +7,20 @@ import { Button } from "@/components/ui/Button";
 import { AdminGamecenter, AdminGamecenterInput, AdminUser } from "@/types/admin";
 import { adminService } from "@/services/adminService";
 import { cleanPhoneNumber, isValidIranPhone } from "@/lib/format";
+import { LocationMapPicker } from "@/components/owner/LocationMapPicker";
+
+const DEFAULT_URMIA_LAT = 37.5527;
+const DEFAULT_URMIA_LNG = 45.0761;
+
+const CITY_DEFAULT_COORDS: Record<string, { lat: number; lng: number }> = {
+  ارومیه: { lat: 37.5527, lng: 45.0761 },
+  تهران: { lat: 35.6892, lng: 51.389 },
+  تبریز: { lat: 38.08, lng: 46.2919 },
+  شیراز: { lat: 29.5918, lng: 52.5837 },
+  اصفهان: { lat: 32.6546, lng: 51.668 },
+  مشهد: { lat: 36.2972, lng: 59.6067 },
+  کرج: { lat: 35.84, lng: 50.9391 },
+};
 
 interface GamecenterFormModalProps {
   isOpen: boolean;
@@ -42,8 +56,11 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
     slug: "",
     ownerName: "مدیر گیم‌نت",
     ownerPhone: "",
-    city: "تهران",
+    city: "ارومیه",
     address: "",
+    lat: DEFAULT_URMIA_LAT,
+    lng: DEFAULT_URMIA_LNG,
+    primaryAddressId: undefined,
     description: "",
     isActive: true,
     phone: "",
@@ -60,13 +77,18 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
 
   useEffect(() => {
     if (initialData) {
+      const initCity = initialData.city && initialData.city !== "-" ? initialData.city : "ارومیه";
+      const cityFallback = CITY_DEFAULT_COORDS[initCity] ?? { lat: DEFAULT_URMIA_LAT, lng: DEFAULT_URMIA_LNG };
       setFormData({
         name: initialData.name || "",
         slug: initialData.slug || "",
         ownerName: initialData.ownerName || "",
         ownerPhone: initialData.ownerPhone || "",
-        city: initialData.city || "تهران",
+        city: initCity,
         address: initialData.address || "",
+        lat: typeof initialData.lat === "number" ? initialData.lat : cityFallback.lat,
+        lng: typeof initialData.lng === "number" ? initialData.lng : cityFallback.lng,
+        primaryAddressId: initialData.primaryAddressId,
         description: initialData.description || "",
         isActive: initialData.isActive ?? true,
       });
@@ -76,8 +98,11 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
         slug: "",
         ownerName: "",
         ownerPhone: "",
-        city: "تهران",
+        city: "ارومیه",
         address: "",
+        lat: DEFAULT_URMIA_LAT,
+        lng: DEFAULT_URMIA_LNG,
+        primaryAddressId: undefined,
         description: "",
         isActive: true,
       });
@@ -86,6 +111,30 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
     setErrors({});
     setSubmitError(null);
   }, [initialData, isOpen]);
+
+  // در حالت ویرایش، اگر مختصات در لیست اولیه نبود از سرور دریافت می‌کنیم
+  useEffect(() => {
+    if (!isOpen || !isEdit || !initialData) return;
+    if (typeof initialData.lat === "number" && typeof initialData.lng === "number") return;
+
+    const controller = new AbortController();
+    adminService
+      .getGamecenterById(initialData.id, controller.signal)
+      .then((full) => {
+        if (!full || controller.signal.aborted) return;
+        setFormData((prev) => ({
+          ...prev,
+          lat: typeof full.lat === "number" ? full.lat : prev.lat,
+          lng: typeof full.lng === "number" ? full.lng : prev.lng,
+          primaryAddressId: full.primaryAddressId ?? prev.primaryAddressId,
+        }));
+      })
+      .catch(() => {
+        // ignore
+      });
+
+    return () => controller.abort();
+  }, [isOpen, isEdit, initialData]);
 
   // دریافت کاربران واقعی برای انتخاب مالک (فقط هنگام ثبت گیمنت جدید)
   useEffect(() => {
@@ -327,9 +376,21 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
               <label className="text-xs font-bold text-[var(--text-muted)]">شهر *</label>
               <select
                 value={formData.city}
-                onChange={(e) => handleChange("city", e.target.value)}
+                onChange={(e) => {
+                  const newCity = e.target.value;
+                  handleChange("city", newCity);
+                  if (!isEdit && CITY_DEFAULT_COORDS[newCity]) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      city: newCity,
+                      lat: CITY_DEFAULT_COORDS[newCity].lat,
+                      lng: CITY_DEFAULT_COORDS[newCity].lng,
+                    }));
+                  }
+                }}
                 className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-sm text-[var(--text-white)] outline-none focus:border-[var(--primary)]"
               >
+                <option value="ارومیه" className="bg-[var(--bg-card)]">ارومیه</option>
                 <option value="تهران" className="bg-[var(--bg-card)]">تهران</option>
                 <option value="تبریز" className="bg-[var(--bg-card)]">تبریز</option>
                 <option value="شیراز" className="bg-[var(--bg-card)]">شیراز</option>
@@ -348,6 +409,20 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
               />
             </div>
           </div>
+
+          <LocationMapPicker
+            latitude={formData.lat ?? DEFAULT_URMIA_LAT}
+            longitude={formData.lng ?? DEFAULT_URMIA_LNG}
+            cityName={formData.city}
+            onChange={(newLat, newLng) => {
+              setFormData((prev) => ({
+                ...prev,
+                lat: newLat,
+                lng: newLng,
+              }));
+              setSubmitError(null);
+            }}
+          />
         </div>
 
         {/* گروه ۳: توضیحات و وضعیت */}

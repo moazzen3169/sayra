@@ -1,3 +1,4 @@
+
 import React from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
@@ -8,52 +9,137 @@ export const OwnerGrowthSection: React.FC = () => {
   return (
     <section
       aria-labelledby="owner-growth-heading"
-      className="relative min-h-[100dvh] w-full overflow-hidden rounded-card border border-[var(--border-color)] bg-[var(--bg-body-2)] flex items-end lg:items-center"
+      className="group relative isolate min-h-[620px] w-full overflow-hidden rounded-card border border-[var(--border-color)] bg-[var(--bg-body-2)] sm:min-h-[680px] lg:min-h-[700px]"
     >
-      {/* تصویر پس‌زمینه گیمنت */}
+      {/* Background */}
       <SafeImage
         src="/img/gamnet-2.webp"
-        alt="تجهیزات و فضای گیمنت مجهز"
+        alt="فضای حرفه‌ای و تجهیزات یک گیمنت"
         fallbackSrc={PLACEHOLDERS.center}
-        className="absolute inset-0 h-full w-full object-cover object-center"
+        className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-[1200ms] group-hover:scale-[1.025]"
       />
 
-      {/* لایه کنتراست و بافت ظریف */}
+      {/* Overlays */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[var(--bg-body-2)] via-[var(--bg-body-2)]/80 to-[var(--bg-body-2)]/30 lg:bg-gradient-to-l lg:from-[var(--bg-body-2)] lg:via-[var(--bg-body-2)]/85 lg:to-transparent"
+        className="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/20 lg:bg-gradient-to-r lg:from-black/95 lg:via-black/75 lg:via-55% lg:to-black/10"
       />
 
-      <div className="relative z-10 w-full p-6 sm:p-10 lg:p-16">
-        <div className="flex max-w-xl flex-col items-start gap-6">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--bg-card)]/90 px-3.5 py-1.5 text-xs font-bold text-[var(--primary)]">
-            <Icon name="list" size={16} />
-            <span>ویژه صاحبین گیمنت</span>
-          </span>
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-gradient-to-l from-[var(--primary)]/10 via-transparent to-transparent"
+      />
 
+      {/* Ambient light */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-32 bottom-0 h-[450px] w-[450px] rounded-full bg-[var(--primary)]/10 blur-[140px]"
+      />
+
+      {/* Content */}
+      <div className="relative z-10 flex min-h-[620px] items-center px-6 py-16 sm:min-h-[680px] sm:px-12 lg:min-h-[700px] lg:px-20">
+        <div className="w-full max-w-2xl">
+
+          {/* Eyebrow */}
+          <div className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-white/20 bg-black/30 px-4 py-2 backdrop-blur-xl">
+            <Icon
+              name="list"
+              size={16}
+              className="text-[var(--primary)]"
+            />
+            <span className="text-xs font-bold tracking-wide text-white/90 sm:text-sm">
+              فرصتی برای رشد گیمنت تو
+            </span>
+          </div>
+
+          {/* Heading */}
           <h2
             id="owner-growth-heading"
-            className="text-3xl sm:text-5xl lg:text-6xl font-bold leading-tight text-[var(--text-white)]"
+            className="text-4xl font-black leading-[1.4] tracking-tight text-white sm:text-5xl lg:text-6xl xl:text-7xl"
           >
-            گیمنتت را در{" "}
-            <span className="text-[var(--primary)]">سایرا</span>{" "}
-            بساز
+            گیمنت تو،
+            <br />
+            <span className="text-white/90">در مسیر</span>{" "}
+            <span className="text-[var(--primary)]">بزرگ‌تر شدن.</span>
           </h2>
 
-          <p className="text-sm sm:text-base text-[var(--text-muted)] leading-relaxed max-w-md">
-            ببین گیمرهای شهرت چطور در چند ثانیه دستگاه‌های تو را پیدا و آنلاین
-            رزرو می‌کنند.
+          {/* Description */}
+          <p className="mt-7 max-w-lg text-sm leading-8 text-white/65 sm:text-base sm:leading-9">
+            گیمنتت رو به سایرا متصل کن تا گیمرهای شهرت راحت‌تر پیدات کنن،
+            دستگاه‌هات رو ببینن و آنلاین رزرو کنن.
+            <span className="font-bold text-white/90">
+              {" "}وقتشه بیشتر دیده بشی.
+            </span>
           </p>
 
-          <Link
-            href="/owner/new"
-            className="inline-flex h-12 w-full sm:w-auto items-center justify-center gap-3 rounded-card bg-[var(--text-white)] px-8 text-sm font-bold text-on-primary shadow-[4px_4px_0_0_var(--primary)] transition-all hover:bg-[var(--primary)] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_var(--text-white)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-          >
-            <span>ثبت گیمنت</span>
-            <Icon name="arrow-left" size={18} />
-          </Link>
+          {/* Value proposition */}
+          <div className="mt-9 flex flex-col gap-4 sm:flex-row">
+
+            <div className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3 backdrop-blur-xl">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]/15">
+                <Icon
+                  name="gamepad"
+                  size={20}
+                  className="text-[var(--primary)]"
+                />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">
+                  دیده‌شدن بیشتر
+                </p>
+                <p className="mt-1 text-[11px] text-white/50">
+                  در معرض انتخاب گیمرها
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3 backdrop-blur-xl">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]/15">
+                <Icon
+                  name="list"
+                  size={20}
+                  className="text-[var(--primary)]"
+                />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">
+                  رزرو آنلاین
+                </p>
+                <p className="mt-1 text-[11px] text-white/50">
+                  انتخاب و رزرو توسط گیمرها
+                </p>
+              </div>
+            </div>
+
+          </div>
+
+          {/* CTA */}
+          <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+            <Link
+              href="/owner/new"
+              className="group/btn inline-flex h-14 w-full items-center justify-center gap-4 rounded-xl bg-white px-8 text-sm font-black text-black shadow-[0_12px_40px_rgba(255,255,255,0.12)] transition-all duration-300 hover:-translate-y-1 hover:bg-[var(--primary)] hover:text-on-primary active:translate-y-0 sm:w-auto sm:min-w-[220px]"
+            >
+              <span>اتصال گیمنت به سایرا</span>
+              <Icon
+                name="arrow-left"
+                size={19}
+                className="transition-transform duration-300 group-hover/btn:-translate-x-1"
+              />
+            </Link>
+
+            <span className="text-xs font-medium text-white/45">
+              شروع مسیر حضور آنلاین گیمنتت
+            </span>
+          </div>
+
         </div>
       </div>
+
+      {/* Bottom accent */}
+      <div
+        aria-hidden="true"
+        className="absolute bottom-0 left-0 h-1 w-1/3 bg-gradient-to-r from-[var(--primary)] to-transparent"
+      />
     </section>
   );
 };

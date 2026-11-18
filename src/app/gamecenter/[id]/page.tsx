@@ -26,6 +26,7 @@ import { DeviceSelectModal } from "@/components/gamecenter/DeviceSelectModal";
 import { GroupBookingSheet } from "@/components/gamecenter/GroupBookingSheet";
 import { GamesMarquee } from "@/components/gamecenter/GamesMarquee";
 import { GamecenterInfoCard } from "@/components/gamecenter/GamecenterInfoCard";
+import { GamecenterLocationCard } from "@/components/gamecenter/GamecenterLocationCard";
 import { useAuth } from "@/context/AuthContext";
 import { useCity } from "@/context/CityContext";
 import { useDeviceCategories } from "@/hooks/gaming-center/use-device-categories";
@@ -286,6 +287,15 @@ function GameCenterDetailContent({
                 rating={rating}
                 onScrollTo={scrollToId}
               />
+
+              {detail.location && (
+                <GamecenterLocationCard
+                  lat={detail.location.lat}
+                  lng={detail.location.lng}
+                  title={title}
+                  address={address}
+                />
+              )}
 
               {/* سایدبار دسکتاپ */}
               <div className="hidden lg:flex sticky top-20 self-start flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 w-full">

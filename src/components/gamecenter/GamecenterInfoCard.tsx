@@ -1,8 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { toPersianDigits } from "@/lib/format";
-import { mapsUrl } from "@/lib/reservationUi";
 import { Icon } from "@/components/ui/Icon";
 
 interface GamecenterInfoCardProps {
@@ -18,8 +17,10 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
   rating,
   onScrollTo,
 }) => {
+  const [isAddressExpanded, setIsAddressExpanded] = useState(false);
+
   return (
-    <section className="flex flex-col gap-1">
+    <section className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-section-title text-[var(--text-white)] truncate min-w-0 flex-1">
           {title}
@@ -44,17 +45,27 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
       </div>
 
       {address && (
-        <a
-          href={mapsUrl(address)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="min-h-[44px] inline-flex items-center gap-1.5 text-secondary text-[var(--text-muted)] hover:text-[var(--text-white)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-card w-fit max-w-full"
-        >
-          <Icon name="pin" size={16} className="shrink-0" />
-          <span className="truncate">{address}</span>
-          <Icon name="external-link" size={16} className="shrink-0" />
-          <span className="sr-only">در تب جدید</span>
-        </a>
+        <div className="flex items-start gap-1.5 text-secondary text-[var(--text-muted)]">
+          <Icon name="pin" size={16} className="shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0 flex items-baseline gap-1.5 flex-wrap">
+            <span
+              className={
+                isAddressExpanded
+                  ? "leading-relaxed text-[var(--text-muted)] break-words"
+                  : "truncate flex-1 min-w-0"
+              }
+            >
+              {address}
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsAddressExpanded((v) => !v)}
+              className="shrink-0 text-xs font-bold text-[var(--primary)] hover:underline cursor-pointer"
+            >
+              {isAddressExpanded ? "بستن" : "مشاهده بیشتر"}
+            </button>
+          </div>
+        </div>
       )}
     </section>
   );

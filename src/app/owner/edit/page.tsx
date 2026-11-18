@@ -65,8 +65,9 @@ export default function OwnerEditPage() {
   const [addressLine, setAddressLine] = useState(center?.description || "");
   const [phone, setPhone] = useState("");
   const [postalCode, setPostalCode] = useState("");
-  const [lat, setLat] = useState<number>(35.6892);
-  const [lng, setLng] = useState<number>(51.389);
+  const [lat, setLat] = useState<number>(37.5527);
+  const [lng, setLng] = useState<number>(45.0761);
+  const [primaryAddressId, setPrimaryAddressId] = useState<string | null>(null);
   const [geoLocating, setGeoLocating] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
   const [addressMsg, setAddressMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -78,6 +79,11 @@ export default function OwnerEditPage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  const centerRef = React.useRef(center);
+  useEffect(() => {
+    centerRef.current = center;
+  }, [center]);
+
   useEffect(() => {
     let active = true;
 
@@ -88,6 +94,15 @@ export default function OwnerEditPage() {
 
     const controller = new AbortController();
 
+    const toCoord = (v: unknown): number | null => {
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+      if (typeof v === "string" && v.trim() !== "") {
+        const n = Number(v);
+        if (Number.isFinite(n)) return n;
+      }
+      return null;
+    };
+
     Promise.allSettled([
       ownerService.findCenter(centerId, controller.signal),
       ownerService.listAddresses(centerId, controller.signal),
@@ -95,40 +110,52 @@ export default function OwnerEditPage() {
     ]).then(([centerRes, addressesRes, settingsRes]) => {
       if (!active) return;
 
+      const fallbackCenter = centerRef.current;
       if (centerRes.status === "fulfilled" && centerRes.value) {
         setName(centerRes.value.name || "");
-        if (centerRes.value.description && !addressLine) {
-          setAddressLine(centerRes.value.description);
+        if (centerRes.value.description) {
+          setAddressLine((prev) => prev || centerRes.value!.description || "");
         }
-      } else if (center) {
-        setName(center.name || "");
-        if (center.description && !addressLine) {
-          setAddressLine(center.description);
+      } else if (fallbackCenter) {
+        setName(fallbackCenter.name || "");
+        if (fallbackCenter.description) {
+          setAddressLine((prev) => prev || fallbackCenter.description || "");
         }
       }
 
       if (addressesRes.status === "fulfilled" && Array.isArray(addressesRes.value) && addressesRes.value.length > 0) {
-        const primaryAddr = addressesRes.value[0] as any;
-        if (primaryAddr?.addressLine || primaryAddr?.address) {
-          setAddressLine(primaryAddr.addressLine || primaryAddr.address);
+        const list = addressesRes.value as Array<Record<string, unknown>>;
+        const primaryAddr =
+          list.find((a) => Boolean(a?.isPrimary) && toCoord(a?.lat ?? a?.latitude) !== null && toCoord(a?.lng ?? a?.longitude) !== null) ??
+          [...list].reverse().find((a) => toCoord(a?.lat ?? a?.latitude) !== null && toCoord(a?.lng ?? a?.longitude) !== null) ??
+          list.find((a) => Boolean(a?.isPrimary)) ??
+          list[list.length - 1];
+
+        if (primaryAddr?.id) {
+          setPrimaryAddressId(String(primaryAddr.id));
         }
-        if (primaryAddr?.city) {
+        if (typeof (primaryAddr?.addressLine || primaryAddr?.address) === "string") {
+          setAddressLine(String(primaryAddr.addressLine || primaryAddr.address));
+        }
+        if (typeof primaryAddr?.city === "string" && primaryAddr.city) {
           setCity(primaryAddr.city);
         }
-        if (primaryAddr?.province) {
+        if (typeof primaryAddr?.province === "string" && primaryAddr.province) {
           setProvince(primaryAddr.province);
         }
-        if (primaryAddr?.phone) {
+        if (typeof primaryAddr?.phone === "string" && primaryAddr.phone) {
           setPhone(primaryAddr.phone);
         }
-        if (primaryAddr?.postalCode) {
+        if (typeof primaryAddr?.postalCode === "string" && primaryAddr.postalCode) {
           setPostalCode(primaryAddr.postalCode);
         }
-        if (typeof primaryAddr?.lat === "number" && !isNaN(primaryAddr.lat)) {
-          setLat(primaryAddr.lat);
+        const parsedLat = toCoord(primaryAddr?.lat ?? primaryAddr?.latitude);
+        const parsedLng = toCoord(primaryAddr?.lng ?? primaryAddr?.longitude);
+        if (parsedLat !== null) {
+          setLat(parsedLat);
         }
-        if (typeof primaryAddr?.lng === "number" && !isNaN(primaryAddr.lng)) {
-          setLng(primaryAddr.lng);
+        if (parsedLng !== null) {
+          setLng(parsedLng);
         }
       }
 
@@ -151,7 +178,7 @@ export default function OwnerEditPage() {
       active = false;
       controller.abort();
     };
-  }, [centerId, center]);
+  }, [centerId]);
 
   const handleProvinceChange = (provName: string) => {
     setProvince(provName);
@@ -232,7 +259,7 @@ export default function OwnerEditPage() {
     const fullAddressString = `${province}، ${city.trim()}، ${userEnteredAddress}`;
 
     try {
-      await ownerService.createAddress(centerId, {
+      const addressPayload = {
         addressLine: userEnteredAddress,
         address: fullAddressString,
         city: city.trim(),
@@ -241,7 +268,20 @@ export default function OwnerEditPage() {
         postalCode: postalCode.trim() || undefined,
         lat,
         lng,
-      });
+        isPrimary: true,
+      };
+
+      if (primaryAddressId) {
+        try {
+          await ownerService.updateAddress(centerId, primaryAddressId, addressPayload);
+        } catch {
+          const created = await ownerService.createAddress(centerId, addressPayload);
+          if (created?.id) setPrimaryAddressId(String(created.id));
+        }
+      } else {
+        const created = await ownerService.createAddress(centerId, addressPayload);
+        if (created?.id) setPrimaryAddressId(String(created.id));
+      }
 
       await ownerService.patchCenter(centerId, {
         address: fullAddressString,

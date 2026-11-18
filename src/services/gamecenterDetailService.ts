@@ -222,13 +222,20 @@ export const gamingCenterService = {
   },
 
   async getPublicAddresses(slug: string, signal?: AbortSignal): Promise<PublicAddress[]> {
-    const { data } = await apiClient.get<PublicAddress[] | { data?: PublicAddress[] }>(
+    const { data } = await apiClient.get<any>(
       ENDPOINTS.gamingCenter.addresses(slug),
       { signal }
     );
     if (Array.isArray(data)) return data;
-    if (data && typeof data === "object" && "data" in data && Array.isArray((data as { data: PublicAddress[] }).data)) {
-      return (data as { data: PublicAddress[] }).data;
+    if (data && typeof data === "object") {
+      if (Array.isArray(data.data)) return data.data;
+      if (Array.isArray(data.addresses)) return data.addresses;
+      if (Array.isArray(data.items)) return data.items;
+      if (data.data && typeof data.data === "object") {
+        if (Array.isArray(data.data.addresses)) return data.data.addresses;
+        if (Array.isArray(data.data.items)) return data.data.items;
+        if (Array.isArray(data.data.data)) return data.data.data;
+      }
     }
     return [];
   },
@@ -318,6 +325,54 @@ export function formatAuthoritativeAddress(addresses: PublicAddress[]): string |
   return city && !line.includes(city) ? `${city}، ${line}` : line;
 }
 
+function toFiniteCoord(val: unknown): number | null {
+  if (typeof val === "number" && Number.isFinite(val)) return val;
+  if (typeof val === "string" && val.trim() !== "") {
+    const parsed = Number(val);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+/**
+ * استخراج مختصات جغرافیایی معتبر (lat, lng) از آدرس اصلی یا اطلاعات مرکز
+ */
+export function extractAuthoritativeLocation(
+  addresses: PublicAddress[],
+  center?: GamingCenterInfo
+): { lat: number; lng: number } | null {
+  if (Array.isArray(addresses) && addresses.length > 0) {
+    const withCoords = (a: PublicAddress | undefined) => {
+      if (!a) return null;
+      const lat = toFiniteCoord(a.lat ?? a.latitude);
+      const lng = toFiniteCoord(a.lng ?? a.longitude);
+      return lat !== null && lng !== null ? { lat, lng } : null;
+    };
+
+    const primaryMatch = withCoords(addresses.find((a) => a?.isPrimary));
+    if (primaryMatch) return primaryMatch;
+
+    for (let i = addresses.length - 1; i >= 0; i--) {
+      const match = withCoords(addresses[i]);
+      if (match) return match;
+    }
+  }
+
+  const centerAny = center as (GamingCenterInfo & {
+    lat?: number | string | null;
+    lng?: number | string | null;
+    latitude?: number | string | null;
+    longitude?: number | string | null;
+  }) | undefined;
+  const cLat = toFiniteCoord(centerAny?.lat ?? centerAny?.latitude);
+  const cLng = toFiniteCoord(centerAny?.lng ?? centerAny?.longitude);
+  if (cLat !== null && cLng !== null) {
+    return { lat: cLat, lng: cLng };
+  }
+
+  return null;
+}
+
 export async function loadGamecenterDetail(
   routeIdentifier: string,
   signal?: AbortSignal
@@ -374,10 +429,14 @@ const fetchStationsPromise = (async (): Promise<GameStationInfo[]> => {
       (stationsRes.reason as Error)?.message || "خطا در دریافت لیست دستگاه‌ها";
   }
 
-  const addresses: PublicAddress[] =
+  const rawAddresses: PublicAddress[] =
     addressesRes.status === "fulfilled" && Array.isArray(addressesRes.value)
       ? addressesRes.value
       : [];
+  const centerAddresses = Array.isArray((center as { addresses?: PublicAddress[] })?.addresses)
+    ? (center as { addresses?: PublicAddress[] }).addresses!
+    : [];
+  const addresses: PublicAddress[] = rawAddresses.length > 0 ? rawAddresses : centerAddresses;
 
   const mediaList: PublicMediaItem[] =
     mediaRes.status === "fulfilled" && Array.isArray(mediaRes.value)
@@ -390,6 +449,7 @@ const fetchStationsPromise = (async (): Promise<GameStationInfo[]> => {
       : [];
 
   const authoritativeAddress = formatAuthoritativeAddress(addresses);
+  const authoritativeLocation = extractAuthoritativeLocation(addresses, center);
   const galleryImages = mapMediaToGalleryImages(mediaList);
   const reviews = mapRatingsToReviews(ratings);
 
@@ -409,6 +469,7 @@ const fetchStationsPromise = (async (): Promise<GameStationInfo[]> => {
   return {
     center,
     address: authoritativeAddress || center.description || "",
+    location: authoritativeLocation,
     images: galleryImages,
     stations,
     stationsError,

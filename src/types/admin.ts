@@ -54,6 +54,9 @@ export interface AdminGamecenter {
   ownerPhone: string;
   city: string;
   address: string;
+  lat?: number | null;
+  lng?: number | null;
+  primaryAddressId?: string;
   description?: string;
   isActive: boolean;
   rating?: number;
@@ -74,6 +77,9 @@ export interface AdminGamecenterInput {
   ownerPhone: string;
   city: string;
   address: string;
+  lat?: number | null;
+  lng?: number | null;
+  primaryAddressId?: string;
   description?: string;
   isActive: boolean;
   phone?: string;

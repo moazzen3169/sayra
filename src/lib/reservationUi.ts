@@ -160,8 +160,27 @@ const STATION_TYPE_LABELS: Record<string, string> = {
 export const getStationTypeLabel = (type?: string) =>
   (type && STATION_TYPE_LABELS[type]) || type || "دستگاه";
 
-export const mapsUrl = (address: string) =>
-  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+export const googleMapsCoordsUrl = (lat: number, lng: number) =>
+  `https://www.google.com/maps?q=${lat},${lng}`;
+
+export const neshanCoordsUrl = (lat: number, lng: number) =>
+  `https://nshn.ir/?lat=${lat}&lng=${lng}`;
+
+export const mapsUrl = (
+  address: string,
+  coords?: { lat?: number | null; lng?: number | null } | null
+) => {
+  if (
+    coords &&
+    typeof coords.lat === "number" &&
+    Number.isFinite(coords.lat) &&
+    typeof coords.lng === "number" &&
+    Number.isFinite(coords.lng)
+  ) {
+    return googleMapsCoordsUrl(coords.lat, coords.lng);
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+};
 
 const ERROR_MESSAGES: Record<string, string> = {
   NETWORK_ERROR: "اتصال برقرار نشد. اینترنت را بررسی کنید.",

@@ -187,9 +187,9 @@ export const ownerService = {
    */
   async createAddress(
     gamingCenterId: string,
-    payload: CreateBranchAddressPayload,
+    payload: CreateBranchAddressPayload & { isPrimary?: boolean },
     signal?: AbortSignal
-  ): Promise<void> {
+  ): Promise<{ id?: string } | undefined> {
     const rawAddress =
       payload.addressLine?.trim() || payload.address?.trim() || "";
 
@@ -229,8 +229,42 @@ export const ownerService = {
       body.lng = payload.lng;
     }
 
-    await apiClient.post(
+    if (typeof (payload as { isPrimary?: boolean }).isPrimary === "boolean") {
+      body.isPrimary = (payload as { isPrimary?: boolean }).isPrimary;
+    }
+
+    const res = await apiClient.post<any>(
       ENDPOINTS.owner.addresses(gamingCenterId),
+      body,
+      { signal }
+    );
+    const created = res.data?.data ?? res.data;
+    return created && typeof created === "object" ? created : undefined;
+  },
+
+  /**
+   * ویرایش آدرس شعبه برای گیم‌نت:
+   * PATCH /gamingCenters/{gamingCenterId}/addresses/{addressId}
+   */
+  async updateAddress(
+    gamingCenterId: string,
+    addressId: string,
+    payload: Partial<CreateBranchAddressPayload> & { isPrimary?: boolean },
+    signal?: AbortSignal
+  ): Promise<void> {
+    const body: Record<string, unknown> = {};
+    if (payload.city?.trim()) body.city = payload.city.trim();
+    if (payload.addressLine?.trim()) body.addressLine = payload.addressLine.trim();
+    if (payload.address?.trim()) body.address = payload.address.trim();
+    if (payload.province?.trim()) body.province = payload.province.trim();
+    if (payload.phone?.trim()) body.phone = payload.phone.trim();
+    if (payload.postalCode?.trim()) body.postalCode = payload.postalCode.trim();
+    if (typeof payload.lat === "number" && !isNaN(payload.lat)) body.lat = payload.lat;
+    if (typeof payload.lng === "number" && !isNaN(payload.lng)) body.lng = payload.lng;
+    if (typeof payload.isPrimary === "boolean") body.isPrimary = payload.isPrimary;
+
+    await apiClient.patch(
+      ENDPOINTS.owner.addressDetail(gamingCenterId, addressId),
       body,
       { signal }
     );
