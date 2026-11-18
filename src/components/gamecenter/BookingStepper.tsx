@@ -3,87 +3,101 @@
 import React from "react";
 import { toPersianDigits } from "@/lib/format";
 import { Icon } from "@/components/ui/Icon";
+import { cn } from "@/lib/utils";
 
-export type BookingStep = 1 | 2 | 3 | 4 | 5;
+export type BookingStep = 1 | 2 | 3;
 
 interface BookingStepperProps {
   currentStep: BookingStep;
+  loggedIn?: boolean;
   onStepClick?: (step: BookingStep) => void;
   className?: string;
 }
 
-const STEPS: { id: BookingStep; label: string; shortLabel: string }[] = [
-  { id: 1, label: "انتخاب گیم‌نت", shortLabel: "گیم‌نت" },
-  { id: 2, label: "انتخاب دستگاه‌ها", shortLabel: "دستگاه‌ها" },
-  { id: 3, label: "تاریخ و ساعت", shortLabel: "زمان" },
-  { id: 4, label: "احراز هویت", shortLabel: "اطلاعات" },
-  { id: 5, label: "بررسی و پرداخت", shortLabel: "پرداخت" },
+const STEPS: { id: BookingStep; label: string }[] = [
+  { id: 1, label: "زمان" },
+  { id: 2, label: "ورود" },
+  { id: 3, label: "پرداخت" },
 ];
 
 export const BookingStepper: React.FC<BookingStepperProps> = ({
   currentStep,
+  loggedIn = false,
   onStepClick,
-  className = "",
+  className,
 }) => {
   return (
-    <div className={`w-full py-2.5 px-6  ${className}`} dir="rtl">
-      <div className="max-w-[720px] mx-auto flex items-center justify-between relative">
+    <div
+      role="list"
+      aria-label="مراحل رزرو"
+      className={cn("w-full py-2 px-4", className)}
+      dir="rtl"
+    >
+      <div className="max-w-[420px] mx-auto flex items-center justify-between">
         {STEPS.map((step, index) => {
-          const isDone = step.id < currentStep;
           const isCurrent = step.id === currentStep;
-          const isPending = step.id > currentStep;
-          const isClickable = onStepClick && step.id < currentStep;
+          const isDone =
+            step.id < currentStep || (step.id === 2 && loggedIn && currentStep >= 1);
+          const isClickable = Boolean(onStepClick && step.id < currentStep);
+
+          const circleClass = cn(
+            "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors duration-150 shrink-0",
+            isDone || isCurrent
+              ? "bg-[var(--primary)] text-on-primary"
+              : "bg-[var(--foreground)] border border-[var(--border-subtle)] text-[var(--text-muted)]"
+          );
+
+          const content = (
+            <div className="flex items-center gap-2">
+              <div className={circleClass}>
+                {isDone ? (
+                  <Icon name="check" size={16} strokeWidth={2} />
+                ) : (
+                  <span className="leading-none">{toPersianDigits(step.id)}</span>
+                )}
+              </div>
+              {isCurrent && (
+                <span className="text-xs font-bold text-[var(--primary)] whitespace-nowrap">
+                  {step.label}
+                </span>
+              )}
+            </div>
+          );
 
           return (
             <React.Fragment key={step.id}>
-              {/* Connector line */}
               {index > 0 && (
                 <div
-                  className={`flex-1 h-0.5 mx-1 transition-colors duration-300 ${
-                    step.id <= currentStep ? "bg-[var(--primary)]" : "bg-[var(--border-subtle)]"
-                  }`}
+                  aria-hidden="true"
+                  className={cn(
+                    "flex-1 h-0.5 mx-2 transition-colors duration-150",
+                    step.id <= currentStep || (step.id === 2 && loggedIn)
+                      ? "bg-[var(--primary)]"
+                      : "bg-[var(--border-subtle)]"
+                  )}
                 />
               )}
 
-              {/* Step item */}
-              <button
-                type="button"
-                disabled={!isClickable}
-                onClick={() => isClickable && onStepClick(step.id)}
-                className={`flex flex-col items-center gap-3 group focus:outline-none transition-all ${
-                  isClickable ? "cursor-pointer" : "cursor-default"
-                }`}
+              <div
+                role="listitem"
                 aria-current={isCurrent ? "step" : undefined}
+                className="shrink-0"
               >
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                    isDone
-                      ? "bg-[var(--primary)] text-on-primary ring-2 ring-[var(--primary)]/30"
-                      : isCurrent
-                      ? "bg-[var(--primary)] text-on-primary ring-4 ring-[var(--primary)]/20 scale-105 shadow-md"
-                      : "bg-[var(--foreground)]/50 border border-[var(--border-subtle)] text-[var(--text-muted)]"
-                  }`}
-                >
-                  {isDone ? (
-                    <Icon name="check" size={14} className="stroke-[3]" />
-                  ) : (
-                    <span>{toPersianDigits(step.id)}</span>
-                  )}
-                </div>
-
-                <span
-                  className={`text-[10px] sm:text-xs font-medium transition-colors whitespace-nowrap ${
-                    isCurrent
-                      ? "font-bold text-[var(--primary)]"
-                      : isDone
-                      ? "text-[var(--text-white)]"
-                      : "text-[var(--text-muted)]"
-                  }`}
-                >
-                  <span className="hidden sm:inline">{step.label}</span>
-                  <span className="sm:hidden">{step.shortLabel}</span>
-                </span>
-              </button>
+                {isClickable ? (
+                  <button
+                    type="button"
+                    onClick={() => onStepClick?.(step.id)}
+                    aria-label={`بازگشت به ${step.label}`}
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-card hover:bg-[var(--foreground)]/40 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer px-1"
+                  >
+                    {content}
+                  </button>
+                ) : (
+                  <div className="min-h-[44px] flex items-center justify-center px-1">
+                    {content}
+                  </div>
+                )}
+              </div>
             </React.Fragment>
           );
         })}

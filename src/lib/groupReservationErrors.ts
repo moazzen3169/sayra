@@ -1,43 +1,60 @@
 import type { GroupReservationError } from "@/types/gaming-center/group-reservation.types";
 
 /**
- * Returns user-friendly Persian error messages for group reservation backend error codes.
+ * Returns user-friendly Persian error messages for group reservation error codes.
+ * Follows Sayra Design System §12.5 (never exposes raw backend error messages).
  */
 export function getGroupReservationErrorMessage(
   error: GroupReservationError | { code?: string; message?: string; details?: unknown } | null | undefined
 ): string {
   if (!error) return "";
 
-  const code = error.code;
-  const rawMsg = error.message;
+  const code = error.code ?? "";
 
   switch (code) {
-    case "VALIDATION_ERROR":
-      return rawMsg || "اطلاعات ارسالی نامعتبر است. لطفاً ورودی‌ها را بررسی کنید.";
-    case "STATION_NOT_FOUND_OR_INACTIVE":
-      return "یک یا چند دستگاه انتخاب‌شده دیگر در دسترس یا فعال نمی‌باشند.";
-    case "DUPLICATE_STATIONS_SELECTED":
-      return "دستگاه‌های انتخاب‌شده تکراری می‌باشند. لطفاً انتخاب‌های خود را بازبینی فرمایید.";
     case "SLOT_NOT_AVAILABLE":
     case "RESERVATION_OVERLAP":
-      return "متأسفانه یک یا چند دستگاه در این بازه زمانی توسط کاربر دیگری رزرو شده است. لطفاً ساعت یا دستگاه دیگری را انتخاب نمایید.";
+    case "OVERLAP_CONFLICT":
+      return "این ساعت دیگر خالی نیست. ساعت دیگری انتخاب کنید.";
     case "RESERVATION_START_TIME_IN_PAST":
-      return "زمان شروع رزرو باید در آینده باشد. لطفاً ساعت جدیدی را انتخاب کنید.";
+      return "این ساعت گذشته است.";
     case "LEAD_TIME_TOO_SHORT":
-      return "رزرو باید حداقل ۱۵ دقیقه پیش از زمان شروع انتخاب‌شده ثبت شود. لطفاً ساعتی با فاصله بیشتر (حداقل ۱۵ دقیقه بعد از الان) انتخاب کنید.";
-    case "INVALID_DURATION":
-      return rawMsg || "مدت زمان رزرو با قوانین دستگاه‌های انتخابی همخوانی ندارد.";
-    case "ACTIVE_RESERVATION_LIMIT_REACHED":
-      return "سقف تعداد رزروهای فعال شما به پایان رسیده است.";
-    case "OTP_REQUIRED":
-      return "جهت نهایی‌سازی رزرو، تأیید شماره موبایل با پیامک اعتبارسنجی الزامی است.";
+      return "این ساعت خیلی نزدیک است. ساعت دیگری انتخاب کنید.";
     case "ONLINE_RESERVATION_DISABLED":
-      return "رزرو آنلاین در حال حاضر برای این گیمنت غیرفعال است.";
+      return "رزرو آنلاین این گیمنت فعال نیست.";
+    case "IDEMPOTENCY_REQUEST_IN_PROGRESS":
+      return "درخواست قبلی هنوز در حال بررسی است. چند لحظه صبر کنید.";
+    case "IDEMPOTENCY_KEY_REQUIRED":
+    case "IDEMPOTENCY_KEY_INVALID_LENGTH":
+    case "IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD":
+      return "ثبت انجام نشد. دوباره تلاش کنید.";
+    case "INVALID_TRANSITION":
+      return "در وضعیت فعلی رزرو این کار ممکن نیست.";
+    case "UNAUTHORIZED":
+      return "برای ادامه وارد شوید.";
+    case "FORBIDDEN":
+      return "به این بخش دسترسی ندارید.";
     case "NOT_FOUND":
-      return "گیمنت یا دستگاه مورد نظر یافت نشد.";
-    case "INTERNAL_ERROR":
-      return "خطای غیرمنتظره در سرور رخ داده است. لطفاً مجدداً تلاش نمایید.";
+      return "موردی که دنبالش هستید پیدا نشد.";
+    case "VALIDATION_ERROR":
+      return "اطلاعات واردشده درست نیست.";
+    case "NETWORK_ERROR":
+    case "PROXY_NETWORK_ERROR":
+      return "اتصال برقرار نشد. اینترنت را بررسی کنید.";
+    case "STATION_NOT_FOUND_OR_INACTIVE":
+      return "دستگاه انتخاب‌شده در دسترس نیست. دستگاه دیگری انتخاب کنید.";
+    case "DUPLICATE_STATIONS_SELECTED":
+      return "دستگاه‌های انتخاب‌شده تکراری هستند.";
+    case "INVALID_DURATION":
+      return "مدت زمان انتخاب‌شده با قوانین دستگاه همخوانی ندارد.";
+    case "ACTIVE_RESERVATION_LIMIT_REACHED":
+      return "سقف تعداد رزروهای فعال شما تکمیل شده است.";
+    case "OTP_REQUIRED":
+      return "برای ادامه وارد شوید.";
     default:
-      return rawMsg || "خطایی در انجام عملیات رخ داد.";
+      if (code.startsWith("IDEMPOTENCY_")) {
+        return "ثبت انجام نشد. دوباره تلاش کنید.";
+      }
+      return "مشکلی پیش آمد. دوباره تلاش کنید.";
   }
 }

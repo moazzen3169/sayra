@@ -20,7 +20,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   return (
     <header
       className={cn(
-        "flex items-center justify-between gap-3 h-14 px-4 bg-[var(--bg-card)] border-b border-[var(--border-subtle)] sticky top-0 z-40",
+        "flex items-center justify-between gap-3 h-14 px-4 bg-[var(--bg-card)] border-b border-[var(--border-subtle)] sticky top-0 z-[var(--z-header)]",
         className
       )}
     >
@@ -30,7 +30,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             type="button"
             onClick={onBack}
             aria-label="بازگشت"
-            className="w-9 h-9 rounded-lg text-[var(--text-white)] hover:bg-[var(--foreground)]/40 flex items-center justify-center shrink-0 transition-colors"
+            className="w-11 h-11 rounded-card text-[var(--text-white)] hover:bg-[var(--foreground)]/40 flex items-center justify-center shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
           >
             <Icon name="back" size={20} />
           </button>

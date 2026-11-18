@@ -16,6 +16,8 @@ import {
 import { DiscountedCentersSection } from "@/components/DiscountedCentersSection";
 import { HomeBlogSection } from "@/components/blog/HomeBlogSection";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { SectionTitle } from "@/components/ui/SectionTitle";
+import { CardSkeleton } from "@/components/ui/Skeleton";
 import {
   Carousel,
   CarouselContent,
@@ -37,7 +39,6 @@ import { useCity } from "@/context/CityContext";
 export default function HomePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>("home");
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>("ps5");
   const { selectedCity, isCityReady, setCity } = useCity();
   const [banners, setBanners] = useState<BannerItem[]>([]);
   const [bannersLoading, setBannersLoading] = useState(true);
@@ -129,40 +130,32 @@ export default function HomePage() {
     () => gamecentersPageService.getPopularCenters(centers),
     [centers]
   );
-  const featuredCenters = useMemo(
-    () => gamecentersPageService.getFeaturedCenters(centers),
-    [centers]
-  );
 
   const handleCategorySelect = (id: string) => {
-    setSelectedCategory(id);
     router.push(`/gamecenters?category=${encodeURIComponent(id)}`);
   };
 
   const skeletonRow = (
-    <div className="flex gap-2 overflow-hidden pb-2" aria-busy="true">
-      {Array.from({ length: 6 }).map((_, idx) => (
-        <div
+    <div className="flex gap-3 overflow-hidden pb-2" aria-busy="true">
+      <span className="sr-only">در حال بارگذاری</span>
+      {Array.from({ length: 4 }).map((_, idx) => (
+        <CardSkeleton
           key={idx}
-          className="animate-pulse bg-[var(--bg-card)] rounded-card border border-[var(--border-subtle)] h-[280px] w-[220px] min-w-[220px] shrink-0 sm:w-[240px] sm:min-w-[240px] lg:w-[260px] lg:min-w-[260px]"
+          className="w-[240px] min-w-[240px] shrink-0 lg:w-[260px] lg:min-w-[260px]"
         />
       ))}
     </div>
   );
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-14 lg:pb-0">
+    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-[var(--bottom-bar-h)] lg:pb-0">
       <Header
         locationName={selectedCity}
         onCityChange={(city) => setCity(city)}
       />
 
-      <main className="flex-1 p-4 flex flex-col gap-6 lg:gap-8 pt-[var(--header-m-h)]  desk:pt-[var(--header-h)]">
-        {/* ۱. بخش اسلایدر بنرهای تبلیغاتی
-            فقط در دسکتاپ (lg): کانتینر تمام‌عرض می‌ماند ولی هر اسلاید ۵۶٪ عرض می‌گیرد
-            و اسلایدهای کناری هم دیده می‌شوند. برای ثابت ماندن ارتفاع،
-            نسبت اسلاید از 4/1 به 2.24/1 (= 4 × 0.56) تغییر کرده است.
-            موبایل و تبلت بدون تغییر هستند. */}
+      <main className="flex-1 p-4 flex flex-col gap-6 lg:gap-8 pt-[var(--header-m-h)] lg:pt-[var(--header-h)]">
+        {/* ۱. بنر */}
         <section>
           <BannerSlider
             banners={banners}
@@ -173,20 +166,20 @@ export default function HomePage() {
           />
         </section>
 
-        {/* ۲. بخش انواع دستگاه‌ها و پلتفرم‌های بازی (از API) */}
-        <section>
-          <DeviceCategories
-            categories={categories.length > 0 ? categories : undefined}
-            isLoading={categoriesLoading}
-            selectedCategoryId={selectedCategory}
-            onSelectCategory={handleCategorySelect}
-          />
-        </section>
+        {/* ۲. دسته‌ها */}
+        {(categoriesLoading || categories.length > 0) && (
+          <section>
+            <DeviceCategories
+              categories={categories}
+              isLoading={categoriesLoading}
+              onSelectCategory={handleCategorySelect}
+            />
+          </section>
+        )}
 
-        {/* ۳. بخش گیمنت‌های تخفیف‌دار */}
+        {/* ۳. گیمنت‌های تخفیف‌دار */}
         <DiscountedCentersSection city={selectedCity} enabled={isCityReady} />
 
-        {/* خطای دریافت لیست گیمنت‌ها */}
         {centersError && (
           <ErrorState
             title="بارگذاری گیمنت‌ها انجام نشد"
@@ -195,7 +188,7 @@ export default function HomePage() {
           />
         )}
 
-        {/* ۴. بخش گیمنت‌های محبوب و پربازدید */}
+        {/* ۴. گیمنت‌های محبوب */}
         {!centersError && (centersLoading || popularCenters.length > 0) && (
           <section className="flex flex-col gap-3">
             <Carousel
@@ -206,17 +199,18 @@ export default function HomePage() {
               }}
               className="w-full flex flex-col gap-3"
             >
-              <div className="flex items-center justify-between">
-                <h2 className="font-bold text-base text-[var(--text-white)]">
-                  گیمنت‌های محبوب {selectedCity !== "تبریز" ? `(${selectedCity})` : ""}
-                </h2>
-                <div className="flex items-center gap-1 relative h-8 bg-[var(--bg-card)] rounded-lg p-0.5 border border-[var(--border-subtle)]">
+              <div className="flex items-center justify-between gap-2">
+                <SectionTitle
+                  title="گیمنت‌های محبوب"
+                  className="mb-0"
+                />
+                <div className="hidden sm:flex items-center gap-1 relative">
                   <CarouselPrevious
-                    className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                    className="static translate-y-0 translate-x-0 w-11 h-11 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
                     title="قبلی"
                   />
                   <CarouselNext
-                    className="static translate-y-0 translate-x-0 w-7 h-7 rounded bg-[var(--foreground)]/60 border-none text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                    className="static translate-y-0 translate-x-0 w-11 h-11 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
                     title="بعدی"
                   />
                 </div>
@@ -225,12 +219,12 @@ export default function HomePage() {
               {centersLoading ? (
                 skeletonRow
               ) : (
-                <div className="-mx-4 desk:-mx-6 lg:-mx-8 px-4 desk:px-6 lg:px-8 pb-2 select-none">
-                  <CarouselContent className="gap-2 -mr-2">
+                <div className="-mx-4 lg:-mx-8 px-4 lg:px-8 pb-2 select-none">
+                  <CarouselContent className="gap-3 -mr-3">
                     {popularCenters.map((item) => (
                       <CarouselItem
                         key={item.id}
-                        className="pr-2 basis-[220px] min-w-[220px] sm:basis-[240px] lg:basis-[260px] flex flex-col"
+                        className="pr-3 basis-[76%] sm:basis-[240px] lg:basis-[260px] flex flex-col"
                       >
                         <DiscountedGamecenterCard center={item} />
                       </CarouselItem>
@@ -242,30 +236,12 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ۵. بخش پیشنهاد ویژه و گیمنت‌های برتر سایرا */}
-        {!centersError && !centersLoading && featuredCenters.length > 0 && (
-          <section className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-base text-[var(--text-white)]">پیشنهاد ویژه سایرا</h2>
-              <span className="text-xs text-[var(--text-muted)]">برترین کیفیت و امکانات</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-              {featuredCenters.map((item) => (
-                <DiscountedGamecenterCard key={item.id} center={item} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ۶. چهار مقاله‌ی جدید وبلاگ در انتهای صفحه اصلی */}
+        {/* ۵. وبلاگ */}
         <HomeBlogSection />
       </main>
 
       <BottomBar activeTab={activeTab} onTabChange={setActiveTab} />
-                  <Footer />
-
+      <Footer />
     </div>
-
   );
 }

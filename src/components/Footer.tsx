@@ -1,29 +1,21 @@
 import Link from "next/link";
+import { Icon } from "@/components/ui/Icon";
 
 const linkGroups = [
   {
     title: "صفحات",
     links: [
       { label: "صفحه اصلی", href: "/" },
-      { label: "گیمینگ سنترها", href: "/gaming-centers" },
+      { label: "گیمنت‌ها", href: "/gamecenters" },
+      { label: "وبلاگ", href: "/blog" },
       { label: "درباره ما", href: "/about" },
       { label: "قوانین و مقررات", href: "/terms" },
     ],
   },
   {
-    title: "راهنمای کاربران",
-    links: [
-      { label: "راهنمای رزرو", href: "/guide" },
-      { label: "سؤالات متداول", href: "/faq" },
-      { label: "حریم خصوصی", href: "/privacy" },
-    ],
-  },
-  {
     title: "ارتباط با ما",
     links: [
-      { label: "تماس با ما", href: "/contact" },
       { label: "پشتیبانی", href: "/support" },
-      { label: "همکاری با سایرا", href: "/cooperation" },
     ],
   },
 ];
@@ -32,19 +24,19 @@ export function Footer() {
   return (
     <footer
       dir="rtl"
-      className="relative mt-16 w-full overflow-hidden border-t border-white/10 bg-[#0B0B0E] px-5 pt-12 pb-6 text-white sm:mt-20 sm:px-8 sm:pt-16 lg:px-16"
+      className="relative mt-16 w-full overflow-hidden border-t border-[var(--border-subtle)] bg-[var(--bg-body)] px-5 pt-12 pb-6 text-[var(--text-white)] sm:mt-20 sm:px-8 sm:pt-16 lg:px-16"
     >
       {/* Giant Brand */}
       <div
         dir="ltr"
-        className="select-none text-left overflow-hidden pt-6 text-center text-[23vw] font-black leading-[0.85] tracking-[-0.09em] text-white sm:pt-10 sm:text-[23vw] lg:text-[22vw]"
+        className="select-none text-left overflow-hidden pt-6 text-center text-[23vw] font-black leading-[0.85] tracking-[-0.09em] text-[var(--text-white)] sm:pt-10 sm:text-[23vw] lg:text-[22vw]"
         aria-label="SAYRA"
       >
-        SAYRA<span className="text-[#B8F34A]">.</span>
+        SAYRA<span className="text-[var(--primary)]">.</span>
       </div>
 
       {/* Background Glow */}
-      <div className="pointer-events-none absolute -right-40 -top-40 h-80 w-80 rounded-full bg-[#B8F34A]/[0.06] blur-[100px] sm:h-96 sm:w-96" />
+      <div className="pointer-events-none absolute -right-40 -top-40 h-80 w-80 rounded-full bg-[var(--primary)]/[0.06] blur-[100px] sm:h-96 sm:w-96" />
 
       <div className="relative mx-auto max-w-[1500px]">
         {/* Main Footer */}
@@ -54,17 +46,19 @@ export function Footer() {
             <h2 className="text-3xl font-black leading-[1.5] tracking-tight sm:text-5xl lg:text-6xl">
               بازی بعدی،
               <br />
-              <span className="text-[#B8F34A]">همین‌جاست.</span>
+              <span className="text-[var(--primary)]">همین‌جاست.</span>
             </h2>
 
             <Link
-              href="/"
-              className="group mt-6 inline-flex min-h-11 items-center gap-4 rounded-full border border-white/20 px-5 py-2.5 text-xs transition-all duration-300 hover:border-[#B8F34A] hover:bg-[#B8F34A] hover:text-black sm:mt-7 sm:gap-5 sm:px-6 sm:text-sm"
+              href="/gamecenters"
+              className="group mt-6 inline-flex min-h-11 items-center gap-4 rounded-full border border-[var(--border-color)] px-5 py-2.5 text-xs transition-all duration-300 hover:border-[var(--primary)] hover:bg-[var(--primary)] hover:text-on-primary sm:mt-7 sm:gap-5 sm:px-6 sm:text-sm"
             >
               کشف دنیای سایرا
-              <span className="text-lg text-[#B8F34A] transition-colors group-hover:text-black">
-                ↗
-              </span>
+              <Icon
+                name="arrow-left"
+                size={16}
+                className="text-[var(--primary)] transition-colors group-hover:text-on-primary"
+              />
             </Link>
           </div>
 

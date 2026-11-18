@@ -1,10 +1,9 @@
 import React from "react";
 import Link from "next/link";
-import { DiscountedCenter } from "@/types/home";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatDiscountBadge } from "@/lib/discount";
-import { formatDayLabel } from "@/lib/reservationUi";
 import { Icon } from "@/components/ui/Icon";
+import { Badge } from "@/components/ui/Badge";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { PLACEHOLDERS } from "@/lib/media";
 
@@ -49,39 +48,29 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
     discount,
   } = center;
 
+  // قیمت تخفیف‌دار فقط از Backend پذیرفته می‌شود (بدون محاسبه در کلاینت)
   const hasDiscount = Boolean(
-    (discountedHourlyPrice !== undefined && hourlyPrice > 0 && discountedHourlyPrice < hourlyPrice) ||
-    discount ||
-    (discountPercent !== undefined && discountPercent > 0) ||
-    (discountAmount !== undefined && discountAmount > 0)
+    discountedHourlyPrice !== undefined &&
+      hourlyPrice > 0 &&
+      discountedHourlyPrice < hourlyPrice
   );
 
-  const effectiveDiscountedPrice =
-    discountedHourlyPrice !== undefined
-      ? discountedHourlyPrice
-      : discountPercent && discountPercent > 0 && hourlyPrice > 0
-      ? Math.max(0, Math.round(hourlyPrice * (1 - discountPercent / 100)))
-      : discountAmount && discountAmount > 0 && hourlyPrice > 0
-      ? Math.max(0, hourlyPrice - discountAmount)
-      : undefined;
-
-  const discountBadgeText = discount
-    ? formatDiscountBadge(discount.valueType, discount.value)
-    : discountAmount && discountAmount > 0
-    ? formatDiscountBadge("FIXED_AMOUNT", discountAmount)
-    : discountPercent
-    ? `${toPersianDigits(discountPercent)}٪`
+  const discountBadgeText = hasDiscount
+    ? discount
+      ? formatDiscountBadge(discount.valueType, discount.value)
+      : discountAmount && discountAmount > 0
+      ? formatDiscountBadge("FIXED_AMOUNT", discountAmount)
+      : discountPercent
+      ? `${toPersianDigits(discountPercent)}٪`
+      : "تخفیف"
     : null;
-
-  const endLabel = discount?.endAt ? formatDayLabel(discount.endAt) : "";
 
   return (
     <Link
       href={`/gamecenter/${id}`}
       onClick={() => onClick?.(id)}
-      className="w-full h-full flex flex-col pb-3 bg-[var(--bg-card)] rounded-card overflow-hidden border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white select-none shadow-sm hover:shadow-md"
+      className="w-full h-full flex flex-col bg-[var(--bg-card)] rounded-card overflow-hidden border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white select-none"
     >
-      {/* Image Container */}
       <div className="relative w-full aspect-[16/11] bg-[var(--foreground)] overflow-hidden shrink-0">
         <SafeImage
           src={imageUrl}
@@ -89,61 +78,61 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
           loading="lazy"
           fallbackSrc={PLACEHOLDERS.center}
           draggable={false}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className="w-full h-full object-cover"
         />
 
-        {/* Discount Badge (Top-Left) */}
-        {discountBadgeText ? (
-          <span className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-[var(--primary)] text-on-primary font-bold text-xs flex items-center shadow-md z-10">
-            {discountBadgeText}
-          </span>
-        ) : null}
-
-        {/* Optional End Date Chip (Bottom-Right) */}
-        {endLabel ? (
-          <span className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-full bg-[var(--bg-body)]/80 backdrop-blur-md text-white text-xs font-bold border border-white/10 z-10">
-            تا {endLabel}
-          </span>
-        ) : null}
+        {discountBadgeText && (
+          <div className="absolute top-2.5 left-2.5 z-10">
+            <Badge variant="primary">{discountBadgeText}</Badge>
+          </div>
+        )}
       </div>
 
-      {/* Body Info */}
-      <div className="p-3 flex flex-col gap-1 flex-1">
-        <div className="flex items-center gap-1 text-xs text-[var(--primary)] font-bold">
-          <Icon name="star" size={14} className="text-[var(--accent-star)] fill-[var(--accent-star)]" />
-          <span>{toPersianDigits(rating.toFixed(1))}</span>
-          <span className="text-[var(--text-muted)] font-normal">
-            ({toPersianDigits(reviewsCount)})
-          </span>
-        </div>
-
-        <h4 className="text-sm font-bold text-[var(--text-white)] line-clamp-1 group-hover:text-[var(--primary)] transition-colors">
+      <div className="p-3 flex flex-col gap-1.5 flex-1">
+        <h4 className="text-card-title text-[var(--text-white)] line-clamp-1 group-hover:text-[var(--primary)] transition-colors">
           {name}
         </h4>
 
-        <p className="text-xs text-[var(--text-muted)] line-clamp-1">{location}</p>
-      </div>
-
-      {/* Price Pill */}
-      <div className="mx-3 mt-auto h-9 rounded-full bg-[var(--foreground)]/50 px-3 flex items-center justify-between text-xs">
-        {hasDiscount && effectiveDiscountedPrice !== undefined ? (
-          <div className="flex items-center gap-1.5">
-            <span className="font-bold text-[var(--primary)]">
-              {formatPrice(effectiveDiscountedPrice)} تومان
+        <div className="flex items-center gap-2 text-secondary text-[var(--text-muted)] min-w-0">
+          {rating > 0 && (
+            <span className="inline-flex items-center gap-1 shrink-0 text-[var(--text-white)] font-bold">
+              <Icon
+                name="star"
+                size={16}
+                filled
+                className="text-[var(--accent-star)]"
+              />
+              <span>{toPersianDigits(rating.toFixed(1))}</span>
+              {reviewsCount > 0 && (
+                <span className="text-[var(--text-muted)] font-normal">
+                  ({toPersianDigits(reviewsCount)})
+                </span>
+              )}
             </span>
-            {hourlyPrice > 0 && hourlyPrice !== effectiveDiscountedPrice && (
-              <span className="text-xs line-through text-[var(--text-subtle)] font-medium">
+          )}
+          <span className="truncate">{location}</span>
+        </div>
+
+        <div
+          className="mt-auto pt-1 flex items-baseline gap-1.5 text-xs"
+          aria-label="قیمت ساعتی"
+          title="قیمت ساعتی"
+        >
+          {hasDiscount && discountedHourlyPrice !== undefined ? (
+            <>
+              <span className="text-card-title text-[var(--primary)]">
+                از {formatPrice(discountedHourlyPrice)} تومان
+              </span>
+              <span className="text-secondary line-through text-[var(--text-muted)]">
                 {formatPrice(hourlyPrice)}
               </span>
-            )}
-          </div>
-        ) : (
-          <div className="font-bold text-[var(--text-white)]">
-            <span className="text-[var(--text-muted)] font-normal ml-1">از</span>
-            {formatPrice(hourlyPrice)} تومان
-          </div>
-        )}
-        <span className="text-[var(--text-muted)]">/ ۱ساعته</span>
+            </>
+          ) : (
+            <span className="text-card-title text-[var(--text-white)]">
+              از {formatPrice(hourlyPrice)} تومان
+            </span>
+          )}
+        </div>
       </div>
     </Link>
   );

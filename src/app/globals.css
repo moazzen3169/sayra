@@ -77,6 +77,12 @@
   --accent-warning: #FBBF24;
   --header-h: 104px;
   --header-m-h: 136px;
+  --bottom-bar-h: 64px;
+  --z-sticky: 30;
+  --z-header: 40;
+  --z-dropdown: 45;
+  --z-modal: 50;
+  --z-toast: 60;
   --max-app-width: 780px;
   --max-mini-app-width: 1000px;
 }

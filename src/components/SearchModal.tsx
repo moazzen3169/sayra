@@ -4,7 +4,8 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatPrice, toPersianDigits } from "@/lib/format";
-import { Icon, IconName } from "@/components/ui/Icon";
+import { Icon } from "@/components/ui/Icon";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   gamecentersPageService,
   buildCenterSearchText,
@@ -18,57 +19,7 @@ export interface SearchModalProps {
   selectedCity?: string;
 }
 
-const DEVICES: {
-  id: string;
-  name: string;
-  keywords: string;
-  icon: IconName;
-}[] = [
-  {
-    id: "dev-ps5-vip",
-    name: "کنسول پلی‌استیشن ۵ پرو",
-    keywords: "ps5 پلی استیشن پلی‌استیشن کنسول",
-    icon: "gamepad",
-  },
-  {
-    id: "dev-pc-gaming",
-    name: "کامپیوتر گیمینگ",
-    keywords: "pc کامپیوتر سیستم گیمینگ کارت گرافیک",
-    icon: "monitor",
-  },
-  {
-    id: "dev-vr",
-    name: "واقعیت مجازی",
-    keywords: "vr هدست واقعیت مجازی متا کوئست",
-    icon: "vr",
-  },
-  {
-    id: "dev-xbox",
-    name: "ایکس‌باکس",
-    keywords: "xbox ایکس باکس کنسول",
-    icon: "gamepad",
-  },
-  {
-    id: "dev-steering",
-    name: "فرمان بازی",
-    keywords: "فرمان ریسینگ رانندگی شبیه ساز steering wheel",
-    icon: "gamepad",
-  },
-];
-
-const GAMES = [
-  "EA Sports FC 25",
-  "Call of Duty: Modern Warfare III",
-  "GTA V",
-  "Dota 2",
-  "Mortal Kombat 1",
-  "Tekken 8",
-  "Counter-Strike 2",
-];
-
-const QUICK_SEARCHES = ["گیمنت نزدیک من", "پلی‌استیشن ۵", "کامپیوتر گیمینگ"];
-
-const INITIAL_RECENTS = ["گیمنت گرگدن", "پلی‌استیشن ۵", "کامپیوتر گیمینگ"];
+const RECENT_STORAGE_KEY = "sayra_recent_searches";
 
 function normalizeText(value: string) {
   return value
@@ -87,8 +38,16 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 }) => {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [recentSearches, setRecentSearches] =
-    useState<string[]>(INITIAL_RECENTS);
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem(RECENT_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+    } catch {
+      return [];
+    }
+  });
   const [centers, setCenters] = useState<GamecenterListItem[]>([]);
   const [isLoadingCenters, setIsLoadingCenters] = useState(false);
 
@@ -139,41 +98,26 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     });
   }, [normalizedQuery, hasQuery, centers]);
 
-  const filteredDevices = useMemo(() => {
-    if (!hasQuery) return [];
-
-    return DEVICES.filter((device) =>
-      normalizeText(`${device.name} ${device.keywords}`).includes(
-        normalizedQuery,
-      ),
-    );
-  }, [normalizedQuery, hasQuery]);
-
-  const filteredGames = useMemo(() => {
-    if (!hasQuery) return [];
-
-    return GAMES.filter((game) =>
-      normalizeText(game).includes(normalizedQuery),
-    );
-  }, [normalizedQuery, hasQuery]);
-
-  const hasResults =
-    filteredCenters.length > 0 ||
-    filteredDevices.length > 0 ||
-    filteredGames.length > 0;
+  const hasResults = filteredCenters.length > 0;
 
   const saveRecentSearch = (text: string) => {
     const value = text.trim();
     if (!value) return;
 
-    setRecentSearches((previous) =>
-      [
+    setRecentSearches((previous) => {
+      const next = [
         value,
         ...previous.filter(
           (item) => normalizeText(item) !== normalizeText(value),
         ),
-      ].slice(0, 5),
-    );
+      ].slice(0, 5);
+      try {
+        window.localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // ignore storage errors
+      }
+      return next;
+    });
   };
 
   const executeSearch = (text: string) => {
@@ -220,19 +164,19 @@ export const SearchModal: React.FC<SearchModalProps> = ({
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="دنبال چی می‌گردی؟"
+          placeholder="جستوجو"
           autoComplete="off"
-          className="h-12 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] pr-11 pl-10 text-sm text-[var(--text-white)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]"
+          className="h-11 w-full rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] pr-11 pl-11 text-sm text-[var(--text-white)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]"
         />
 
         {query && (
           <button
             type="button"
             onClick={clearSearch}
-            aria-label="پاک کردن جست‌وجو"
-            className="absolute left-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--foreground)] hover:text-[var(--text-white)]"
+            aria-label="پاک کردن جستوجو"
+            className="absolute left-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-card text-[var(--text-muted)] hover:text-[var(--text-white)] cursor-pointer"
           >
-            <span aria-hidden="true">×</span>
+            <Icon name="close" size={16} />
           </button>
         )}
       </div>
@@ -260,8 +204,15 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => setRecentSearches([])}
-                    className="text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--primary)]"
+                    onClick={() => {
+                      setRecentSearches([]);
+                      try {
+                        window.localStorage.removeItem(RECENT_STORAGE_KEY);
+                      } catch {
+                        // ignore
+                      }
+                    }}
+                    className="text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--primary)] cursor-pointer"
                   >
                     پاک کردن
                   </button>
@@ -300,24 +251,9 @@ export const SearchModal: React.FC<SearchModalProps> = ({
               </section>
             )}
 
-            <section>
-              <h2 className="mb-3 text-xs font-bold text-[var(--text-muted)]">
-                پیشنهاد برای شروع
-              </h2>
-
-              <div className="flex flex-wrap gap-2">
-                {QUICK_SEARCHES.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => selectSuggestion(item)}
-                    className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3.5 py-2 text-xs font-medium text-[var(--text-white)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </section>
+            {recentSearches.length === 0 && (
+              <EmptyState title="جستوجویی ثبت نشده" />
+            )}
           </>
         )}
 
@@ -326,46 +262,23 @@ export const SearchModal: React.FC<SearchModalProps> = ({
           <>
             <div className="flex items-center justify-between">
               <p className="text-xs text-[var(--text-muted)]">
-                نتایج جست‌وجو برای
+                نتایج جستوجو برای
                 <span className="mr-1 font-bold text-[var(--text-white)]">
                   «{query.trim()}»
                 </span>
               </p>
 
               <span className="text-xs text-[var(--text-muted)]">
-                {toPersianDigits(
-                  filteredCenters.length +
-                    filteredDevices.length +
-                    filteredGames.length,
-                )}{" "}
-                نتیجه
+                {toPersianDigits(filteredCenters.length)} نتیجه
               </span>
             </div>
 
             {!hasResults && !isLoadingCenters && (
-              <div className="flex flex-col items-center py-14 text-center">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--bg-card)] text-[var(--text-muted)]">
-                  <svg
-                    className="h-7 w-7"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={1.5}
-                    aria-hidden="true"
-                  >
-                    <circle cx="11" cy="11" r="7" />
-                    <path strokeLinecap="round" d="m20 20-3.5-3.5" />
-                  </svg>
-                </div>
-
-                <h2 className="text-sm font-bold text-[var(--text-white)]">
-                  نتیجه‌ای پیدا نشد
-                </h2>
-
-                <p className="mt-2 max-w-xs text-xs leading-6 text-[var(--text-muted)]">
-                  عبارت جست‌وجو را کوتاه‌تر کن یا با کلمه دیگری امتحان کن.
-                </p>
-              </div>
+              <EmptyState
+                title={`نتیجه‌ای برای «${query.trim()}» پیدا نشد`}
+                actionLabel="پاک کردن جستوجو"
+                onAction={clearSearch}
+              />
             )}
 
             {/* Gaming centers */}
@@ -434,83 +347,6 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                         )}
                       </div>
                     </Link>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Devices */}
-            {filteredDevices.length > 0 && (
-              <section>
-                <h2 className="mb-2 text-xs font-bold text-[var(--text-muted)]">
-                  دستگاه‌ها
-                </h2>
-
-                <div className="flex flex-col">
-                  {filteredDevices.map((device) => (
-                    <button
-                      key={device.id}
-                      type="button"
-                      onClick={() => selectSuggestion(device.name)}
-                      className="flex min-h-12 items-center gap-3 border-b border-[var(--border-subtle)]/70 py-2.5 text-right last:border-b-0"
-                    >
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-card)] text-[var(--primary)]">
-                        <Icon name={device.icon} size={20} />
-                      </span>
-
-                      <span className="flex-1 text-sm font-medium text-[var(--text-white)]">
-                        {device.name}
-                      </span>
-
-                      <span className="text-xs text-[var(--text-muted)]">
-                        جست‌وجو
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Games */}
-            {filteredGames.length > 0 && (
-              <section>
-                <h2 className="mb-2 text-xs font-bold text-[var(--text-muted)]">
-                  بازی‌ها
-                </h2>
-
-                <div className="flex flex-col">
-                  {filteredGames.map((game) => (
-                    <button
-                      key={game}
-                      type="button"
-                      onClick={() => selectSuggestion(game)}
-                      className="flex min-h-12 items-center gap-3 border-b border-[var(--border-subtle)]/70 py-2.5 text-right last:border-b-0"
-                    >
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-card)] text-[var(--primary)]">
-                        <svg
-                          className="h-5 w-5"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={1.7}
-                          aria-hidden="true"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M6 12h4m-2-2v4m7-3h.01M18 13h.01M7 6h10a4 4 0 014 4v5a3 3 0 01-5.2 2l-1.3-1.5h-4l-1.3 1.5A3 3 0 013 15v-5a4 4 0 014-4z"
-                          />
-                        </svg>
-                      </span>
-
-                      <span className="flex-1 text-sm text-[var(--text-white)]">
-                        {game}
-                      </span>
-
-                      <span className="text-xs text-[var(--text-muted)]">
-                        جست‌وجو
-                      </span>
-                    </button>
                   ))}
                 </div>
               </section>

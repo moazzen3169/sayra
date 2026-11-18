@@ -2,6 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ModalShell } from "./ModalShell";
+import { Icon } from "@/components/ui/Icon";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   locationService,
   type ProvinceItem,
@@ -148,10 +150,9 @@ export const CityModal: React.FC<CityModalProps> = ({
   const filteredProvinces = useMemo(() => {
     const query = normalizeText(searchQuery);
     if (!query) return provinces;
-    const matched = provinces.filter((p) =>
+    return provinces.filter((p) =>
       normalizeText(p.name).includes(query)
     );
-    return matched.length > 0 ? matched : provinces;
   }, [provinces, searchQuery]);
 
   const filteredCities = useMemo(() => {
@@ -197,10 +198,10 @@ export const CityModal: React.FC<CityModalProps> = ({
         type="text"
         value={searchQuery}
         onChange={(event) => setSearchQuery(event.target.value)}
-        placeholder="نام شهر یا استان را بنویس..."
-        aria-label="جستجوی شهر یا استان"
+        placeholder="جستوجوی شهر"
+        aria-label="جستوجوی شهر"
         autoComplete="off"
-        className="h-12 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] pr-11 pl-10 text-sm text-[var(--text-white)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]"
+        className="h-11 w-full rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] pr-11 pl-11 text-sm text-[var(--text-white)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]"
       />
 
       {searchQuery && (
@@ -210,10 +211,10 @@ export const CityModal: React.FC<CityModalProps> = ({
             setSearchQuery("");
             searchRef.current?.focus();
           }}
-          aria-label="پاک کردن جستجو"
-          className="absolute left-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--foreground)] hover:text-[var(--text-white)]"
+          aria-label="پاک کردن جستوجو"
+          className="absolute left-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-card text-[var(--text-muted)] hover:text-[var(--text-white)] cursor-pointer"
         >
-          <span aria-hidden="true">×</span>
+          <Icon name="close" size={16} />
         </button>
       )}
     </div>
@@ -263,6 +264,8 @@ export const CityModal: React.FC<CityModalProps> = ({
                 تلاش مجدد
               </button>
             </div>
+          ) : filteredProvinces.length === 0 ? (
+            <EmptyState title="استانی پیدا نشد" />
           ) : (
             <div className="flex flex-wrap gap-2">
               {filteredProvinces.map((province) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { cleanPhoneNumber, isValidIranPhone, toPersianDigits } from "@/lib/format";
+import { cleanPhoneNumber, isValidIranPhone, toEnglishDigits, toPersianDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { authService, UserGamingCenterOption } from "@/services/authService";
 import { setTokens } from "@/lib/token";
@@ -98,8 +98,9 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
   };
 
   const handleOtpChange = (index: number, value: string) => {
-    if (value.length > 1) {
-      const digits = value.replace(/[^\d]/g, "").slice(0, 6).split("");
+    const normalized = toEnglishDigits(value);
+    if (normalized.length > 1) {
+      const digits = normalized.replace(/[^\d]/g, "").slice(0, 6).split("");
       const newOtp = [...otpCode];
       digits.forEach((d, i) => {
         if (i < 6) newOtp[i] = d;
@@ -108,7 +109,7 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
       return;
     }
 
-    const clean = value.replace(/[^\d]/g, "");
+    const clean = normalized.replace(/[^\d]/g, "");
     const newOtp = [...otpCode];
     newOtp[index] = clean;
     setOtpCode(newOtp);
@@ -413,7 +414,7 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
               </div>
 
               {/* 6-Digit OTP Inputs */}
-              <div className="flex items-center justify-center gap-2 dir-ltr my-2">
+              <div dir="ltr" className="flex items-center justify-center gap-2 my-2">
                 {otpCode.map((digit, index) => (
                   <input
                     key={index}

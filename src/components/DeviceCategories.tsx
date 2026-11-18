@@ -19,16 +19,6 @@ interface DeviceCategoriesProps {
   onSelectCategory?: (id: string) => void;
 }
 
-const defaultCategories: DeviceCategory[] = [
-  { id: "ps5", name: "پلی استیشن ۵", iconType: "ps5" },
-  { id: "ps4", name: "پلی استیشن ۴", iconType: "ps4" },
-  { id: "pc", name: "کامپیوتر", iconType: "pc" },
-  { id: "xbox", name: "ایکس باکس", iconType: "xbox" },
-  { id: "vr", name: "واقعیت مجازی", iconType: "vr" },
-  { id: "billiards", name: "بیلیارد", iconType: "billiards" },
-  { id: "steering", name: "فرمان بازی", iconType: "steering" },
-];
-
 const imageMap: Record<NonNullable<DeviceCategory["iconType"]>, string> = {
   ps5: "/img/PS5.png",
   ps4: "/img/PS4.png",
@@ -91,12 +81,13 @@ const CategoryIcon: React.FC<{
 };
 
 export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
-  categories = defaultCategories,
+  categories = [],
   isLoading = false,
   selectedCategoryId,
   onSelectCategory,
 }) => {
-  const displayList = categories.length > 0 ? categories : defaultCategories;
+  if (!isLoading && categories.length === 0) return null;
+  const displayList = categories;
 
   return (
     <section

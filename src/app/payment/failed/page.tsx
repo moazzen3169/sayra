@@ -9,7 +9,7 @@ import { bookingDraftStorage } from "@/lib/bookingDraftStorage";
 import { createIdempotencyKey } from "@/services/bookingService";
 import type { Reservation } from "@/types/reservation";
 import { formatPrice, toPersianDigits } from "@/lib/format";
-import { formatClock, formatDayLabel } from "@/lib/reservationUi";
+import { formatClock, formatDayLabel, getErrorMessage } from "@/lib/reservationUi";
 import { Icon } from "@/components/ui/Icon";
 
 function PaymentFailedContent() {
@@ -56,7 +56,7 @@ function PaymentFailedContent() {
     const gamingCenterId = reservation?.gamingCenterId || draft?.gamingCenterId;
 
     if (!gamingCenterId) {
-      setRetryError("شناسه گیم‌نت جهت تلاش مجدد یافت نشد.");
+      setRetryError("شناسه گیمنت برای تلاش دوباره پیدا نشد.");
       setIsRetrying(false);
       return;
     }
@@ -86,9 +86,8 @@ function PaymentFailedContent() {
       } else {
         setRetryError("آدرس معتبری از درگاه پرداخت دریافت نشد.");
       }
-    } catch (err: any) {
-      console.error("Retry payment error:", err);
-      setRetryError(err?.message || "خطا در برقراری ارتباط با درگاه پرداخت.");
+    } catch (err: unknown) {
+      setRetryError(getErrorMessage(err));
     } finally {
       setIsRetrying(false);
     }

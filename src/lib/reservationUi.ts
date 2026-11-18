@@ -5,7 +5,7 @@ import type { PaymentState, ReservationStatus } from "@/types/reservation";
 import type { PublicGamingCenter } from "@/types/customerApi";
 
 export const RESERVATION_DISABLED_MESSAGE =
-  "این گیمنت قابلیت رزرو ندارد و در حال حاضر غیرفعال است.";
+  "رزرو آنلاین این گیمنت فعال نیست.";
 
 export function isCenterReservationDisabled(center?: PublicGamingCenter | null): boolean {
   if (!center) return false;
@@ -26,27 +26,27 @@ export function isCenterReservationDisabled(center?: PublicGamingCenter | null):
 export const STATUS_UI: Record<ReservationStatus, { label: string; className: string }> = {
   PENDING: {
     label: "در انتظار تأیید",
-    className: "py-2.5 px-3 bg-[var(--primary-muted)] text-[var(--primary)] border border-[var(--primary)]/30",
+    className: "bg-[var(--accent-warning)]/15 text-[var(--accent-warning)] border border-[var(--accent-warning)]/30",
   },
   CONFIRMED: {
     label: "تأیید شده",
-    className: "py-2.5 px-3 bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30",
+    className: "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30",
   },
   IN_PROGRESS: {
     label: "در حال انجام",
-    className: "py-2.5 px-3 bg-[var(--primary)] text-on-primary border border-[var(--primary)]",
+    className: "bg-[var(--primary)] text-on-primary border border-[var(--primary)]",
   },
   COMPLETED: {
     label: "انجام شده",
-    className: "py-2.5 px-3 bg-[var(--foreground)] text-[var(--text-white)] border border-[var(--border-color)]",
+    className: "bg-[var(--foreground)] text-[var(--text-white)] border border-[var(--border-color)]",
   },
   CANCELED: {
     label: "لغو شده",
-    className: "py-2.5 px-3 bg-[var(--accent-red)]/15 text-[var(--accent-red)] border border-[var(--accent-red)]/30",
+    className: "bg-[var(--accent-red)]/15 text-[var(--accent-red)] border border-[var(--accent-red)]/30",
   },
   NO_SHOW: {
     label: "عدم حضور",
-    className: "py-2.5 px-3 bg-[var(--foreground)] text-[var(--accent-red)] border border-[var(--border-color)]",
+    className: "bg-[var(--foreground)] text-[var(--accent-red)] border border-[var(--border-color)]",
   },
 };
 
@@ -164,26 +164,26 @@ export const mapsUrl = (address: string) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
 const ERROR_MESSAGES: Record<string, string> = {
-  NETWORK_ERROR: "اینترنت قطع است یا ارتباط با سرور برقرار نشد.",
-  PROXY_NETWORK_ERROR: "پاسخی از سرور دریافت نشد. لطفاً چند لحظه بعد دوباره امتحان کنید.",
-  INVALID_RESPONSE: "پاسخ سرور نامعتبر بود. لطفاً کمی بعد دوباره امتحان کنید.",
-  UNAUTHORIZED: "برای ادامه، لطفاً وارد حسابتان شوید.",
-  FORBIDDEN: "شما اجازه دسترسی به این بخش را ندارید.",
-  NOT_FOUND: "موردی که دنبالش بودید پیدا نشد.",
-  INVALID_TRANSITION: "در وضعیت فعلی امکان انجام این کار وجود ندارد.",
-  VALIDATION_ERROR: "اطلاعات وارد شده کامل یا صحیح نیست.",
-  DB_REQUEST_FAILED: "مشکلی در ذخیره اطلاعات پیش آمد. لطفاً دوباره تلاش کنید.",
-  INTERNAL_ERROR: "مشکلی در سرور پیش آمده. لطفاً دقایقی دیگر دوباره امتحان کنید.",
-  APP_ERROR: "خطایی پیش آمد. لطفاً دوباره تلاش کنید.",
+  NETWORK_ERROR: "اتصال برقرار نشد. اینترنت را بررسی کنید.",
+  PROXY_NETWORK_ERROR: "اتصال برقرار نشد. اینترنت را بررسی کنید.",
+  INVALID_RESPONSE: "مشکلی پیش آمد. دوباره تلاش کنید.",
+  UNAUTHORIZED: "برای ادامه وارد شوید.",
+  FORBIDDEN: "به این بخش دسترسی ندارید.",
+  NOT_FOUND: "موردی که دنبالش هستید پیدا نشد.",
+  INVALID_TRANSITION: "در وضعیت فعلی رزرو این کار ممکن نیست.",
+  VALIDATION_ERROR: "اطلاعات واردشده درست نیست.",
+  DB_REQUEST_FAILED: "مشکلی پیش آمد. دوباره تلاش کنید.",
+  INTERNAL_ERROR: "مشکلی پیش آمد. دوباره تلاش کنید.",
+  APP_ERROR: "مشکلی پیش آمد. دوباره تلاش کنید.",
   CONFLICT: "این درخواست با اطلاعات فعلی تداخل دارد.",
-  RESERVATION_CANCEL_NOT_ALLOWED: "در وضعیت فعلی امکان لغو این رزرو وجود ندارد.",
+  RESERVATION_CANCEL_NOT_ALLOWED: "در وضعیت فعلی رزرو این کار ممکن نیست.",
   RESERVATION_ALREADY_CANCELLED: "این رزرو قبلاً لغو شده است.",
-  RESERVATION_EXPIRED: "زمان این رزرو گذشته است.",
+  RESERVATION_EXPIRED: "این ساعت گذشته است.",
   PROPOSAL_NOT_PENDING: "این پیشنهاد زمان قبلاً پاسخ داده شده یا منقضی شده است.",
-  SLOT_NOT_AVAILABLE: "این ساعت رزرو شده است. لطفاً ساعت دیگری انتخاب کنید.",
-  RESERVATION_OVERLAP: "این زمان با رزرو دیگری هم‌پوشانی دارد. لطفاً زمان دیگری انتخاب کنید.",
-  OVERLAP_CONFLICT: "این زمان پر است. لطفاً یک زمان خالی دیگر را انتخاب کنید.",
-  RESERVATION_START_TIME_IN_PAST: "زمان انتخاب شده گذشته است. ساعت‌های بعدی را انتخاب کنید.",
+  SLOT_NOT_AVAILABLE: "این ساعت دیگر خالی نیست. ساعت دیگری انتخاب کنید.",
+  RESERVATION_OVERLAP: "این ساعت دیگر خالی نیست. ساعت دیگری انتخاب کنید.",
+  OVERLAP_CONFLICT: "این ساعت دیگر خالی نیست. ساعت دیگری انتخاب کنید.",
+  RESERVATION_START_TIME_IN_PAST: "این ساعت گذشته است.",
   LEAD_TIME_TOO_SHORT:
     "رزرو باید حداقل ۱۵ دقیقه پیش از زمان شروع انتخاب‌شده ثبت شود. لطفاً ساعتی با فاصله بیشتر (حداقل ۱۵ دقیقه بعد از الان) انتخاب کنید.",
   ONLINE_RESERVATION_DISABLED: "رزرو آنلاین این گیم‌نت در حال حاضر فعال نیست.",
@@ -206,11 +206,8 @@ function withDevDetails(text: string, e: ApiError): string {
 
 export function getErrorMessage(e: unknown): string {
   if (e instanceof ApiError) {
-    if (e.status === 502) {
-      return withDevDetails("خطای ارتباط با سرور (502). سرور موقتاً در دسترس نیست یا در حال بروزرسانی است.", e);
-    }
-    if (e.status === 503 || e.status === 504) {
-      return withDevDetails("سرور پاسخگو نیست. لطفاً دقایقی بعد تلاش کنید.", e);
+    if (e.status === 502 || e.status === 503 || e.status === 504) {
+      return withDevDetails("اتصال برقرار نشد. اینترنت را بررسی کنید.", e);
     }
     // ردّ OTP توسط سرور باید قبل از نگاشت عمومی ۴۰۱ تشخیص داده شود
     if (/otp/i.test(e.message)) {
@@ -218,12 +215,12 @@ export function getErrorMessage(e: unknown): string {
     }
     const mapped = ERROR_MESSAGES[e.code];
     if (mapped) return withDevDetails(mapped, e);
+    if (e.code?.startsWith("IDEMPOTENCY_")) {
+      return withDevDetails("ثبت انجام نشد. دوباره تلاش کنید.", e);
+    }
     if (e.status === 404) return withDevDetails(GENERIC_NOT_FOUND, e);
-    // پیام فارسی سرور مستقیم نمایش داده می‌شود؛ پیام غیرفارسی خام نشان داده نمی‌شود
-    if (/[\u0600-\u06FF]/.test(e.message)) return e.message;
     return withDevDetails(GENERIC_ERROR, e);
   }
-  if (e instanceof Error && e.message) return e.message;
   return GENERIC_ERROR;
 }
 

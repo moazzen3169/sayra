@@ -20,6 +20,7 @@ interface HeaderProps {
   onNotificationClick?: () => void;
   onSearchClick?: () => void;
   onCityChange?: (city: string) => void;
+  hideOnMobile?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -29,6 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNotificationClick,
   onSearchClick,
   onCityChange,
+  hideOnMobile = false,
 }) => {
   const { isLoggedIn, role, logout } = useAuth();
   const { selectedCity, setCity } = useCity();
@@ -397,11 +399,23 @@ export const Header: React.FC<HeaderProps> = ({
   );
 
   // Shared profile button for mobile and desktop
-  const renderAccountButton = (isMobile: boolean) => (
-    <div
-      ref={isMobile ? mobileAccountMenuRef : desktopAccountMenuRef}
-      className="relative"
-    >
+  const renderAccountButton = (isMobile: boolean) => {
+    if (!isLoggedIn && !isMobile) {
+      return (
+        <Link
+          href="/login"
+          className="flex h-11 shrink-0 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-4 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white whitespace-nowrap"
+        >
+          ورود / ثبت‌نام
+        </Link>
+      );
+    }
+
+    return (
+      <div
+        ref={isMobile ? mobileAccountMenuRef : desktopAccountMenuRef}
+        className="relative"
+      >
       <button
         ref={isMobile ? mobileAccountButtonRef : desktopAccountButtonRef}
         type="button"
@@ -411,8 +425,8 @@ export const Header: React.FC<HeaderProps> = ({
         aria-expanded={isAccountMenuOpen}
         className={
           isMobile
-            ? "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
-            : "relative flex h-10 w-10 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+            ? "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+            : "relative flex h-11 w-11 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
         }
       >
         <svg
@@ -433,11 +447,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {isLoggedIn && unreadCount > 0 && (
           <span
-            className={
-              isMobile
-                ? "absolute -top-1 -left-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] text-[10px] font-bold text-on-primary px-0.5"
-                : "absolute -top-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] text-[10px] font-bold text-on-primary px-1"
-            }
+            className="absolute -top-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] text-xs font-bold leading-none text-on-primary px-1"
             aria-label={`${toPersianDigits(unreadCount)} اعلان خوانده‌نشده`}
           >
             {notificationBadge}
@@ -446,14 +456,20 @@ export const Header: React.FC<HeaderProps> = ({
       </button>
 
       {isAccountMenuOpen && renderAccountDropdownContent()}
-    </div>
-  );
+      </div>
+    );
+  };
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-40 w-full">
+      <header
+        className={`fixed inset-x-0 top-0 z-[var(--z-header)] w-full ${
+          hideOnMobile ? "hidden lg:block" : ""
+        }`}
+      >
         {/* ================= MOBILE HEADER ================= */}
-        <div className="lg:hidden border-b border-[var(--border-subtle)] bg-body-bg">
+        {!hideOnMobile && (
+          <div className="lg:hidden border-b border-[var(--border-subtle)] bg-body-bg">
           <div className="flex flex-col gap-2 p-4">
             {/* Row 1 */}
             <div className="flex items-center justify-between gap-2">
@@ -539,17 +555,18 @@ export const Header: React.FC<HeaderProps> = ({
                   <path strokeLinecap="round" d="m20 20-3.5-3.5" />
                 </svg>
 
-                <span className="truncate text-xs text-[var(--text-subtle)]">
-                  جست‌وجوی گیم‌نت، سیستم یا بازی…
+                <span className="truncate text-xs text-[var(--text-muted)]">
+                  جست‌وجوی گیمنت یا بازی…
                 </span>
               </span>
 
-              <span className="shrink-0 rounded bg-[var(--foreground)]/50 px-2 py-0.5 text-xs font-bold text-[var(--text-muted)]">
-                جستجو
+              <span className="shrink-0 rounded-child bg-[var(--foreground)]/50 px-2 py-0.5 text-xs font-bold text-[var(--text-muted)]">
+                جستوجو
               </span>
             </button>
           </div>
         </div>
+        )}
 
         {/* ================= DESKTOP HEADER ================= */}
         <div className="hidden bg-body-bg lg:block">

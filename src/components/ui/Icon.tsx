@@ -26,13 +26,20 @@ export type IconName =
   | "share"
   | "filter"
   | "plus"
-  | "minus";
+  | "minus"
+  | "arrow-left"
+  | "navigation"
+  | "sort"
+  | "home"
+  | "list"
+  | "external-link";
 
 export interface IconProps extends React.SVGProps<SVGSVGElement> {
   name: IconName;
   size?: number | string;
   className?: string;
   strokeWidth?: number;
+  filled?: boolean;
 }
 
 const PATHS: Record<IconName, string> = {
@@ -51,7 +58,7 @@ const PATHS: Record<IconName, string> = {
   alert: "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z",
   info: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
   upload: "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12",
-  gamepad: "M15 5M9 9h6M12 6v6M6 15h.01M18 15h.01M15 18h.01M9 18h.01",
+  gamepad: "M6 11h4M8 9v4M15 12h.01M18 10h.01M17.32 5H6.68a4 4 0 00-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 003 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 019.828 16h4.344a2 2 0 011.414.586L17 18c.5.5 1 1 2 1a3 3 0 003-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0017.32 5z",
   monitor: "M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
   vr: "M21 12a2 2 0 00-2-2H5a2 2 0 00-2 2v2a2 2 0 002 2h4l2 2 2-2h4a2 2 0 002-2v-2z",
   ticket: "M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z",
@@ -62,6 +69,12 @@ const PATHS: Record<IconName, string> = {
   filter: "M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z",
   plus: "M12 4v16m8-8H4",
   minus: "M20 12H4",
+  "arrow-left": "M19 12H5m7 7l-7-7 7-7",
+  navigation: "M3 11l19-9-9 19-2-8-8-2z",
+  sort: "M3 6h18M6 12h12M10 18h4",
+  home: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+  list: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
+  "external-link": "M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14",
 };
 
 export const Icon: React.FC<IconProps> = ({
@@ -69,6 +82,7 @@ export const Icon: React.FC<IconProps> = ({
   size = 20,
   className = "",
   strokeWidth = 1.75,
+  filled = false,
   ...props
 }) => {
   const path = PATHS[name] || PATHS.info;
@@ -77,7 +91,7 @@ export const Icon: React.FC<IconProps> = ({
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="none"
+      fill={filled && name === "star" ? "currentColor" : "none"}
       stroke="currentColor"
       strokeWidth={strokeWidth}
       strokeLinecap="round"

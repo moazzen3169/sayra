@@ -9,11 +9,15 @@ import React, {
 } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionTitle } from "@/components/ui/SectionTitle";
+import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { StickyActionBar } from "@/components/ui/StickyActionBar";
+import { CardSkeleton, Skeleton } from "@/components/ui/Skeleton";
 import { BannerSlider } from "@/components/BannerSlider";
-import {
-  PaymentSuccessModal,
-  ReservationSummaryDetails,
-} from "@/components/PaymentSuccessModal";
 import {
   DevicePicker,
   categoryKey,
@@ -32,248 +36,76 @@ import {
   formatDayLabel,
   getErrorMessage,
   isCenterReservationDisabled,
-  RESERVATION_DISABLED_MESSAGE,
 } from "@/lib/reservationUi";
 import { loadGamecenterDetail } from "@/services/gamecenterDetailService";
+import { stationApi } from "@/services/gaming-center/station.api";
 import type { GamecenterDetail } from "@/types/gamecenter";
 import type { BannerItem } from "@/types/home";
 import type { DeviceCategory } from "@/types/gaming-center/device-category.types";
 import type { PhysicalStation } from "@/types/gaming-center/station.types";
 import { PLACEHOLDERS } from "@/lib/media";
+import { cn } from "@/lib/utils";
 
-/* ---------- Helpers ---------- */
-
-const GALLERY_ASPECT = "aspect-[2/1] sm:aspect-[2.2/1] lg:aspect-[16/10]";
+const GALLERY_ASPECT = "aspect-[2/1] lg:aspect-[16/10]";
 
 const scrollToId = (id: string) =>
   document
     .getElementById(id)
     ?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-const SectionTitle: React.FC<{
-  step?: number;
-  title: string;
-  hint?: string;
-}> = ({ step, title, hint }) => (
-  <div className="flex flex-col gap-1">
-    <div className="flex items-center gap-2 min-w-0">
-      {step ? (
-        <span className="w-6 h-6 shrink-0 rounded-full bg-[var(--primary)] text-on-primary text-xs font-bold flex items-center justify-center pt-0.5">
-          {toPersianDigits(step)}
-        </span>
-      ) : (
-        <span className="h-5 w-1 rounded-full bg-[var(--primary)]" />
-      )}
-      <h2 className="text-base font-bold text-[var(--text-white)] truncate">
-        {title}
-      </h2>
-    </div>
-    {hint && <p className="text-xs text-[var(--text-muted)]">{hint}</p>}
-  </div>
-);
-
-/* ---------- Booking CTA (mobile bar / desktop card) ---------- */
-
-interface BookingCtaProps {
-  summary: { key: string; label: string; count: number }[];
-  deviceCount: number;
-  hourly: number;
-  onPick: () => void;
-  onBook: () => void;
-  variant: "bar" | "card";
-  reservationDisabled?: boolean;
-}
-
-const BookingCta: React.FC<BookingCtaProps> = ({
-  summary,
-  deviceCount,
-  hourly,
-  onPick,
-  onBook,
-  variant,
-  reservationDisabled = false,
-}) => {
-  const has = !reservationDisabled && deviceCount > 0;
-
-  const info = reservationDisabled ? (
-    <span className="text-xs font-bold text-[var(--accent-red)]">
-      رزرو این گیم‌نت غیرفعال است
-    </span>
-  ) : has ? (
-    <div className="flex flex-col min-w-0">
-      <span className="text-xs text-[var(--text-muted)]">
-        {toPersianDigits(deviceCount)} دستگاه انتخاب کردی
-      </span>
-      <span className="text-base font-black text-[var(--primary)]">
-        {formatPrice(hourly)}{" "}
-        <span className="text-xs font-normal text-[var(--text-white)]">
-          تومان / ساعت
-        </span>
-      </span>
-    </div>
-  ) : (
-    <span className="text-xs font-bold text-[var(--text-muted)]">
-      دستگاهتو انتخاب کن
-    </span>
-  );
-
-  const button = (
-    <button
-      type="button"
-      aria-disabled={reservationDisabled}
-      onClick={has ? onBook : onPick}
-      className={`h-12 rounded-card font-bold text-sm transition-all active:scale-[0.98] ${
-        reservationDisabled
-          ? "bg-[var(--foreground)] text-[var(--text-muted)] opacity-70 cursor-not-allowed"
-          : has
-          ? "bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary"
-          : "bg-[var(--foreground)] text-[var(--text-white)]"
-      } ${variant === "bar" ? "px-5 shrink-0" : "w-full"}`}
-    >
-      {reservationDisabled
-        ? "رزرو غیرفعال"
-        : has
-        ? "انتخاب روز و ساعت"
-        : "انتخاب دستگاه"}
-    </button>
-  );
-
-  if (variant === "bar") {
-    return (
-      <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pointer-events-none lg:hidden">
-        <div className="w-full max-w-[var(--max-app-width)] bg-[var(--bg-card)]/95 backdrop-blur-md border-t border-[var(--border-color)] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center justify-between gap-3 pointer-events-auto shadow-2xl">
-          {info}
-          {button}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <aside className="hidden lg:flex sticky top-20 self-start max-h-[calc(100dvh-6rem)] overflow-y-auto flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 w-full">
-      <h3 className="text-sm font-bold text-[var(--text-white)]">
-        رزرو سریع و آنلاین
-      </h3>
-
-      {has && (
-        <ul className="flex flex-col gap-1.5 text-xs text-[var(--text-muted)]">
-          {summary.map((s) => (
-            <li key={s.key} className="flex items-center justify-between gap-2">
-              <span className="text-[var(--text-white)] font-bold truncate">
-                {s.label}
-              </span>
-              <span className="shrink-0">{toPersianDigits(s.count)} عدد</span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {info}
-      {button}
-
-      <ol className="flex flex-col gap-1.5 text-xs text-[var(--text-muted)] border-t border-[var(--border-subtle)] pt-3">
-        <li>۱. دستگاه یا بازی رو انتخاب کن</li>
-        <li>۲. زمان خالی رو مشخص کن</li>
-        <li>۳. با خیال راحت رزرو کن</li>
-      </ol>
-    </aside>
-  );
-};
-
-/* ---------- Page Skeleton (Strict Layout Alignment) ---------- */
-
 const GameCenterDetailSkeleton: React.FC = () => (
   <div
-    className="px-4 desk:p-6 relative flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_450px] lg:gap-8 lg:items-start animate-pulse"
+    className="px-4 lg:p-6 relative flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8 lg:items-start"
     aria-busy="true"
   >
-    {/* Sidebar column skeleton */}
-    <aside className="flex flex-col gap-5 min-w-0 lg:order-2 desk:bg-[var(--bg-card)] rounded-[14px] desk:p-2 w-full">
-      <div className={`w-full rounded-card bg-[var(--bg-card)] ${GALLERY_ASPECT}`} />
-      <div className="flex flex-col gap-3 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5">
-        <div className="h-6 w-3/4 rounded bg-[var(--bg-body)]" />
-        <div className="h-4 w-1/2 rounded bg-[var(--bg-body)]" />
-        <div className="h-10 w-full rounded bg-[var(--bg-body)] mt-2" />
+    <span className="sr-only">در حال بارگذاری</span>
+    <aside className="flex flex-col gap-4 min-w-0 lg:order-2 w-full">
+      <Skeleton className={`w-full ${GALLERY_ASPECT}`} />
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-6 w-2/3" />
+        <Skeleton className="h-4 w-1/2" />
       </div>
-      <div className="hidden lg:flex flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 w-full">
-        <div className="h-5 w-1/3 rounded bg-[var(--bg-body)]" />
-        <div className="h-12 w-full rounded bg-[var(--bg-body)]" />
-        <div className="h-4 w-2/3 rounded bg-[var(--bg-body)]" />
-      </div>
+      <Skeleton className="hidden lg:block h-36 w-full" />
     </aside>
 
-    {/* Main column skeleton */}
-    <div className="flex flex-col gap-8 min-w-0 mt-6 lg:mt-0 lg:order-1 w-full">
-      {/* Device Picker Carousel Skeleton */}
-      <section className="flex flex-col gap-4">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-[var(--bg-card)]" />
-          <div className="h-5 w-32 rounded bg-[var(--bg-card)]" />
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex flex-col gap-3 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-3"
-            >
-              <div className="aspect-[4/3] w-full rounded-card bg-[var(--bg-body)]" />
-              <div className="h-4 w-3/4 rounded bg-[var(--bg-body)]" />
-              <div className="h-3 w-1/2 rounded bg-[var(--bg-body)]" />
-              <div className="mt-2 h-11 w-full rounded bg-[var(--bg-body)]" />
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <hr className="border-[var(--border-subtle)] my-1" />
-
-      {/* Games Marquee Skeleton */}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <div className="h-5 w-1 rounded-full bg-[var(--bg-card)]" />
-          <div className="h-5 w-28 rounded bg-[var(--bg-card)]" />
-        </div>
-        <div className="h-24 w-full rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)]" />
-      </section>
-
-      {/* Reviews Skeleton */}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <div className="h-5 w-1 rounded-full bg-[var(--bg-card)]" />
-          <div className="h-5 w-24 rounded bg-[var(--bg-card)]" />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-24 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3.5"
-            />
-          ))}
-        </div>
-      </section>
+    <div className="flex flex-col gap-6 min-w-0 mt-6 lg:mt-0 lg:order-1 w-full">
+      <Skeleton className="h-5 w-24" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <CardSkeleton key={i} />
+        ))}
+      </div>
     </div>
   </div>
 );
-
-/* ---------- Page ---------- */
 
 export default function GameCenterDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { selectedCity, setCity } = useCity();
-
-  const router = useRouter();
   const { id: gamingCenterSlug } = use(params);
+  return (
+    <GameCenterDetailContent
+      key={gamingCenterSlug}
+      gamingCenterSlug={gamingCenterSlug}
+    />
+  );
+}
+
+function GameCenterDetailContent({
+  gamingCenterSlug,
+}: {
+  gamingCenterSlug: string;
+}) {
+  const { selectedCity, setCity } = useCity();
+  const router = useRouter();
   const { user } = useAuth();
 
-  // Data
   const [detail, setDetail] = useState<GamecenterDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
-  // کاتالوگ دسته‌بندی دستگاه‌ها (API)
   const {
     categories,
     isLoading: isCategoriesLoading,
@@ -281,37 +113,15 @@ export default function GameCenterDetailPage({
     refetch: refetchCategories,
   } = useDeviceCategories(gamingCenterSlug);
 
-  // دستگاه‌های انتخاب‌شده به تفکیک دسته
-  const [selection, setSelection] = useState<
-    Record<string, PhysicalStation[]>
-  >({});
-  const [activeCategory, setActiveCategory] = useState<DeviceCategory | null>(
-    null,
-  );
+  const [selection, setSelection] = useState<Record<string, PhysicalStation[]>>({});
+  const [activeCategory, setActiveCategory] = useState<DeviceCategory | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-
-  // Modals
-  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
-  const [successDetails, setSuccessDetails] =
-    useState<ReservationSummaryDetails | null>(null);
-
-  // UI
   const [showAllReviews, setShowAllReviews] = useState(false);
-  const [reservationError, setReservationError] = useState<string | null>(null);
 
   const reservationDisabled = useMemo(
     () => isCenterReservationDisabled(detail?.center),
-    [detail],
+    [detail]
   );
-
-  useEffect(() => {
-    setReservationError(null);
-  }, [gamingCenterSlug]);
-
-  const triggerReservationDisabledError = useCallback(() => {
-    setReservationError(RESERVATION_DISABLED_MESSAGE);
-    scrollToId("stations");
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -338,33 +148,17 @@ export default function GameCenterDetailPage({
 
   const selectedStations = useMemo(
     () => Object.values(selection).flat(),
-    [selection],
+    [selection]
   );
   const deviceCount = selectedStations.length;
-  // برآورد ساعتی (قیمت نهایی را Backend بعد از ثبت اعلام می‌کند)
   const hourly = selectedStations.reduce(
     (a, s) => a + getEffectiveStationPricing(s).finalHourlyPrice,
-    0,
-  );
-
-  const summary = useMemo(
-    () =>
-      categories
-        .map((c) => ({
-          key: categoryKey(c),
-          label: c.name,
-          count: selection[categoryKey(c)]?.length ?? 0,
-        }))
-        .filter((s) => s.count > 0),
-    [categories, selection],
+    0
   );
 
   const handleSelectionChange = useCallback(
     (key: string, stations: PhysicalStation[]) => {
-      if (reservationDisabled) {
-        triggerReservationDisabledError();
-        return;
-      }
+      if (reservationDisabled) return;
       setSelection((prev) => {
         const copy = { ...prev };
         if (stations.length === 0) delete copy[key];
@@ -372,18 +166,37 @@ export default function GameCenterDetailPage({
         return copy;
       });
     },
-    [reservationDisabled, triggerReservationDisabledError],
+    [reservationDisabled]
   );
 
   const handleOpenCategory = useCallback(
-    (category: DeviceCategory) => {
-      if (reservationDisabled) {
-        triggerReservationDisabledError();
-        return;
+    async (category: DeviceCategory) => {
+      if (reservationDisabled) return;
+      const key = categoryKey(category);
+
+      if (category.deviceCount === 1) {
+        const existing = selection[key] ?? [];
+        if (existing.length > 0) {
+          handleSelectionChange(key, []);
+          return;
+        }
+        try {
+          const filter = category.catalogId
+            ? { catalogDeviceId: category.catalogId, limit: 1 }
+            : { stationType: category.deviceType, limit: 1 };
+          const res = await stationApi.getPhysicalStations(gamingCenterSlug, filter);
+          if (res.stations.length === 1) {
+            handleSelectionChange(key, [res.stations[0]]);
+            return;
+          }
+        } catch {
+          // Fallback to opening the modal
+        }
       }
+
       setActiveCategory(category);
     },
-    [reservationDisabled, triggerReservationDisabledError],
+    [reservationDisabled, selection, gamingCenterSlug, handleSelectionChange]
   );
 
   const galleryItems: BannerItem[] = useMemo(() => {
@@ -393,9 +206,7 @@ export default function GameCenterDetailPage({
         {
           id: "fallback-gallery",
           imageUrl: PLACEHOLDERS.gallery,
-          alt: detail?.center.name
-            ? `تصویر گالری ${detail.center.name}`
-            : "تصویر گیمنت",
+          alt: detail?.center.name || "تصویر گیمنت",
         },
       ];
     }
@@ -419,138 +230,109 @@ export default function GameCenterDetailPage({
   const address = detail?.address ?? "";
   const reviews = detail?.reviews ?? [];
   const visibleReviews = showAllReviews ? reviews : reviews.slice(0, 4);
+  const showMobileBar = Boolean(detail) && !reservationDisabled && deviceCount > 0;
+
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push("/gamecenters");
+    }
+  };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-32 lg:pb-12">
+    <div
+      className={cn(
+        "flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] lg:pb-12",
+        showMobileBar ? "pb-32" : "pb-8"
+      )}
+    >
       <Header
+        hideOnMobile
         locationName={selectedCity}
         onCityChange={(city) => setCity(city)}
       />
+      <PageHeader title={title} onBack={handleBack} className="lg:hidden" />
 
-      <main className="flex-1 desk:pt-[var(--header-h)] pt-[var(--header-m-h)] flex flex-col gap-6 pt-3">
-        {/* Loading (Zero Layout Shift Skeleton) */}
+      <main className="flex-1 lg:pt-[var(--header-h)] flex flex-col gap-6 pt-3">
         {!detail && !loadError && <GameCenterDetailSkeleton />}
 
-        {/* Error */}
         {loadError && (
-          <div className="mx-4 desk:mx-6 lg:mx-8 mt-6 p-8 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col items-center gap-4 text-center max-w-lg mx-auto shadow-lg">
-            <div className="w-14 h-14 rounded-full bg-[var(--accent-red)]/15 flex items-center justify-center text-[var(--accent-red)]">
-              <svg
-                className="w-7 h-7"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth="2"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                />
-              </svg>
-            </div>
-            <div className="flex flex-col gap-1">
-              <h3 className="text-base font-bold text-[var(--text-white)]">
-                ارتباط با سرور برقرار نشد
-              </h3>
-              <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-                {loadError}
-              </p>
-            </div>
-            <div className="flex items-center gap-3 mt-2">
-              <button
-                type="button"
-                onClick={() => setReloadToken((v) => v + 1)}
-                className="h-11 px-6 rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
-              >
-                تلاش دوباره
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push("/gamecenters")}
-                className="h-11 px-6 rounded-card bg-[var(--foreground)] hover:bg-[var(--border-color)] border border-[var(--border-color)] text-xs font-bold text-[var(--text-white)] transition-all cursor-pointer"
-              >
-                مشاهده بقیه گیم‌نت‌ها
-              </button>
-            </div>
+          <div className="px-4 py-8 max-w-lg mx-auto w-full">
+            <ErrorState
+              title="بارگذاری انجام نشد"
+              description={loadError}
+              onRetry={() => setReloadToken((v) => v + 1)}
+            />
           </div>
         )}
 
         {detail && (
-          <div className="px-4 desk:p-6 relative flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_450px] lg:gap-8 lg:items-start">
-            {/* ===== Sidebar column ===== */}
-            <aside className="flex flex-col gap-5 min-w-0 lg:order-2 desk:bg-[var(--bg-card)] rounded-[14px] desk:p-2">
+          <div className="px-4 lg:p-6 relative flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8 lg:items-start">
+            {/* موبایل: گالری + اطلاعات؛ دسکتاپ: ستون کناری */}
+            <aside className="flex flex-col gap-4 min-w-0 lg:order-2">
               {galleryItems.length > 0 && (
-                <div className="w-full">
-                  <BannerSlider
-                    banners={galleryItems}
-                    fallbackSrc={PLACEHOLDERS.gallery}
-                    aspectClassName={GALLERY_ASPECT}
-                    ariaLabel="گالری تصاویر گیمنت"
-                  />
-                </div>
+                <BannerSlider
+                  banners={galleryItems}
+                  fallbackSrc={PLACEHOLDERS.gallery}
+                  aspectClassName={GALLERY_ASPECT}
+                  ariaLabel="گالری تصاویر گیمنت"
+                />
               )}
 
               <GamecenterInfoCard
                 title={title}
                 address={address}
                 rating={rating}
-                gamesCount={detail.games.length}
-                reviewsCount={reviews.length}
                 onScrollTo={scrollToId}
               />
 
-              <BookingCta
-                variant="card"
-                summary={summary}
-                deviceCount={deviceCount}
-                hourly={hourly}
-                reservationDisabled={reservationDisabled}
-                onPick={() =>
-                  reservationDisabled
-                    ? triggerReservationDisabledError()
-                    : scrollToId("stations")
-                }
-                onBook={() =>
-                  reservationDisabled
-                    ? triggerReservationDisabledError()
-                    : setIsSheetOpen(true)
-                }
-              />
+              {/* سایدبار دسکتاپ */}
+              <div className="hidden lg:flex sticky top-20 self-start flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 w-full">
+                {deviceCount > 0 ? (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-card-title text-[var(--text-white)]">
+                      {toPersianDigits(deviceCount)} دستگاه
+                    </span>
+                    <span className="text-key-number text-[var(--primary)]">
+                      {formatPrice(hourly)}{" "}
+                      <span className="text-xs font-normal text-[var(--text-white)]">
+                        تومان / ساعت
+                      </span>
+                    </span>
+                    <span className="text-secondary text-[var(--text-muted)]">
+                      برآورد
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-secondary text-[var(--text-muted)]">
+                    دستگاهی انتخاب نشده
+                  </span>
+                )}
+
+                <Button
+                  variant="primary"
+                  size="lg"
+                  disabled={reservationDisabled || deviceCount === 0}
+                  onClick={() => setIsSheetOpen(true)}
+                  className="w-full"
+                >
+                  ادامه
+                </Button>
+              </div>
             </aside>
 
-            {/* ===== Main column ===== */}
-            <div className="flex flex-col gap-8 min-w-0 mt-6 lg:mt-0 lg:order-1">
-              {/* Step 1: devices */}
-              <section
-                id="stations"
-                className="flex flex-col gap-4 scroll-mt-20"
-              >
-                <SectionTitle
-                  step={1}
-                  title="انتخاب دستگاه"
-                  hint={
-                    reservationDisabled
-                      ? "رزرو آنلاین این گیم‌نت در حال حاضر غیرفعال است"
-                      : "دستگاهت رو انتخاب کن و رزرو رو شروع کن"
-                  }
-                />
-                {reservationError && (
-                  <div
-                    role="alert"
-                    className="flex items-center justify-between gap-3 rounded-card border border-[var(--accent-red)]/40 bg-[var(--accent-red)]/10 px-4 py-3 text-xs font-bold text-[var(--accent-red)]"
-                  >
-                    <span>{reservationError}</span>
-                    <button
-                      type="button"
-                      onClick={() => setReservationError(null)}
-                      aria-label="بستن پیام خطا"
-                      className="shrink-0 rounded-full px-2 py-0.5 text-xs hover:bg-[var(--accent-red)]/15"
-                    >
-                      ✕
-                    </button>
-                  </div>
+            {/* ستون اصلی: دستگاه‌ها ← بازی‌ها ← نظرات */}
+            <div className="flex flex-col gap-8 min-w-0 mt-4 lg:mt-0 lg:order-1">
+              <section id="stations" className="flex flex-col gap-3 scroll-mt-20">
+                <SectionTitle title="دستگاه" className="mb-0" />
+
+                {reservationDisabled && (
+                  <InlineAlert variant="error">
+                    رزرو آنلاین این گیمنت فعال نیست.
+                  </InlineAlert>
                 )}
+
                 <DevicePicker
                   categories={categories}
                   isLoading={isCategoriesLoading}
@@ -559,64 +341,56 @@ export default function GameCenterDetailPage({
                   selection={selection}
                   onOpen={handleOpenCategory}
                   reservationDisabled={reservationDisabled}
-                  onDisabledAttempt={triggerReservationDisabledError}
                 />
               </section>
 
-              <hr className="border-[var(--border-subtle)] my-1" />
-
-              {/* Games */}
               {detail.games.length > 0 && (
-                <section
-                  id="games"
-                  className="flex flex-col gap-3 scroll-mt-20"
-                >
-                  <SectionTitle
-                    title="بازی‌های موجود"
-                    hint={`${toPersianDigits(detail.games.length)} بازی آماده اجرا`}
-                  />
+                <section id="games" className="flex flex-col gap-3 scroll-mt-20">
+                  <SectionTitle title="بازی‌ها" className="mb-0" />
                   <GamesMarquee games={detail.games} />
                 </section>
               )}
 
-              {/* Reviews */}
-              <section
-                id="reviews"
-                className="flex flex-col gap-3 scroll-mt-20"
-              >
-                <SectionTitle title="نظرات کاربران" />
+              <section id="reviews" className="flex flex-col gap-3 scroll-mt-20">
+                <SectionTitle title="نظرات" className="mb-0" />
                 {reviews.length === 0 ? (
-                  <p className="rounded-card border border-dashed border-[var(--border-color)] p-6 text-center text-xs text-[var(--text-muted)]">
-                    هنوز هیچ نظری برای این گیم‌نت ثبت نشده، بعد از بازی اولین نفری باش که نظر میده!
+                  <p className="rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6 text-center text-secondary text-[var(--text-muted)]">
+                    هنوز نظری ثبت نشده
                   </p>
                 ) : (
                   <>
-                    <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2">
+                    <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2">
                       {visibleReviews.map((r) => (
                         <article
                           key={r.id}
-                          className="bg-[var(--bg-card)] rounded-card p-3.5 border border-[var(--border-subtle)] flex flex-col gap-2"
+                          className="bg-[var(--bg-card)] rounded-card p-4 border border-[var(--border-subtle)] flex flex-col gap-2"
                         >
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
-                              <span className="w-6 h-6 shrink-0 rounded-child bg-[var(--foreground)] text-[var(--primary)] font-bold text-xs flex items-center justify-center pt-0.5">
+                              <span className="w-6 h-6 shrink-0 rounded-child bg-[var(--foreground)] text-[var(--primary)] font-bold text-xs flex items-center justify-center leading-none">
                                 {r.author[0]}
                               </span>
-                              <span className="text-xs font-bold truncate">
+                              <span className="text-card-title text-[var(--text-white)] truncate">
                                 {r.author}
                               </span>
                             </div>
-                            <span className="text-xs font-bold text-[var(--accent-star)]">
-                              ★ {toPersianDigits(r.rating)}
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-[var(--text-white)] shrink-0">
+                              <Icon
+                                name="star"
+                                size={16}
+                                filled
+                                className="text-[var(--accent-star)]"
+                              />
+                              <span>{toPersianDigits(r.rating)}</span>
                             </span>
                           </div>
                           {r.comment && (
-                            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                            <p className="text-body text-[var(--text-muted)] leading-relaxed">
                               {r.comment}
                             </p>
                           )}
                           {r.createdAt && (
-                            <span className="text-xs text-[var(--text-muted)]">
+                            <span className="text-secondary text-[var(--text-muted)]">
                               {formatDayLabel(r.createdAt)}
                             </span>
                           )}
@@ -624,15 +398,16 @@ export default function GameCenterDetailPage({
                       ))}
                     </div>
                     {reviews.length > 4 && (
-                      <button
-                        type="button"
+                      <Button
+                        variant="secondary"
+                        size="md"
                         onClick={() => setShowAllReviews((v) => !v)}
-                        className="self-center h-11 px-5 rounded-full border border-[var(--border-color)] text-xs font-bold text-[var(--text-white)] hover:border-[var(--primary)]"
+                        className="self-center"
                       >
                         {showAllReviews
                           ? "دیدن کمتر"
                           : `مشاهده همه ${toPersianDigits(reviews.length)} نظر`}
-                      </button>
+                      </Button>
                     )}
                   </>
                 )}
@@ -642,28 +417,24 @@ export default function GameCenterDetailPage({
         )}
       </main>
 
-      {/* Mobile bottom bar */}
-      {detail && (
-        <BookingCta
-          variant="bar"
-          summary={summary}
-          deviceCount={deviceCount}
-          hourly={hourly}
-          reservationDisabled={reservationDisabled}
-          onPick={() =>
-            reservationDisabled
-              ? triggerReservationDisabledError()
-              : scrollToId("stations")
+      {showMobileBar && (
+        <StickyActionBar
+          className="lg:hidden"
+          info={
+            <div className="flex flex-col gap-0.5">
+              <span className="text-card-title text-[var(--text-white)]">
+                {toPersianDigits(deviceCount)} دستگاه
+              </span>
+              <span className="text-secondary text-[var(--primary)]">
+                {formatPrice(hourly)} تومان / ساعت
+              </span>
+            </div>
           }
-          onBook={() =>
-            reservationDisabled
-              ? triggerReservationDisabledError()
-              : setIsSheetOpen(true)
-          }
+          actionLabel="ادامه"
+          onAction={() => setIsSheetOpen(true)}
         />
       )}
 
-      {/* مودال تمام‌صفحه‌ی انتخاب دستگاه‌های یک دسته */}
       {activeCategory && !reservationDisabled && (
         <DeviceSelectModal
           gamingCenterSlug={gamingCenterSlug}
@@ -673,10 +444,13 @@ export default function GameCenterDetailPage({
             handleSelectionChange(categoryKey(activeCategory), stations)
           }
           onClose={() => setActiveCategory(null)}
+          onContinue={() => {
+            setActiveCategory(null);
+            setIsSheetOpen(true);
+          }}
         />
       )}
 
-      {/* مودال تمام‌صفحه‌ی انتخاب روز و ساعت + ثبت رزرو گروهی */}
       {isSheetOpen && detail && !reservationDisabled && selectedStations.length > 0 && (
         <GroupBookingSheet
           gamingCenterId={detail.center.id}
@@ -688,36 +462,8 @@ export default function GameCenterDetailPage({
             user ? { fullName: user.fullName, phone: user.phone } : undefined
           }
           onClose={() => setIsSheetOpen(false)}
-          onSuccess={(groupRes) => {
-            setIsSheetOpen(false);
-            setSuccessDetails({
-              gameCenterTitle: detail.center.name,
-              reservationId: groupRes.id,
-              trackingCode: groupRes.trackingCode || groupRes.id,
-              grandTotal: groupRes.totalPrice,
-              devicesSummary: groupRes.items
-                ?.map((it) => it.stationName || "دستگاه")
-                .join("، "),
-              totalHours: Math.round(groupRes.durationMinutes / 60),
-              dateStr: new Date(groupRes.startTime).toLocaleDateString(
-                "fa-IR",
-              ),
-            });
-            setIsSuccessOpen(true);
-          }}
         />
       )}
-
-      {/* مدال تایید موفقیت ثبت رزرو */}
-      <PaymentSuccessModal
-        isOpen={isSuccessOpen}
-        onClose={() => {
-          setIsSuccessOpen(false);
-          setSuccessDetails(null);
-          setSelection({});
-        }}
-        details={successDetails}
-      />
     </div>
   );
 }
