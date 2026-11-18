@@ -404,7 +404,7 @@ export const Header: React.FC<HeaderProps> = ({
       return (
         <Link
           href="/login"
-          className="flex h-11 shrink-0 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-4 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white whitespace-nowrap"
+          className="flex h-10 shrink-0 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-4 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white whitespace-nowrap"
         >
           ورود / ثبت‌نام
         </Link>
@@ -426,7 +426,7 @@ export const Header: React.FC<HeaderProps> = ({
         className={
           isMobile
             ? "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
-            : "relative flex h-11 w-11 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+            : "relative flex h-10 w-10 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
         }
       >
         <svg

@@ -205,7 +205,33 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
   // Loading state
   if (isLoading) {
     return (
-      <div className={`w-full rounded-card overflow-hidden bg-[var(--bg-card)] animate-pulse ${aspectClassName} ${className}`} />
+      <div
+        aria-label={ariaLabel}
+        aria-busy="true"
+        className={`relative rounded-card overflow-hidden ${className}`}
+      >
+        <span className="sr-only">در حال بارگذاری</span>
+        <div
+          className={`flex ${
+            centerOnDesktop
+              ? "justify-center gap-3 lg:gap-4"
+              : "-mr-3 lg:-mr-4"
+          }`}
+        >
+          {[0, 1, 2].map((idx) => (
+            <div
+              key={idx}
+              className={`min-w-0 shrink-0 grow-0 basis-[92%] sm:basis-[80%] ${desktopSlideBasisClass} ${
+                centerOnDesktop ? "" : "pr-3 lg:pr-4"
+              }`}
+            >
+              <div
+                className={`rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-card)] animate-pulse w-full ${aspectClassName}`}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
     );
   }
 

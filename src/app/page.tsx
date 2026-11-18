@@ -14,6 +14,8 @@ import {
   mapCatalogDeviceToCategory,
 } from "@/components/DeviceCategories";
 import { DiscountedCentersSection } from "@/components/DiscountedCentersSection";
+import { CustomerExperienceSection } from "@/components/home/CustomerExperienceSection";
+import { OwnerGrowthSection } from "@/components/home/OwnerGrowthSection";
 import { HomeBlogSection } from "@/components/blog/HomeBlogSection";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -236,8 +238,14 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ۵. وبلاگ */}
+        {/* ۵. بخش مشتریان */}
+        <CustomerExperienceSection />
+
+        {/* ۶. وبلاگ */}
         <HomeBlogSection />
+
+        {/* ۷. بخش صاحبان گیمنت */}
+        <OwnerGrowthSection />
       </main>
 
       <BottomBar activeTab={activeTab} onTabChange={setActiveTab} />
