@@ -50,7 +50,9 @@ interface AuthContextType {
     phone: string,
     token?: string,
     refreshToken?: string,
-    role?: string
+    role?: string,
+    actorType?: string,
+    gamingCenterId?: string
   ) => void;
 
   logout: () => Promise<void>;
@@ -212,9 +214,17 @@ function buildUserProfile(
     previousUser?.role ||
     "USER";
 
+  // اگر نقش جدید مدیریتی/ادمین است، actorType قبلیِ CUSTOMER نباید ارث‌بری شود.
+  const isPrivilegedRole = normalizeUserRole(resolvedRole) !== "USER";
+  const previousActorUpper = String(previousUser?.actorType ?? "")
+    .trim()
+    .toUpperCase();
+
   const resolvedActorType =
     data.actorType ??
-    previousUser?.actorType;
+    (isPrivilegedRole && previousActorUpper === "CUSTOMER"
+      ? undefined
+      : previousUser?.actorType);
 
   const updatedUser: UserProfile = {
     id: data.id ?? previousUser?.id,
@@ -346,7 +356,9 @@ const isLoggedIn = isAuthenticated;
       phone: string,
       token?: string,
       refreshToken?: string,
-      role?: string
+      role?: string,
+      actorType?: string,
+      gamingCenterId?: string
     ) => {
       if (token) {
         setTokens({
@@ -358,10 +370,12 @@ const isLoggedIn = isAuthenticated;
       const currentToken =
         token || getAccessToken() || "";
 
+      const jwtRole = parseJwtRole(currentToken);
+      const explicitRole = role?.trim();
       const resolvedRole =
-        role ||
-        parseJwtRole(currentToken) ||
-        "USER";
+        explicitRole && explicitRole.toUpperCase() !== "USER"
+          ? explicitRole
+          : jwtRole || explicitRole || "USER";
 
       const newUser: UserProfile = {
         fullName: fullName || "کاربر سایرا",
@@ -369,6 +383,10 @@ const isLoggedIn = isAuthenticated;
         phone: cleanPhoneNumber(phone),
 
         role: resolvedRole,
+
+        actorType: actorType || undefined,
+
+        gamingCenterId: gamingCenterId || undefined,
 
         token: currentToken || undefined,
       };
@@ -444,12 +462,52 @@ const isLoggedIn = isAuthenticated;
 
       const status = getErrorStatus(error);
 
-      if (
-        status === 401 &&
-        !getRefreshToken()
-      ) {
-        clearTokens();
+      if (status === 401) {
+        const refreshToken = getRefreshToken();
 
+        if (!refreshToken) {
+          clearTokens();
+          setUser(null);
+          return;
+        }
+
+        try {
+          const refreshResponse = await authService.refresh(refreshToken);
+          const refreshed = extractApiData(refreshResponse);
+
+          if (!refreshed?.accessToken) {
+            throw new Error("Invalid refresh response");
+          }
+
+          const newAccessToken = refreshed.accessToken;
+          const newRefreshToken = refreshed.refreshToken || refreshToken;
+
+          setTokens({
+            accessToken: newAccessToken,
+            refreshToken: newRefreshToken,
+          });
+
+          const freshResponse = await authService.getMe();
+          if (!freshResponse) {
+            throw new Error("Empty user response after refresh");
+          }
+
+          const updatedUser = buildUserProfile(
+            freshResponse,
+            newAccessToken,
+            getSavedUser(newAccessToken)
+          );
+
+          setUser(updatedUser);
+          saveUser(updatedUser);
+        } catch {
+          clearTokens();
+          setUser(null);
+        }
+        return;
+      }
+
+      if (status === 403) {
         setUser(null);
       }
 
@@ -515,6 +573,13 @@ const isLoggedIn = isAuthenticated;
           if (!active || isAbortError(error)) return;
 
           const status = getErrorStatus(error);
+
+          if (status === 403) {
+            if (active) {
+              setUser(null);
+            }
+            return;
+          }
 
           // فقط خطای 401 باعث تلاش برای Refresh می‌شود.
           if (status !== 401) {

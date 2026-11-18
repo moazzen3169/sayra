@@ -18,7 +18,9 @@ function LoginContent() {
       data.phone,
       data.accessToken,
       data.refreshToken,
-      data.role || "USER"
+      data.role || "USER",
+      data.actorType,
+      data.gamingCenterId
     );
 
     if (data.gamingCenterId) {

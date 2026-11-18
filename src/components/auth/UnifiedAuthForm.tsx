@@ -13,6 +13,7 @@ export interface UnifiedAuthSuccessData {
   refreshToken?: string;
   gamingCenterId?: string;
   role?: string;
+  actorType?: string;
 }
 
 export interface UnifiedAuthFormProps {
@@ -157,13 +158,18 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
       setTokens(token, authRes.refreshToken);
 
       let resolvedName = authRes?.user?.fullName || "کاربر سایرا";
-      if (!authRes?.user?.fullName) {
-        try {
-          const me = await authService.getMe();
-          if (me?.fullName) resolvedName = me.fullName;
-        } catch {
-          // ignore
-        }
+      let resolvedRole = authRes?.user?.role;
+      let resolvedActorType = authRes?.user?.actorType;
+      let resolvedCenterId = authRes?.user?.gamingCenterId;
+
+      try {
+        const me = await authService.getMe();
+        if (me?.fullName) resolvedName = me.fullName;
+        if (me?.role) resolvedRole = me.role;
+        if (me?.actorType) resolvedActorType = me.actorType;
+        if (me?.gamingCenterId) resolvedCenterId = me.gamingCenterId;
+      } catch {
+        // Fallback to auth response payload if /auth/me fails
       }
 
       onSuccess({
@@ -171,7 +177,9 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
         phone: cleanPhone,
         accessToken: token,
         refreshToken: authRes.refreshToken,
-        role: authRes?.user?.role || "USER",
+        gamingCenterId: resolvedCenterId,
+        role: resolvedRole || "USER",
+        actorType: resolvedActorType,
       });
     } catch (err) {
       setError(getErrorMessage(err));
@@ -204,15 +212,29 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
       // Immediately save tokens to localStorage and cookies
       setTokens(token, loginRes.refreshToken);
 
-      const userName = loginRes.user?.fullName || loginRes.user?.name || "کاربر سایرا";
-      const userRole = loginRes.user?.role || "MANAGER";
+      let userName = loginRes.user?.fullName || loginRes.user?.name || "کاربر سایرا";
+      let userRole = loginRes.user?.role;
+      let userActorType: string | undefined;
+      let resolvedCenterId = centerIdToUse || loginRes.user?.gamingCenterId;
+
+      try {
+        const me = await authService.getMe();
+        if (me?.fullName) userName = me.fullName;
+        if (me?.role) userRole = me.role;
+        if (me?.actorType) userActorType = me.actorType;
+        if (me?.gamingCenterId && !resolvedCenterId) resolvedCenterId = me.gamingCenterId;
+      } catch {
+        // ignore
+      }
+
       onSuccess({
         fullName: userName,
         phone: cleanPhone,
         accessToken: token,
         refreshToken: loginRes.refreshToken,
-        gamingCenterId: centerIdToUse || loginRes.user?.gamingCenterId,
-        role: userRole,
+        gamingCenterId: resolvedCenterId,
+        role: userRole || "MANAGER",
+        actorType: userActorType,
       });
     } catch (err) {
       setError(getErrorMessage(err));
@@ -282,15 +304,29 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
       // Immediately save tokens to localStorage and cookies
       setTokens(token, res.refreshToken);
 
-      const userName = res.user?.fullName || res.user?.name || "مدیر گیم‌نت";
-      const userRole = res.user?.role || "MANAGER";
+      let userName = res.user?.fullName || res.user?.name || "مدیر گیم‌نت";
+      let userRole = res.user?.role;
+      let userActorType: string | undefined;
+      let resolvedCenterId = passwordCenterId.trim() || res.user?.gamingCenterId;
+
+      try {
+        const me = await authService.getMe();
+        if (me?.fullName) userName = me.fullName;
+        if (me?.role) userRole = me.role;
+        if (me?.actorType) userActorType = me.actorType;
+        if (me?.gamingCenterId && !resolvedCenterId) resolvedCenterId = me.gamingCenterId;
+      } catch {
+        // ignore
+      }
+
       onSuccess({
         fullName: userName,
         phone: cleanPhone,
         accessToken: token,
         refreshToken: res.refreshToken,
-        gamingCenterId: passwordCenterId.trim() || res.user?.gamingCenterId,
-        role: userRole,
+        gamingCenterId: resolvedCenterId,
+        role: userRole || "MANAGER",
+        actorType: userActorType,
       });
     } catch (err) {
       setError(getErrorMessage(err));

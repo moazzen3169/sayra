@@ -3,6 +3,11 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { OwnerAuthModal } from "@/components/owner/OwnerAuthModal";
+import {
+  OwnerAccessState,
+  OwnerPanelSkeleton,
+  type OwnerAccessVariant,
+} from "@/components/owner/OwnerAccessView";
 import { useAuth } from "@/context/AuthContext";
 import { isAbortError } from "@/lib/api/client";
 import { ownerService } from "@/services/ownerService";
@@ -35,13 +40,10 @@ export const useOwner = (): OwnerContextType => {
   return ctx;
 };
 
-const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)]">{children}</div>
-);
-
 export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
-  const isPublicOwnerRoute = pathname === "/owner/new";
+  const isPublicOwnerRoute =
+    pathname === "/owner/new" || pathname.startsWith("/owner/new/");
   const { isLoggedIn, isLoading: authLoading, login, logout, user } = useAuth();
 
   const [me, setMe] = useState<OwnerMe | null>(null);
@@ -50,6 +52,7 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [center, setCenter] = useState<PublicCenter | null>(null);
   const [isCenterLoading, setIsCenterLoading] = useState<boolean>(true);
   const [centerError, setCenterError] = useState<string | null>(null);
+  const [accessState, setAccessState] = useState<OwnerAccessVariant | null>(null);
 
   const [authOpen, setAuthOpen] = useState(false);
   const [verificationStatus, setVerificationStatusState] = useState<VerificationStatus>("APPROVED");
@@ -127,6 +130,7 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCenters([]);
       setCenter(null);
       setCenterId("");
+      setAccessState("unauthenticated");
       setCenterError("برای دسترسی به پنل مدیریت باید وارد حساب کاربری خود شوید.");
       if (!isPublicOwnerRoute) {
         setAuthOpen(true);
@@ -140,6 +144,7 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     async function loadOwnerAndCenters() {
       setIsCenterLoading(true);
       setCenterError(null);
+      setAccessState(null);
 
       try {
         const profile = await ownerService.getMe(controller.signal);
@@ -150,6 +155,7 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const role = profile.role?.toUpperCase();
         const actorType = profile.actorType?.toUpperCase();
         if (role === "CUSTOMER" || actorType === "CUSTOMER") {
+          setAccessState("forbidden");
           setCenterError("حساب کاربری شما دسترسی به پنل مدیریت گیم‌نت ندارد.");
           setCenters([]);
           setCenter(null);
@@ -245,6 +251,7 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setCenters(accessibleCenters);
 
         if (accessibleCenters.length === 0) {
+          setAccessState("no_center");
           setCenterError("هیچ مرکز بازی فعالی برای این حساب کاربری یافت نشد.");
           setCenter(null);
           setCenterId("");
@@ -270,6 +277,7 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         setCenterId(chosenCenter.id);
         setCenter(chosenCenter);
+        setAccessState(null);
         setIsCenterLoading(false);
       } catch (err: any) {
         if (!active || isAbortError(err)) return;
@@ -277,11 +285,14 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const status = err?.status;
         if (status === 401) {
           logout();
+          setAccessState("unauthenticated");
           setCenterError("نشست کاربری شما منقضی شده است. لطفاً مجدداً وارد شوید.");
           setAuthOpen(true);
         } else if (status === 403) {
+          setAccessState("forbidden");
           setCenterError("دسترسی غیرمجاز. شما مجوز دسترسی به این بخش را ندارید.");
         } else {
+          setAccessState("error");
           setCenterError(err?.message || "خطا در دریافت اطلاعات مالک و مرکز بازی.");
         }
         setMe(null);
@@ -300,15 +311,9 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, [authLoading, isLoggedIn, logout, reloadToken]);
 
-  if (authLoading) {
+  if (!isPublicOwnerRoute && (authLoading || isCenterLoading)) {
     return (
-      <Shell>
-        <div className="p-4 flex flex-col gap-4 animate-pulse">
-          <div className="h-12 rounded-card bg-[var(--bg-card)]" />
-          <div className="h-44 rounded-card bg-[var(--bg-card)]" />
-          <div className="h-24 rounded-card bg-[var(--bg-card)]" />
-        </div>
-      </Shell>
+      <OwnerPanelSkeleton statusText="در حال بارگذاری اطلاعات گیم‌نت..." />
     );
   }
 
@@ -319,8 +324,16 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     user?.fullName ||
     "";
 
-  // Hide the entire Owner UI on protected routes if unauthenticated
-  const shouldRenderChildren = isPublicOwnerRoute || isLoggedIn;
+  // Strictly block protected Owner UI unless logged in, authorized, and a center is resolved
+  const resolvedAccessBlock: OwnerAccessVariant | null = isPublicOwnerRoute
+    ? null
+    : !isLoggedIn
+      ? "unauthenticated"
+      : accessState
+        ? accessState
+        : !centerId
+          ? "no_center"
+          : null;
 
   return (
     <OwnerContext.Provider
@@ -340,44 +353,28 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setVerificationStatus,
       }}
     >
-      {shouldRenderChildren ? (
-        children
+      {resolvedAccessBlock ? (
+        <OwnerAccessState
+          variant={resolvedAccessBlock}
+          pathname={pathname}
+          message={centerError}
+          onLoginClick={
+            resolvedAccessBlock === "unauthenticated"
+              ? () => setAuthOpen(true)
+              : undefined
+          }
+          onRetry={refreshCenters}
+          isRetrying={isCenterLoading}
+        />
       ) : (
-        <Shell>
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-            <div className="max-w-md w-full p-6 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center text-2xl font-black">
-                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-[var(--text-white)]">
-                  ورود به پنل مدیریت گیم‌نت
-                </h2>
-                <p className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
-                  برای دسترسی و مشاهده بخش‌های پنل مدیریت گیم‌نت، ابتدا باید وارد حساب کاربری خود شوید.
-                </p>
-              </div>
-              <div className="flex flex-col gap-3 w-full mt-2">
-                <button
-                  type="button"
-                  onClick={() => setAuthOpen(true)}
-                  className="w-full h-11 rounded-card bg-[var(--primary)] text-on-primary text-xs font-bold hover:brightness-105 active:scale-95 transition-transform flex items-center justify-center"
-                >
-                  ورود به حساب کاربری
-                </button>
-              </div>
-            </div>
-          </div>
-        </Shell>
+        children
       )}
 
       <OwnerAuthModal
         isOpen={authOpen}
         onClose={() => setAuthOpen(false)}
-        onSuccess={(fullName, phone, token, refreshToken, chosenCenterId, role) => {
-          login(fullName, phone, token, refreshToken, role || "MANAGER");
+        onSuccess={(fullName, phone, token, refreshToken, chosenCenterId, role, actorType) => {
+          login(fullName, phone, token, refreshToken, role || "MANAGER", actorType, chosenCenterId);
           if (chosenCenterId) {
             try {
               localStorage.setItem(OWNER_CENTER_KEY, chosenCenterId);
@@ -386,6 +383,7 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           }
           setAuthOpen(false);
+          setReloadToken((t) => t + 1);
         }}
       />
     </OwnerContext.Provider>

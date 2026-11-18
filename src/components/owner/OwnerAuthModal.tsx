@@ -7,7 +7,15 @@ import type { UnifiedAuthSuccessData } from "@/components/auth/UnifiedAuthForm";
 interface OwnerAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (fullName: string, phone: string, token: string, refreshToken?: string, gamingCenterId?: string, role?: string) => void;
+  onSuccess: (
+    fullName: string,
+    phone: string,
+    token: string,
+    refreshToken?: string,
+    gamingCenterId?: string,
+    role?: string,
+    actorType?: string
+  ) => void;
 }
 
 export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
@@ -22,7 +30,8 @@ export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
       data.accessToken,
       data.refreshToken,
       data.gamingCenterId,
-      data.role
+      data.role,
+      data.actorType
     );
   };
 
