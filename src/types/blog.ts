@@ -3,6 +3,20 @@ export type BlogSort = "newest" | "oldest" | "popular" | "shortest";
 export interface BlogCategory {
   id: string;
   label: string;
+  slug?: string;
+}
+
+export interface BlogSeries {
+  id: string;
+  title: string;
+  slug: string;
+  description?: string;
+}
+
+export interface BlogTag {
+  id: string;
+  name: string;
+  slug: string;
 }
 
 export type BlogPostStatus = "PUBLISHED" | "DRAFT" | "ARCHIVED";

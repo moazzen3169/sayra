@@ -201,6 +201,14 @@ export const ENDPOINTS = {
       patch: (user: number | string) => `/authors/${enc(String(user))}/`,
       delete: (user: number | string) => `/authors/${enc(String(user))}/`,
     },
+    series: {
+      list: "/series/",
+      create: "/series/",
+      detail: (id: number | string) => `/series/${enc(String(id))}/`,
+      update: (id: number | string) => `/series/${enc(String(id))}/`,
+      patch: (id: number | string) => `/series/${enc(String(id))}/`,
+      delete: (id: number | string) => `/series/${enc(String(id))}/`,
+    },
   },
 
   /* ---------- پنل صاحب گیمنت ---------- */

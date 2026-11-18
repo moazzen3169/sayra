@@ -205,9 +205,14 @@ export interface MediaCreateRequestDto {
 
 export interface SeriesDto {
   readonly id: number;
-  name: string;
+  name?: string;
+  title?: string;
   slug: string;
   description?: string;
+  is_active?: boolean;
+  order_strategy?: string;
+  readonly created_at?: string;
+  readonly updated_at?: string;
   cover_image?: MediaDetailDto;
 }
 

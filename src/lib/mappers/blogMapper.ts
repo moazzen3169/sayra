@@ -10,6 +10,8 @@ import type {
   BlogPostStatus,
   BlogPostSummary,
   BlogCategory,
+  BlogSeries,
+  BlogTag,
   BlogContentBlock,
   BlogRichTextNode,
   AdminBlogPostInput,
@@ -19,6 +21,7 @@ import type {
   ArticleDetailDto,
   ArticleListDto,
   CategoryDto,
+  SeriesDto,
   PostStatusApiEnum,
   TagDto,
   ArticleContentBlockDto,
@@ -714,6 +717,35 @@ export function mapCategoryToUi(
   return {
     id: String(category.id),
     label: category.name || category.slug || "بدون دسته‌بندی",
+  };
+}
+
+export function mapSeriesToUi(
+  series: SeriesDto
+): BlogSeries {
+  return {
+    id: String(series.id),
+    title:
+      (typeof series.title === "string" && series.title.trim()) ||
+      (typeof series.name === "string" && series.name.trim()) ||
+      series.slug ||
+      "مجموعه بدون عنوان",
+    slug: series.slug || String(series.id),
+    description:
+      typeof series.description === "string" && series.description.trim()
+        ? series.description.trim()
+        : undefined,
+  };
+}
+
+export function mapTagDtoToUi(tag: TagDto): BlogTag {
+  return {
+    id: String(tag.id),
+    name:
+      (typeof tag.name === "string" && tag.name.trim()) ||
+      tag.slug ||
+      String(tag.id),
+    slug: tag.slug || String(tag.id),
   };
 }
 

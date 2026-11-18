@@ -20,14 +20,20 @@ export const BlogPostCard: React.FC<{ post: BlogPostSummary }> = ({ post }) => (
         loading="lazy"
         fallbackSrc={PLACEHOLDERS.banner}
         draggable={false}
-        className="h-full w-full object-cover"
+        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
       />
-      <Badge variant="neutral" className="absolute right-3 top-3">
-        {post.categoryLabel}
-      </Badge>
+      <div className="absolute right-3 top-3 flex flex-wrap items-center gap-1.5">
+        <Badge variant="neutral">{post.categoryLabel}</Badge>
+        {post.featured && (
+          <Badge variant="primary" className="gap-1">
+            <Icon name="star" size={16} filled />
+            <span>داغ</span>
+          </Badge>
+        )}
+      </div>
     </div>
 
-    <div className="flex flex-1 flex-col gap-2 p-4">
+    <div className="flex flex-1 flex-col gap-2.5 p-4">
       <h3 className="line-clamp-2 text-sm font-bold leading-6 text-[var(--text-white)] transition-colors group-hover:text-[var(--primary)]">
         {post.title}
       </h3>
@@ -35,9 +41,22 @@ export const BlogPostCard: React.FC<{ post: BlogPostSummary }> = ({ post }) => (
         {post.excerpt}
       </p>
 
+      {post.tags && post.tags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          {post.tags.slice(0, 2).map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full border border-[var(--border-subtle)] bg-[var(--foreground)]/40 px-2 py-0.5 text-xs font-medium text-[var(--text-muted)]"
+            >
+              #{tag}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="mt-auto flex items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-3 text-xs text-[var(--text-muted)]">
-        <span>{formatBlogDate(post.publishedAt)}</span>
-        <span className="flex items-center gap-1">
+        <span className="truncate">{formatBlogDate(post.publishedAt) || post.authorName}</span>
+        <span className="flex shrink-0 items-center gap-1">
           <Icon name="clock" size={16} />
           {formatReadingMinutes(post.readingMinutes)}
         </span>

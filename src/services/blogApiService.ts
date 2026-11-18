@@ -34,6 +34,7 @@ import type {
   PatchedCategoryRequestDto,
   PatchedMediaDetailRequestDto,
   PatchedTagRequestDto,
+  SeriesDto,
   TagDto,
   TagRequestDto,
 } from "@/types/blogApi";
@@ -670,5 +671,41 @@ export const blogApiService = {
     options?: BlogRequestOptions
   ): Promise<void> {
     await blogApiClient.delete<void>(ENDPOINTS.blog.authors.delete(user), options);
+  },
+
+  // =========================================================================
+  // SERIES
+  // =========================================================================
+
+  /**
+   * GET /series/
+   * Lists article series.
+   */
+  async getSeries(
+    options?: BlogRequestOptions
+  ): Promise<SeriesDto[]> {
+    const res = await blogApiClient.get<unknown>(
+      ENDPOINTS.blog.series.list,
+      options
+    );
+    const payload = res.rawEnvelope !== undefined ? res.rawEnvelope : res.data;
+    const normalized = normalizeListResponse<SeriesDto>(payload);
+    return normalized.items;
+  },
+
+  /**
+   * GET /series/{id}/
+   */
+  async getSeriesById(
+    id: number | string,
+    options?: BlogRequestOptions
+  ): Promise<SeriesDto> {
+    const res = await blogApiClient.get<unknown>(
+      ENDPOINTS.blog.series.detail(id),
+      options
+    );
+    const payload = res.rawEnvelope !== undefined ? res.rawEnvelope : res.data;
+    const normalized = normalizeSingleResponse<SeriesDto>(payload);
+    return normalized.data;
   },
 };

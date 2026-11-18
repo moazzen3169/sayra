@@ -10,19 +10,31 @@ import {
   mapArticleDetailToUi,
   mapArticleListToSummary,
   mapCategoryToUi,
+  mapSeriesToUi,
+  mapTagDtoToUi,
 } from "@/lib/mappers/blogMapper";
 import { blogApiService } from "@/services/blogApiService";
 import type {
   BlogCategory,
   BlogPostDetail,
   BlogPostSummary,
+  BlogSeries,
   BlogSort,
+  BlogTag,
 } from "@/types/blog";
-import type { CategoryDto } from "@/types/blogApi";
+import type {
+  ArticleListQueryParams,
+  CategoryDto,
+  SeriesDto,
+  TagDto,
+} from "@/types/blogApi";
 
 export interface BlogListParams {
   q?: string;
   category?: string;
+  series?: number | string;
+  tag?: string;
+  isHot?: boolean;
   sort?: BlogSort;
   page?: number;
   pageSize?: number;
@@ -72,8 +84,38 @@ export const blogService = {
   },
 
   /**
+   * GET /api/series/
+   * Fetches active article series from API.
+   */
+  async getSeries(signal?: AbortSignal): Promise<BlogSeries[]> {
+    try {
+      const dtos: SeriesDto[] = await blogApiService.getSeries({ signal });
+      return (dtos || [])
+        .filter((item) => item.is_active !== false)
+        .map(mapSeriesToUi);
+    } catch (err) {
+      if (isAbortError(err)) throw err;
+      throw err;
+    }
+  },
+
+  /**
+   * GET /api/tags/
+   * Fetches blog tags from API.
+   */
+  async getTags(signal?: AbortSignal): Promise<BlogTag[]> {
+    try {
+      const dtos: TagDto[] = await blogApiService.getTags({ signal });
+      return (dtos || []).map(mapTagDtoToUi);
+    } catch (err) {
+      if (isAbortError(err)) throw err;
+      throw err;
+    }
+  },
+
+  /**
    * GET /api/articles/
-   * Fetches paginated published articles matching search, category, and sort parameters.
+   * Fetches paginated published articles matching search, category, series, tag, and sort parameters.
    */
   async list(
     params: BlogListParams = {},
@@ -84,17 +126,31 @@ export const blogService = {
       const page = params.page ?? 1;
       const ordering = mapBlogSortToOrdering(params.sort);
 
-      const res = await blogApiService.getArticles(
-        {
-          page,
-          page_size: pageSize,
-          search: params.q?.trim() || undefined,
-          category: params.category?.trim() || undefined,
-          ordering,
-          visibility: "public",
-        },
-        { signal }
-      );
+      const queryParams: ArticleListQueryParams = {
+        page,
+        page_size: pageSize,
+        search: params.q?.trim() || undefined,
+        category: params.category?.trim() || undefined,
+        ordering,
+        visibility: "public",
+      };
+
+      if (params.series !== undefined && params.series !== "") {
+        const seriesNum = Number(params.series);
+        if (!Number.isNaN(seriesNum) && seriesNum > 0) {
+          queryParams.series = seriesNum;
+        }
+      }
+
+      if (params.tag?.trim()) {
+        queryParams.tags = [params.tag.trim()];
+      }
+
+      if (params.isHot !== undefined) {
+        queryParams.is_hot = params.isHot;
+      }
+
+      const res = await blogApiService.getArticles(queryParams, { signal });
 
       // Only published articles in public display
       const items = (res.items || [])
@@ -110,6 +166,35 @@ export const blogService = {
         hasNext: res.pagination?.hasNext ?? false,
         hasPrevious: res.pagination?.hasPrevious ?? false,
       };
+    } catch (err) {
+      if (isAbortError(err)) throw err;
+      throw err;
+    }
+  },
+
+  /**
+   * GET /api/articles/?ordering=-views_count
+   * Fetches top most-visited published articles for sidebar.
+   */
+  async getPopular(
+    limit: number = 4,
+    signal?: AbortSignal
+  ): Promise<BlogPostSummary[]> {
+    try {
+      const res = await blogApiService.getArticles(
+        {
+          page: 1,
+          page_size: limit,
+          ordering: "-views_count",
+          visibility: "public",
+        },
+        { signal }
+      );
+
+      return (res.items || [])
+        .map(mapArticleListToSummary)
+        .filter((item) => item.status === "PUBLISHED")
+        .slice(0, limit);
     } catch (err) {
       if (isAbortError(err)) throw err;
       throw err;
