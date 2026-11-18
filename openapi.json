@@ -243,6 +243,7 @@
             "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
           },
           "isActive": { "type": "boolean" },
+          "extraControllerEnabled": { "type": "boolean", "default": false },
           "createdAt": { "type": "string", "format": "date-time" },
           "updatedAt": { "type": "string", "format": "date-time" }
         }
@@ -260,7 +261,8 @@
             "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"],
             "default": "PC"
           },
-          "isActive": { "type": "boolean", "default": true }
+          "isActive": { "type": "boolean", "default": true },
+          "extraControllerEnabled": { "type": "boolean", "default": false }
         }
       },
       "UpdateDeviceTypeInput": {
@@ -274,7 +276,8 @@
             "type": "string",
             "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
           },
-          "isActive": { "type": "boolean" }
+          "isActive": { "type": "boolean" },
+          "extraControllerEnabled": { "type": "boolean" }
         }
       },
       "DeviceCatalog": {
@@ -1182,6 +1185,19 @@
           },
           "totalHours": { "type": "number" },
           "totalPrice": { "type": "number" },
+          "extraControllersTotalCost": { "type": "number", "default": 0 },
+          "checkInCode": {
+            "type": "string",
+            "nullable": true,
+            "example": "48291",
+            "description": "5-digit numeric check-in code for fast in-person lookup"
+          },
+          "extraControllers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReservationExtraController"
+            }
+          },
           "stationSnapshot": {
             "type": "object",
             "properties": {
@@ -1190,6 +1206,52 @@
               "stationType": { "type": "string" }
             }
           }
+        }
+      },
+      "StationExtraController": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "stationId": { "type": "string" },
+          "gamingCenterId": { "type": "string" },
+          "controllerType": { "type": "string", "example": "PS5 Controller" },
+          "quantity": { "type": "integer", "minimum": 0 },
+          "availableQuantity": { "type": "integer", "minimum": 0 },
+          "hourlyPrice": { "type": "number", "minimum": 0 },
+          "isActive": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ExtraControllerConfigInput": {
+        "type": "object",
+        "required": ["controllerType", "quantity", "hourlyPrice"],
+        "properties": {
+          "controllerType": { "type": "string", "example": "PS5 Controller" },
+          "quantity": { "type": "integer", "minimum": 0, "maximum": 100 },
+          "hourlyPrice": { "type": "number", "minimum": 0 },
+          "isActive": { "type": "boolean", "default": true }
+        }
+      },
+      "ExtraControllerSelectionInput": {
+        "type": "object",
+        "required": ["extraControllerId", "quantity"],
+        "properties": {
+          "extraControllerId": { "type": "string" },
+          "quantity": { "type": "integer", "minimum": 1, "maximum": 100 }
+        }
+      },
+      "ReservationExtraController": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "reservationId": { "type": "string" },
+          "extraControllerId": { "type": "string", "nullable": true },
+          "controllerType": { "type": "string" },
+          "quantity": { "type": "integer" },
+          "hourlyPrice": { "type": "number" },
+          "totalCost": { "type": "number" },
+          "createdAt": { "type": "string", "format": "date-time" }
         }
       },
       "ReservationTimeProposal": {
@@ -2394,7 +2456,13 @@
                       "required": ["stationId"],
                       "properties": {
                         "stationId": { "type": "string" },
-                        "staffId": { "type": "string" }
+                        "staffId": { "type": "string" },
+                        "extraControllers": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ExtraControllerSelectionInput"
+                          }
+                        }
                       }
                     }
                   },
@@ -2625,6 +2693,120 @@
           "404": { "$ref": "#/components/responses/NotFoundError" }
         },
         "operationId": "post_gamingCenters_gamingCenterId_stations_from_catalog"
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/stations/games": {
+      "get": {
+        "summary": "List games selected for a gaming center (Manager/Admin)",
+        "description": "Returns the games selected by the gaming center manager, enriched with GameCatalog metadata (coverImageUrl, supportedPlatforms, genre, description).",
+        "tags": ["Stations"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of games for this gaming center",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          }
+        },
+        "operationId": "get_gamingCenters_gamingCenterId_stations_games"
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/stations/games/{gameId}": {
+      "delete": {
+        "summary": "Remove a game from a gaming center (Manager)",
+        "description": "Removes a game (by GameCatalog ID or title) from the gaming center's selected games list.",
+        "tags": ["Stations"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Game removed from gaming center",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          }
+        },
+        "operationId": "delete_gamingCenters_gamingCenterId_stations_games_gameId"
+      }
+    },
+    "/public/gamingCenters/{gamingCenterSlug}/stations/games": {
+      "get": {
+        "summary": "List games available at a gaming center (Public)",
+        "description": "Returns the games selected by the gaming center, enriched with GameCatalog metadata.",
+        "tags": ["Stations"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "gamingCenterSlug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of games for this gaming center",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          }
+        },
+        "operationId": "get_public_gamingCenters_gamingCenterSlug_stations_games"
+      }
+    },
+    "/public/gamingCenters/{gamingCenterSlug}/games": {
+      "get": {
+        "summary": "List games available at a gaming center (Public alias)",
+        "description": "Returns the games selected by the gaming center, enriched with GameCatalog metadata.",
+        "tags": ["Stations"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "gamingCenterSlug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of games for this gaming center",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          }
+        },
+        "operationId": "get_public_gamingCenters_gamingCenterSlug_games"
       }
     },
     "/gamingCenters/{gamingCenterId}/stations/games/from-catalog": {
@@ -4012,10 +4194,20 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["startTime", "endTime"],
                 "properties": {
                   "startTime": { "type": "string", "format": "date-time" },
                   "endTime": { "type": "string", "format": "date-time" },
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-11-20"
+                  },
+                  "slotTime": { "type": "string", "example": "14:00" },
+                  "durationHours": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 24
+                  },
                   "note": { "type": "string" }
                 }
               }
@@ -4033,7 +4225,7 @@
           }
         },
         "operationId": "post_gamingCenters_gamingCenterId_reservation_reservationId_propose-time",
-        "description": "Propose a new reservation time (Owner/Staff)"
+        "description": "Propose a new 60-minute aligned reservation time slot for a PENDING or CONFIRMED reservation (Owner/Staff). Supports either ISO startTime/endTime or date + slotTime."
       }
     },
     "/gamingCenters/{gamingCenterId}/reservation/{reservationId}/proposals": {
@@ -6116,7 +6308,7 @@
           }
         },
         "operationId": "get_public_gamingCenters_gamingCenterSlug_availability_slots",
-        "description": "Returns 60-minute bookable slots according to gaming center operating hours, active status, and reservation/maintenance availability separated by 24-hour intervals."
+        "description": "Returns 60-minute bookable slots according to gaming center operating hours, active status, minimum advance lead time (default 15 minutes or settings.minAdvanceBookingMinutes), and reservation/maintenance availability separated by 24-hour intervals."
       }
     },
     "/public/gamingCenters/{gamingCenterSlug}/reservation": {
@@ -6163,7 +6355,13 @@
                       "email": { "type": "string" }
                     }
                   },
-                  "note": { "type": "string" }
+                  "note": { "type": "string" },
+                  "extraControllers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ExtraControllerSelectionInput"
+                    }
+                  }
                 }
               }
             }
@@ -6215,6 +6413,18 @@
                 "NO_SHOW"
               ]
             }
+          },
+          {
+            "name": "checkInCode",
+            "in": "query",
+            "description": "Exact 5-digit reservation check-in code filter",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Search across checkInCode, customer name, customer phone, and reservation ID",
+            "schema": { "type": "string" }
           }
         ],
         "responses": {
@@ -6267,7 +6477,13 @@
                       "phone": { "type": "string" }
                     }
                   },
-                  "note": { "type": "string" }
+                  "note": { "type": "string" },
+                  "extraControllers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ExtraControllerSelectionInput"
+                    }
+                  }
                 }
               }
             }
@@ -6879,7 +7095,14 @@
                   "defaultDurationHours": { "type": "integer" },
                   "incrementMinutes": { "type": "integer" },
                   "isVip": { "type": "boolean" },
-                  "isActive": { "type": "boolean" }
+                  "isActive": { "type": "boolean" },
+                  "deviceTypeId": { "type": "string" },
+                  "extraControllers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ExtraControllerConfigInput"
+                    }
+                  }
                 }
               }
             }
@@ -6897,6 +7120,249 @@
         },
         "operationId": "post_gamingCenters_gamingCenterId_stations",
         "description": "Create a new station"
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/stations/{stationId}/extra-controllers": {
+      "get": {
+        "summary": "List extra controller configurations for a station (Manager/Admin)",
+        "tags": ["Stations"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "stationId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Extra controller support status and configurations",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          }
+        },
+        "operationId": "get_gamingCenters_gamingCenterId_stations_stationId_extra-controllers"
+      },
+      "put": {
+        "summary": "Replace extra controller configurations for a station (Manager)",
+        "tags": ["Stations"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "stationId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["extraControllers"],
+                "properties": {
+                  "extraControllers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ExtraControllerConfigInput"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated extra controller configurations",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          }
+        },
+        "operationId": "put_gamingCenters_gamingCenterId_stations_stationId_extra-controllers"
+      },
+      "post": {
+        "summary": "Add an extra controller configuration to a station (Manager)",
+        "tags": ["Stations"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "stationId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtraControllerConfigInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Extra controller configuration created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          }
+        },
+        "operationId": "post_gamingCenters_gamingCenterId_stations_stationId_extra-controllers"
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/stations/{stationId}/extra-controllers/{extraControllerId}": {
+      "patch": {
+        "summary": "Update an extra controller configuration (Manager)",
+        "tags": ["Stations"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "stationId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "extraControllerId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtraControllerConfigInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Extra controller configuration updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          }
+        },
+        "operationId": "patch_gamingCenters_gamingCenterId_stations_stationId_extra-controllers_extraControllerId"
+      },
+      "delete": {
+        "summary": "Delete an extra controller configuration (Manager)",
+        "tags": ["Stations"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "stationId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "extraControllerId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Extra controller configuration deleted" }
+        },
+        "operationId": "delete_gamingCenters_gamingCenterId_stations_stationId_extra-controllers_extraControllerId"
+      }
+    },
+    "/public/gamingCenters/{gamingCenterSlug}/stations/{stationId}/extra-controllers": {
+      "get": {
+        "summary": "Get available extra controllers for a station (Public)",
+        "description": "Returns active extra controllers with live availableQuantity for the requested time window. Returns empty array if DeviceType does not support extra controllers.",
+        "tags": ["Stations"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "gamingCenterSlug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "stationId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "startTime",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "endTime",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of available extra controllers",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          }
+        },
+        "operationId": "get_public_gamingCenters_gamingCenterSlug_stations_stationId_extra-controllers"
       }
     },
     "/gamingCenters": {

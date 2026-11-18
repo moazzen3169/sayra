@@ -16,14 +16,13 @@ import { toPersianDigits } from "@/lib/format";
 import { PLACEHOLDERS } from "@/lib/media";
 import { stationTypeLabel } from "@/lib/ownerStations";
 import { getErrorMessage } from "@/lib/reservationUi";
-import { catalogService } from "@/services/catalogService";
 import { normalizeFilterText } from "@/services/gamecentersPageService";
-import { ownerGamesService } from "@/services/ownerGamesService";
-import type { GameCatalogItem } from "@/types/catalog";
+import { ownerGamesService, type CenterGameItem } from "@/services/ownerGamesService";
+import type { DeviceType } from "@/types/catalog";
 
-const platformsOf = (game?: GameCatalogItem): string =>
-  game?.supportedPlatforms?.length
-    ? game.supportedPlatforms.map((p) => stationTypeLabel(String(p))).join("، ")
+const platformsOf = (platforms?: DeviceType[]): string =>
+  platforms?.length
+    ? platforms.map((p) => stationTypeLabel(String(p))).join("، ")
     : "—";
 
 /* ---------- جدول بازی‌های گیمنت ---------- */
@@ -36,16 +35,15 @@ interface GamesSectionProps {
 
 export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, canEdit = true, onNotify }) => {
   const router = useRouter();
-  const [games, setGames] = useState<string[] | null>(null);
+  const [games, setGames] = useState<CenterGameItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [catalogGames, setCatalogGames] = useState<GameCatalogItem[]>([]);
   const [search, setSearch] = useState("");
   const [reload, setReload] = useState(0);
-  const [deletingTitle, setDeletingTitle] = useState<string | null>(null);
+  const [deletingGame, setDeletingGame] = useState<CenterGameItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // بازی‌های انتخاب‌شده‌ی همین گیمنت
+  // بازی‌های انتخاب‌شده‌ی همین گیمنت (همراه با متادیتای کاتالوگ از API)
   useEffect(() => {
     if (!centerId) return;
     const controller = new AbortController();
@@ -69,43 +67,19 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, canEdit = 
     };
   }, [centerId, reload]);
 
-  // فقط برای نمایش تصویر/پلتفرم بازی‌های ثبت‌شده‌ی گیمنت؛ نبودنش جدول را خراب نمی‌کند
-  const hasGames = Boolean(games && games.length > 0);
-  useEffect(() => {
-    if (!hasGames) return;
-    const controller = new AbortController();
-    let active = true;
-    catalogService
-      .listGames({ isActive: true, limit: 100 }, controller.signal)
-      .then((res) => {
-        if (active) setCatalogGames(res);
-      })
-      .catch(() => {
-        if (active) setCatalogGames([]);
-      });
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [hasGames]);
-
   const rows = useMemo(() => {
-    const byTitle = new Map(catalogGames.map((g) => [normalizeFilterText(g.title), g]));
-    const allRows = (games ?? []).map((title) => ({
-      title,
-      catalog: byTitle.get(normalizeFilterText(title)),
-    }));
+    const allRows = games ?? [];
     const q = normalizeFilterText(search);
     if (!q) return allRows;
-    return allRows.filter((r) => {
-      const matchTitle = normalizeFilterText(r.title).includes(q);
-      const matchGenre = r.catalog?.genre ? normalizeFilterText(r.catalog.genre).includes(q) : false;
-      const matchPlatforms = r.catalog?.supportedPlatforms
-        ? normalizeFilterText(r.catalog.supportedPlatforms.join(" ")).includes(q)
+    return allRows.filter((g) => {
+      const matchTitle = normalizeFilterText(g.title).includes(q);
+      const matchGenre = g.genre ? normalizeFilterText(g.genre).includes(q) : false;
+      const matchPlatforms = g.supportedPlatforms
+        ? normalizeFilterText(g.supportedPlatforms.join(" ")).includes(q)
         : false;
       return matchTitle || matchGenre || matchPlatforms;
     });
-  }, [games, catalogGames, search]);
+  }, [games, search]);
 
   const retry = () => {
     setGames(null);
@@ -114,14 +88,22 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, canEdit = 
   };
 
   const handleRemoveGame = async () => {
-    if (!deletingTitle || !games || isDeleting) return;
+    if (!deletingGame || !games || isDeleting) return;
     setIsDeleting(true);
     setDeleteError(null);
     try {
-      const updated = await ownerGamesService.removeCenterGame(centerId, deletingTitle, games);
-      setGames(updated);
-      onNotify(`بازی «${deletingTitle}» حذف شد.`);
-      setDeletingTitle(null);
+      await ownerGamesService.removeCenterGame(centerId, deletingGame.id || deletingGame.title);
+      setGames((prev) =>
+        prev
+          ? prev.filter(
+              (g) =>
+                g.id !== deletingGame.id &&
+                g.title.trim().toLowerCase() !== deletingGame.title.trim().toLowerCase()
+            )
+          : prev
+      );
+      onNotify(`بازی «${deletingGame.title}» حذف شد.`);
+      setDeletingGame(null);
     } catch (err) {
       setDeleteError(getErrorMessage(err));
     } finally {
@@ -197,13 +179,13 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, canEdit = 
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-subtle)]">
-              {rows.map(({ title, catalog }) => (
-                <tr key={title} className="hover:bg-[var(--foreground)]/10">
+              {rows.map((game) => (
+                <tr key={game.id} className="hover:bg-[var(--foreground)]/10">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <span className="h-14 w-11 shrink-0 overflow-hidden rounded-card bg-[var(--foreground)]/40">
                         <SafeImage
-                          src={catalog?.coverImageUrl || ""}
+                          src={game.coverImageUrl || ""}
                           alt=""
                           fallbackSrc={PLACEHOLDERS.center}
                           loading="lazy"
@@ -211,18 +193,18 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, canEdit = 
                         />
                       </span>
                       <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="truncate font-bold text-[var(--text-white)]">{title}</span>
+                        <span className="truncate font-bold text-[var(--text-white)]">{game.title}</span>
                         <span className="truncate text-xs text-[var(--text-muted)] sm:hidden">
-                          {platformsOf(catalog)}
+                          {platformsOf(game.supportedPlatforms)}
                         </span>
                       </div>
                     </div>
                   </td>
                   <td className="hidden px-4 py-3 text-xs text-[var(--text-muted)] sm:table-cell">
-                    {platformsOf(catalog)}
+                    {platformsOf(game.supportedPlatforms)}
                   </td>
                   <td className="hidden px-4 py-3 text-xs text-[var(--text-muted)] md:table-cell">
-                    {catalog?.genre || "—"}
+                    {game.genre || "—"}
                   </td>
                   <td className="px-4 py-3 text-left">
                     <button
@@ -230,9 +212,9 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, canEdit = 
                       disabled={!canEdit}
                       onClick={() => {
                         setDeleteError(null);
-                        setDeletingTitle(title);
+                        setDeletingGame(game);
                       }}
-                      aria-label={`حذف ${title}`}
+                      aria-label={`حذف ${game.title}`}
                       className="flex h-9 w-9 items-center justify-center rounded-card text-[var(--text-muted)] hover:bg-[var(--foreground)] hover:text-[var(--accent-red)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Icon name="trash" size={18} />
@@ -245,12 +227,12 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, canEdit = 
         </div>
       )}
 
-      {deletingTitle && (
+      {deletingGame && (
         <Modal
           isOpen
           onClose={() => {
             if (!isDeleting) {
-              setDeletingTitle(null);
+              setDeletingGame(null);
               setDeleteError(null);
             }
           }}
@@ -258,7 +240,7 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, canEdit = 
         >
           <div className="flex flex-col gap-4">
             <p className="text-sm leading-7 text-[var(--text-white)]">
-              آیا از حذف بازی «{deletingTitle}» از فهرست بازی‌های گیم‌نت اطمینان دارید؟
+              آیا از حذف بازی «{deletingGame.title}» از فهرست بازی‌های گیم‌نت اطمینان دارید؟
             </p>
 
             {deleteError && (
@@ -285,7 +267,7 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, canEdit = 
                 type="button"
                 variant="secondary"
                 size="lg"
-                onClick={() => setDeletingTitle(null)}
+                onClick={() => setDeletingGame(null)}
                 disabled={isDeleting}
               >
                 انصراف

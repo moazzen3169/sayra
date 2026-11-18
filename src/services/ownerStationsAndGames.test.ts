@@ -206,32 +206,61 @@ describe("ownerService: Station & Games Management", () => {
     }
   });
 
-  it("removes a game and saves the updated games list via PATCH /gamingCenters/{id}", async () => {
+  it("lists selected center games via GET /gamingCenters/{id}/stations/games", async () => {
     let capturedUrl = "";
-    let capturedBody: any = null;
-
-    const originalPatch = apiClient.patch;
-    apiClient.patch = (async (url: string, body: any) => {
+    const originalGet = apiClient.get;
+    apiClient.get = (async (url: string) => {
       capturedUrl = url;
-      capturedBody = body;
+      return {
+        data: {
+          success: true,
+          data: [
+            {
+              id: "g-fc25",
+              title: "EA Sports FC 25",
+              coverImageUrl: "/uploads/fc25.png",
+              supportedPlatforms: ["PLAYSTATION", "PC"],
+              genre: "Sports",
+            },
+            "GTA V",
+          ],
+        },
+      };
+    }) as any;
+
+    try {
+      const { ownerGamesService } = await import("./ownerGamesService");
+      const games = await ownerGamesService.listCenterGames(centerId);
+
+      expect(capturedUrl).toBe(ENDPOINTS.owner.games(centerId));
+      expect(games.length).toBe(2);
+      expect(games[0].id).toBe("g-fc25");
+      expect(games[0].title).toBe("EA Sports FC 25");
+      expect(games[0].supportedPlatforms).toEqual(["PLAYSTATION", "PC"]);
+      expect(games[0].genre).toBe("Sports");
+      expect(games[1].id).toBe("GTA V");
+      expect(games[1].title).toBe("GTA V");
+    } finally {
+      apiClient.get = originalGet;
+    }
+  });
+
+  it("removes a game via DELETE /gamingCenters/{id}/stations/games/{gameId}", async () => {
+    let capturedUrl = "";
+
+    const originalDelete = apiClient.delete;
+    apiClient.delete = (async (url: string) => {
+      capturedUrl = url;
       return { data: { success: true } };
     }) as any;
 
     try {
       const { ownerGamesService } = await import("./ownerGamesService");
-      const updated = await ownerGamesService.removeCenterGame(
-        centerId,
-        "Mortal Kombat 1",
-        ["GTA V", "EA Sports FC 25", "Mortal Kombat 1"]
-      );
+      await ownerGamesService.removeCenterGame(centerId, "Mortal Kombat 1");
 
-      expect(capturedUrl).toBe(ENDPOINTS.owner.center(centerId));
-      expect(capturedBody).toEqual({
-        games: ["GTA V", "EA Sports FC 25"],
-      });
-      expect(updated).toEqual(["GTA V", "EA Sports FC 25"]);
+      expect(capturedUrl).toBe(ENDPOINTS.owner.gameDetail(centerId, "Mortal Kombat 1"));
     } finally {
-      apiClient.patch = originalPatch;
+      apiClient.delete = originalDelete;
     }
   });
 

@@ -296,6 +296,55 @@ describe("Phase 6: Gaming-Center Detail Data (Mocked Network)", () => {
       expect(detail.games).toEqual([]);
     });
 
+    it("loads selected center games from GET /public/gamingCenters/{slug}/stations/games", async () => {
+      setupMockFetch((url) => {
+        if (url.includes("/public/gamingCenters/apex-center/stations/games")) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: [
+                {
+                  id: "cat-fc25",
+                  title: "EA Sports FC 25",
+                  coverImageUrl: "https://example.com/fc25.jpg",
+                  supportedPlatforms: ["PLAYSTATION"],
+                  genre: "Sports",
+                },
+                {
+                  id: "cat-gta5",
+                  title: "GTA V",
+                  coverImageUrl: null,
+                },
+              ],
+            }),
+            { status: 200 }
+          );
+        }
+        if (url.includes("/public/gamingCenters/apex-center")) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                id: "gc-apex-1",
+                name: "مرکز اپکس",
+                slug: "apex-center",
+                description: "مرکز بازی و سرگرمی",
+                isActive: true,
+              },
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response(JSON.stringify({ success: true, data: [] }), { status: 200 });
+      });
+
+      const detail = await loadGamecenterDetail("apex-center");
+      expect(detail.games).toEqual([
+        { id: "cat-fc25", name: "EA Sports FC 25", logo: "https://example.com/fc25.jpg" },
+        { id: "cat-gta5", name: "GTA V", logo: "" },
+      ]);
+    });
+
     it("propagates API error when center resolution fails with 500 internal server error", async () => {
       setupMockFetch(() => {
         return new Response(

@@ -4,6 +4,13 @@ import React, { useMemo, useState } from "react";
 import { toPersianDigits } from "@/lib/format";
 import { Icon } from "@/components/ui/Icon";
 import { SafeImage } from "@/components/ui/SafeImage";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 import { PLACEHOLDERS } from "@/lib/media";
 import type { GameItem } from "@/types/gamecenter";
 
@@ -44,32 +51,54 @@ export const GamesMarquee: React.FC<{ games: GameItem[] }> = ({ games }) => {
   );
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Search */}
-      <div className="relative">
-        <Icon
-          name="search"
-          size={16}
-          className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--primary)]"
-        />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="جستجوی بازی در این گیمنت…"
-          aria-label="جستجوی بازی"
-          autoComplete="off"
-          className="h-11 w-full rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] pr-10 pl-10 text-sm text-[var(--text-white)] outline-none transition-colors placeholder:text-[var(--text-subtle)] focus:border-[var(--primary)]"
-        />
-        {query && (
-          <button
-            type="button"
-            onClick={() => setQuery("")}
-            aria-label="پاک کردن جستجو"
-            className="absolute left-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--foreground)] hover:text-[var(--text-white)]"
-          >
-            <Icon name="close" size={14} />
-          </button>
+    <Carousel
+      opts={{
+        direction: "rtl",
+        align: "start",
+        containScroll: "trimSnaps",
+      }}
+      className="w-full flex flex-col gap-4"
+    >
+      {/* Search & Slider Controls */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Icon
+            name="search"
+            size={16}
+            className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--primary)]"
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="جستجوی بازی در این گیمنت…"
+            aria-label="جستجوی بازی"
+            autoComplete="off"
+            className="h-11 w-full rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] pr-10 pl-10 text-sm text-[var(--text-white)] outline-none transition-colors placeholder:text-[var(--text-subtle)] focus:border-[var(--primary)]"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="پاک کردن جستجو"
+              className="absolute left-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--foreground)] hover:text-[var(--text-white)]"
+            >
+              <Icon name="close" size={14} />
+            </button>
+          )}
+        </div>
+
+        {!q && (
+          <div className="hidden sm:flex items-center gap-1 relative shrink-0">
+            <CarouselPrevious
+              className="static translate-y-0 translate-x-0 w-11 h-11 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              title="قبلی"
+            />
+            <CarouselNext
+              className="static translate-y-0 translate-x-0 w-11 h-11 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              title="بعدی"
+            />
+          </div>
         )}
       </div>
 
@@ -92,12 +121,19 @@ export const GamesMarquee: React.FC<{ games: GameItem[] }> = ({ games }) => {
           </div>
         )
       ) : (
-        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-          {games.map((g) => (
-            <GameTile key={g.id} game={g} />
-          ))}
+        <div className="pb-2 select-none">
+          <CarouselContent className="gap-3 -mr-3">
+            {games.map((g) => (
+              <CarouselItem
+                key={g.id}
+                className="pr-3 basis-[36%] sm:basis-[140px] lg:basis-[150px] flex flex-col"
+              >
+                <GameTile game={g} className="w-full aspect-[3/4]" />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
         </div>
       )}
-    </div>
+    </Carousel>
   );
 };

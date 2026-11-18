@@ -3,7 +3,7 @@ import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
 import { apiClient, ApiError, isAbortError } from "@/lib/api/client";
 import { getMockGamecenterDetail } from "@/lib/mocks/gamecenter.mock";
 import { gamingCenterService as coreGamingCenterService } from "@/services/gamingCenterService";
-import { catalogService } from "@/services/catalogService";
+import { normalizeCenterGames, type CenterGameItem } from "@/services/ownerGamesService";
 import { extractMediaItems, normalizeMediaUrl } from "@/lib/media";
 import { normalizeAvailabilitySlots, validateAvailabilityParams } from "@/services/gamingCenterService";
 import type { GamecenterDetail, GamecenterImage, GamecenterReview, GameItem } from "@/types/gamecenter";
@@ -256,6 +256,18 @@ export const gamingCenterService = {
     }
     return [];
   },
+
+  /**
+   * دریافت بازی‌های انتخاب‌شده‌ی گیمنت از اندپوینت عمومی:
+   * GET /public/gamingCenters/{slug}/stations/games
+   */
+  async getPublicGames(slug: string, signal?: AbortSignal): Promise<CenterGameItem[]> {
+    if (!slug) return [];
+    const { data } = await apiClient.get<unknown>(ENDPOINTS.gamingCenter.publicGames(slug), {
+      signal,
+    });
+    return normalizeCenterGames(data);
+  },
 };
 
 /**
@@ -343,16 +355,12 @@ const fetchStationsPromise = (async (): Promise<GameStationInfo[]> => {
   return [];
 })();
 
-  const hasCenterGames = Array.isArray(center.games) && center.games.length > 0;
-
-  const [stationsRes, addressesRes, mediaRes, ratingsRes, gamesCatalogRes] = await Promise.allSettled([
+  const [stationsRes, addressesRes, mediaRes, ratingsRes, publicGamesRes] = await Promise.allSettled([
     fetchStationsPromise,
     gamingCenterService.getPublicAddresses(targetSlug, signal),
     gamingCenterService.getPublicMedia(targetSlug, signal),
     gamingCenterService.getPublicRatings(targetSlug, signal),
-    hasCenterGames
-      ? catalogService.listGames({ isActive: true, limit: 100 }, signal)
-      : Promise.resolve([]),
+    gamingCenterService.getPublicGames(targetSlug, signal),
   ]);
 
   let stations: GameStationInfo[] = [];
@@ -385,47 +393,18 @@ const fetchStationsPromise = (async (): Promise<GameStationInfo[]> => {
   const galleryImages = mapMediaToGalleryImages(mediaList);
   const reviews = mapRatingsToReviews(ratings);
 
-  // فقط بازی‌های انتخاب‌شده‌ی همین گیمنت (center.games) نمایش داده می‌شوند
-  // و از کاتالوگ صرفاً برای تکمیل تصویر کاور و شناسه استفاده می‌شود.
-  const catalogList =
-    gamesCatalogRes.status === "fulfilled" && Array.isArray(gamesCatalogRes.value)
-      ? gamesCatalogRes.value
-      : [];
-  const catalogByTitle = new Map(
-    catalogList.map((g) => [g.title.trim().toLowerCase(), g])
-  );
-  const catalogById = new Map(catalogList.map((g) => [g.id, g]));
+  // بازی‌های انتخاب‌شده‌ی همین گیمنت از GET /public/gamingCenters/{slug}/stations/games
+  // که به‌صورت مستقیم همراه با متادیتای GameCatalog برگردانده می‌شوند.
+  const centerGames: CenterGameItem[] =
+    publicGamesRes.status === "fulfilled"
+      ? publicGamesRes.value
+      : normalizeCenterGames(center.games);
 
-  const games: GameItem[] = [];
-  if (Array.isArray(center.games)) {
-    const seen = new Set<string>();
-    for (const raw of center.games) {
-      let title = "";
-      let rawId: string | undefined;
-      let rawLogo = "";
-
-      if (typeof raw === "string") {
-        title = raw.trim();
-      } else if (raw && typeof raw === "object") {
-        const candidateTitle = raw.title ?? raw.name ?? raw.gameTitle;
-        if (typeof candidateTitle === "string") title = candidateTitle.trim();
-        if (typeof raw.id === "string" && raw.id.trim()) rawId = raw.id.trim();
-        if (typeof raw.coverImageUrl === "string") rawLogo = raw.coverImageUrl;
-      }
-
-      if (!title) continue;
-      const key = title.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      const matched = (rawId ? catalogById.get(rawId) : undefined) ?? catalogByTitle.get(key);
-      games.push({
-        id: matched?.id ?? rawId ?? title,
-        name: title,
-        logo: rawLogo || matched?.coverImageUrl || "",
-      });
-    }
-  }
+  const games: GameItem[] = centerGames.map((g) => ({
+    id: g.id,
+    name: g.title,
+    logo: g.coverImageUrl || "",
+  }));
 
   return {
     center,

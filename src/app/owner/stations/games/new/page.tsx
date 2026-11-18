@@ -21,7 +21,7 @@ import { getErrorMessage } from "@/lib/reservationUi";
 import { cn } from "@/lib/utils";
 import { catalogService } from "@/services/catalogService";
 import { normalizeFilterText } from "@/services/gamecentersPageService";
-import { ownerGamesService } from "@/services/ownerGamesService";
+import { ownerGamesService, type CenterGameItem } from "@/services/ownerGamesService";
 import type { GameCatalogItem, GameCatalogQueryParams } from "@/types/catalog";
 
 const platformsOf = (game?: GameCatalogItem): string =>
@@ -35,7 +35,7 @@ export default function NewOwnerGamePage() {
   const canEdit = verificationStatus === "APPROVED";
 
   // بازی‌های فعلی گیمنت برای تشخیص موارد اضافه‌شده
-  const [centerGames, setCenterGames] = useState<string[] | null>(null);
+  const [centerGames, setCenterGames] = useState<CenterGameItem[] | null>(null);
   const [centerGamesError, setCenterGamesError] = useState<string | null>(null);
   const [centerGamesReload, setCenterGamesReload] = useState(0);
 
@@ -115,8 +115,13 @@ export default function NewOwnerGamePage() {
     };
   }, [debounced, platform, catalogRetry]);
 
+  const addedIds = useMemo(
+    () => new Set((centerGames ?? []).map((g) => g.id)),
+    [centerGames]
+  );
+
   const addedTitles = useMemo(
-    () => new Set((centerGames ?? []).map((g) => normalizeFilterText(g))),
+    () => new Set((centerGames ?? []).map((g) => normalizeFilterText(g.title))),
     [centerGames]
   );
 
@@ -262,7 +267,8 @@ export default function NewOwnerGamePage() {
           {items && items.length > 0 && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {items.map((game) => {
-                const added = addedTitles.has(normalizeFilterText(game.title));
+                const added =
+                  addedIds.has(game.id) || addedTitles.has(normalizeFilterText(game.title));
                 const isSelected = selectedIds.includes(game.id);
                 return (
                   <button
