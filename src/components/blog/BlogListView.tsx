@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Header } from "@/components/Header";
 import { BottomBar } from "@/components/BottomBar";
 import { BlogHeroSlider } from "@/components/blog/BlogHeroSlider";
 import {
@@ -15,7 +14,6 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Icon } from "@/components/ui/Icon";
-import { useCity } from "@/context/CityContext";
 import { isAbortError } from "@/lib/api/client";
 import {
   DEFAULT_BLOG_SORT,
@@ -47,7 +45,6 @@ export const BlogListView: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const { selectedCity, setCity } = useCity();
 
   // وضعیت فیلترها از URL خوانده می‌شود
   const urlQuery = params.get("q") ?? "";
@@ -261,12 +258,7 @@ export const BlogListView: React.FC = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-28 text-[var(--text-white)] lg:pb-12">
-      <Header
-        locationName={selectedCity}
-        onCityChange={(nextCity) => setCity(nextCity)}
-      />
-
-      <main className="mx-auto flex w-full max-w-[var(--max-app-width)] flex-1 flex-col gap-6 px-4 pb-4 pt-[var(--header-m-h)] lg:gap-8 lg:px-8 lg:pt-[var(--header-h)]">
+      <main className="mx-auto flex w-full max-w-[var(--max-app-width)] flex-1 flex-col gap-6 px-4 pb-4 pt-4 lg:gap-8 lg:px-8 lg:pt-8">
         {/* اسلایدر مقاله‌های داغ (Hot) */}
         <BlogHeroSlider />
 

@@ -37,8 +37,8 @@ type StationType = StationInput["stationType"];
 function NewStationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { centerId, center, isCenterLoading, verificationStatus } = useOwner();
-  const canEdit = verificationStatus === "APPROVED";
+  const { centerId, center, isCenterLoading } = useOwner();
+  const canEdit = true;
 
   const initialMode = searchParams.get("mode") === "custom" ? "custom" : "catalog";
   const initialCatalogId = searchParams.get("catalogId") ?? "";

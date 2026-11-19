@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Header } from "@/components/Header";
 import { BlogArticleContent } from "@/components/blog/BlogArticleContent";
 import { BlogPostCard } from "@/components/blog/BlogPostCard";
 import { BlogPromoBanner } from "@/components/blog/BlogPromoBanner";
@@ -157,16 +156,13 @@ useEffect(() => {
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-12 text-[var(--text-white)]">
-      {/* دسکتاپ: هدر اصلی ؛ موبایل: هدر صفحه‌ی داخلی */}
-      <div className="hidden lg:block">
-        <Header />
-      </div>
+      {/* موبایل: هدر صفحه‌ی داخلی */}
       <PageHeader title="وبلاگ" onBack={goBack} className="lg:hidden" />
 
       {/* بنر چسبان موبایل با ارتفاع دقیق ۸۰px و قابلیت مخفی‌سازی در زیر هدر */}
       <BlogPromoBanner variant="mobile" />
 
-      <main className="mx-auto flex w-full max-w-[var(--max-app-width)] flex-1 flex-col gap-8 px-4 pt-4 lg:px-8 lg:pt-[calc(var(--header-h,80px))]">
+      <main className="mx-auto flex w-full max-w-[var(--max-app-width)] flex-1 flex-col gap-8 px-4 pt-4 lg:px-8 lg:pt-8">
         {/* دو قسمت اصلی صفحه در دسکتاپ (قسمت اول: محتوای وبلاگ حدود ۸۰٪ ، قسمت دوم: کارت تبلیغ ۲۰٪) */}
         <div className="flex w-full flex-col items-start gap-8 lg:flex-row">
           {/* قسمت اول: جزییات و کل محتوای وبلاگ */}
@@ -286,7 +282,7 @@ useEffect(() => {
           </div>
 
           {/* قسمت دوم: کارت تبلیغ ۲۰٪ ثابت چسبان تا بخش پست‌های پیشنهادی در دسکتاپ */}
-          <div className="hidden lg:block lg:w-[280px] xl:w-[320px] shrink-0 sticky top-[calc(var(--header-h,80px)+1.5rem)] self-start z-10">
+          <div className="hidden lg:block lg:w-[280px] xl:w-[320px] shrink-0 sticky top-8 self-start z-10">
             <BlogPromoBanner variant="desktop" />
           </div>
         </div>

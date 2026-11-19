@@ -68,6 +68,124 @@
       }
     },
     "schemas": {
+      "GamingCenterVerificationStatus": {
+        "type": "string",
+        "enum": ["NOT_SUBMITTED", "PENDING", "APPROVED", "REJECTED"],
+        "description": "Verification status of a gaming center"
+      },
+      "SubmitVerificationInput": {
+        "type": "object",
+        "required": ["ownerFullName", "phoneNumber", "gamingCenterName"],
+        "properties": {
+          "ownerFullName": {
+            "type": "string",
+            "minLength": 2,
+            "description": "نام و نام خانوادگی صاحب یا مدیر گیم‌نت",
+            "example": "علی رضایی"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "pattern": "^(\\\\+98|0)?9\\\\d{9}$",
+            "description": "شماره تماس معتبر مدیر گیم‌نت",
+            "example": "09123456789"
+          },
+          "gamingCenterName": {
+            "type": "string",
+            "minLength": 2,
+            "description": "نام گیم‌نت متقاضی احراز هویت",
+            "example": "گیم نت شتاب"
+          },
+          "businessLicense": {
+            "type": "string",
+            "format": "binary",
+            "description": "فایل تصویر پروانه کسب (حداکثر ۵ مگابایت)"
+          },
+          "businessLicenseUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "آدرس تصویر پروانه کسب"
+          },
+          "nationalCardUrl": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true,
+            "description": "تصویر کارت ملی (اختیاری)"
+          },
+          "idWithSelfieUrl": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true,
+            "description": "تصویر سلفی با مدرک هویتی (اختیاری)"
+          }
+        }
+      },
+      "GamingCenterVerification": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "gamingCenterId": {
+            "type": "string",
+            "description": "شناسه گیم‌نت مربوطه"
+          },
+          "ownerFullName": { "type": "string", "nullable": true },
+          "phoneNumber": { "type": "string", "nullable": true },
+          "gamingCenterName": { "type": "string", "nullable": true },
+          "businessLicenseUrl": { "type": "string" },
+          "nationalCardUrl": { "type": "string", "nullable": true },
+          "idWithSelfieUrl": { "type": "string", "nullable": true },
+          "status": {
+            "$ref": "#/components/schemas/GamingCenterVerificationStatus"
+          },
+          "rejectionReason": {
+            "type": "string",
+            "nullable": true,
+            "description": "دلیل رد احراز هویت در صورت عدم تایید"
+          },
+          "reviewedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "GamingCenterVerificationStatusResponse": {
+        "type": "object",
+        "properties": {
+          "gamingCenterId": { "type": "string" },
+          "name": { "type": "string" },
+          "verificationStatus": {
+            "$ref": "#/components/schemas/GamingCenterVerificationStatus"
+          },
+          "verifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "rejectionReason": {
+            "type": "string",
+            "nullable": true,
+            "description": "دلیل رد شدن درخواست در صورت رد احراز هویت"
+          },
+          "latestVerification": {
+            "$ref": "#/components/schemas/GamingCenterVerification",
+            "nullable": true
+          }
+        }
+      },
+      "RejectVerificationInput": {
+        "type": "object",
+        "required": ["rejectionReason"],
+        "properties": {
+          "rejectionReason": {
+            "type": "string",
+            "minLength": 3,
+            "description": "دلیل رد درخواست احراز هویت گیم‌نت که برای کاربر نمایش داده خواهد شد",
+            "example": "تصویر پروانه کسب تار و ناخوانا است"
+          }
+        }
+      },
       "CustomerWalletOverview": {
         "type": "object",
         "properties": {
@@ -1734,20 +1852,39 @@
       },
       "CreatePlatformAdRequestInput": {
         "type": "object",
-        "required": ["title", "bannerUrl"],
+        "required": ["title"],
         "properties": {
           "title": {
             "type": "string",
+            "minLength": 2,
+            "maxLength": 200,
             "example": "Summer Global Discount 20%"
           },
           "description": {
             "type": "string",
+            "maxLength": 2000,
             "nullable": true,
             "example": "Platform-wide 20% discount on all PS5 bookings"
           },
           "bannerUrl": {
             "type": "string",
+            "description": "Banner image HTTP(S) URL or relative path (required when not uploading a banner file via multipart/form-data)",
             "example": "https://cdn.playnest.ir/banners/summer-sale.png"
+          },
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "description": "Banner image file (max 5MB) when submitting via multipart/form-data"
+          },
+          "banner": {
+            "type": "string",
+            "format": "binary",
+            "description": "Alias for banner image file (max 5MB) when submitting via multipart/form-data"
+          },
+          "bannerImage": {
+            "type": "string",
+            "format": "binary",
+            "description": "Alias for banner image file (max 5MB) when submitting via multipart/form-data"
           },
           "mediaType": {
             "type": "string",
@@ -1762,15 +1899,29 @@
               "CATEGORY",
               "CUSTOM_LINK"
             ],
+            "description": "Type of advertisement. Omit or set to GLOBAL_PROMOTION, CUSTOM_LINK, or CATEGORY for independent platform ads without a gaming center.",
             "example": "GLOBAL_PROMOTION"
           },
-          "category": { "type": "string", "nullable": true, "example": "PS5" },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "nullable": true,
+            "description": "Required when adType is CATEGORY",
+            "example": "PS5"
+          },
           "destinationUrl": {
             "type": "string",
+            "format": "uri",
             "nullable": true,
+            "description": "Required when adType is CUSTOM_LINK",
             "example": "https://playnest.ir/promotions/summer"
           },
-          "gamingCenterId": { "type": "string", "nullable": true },
+          "gamingCenterId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Optional gaming center ID. Omit or pass null/empty string for independent platform-wide ads not linked to any gaming center. Required only when adType is GAMING_CENTER."
+          },
           "ownerId": { "type": "string", "nullable": true },
           "mediaId": { "type": "string", "nullable": true },
           "status": {
@@ -1778,11 +1929,21 @@
             "enum": ["APPROVED", "PENDING"],
             "default": "APPROVED"
           },
-          "durationDays": { "type": "integer", "default": 30 },
-          "priority": { "type": "integer", "default": 0 },
+          "durationDays": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 365,
+            "default": 30
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000,
+            "default": 0
+          },
           "startDate": { "type": "string", "format": "date-time" },
           "endDate": { "type": "string", "format": "date-time" },
-          "adminNote": { "type": "string", "nullable": true }
+          "adminNote": { "type": "string", "maxLength": 1000, "nullable": true }
         }
       },
       "UpdatePlatformAdStatusInput": {
@@ -1914,6 +2075,110 @@
               }
             }
           }
+        }
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/verification": {
+      "post": {
+        "summary": "ثبت درخواست احراز هویت گیم‌نت (KYC)",
+        "description": "ثبت اطلاعات هویتی و آپلود فایل پروانه کسب گیم‌نت (حداکثر ۵ مگابایت). تا زمان تایید درخواست توسط ادمین، گیم‌نت به صورت عمومی نمایش داده نمی‌شود.",
+        "tags": ["GamingCenterVerification"],
+        "operationId": "post_gamingCenters_gamingCenterId_verification",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "description": "شناسه گیم‌نت",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitVerificationInput"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitVerificationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "درخواست احراز هویت با موفقیت ثبت شد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "verificationId": { "type": "string" },
+                        "gamingCenterId": { "type": "string" },
+                        "status": {
+                          "$ref": "#/components/schemas/GamingCenterVerificationStatus"
+                        },
+                        "ownerFullName": { "type": "string" },
+                        "phoneNumber": { "type": "string" },
+                        "gamingCenterName": { "type": "string" },
+                        "businessLicenseUrl": { "type": "string" },
+                        "message": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      },
+      "get": {
+        "summary": "مشاهده وضعیت احراز هویت گیم‌نت",
+        "description": "کاربر و مدیر گیم‌نت می‌توانند وضعیت احراز هویت و در صورت رد درخواست، دلیل رد شدن را مشاهده کنند.",
+        "tags": ["GamingCenterVerification"],
+        "operationId": "get_gamingCenters_gamingCenterId_verification",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "description": "شناسه گیم‌نت",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "وضعیت احراز هویت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "$ref": "#/components/schemas/GamingCenterVerificationStatusResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
         }
       }
     },
@@ -2205,7 +2470,7 @@
       "get": {
         "operationId": "listPlatformAdRequests",
         "summary": "List all advertisement requests across platform",
-        "description": "Returns paginated list of all advertisement requests for Platform Admin review.",
+        "description": "Returns paginated list of all advertisement requests (including independent global ads and gaming-center ads) for Platform Admin review.",
         "tags": ["PlatformAdmin"],
         "security": [{ "bearerAuth": [] }],
         "parameters": [
@@ -2234,6 +2499,19 @@
               ]
             }
           },
+          {
+            "name": "adType",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "GAMING_CENTER",
+                "GLOBAL_PROMOTION",
+                "CATEGORY",
+                "CUSTOM_LINK"
+              ]
+            }
+          },
           { "name": "search", "in": "query", "schema": { "type": "string" } },
           {
             "name": "gamingCenterId",
@@ -2241,7 +2519,44 @@
             "schema": { "type": "string" }
           },
           { "name": "ownerId", "in": "query", "schema": { "type": "string" } },
-          { "name": "city", "in": "query", "schema": { "type": "string" } }
+          { "name": "city", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "startDate",
+            "in": "query",
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "createdAt",
+                "updatedAt",
+                "startDate",
+                "endDate",
+                "durationDays",
+                "priority",
+                "title",
+                "status"
+              ],
+              "default": "createdAt"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["asc", "desc", "ASC", "DESC"],
+              "default": "desc"
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -2267,14 +2582,19 @@
       },
       "post": {
         "operationId": "createPlatformAdRequest",
-        "summary": "Create advertisement directly as Platform Admin",
-        "description": "Allows authenticated Platform Admins to create advertisements directly with APPROVED status, with or without a Gaming Center.",
+        "summary": "Create advertisement directly as Platform Admin (independent or center-linked)",
+        "description": "Allows authenticated Platform Admins to create advertisements directly with APPROVED status, either as independent platform-wide promotions (GLOBAL_PROMOTION, CUSTOM_LINK, CATEGORY without any gamingCenterId) or linked to a specific Gaming Center. Supports both JSON and multipart/form-data banner uploads.",
         "tags": ["PlatformAdmin"],
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlatformAdRequestInput"
+              }
+            },
+            "multipart/form-data": {
               "schema": {
                 "$ref": "#/components/schemas/CreatePlatformAdRequestInput"
               }
@@ -7547,6 +7867,14 @@
             "schema": { "type": "string" }
           },
           {
+            "name": "verificationStatus",
+            "in": "query",
+            "description": "Filter by verification status (default is APPROVED for public listing)",
+            "schema": {
+              "$ref": "#/components/schemas/GamingCenterVerificationStatus"
+            }
+          },
+          {
             "name": "game",
             "in": "query",
             "description": "Filter by game offered",
@@ -9359,7 +9687,7 @@
                   "file": {
                     "type": "string",
                     "format": "binary",
-                    "description": "Image file to upload (JPEG, PNG, WEBP, GIF, max 5MB)"
+                    "description": "Image file to upload (JPEG, PNG, WEBP, GIF, AVIF, max 5MB)"
                   }
                 }
               }
@@ -9593,6 +9921,164 @@
           },
           "403": { "$ref": "#/components/responses/ForbiddenError" }
         }
+      },
+      "post": {
+        "summary": "Create a new gaming center as Platform Admin",
+        "description": "Directly registers a new gaming center organization and assigns its primary owner.",
+        "tags": ["PlatformAdmin"],
+        "operationId": "post_platform_admin_gaming_centers",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "slug", "ownerId"],
+                "properties": {
+                  "name": { "type": "string", "minLength": 2 },
+                  "slug": {
+                    "type": "string",
+                    "minLength": 3,
+                    "pattern": "^[a-z0-9-]+$"
+                  },
+                  "ownerId": { "type": "string" },
+                  "games": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Gaming center created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Success" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/GamingCenter" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" }
+        }
+      }
+    },
+    "/platform-admin/gaming-centers/{id}": {
+      "get": {
+        "summary": "Get gaming center details by ID for Platform Admin",
+        "description": "Retrieve full administrative details of a specific gaming center including owner and address.",
+        "tags": ["PlatformAdmin"],
+        "operationId": "get_platform_admin_gaming_centers_id",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gaming center details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Success" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/GamingCenter" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      },
+      "patch": {
+        "summary": "Update gaming center details as Platform Admin",
+        "description": "Update name, slug, active status, subscription status, games, or owner of a gaming center.",
+        "tags": ["PlatformAdmin"],
+        "operationId": "patch_platform_admin_gaming_centers_id",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 2 },
+                  "slug": {
+                    "type": "string",
+                    "minLength": 3,
+                    "pattern": "^[a-z0-9-]+$"
+                  },
+                  "isActive": { "type": "boolean" },
+                  "subscriptionStatus": { "type": "string" },
+                  "games": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": { "type": "string" }
+                  },
+                  "ownerId": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Gaming center updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Success" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/GamingCenter" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
       }
     },
     "/platform-admin/gaming-centers/{id}/status": {
@@ -9634,6 +10120,204 @@
             }
           },
           "403": { "$ref": "#/components/responses/ForbiddenError" }
+        }
+      }
+    },
+    "/platform-admin/verifications": {
+      "get": {
+        "summary": "لیست درخواست‌های احراز هویت برای پلتفرم ادمین",
+        "description": "مشاهده و بررسی درخواست‌های احراز هویت به همراه آیدی گیم‌نت، نام گیم‌نت، اطلاعات صاحب گیم‌نت و مدارک پروانه کسب.",
+        "tags": ["PlatformAdminVerifications"],
+        "operationId": "get_platform_admin_verifications",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20 }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/GamingCenterVerificationStatus"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "لیست درخواست‌ها به همراه صفحه‌بندی",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/GamingCenterVerification"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" }
+        }
+      }
+    },
+    "/platform-admin/verifications/{id}": {
+      "get": {
+        "summary": "مشاهده جزئیات یک درخواست احراز هویت",
+        "description": "نمایش اطلاعات درخواست، آیدی و نام گیم‌نت مربوطه، اطلاعات هویتی و فایل پروانه کسب.",
+        "tags": ["PlatformAdminVerifications"],
+        "operationId": "get_platform_admin_verifications_id",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "شناسه درخواست احراز هویت",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "جزئیات احراز هویت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "$ref": "#/components/schemas/GamingCenterVerification"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/platform-admin/verifications/{id}/approve": {
+      "post": {
+        "summary": "تایید احراز هویت گیم‌نت توسط پلتفرم ادمین",
+        "description": "با تایید درخواست، وضعیت گیم‌نت به APPROVED تغییر کرده و برای عموم کاربران در سایت و اپلیکیشن نمایش داده می‌شود.",
+        "tags": ["PlatformAdminVerifications"],
+        "operationId": "post_platform_admin_verifications_id_approve",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "شناسه درخواست احراز هویت",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "درخواست با موفقیت تایید شد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": { "type": "string", "example": "APPROVED" },
+                        "gamingCenterId": { "type": "string" },
+                        "reviewedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "message": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/platform-admin/verifications/{id}/reject": {
+      "post": {
+        "summary": "رد درخواست احراز هویت گیم‌نت همراه با ثبت دلیل",
+        "description": "ادمین دلیل رد شدن درخواست را ثبت می‌کند تا کاربر بتواند علت عدم تایید را مشاهده و اصلاح نماید.",
+        "tags": ["PlatformAdminVerifications"],
+        "operationId": "post_platform_admin_verifications_id_reject",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "شناسه درخواست احراز هویت",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectVerificationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "درخواست با موفقیت رد شد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": { "type": "string", "example": "REJECTED" },
+                        "gamingCenterId": { "type": "string" },
+                        "rejectionReason": { "type": "string" },
+                        "reviewedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "message": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
         }
       }
     },
@@ -13886,6 +14570,1306 @@
         },
         "responses": { "200": { "description": "Payment status updated" } }
       }
+    },
+    "/platform-admin/dashboard": {
+      "get": {
+        "summary": "Platform Admin HTML Dashboard UI",
+        "description": "Renders the Platform Super Admin web dashboard interface.",
+        "tags": ["PlatformAdmin"],
+        "operationId": "get_platform_admin_dashboard_ui",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "HTML Dashboard page",
+            "content": { "text/html": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/platform-admin/analytics/dashboard": {
+      "get": {
+        "summary": "Platform Admin Analytics HTML Dashboard UI",
+        "description": "Renders the Platform Super Admin analytics dashboard interface.",
+        "tags": ["PlatformAdmin"],
+        "operationId": "get_platform_admin_analytics_dashboard_ui",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "HTML Analytics Dashboard page",
+            "content": { "text/html": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/platform-admin/reservations/{id}/cancel": {
+      "post": {
+        "summary": "Cancel a reservation across the platform",
+        "description": "Allows a Platform Admin to cancel any reservation with a mandatory cancellation reason.",
+        "tags": ["PlatformAdmin"],
+        "operationId": "post_platform_admin_reservations_id_cancel",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["reason"],
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reservation cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/platform-admin/reservations/{id}/confirm": {
+      "post": {
+        "summary": "Confirm a reservation as Platform Admin",
+        "description": "Allows a Platform Admin to confirm a reservation across any gaming center.",
+        "tags": ["PlatformAdmin"],
+        "operationId": "post_platform_admin_reservations_id_confirm",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reservation confirmed successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/platform-admin/reservations/{id}/start": {
+      "post": {
+        "summary": "Start a reservation session as Platform Admin",
+        "description": "Allows a Platform Admin to transition a reservation to in-progress/started.",
+        "tags": ["PlatformAdmin"],
+        "operationId": "post_platform_admin_reservations_id_start",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reservation started successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/platform-admin/reservations/{id}/complete": {
+      "post": {
+        "summary": "Complete a reservation as Platform Admin",
+        "description": "Allows a Platform Admin to mark a reservation as completed.",
+        "tags": ["PlatformAdmin"],
+        "operationId": "post_platform_admin_reservations_id_complete",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reservation completed successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/platform-admin/reservations/{id}/no-show": {
+      "post": {
+        "summary": "Mark a reservation as no-show as Platform Admin",
+        "description": "Allows a Platform Admin to mark a reservation as NO_SHOW.",
+        "tags": ["PlatformAdmin"],
+        "operationId": "post_platform_admin_reservations_id_no_show",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reservation marked as no-show",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/platform-admin/financials/payments": {
+      "get": {
+        "summary": "List payments across the platform",
+        "description": "Paginated list of payments across all gaming centers for Platform Admin financial oversight.",
+        "tags": ["PlatformAdmin"],
+        "operationId": "get_platform_admin_financials_payments",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20 }
+          },
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "gamingCenterId",
+            "in": "query",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated payments list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/ForbiddenError" }
+        }
+      }
+    },
+    "/platform-admin/financials/refunds": {
+      "get": {
+        "summary": "List refunds across the platform",
+        "description": "Paginated list of payment refunds across all gaming centers for Platform Admin oversight.",
+        "tags": ["PlatformAdmin"],
+        "operationId": "get_platform_admin_financials_refunds",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20 }
+          },
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "gamingCenterId",
+            "in": "query",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated refunds list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/ForbiddenError" }
+        }
+      }
+    },
+    "/platform-admin/financials/refunds/{id}/retry": {
+      "post": {
+        "summary": "Retry a failed refund as Platform Admin",
+        "description": "Triggers a retry for a failed payment refund.",
+        "tags": ["PlatformAdmin"],
+        "operationId": "post_platform_admin_financials_refunds_id_retry",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refund retry triggered",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/platform-admin/financials/payments/{id}/reconcile": {
+      "post": {
+        "summary": "Reconcile a payment as Platform Admin",
+        "description": "Reconciles a payment status against the payment gateway and ledger.",
+        "tags": ["PlatformAdmin"],
+        "operationId": "post_platform_admin_financials_payments_id_reconcile",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment reconciled successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/platform-admin/financials/export": {
+      "get": {
+        "summary": "Export platform financial transactions as CSV",
+        "description": "Downloads a CSV report of recent payments across the platform.",
+        "tags": ["PlatformAdmin"],
+        "operationId": "get_platform_admin_financials_export",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "CSV file download",
+            "content": { "text/csv": { "schema": { "type": "string" } } }
+          },
+          "403": { "$ref": "#/components/responses/ForbiddenError" }
+        }
+      }
+    },
+    "/locations/provinces": {
+      "get": {
+        "summary": "List all Iranian provinces",
+        "description": "Returns the list of supported provinces for gaming center address and onboarding selection.",
+        "tags": ["Public"],
+        "operationId": "get_locations_provinces",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "List of provinces",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "name": { "type": "string" },
+                          "slug": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/locations/provinces/{id}/cities": {
+      "get": {
+        "summary": "List cities belonging to a province",
+        "description": "Returns all cities for the specified province ID.",
+        "tags": ["Public"],
+        "operationId": "get_locations_provinces_id_cities",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of cities in province",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "provinceId": { "type": "string" },
+                          "name": { "type": "string" },
+                          "slug": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/onboarding/start": {
+      "post": {
+        "summary": "Start gaming center onboarding flow",
+        "description": "Initiates a new gaming center onboarding draft and sends an OTP to the manager phone number.",
+        "tags": ["GamingCenters"],
+        "operationId": "post_onboarding_start",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "gameCenterName",
+                  "managerFullName",
+                  "managerPhone"
+                ],
+                "properties": {
+                  "gameCenterName": { "type": "string", "minLength": 2 },
+                  "managerFullName": { "type": "string", "minLength": 2 },
+                  "managerPhone": {
+                    "type": "string",
+                    "pattern": "^(\\+98|0)?9\\d{9}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Onboarding started and OTP sent",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/onboarding/otp/verify": {
+      "post": {
+        "summary": "Verify manager OTP during onboarding",
+        "description": "Verifies the 6-digit OTP code for an active onboarding session.",
+        "tags": ["GamingCenters"],
+        "operationId": "post_onboarding_otp_verify",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["onboardingId", "code"],
+                "properties": {
+                  "onboardingId": { "type": "string" },
+                  "code": { "type": "string", "minLength": 6, "maxLength": 6 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP verified successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/onboarding/{id}/location": {
+      "put": {
+        "summary": "Update location step in onboarding",
+        "description": "Saves province, city, street address, and optional coordinates for the onboarding draft.",
+        "tags": ["GamingCenters"],
+        "operationId": "put_onboarding_id_location",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["provinceId", "cityId", "address"],
+                "properties": {
+                  "provinceId": { "type": "string" },
+                  "cityId": { "type": "string" },
+                  "address": { "type": "string", "minLength": 3 },
+                  "latitude": { "type": "number", "nullable": true },
+                  "longitude": { "type": "number", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Location saved",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/onboarding/{id}/working-hours": {
+      "put": {
+        "summary": "Update working hours step in onboarding",
+        "description": "Saves opening time, closing time, closed days, and timezone for the onboarding draft.",
+        "tags": ["GamingCenters"],
+        "operationId": "put_onboarding_id_working_hours",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["openingTime", "closingTime"],
+                "properties": {
+                  "openingTime": {
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)$"
+                  },
+                  "closingTime": {
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)$"
+                  },
+                  "closedDays": {
+                    "type": "array",
+                    "items": { "type": "integer", "minimum": 0, "maximum": 6 }
+                  },
+                  "timezone": { "type": "string", "default": "Asia/Tehran" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Working hours saved",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/onboarding/{id}/media": {
+      "put": {
+        "summary": "Update media step in onboarding",
+        "description": "Saves logo media ID and gallery media IDs for the onboarding draft.",
+        "tags": ["GamingCenters"],
+        "operationId": "put_onboarding_id_media",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "logoMediaId": { "type": "string", "nullable": true },
+                  "galleryMediaIds": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Media references saved",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/onboarding/{id}/preview": {
+      "get": {
+        "summary": "Preview onboarding draft before completion",
+        "description": "Returns the complete summary of the onboarding session draft.",
+        "tags": ["GamingCenters"],
+        "operationId": "get_onboarding_id_preview",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Onboarding draft summary",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/onboarding/{id}/complete": {
+      "post": {
+        "summary": "Complete onboarding and create gaming center",
+        "description": "Finalizes the onboarding draft and creates the gaming center, address, settings, and manager account.",
+        "tags": ["GamingCenters"],
+        "operationId": "post_onboarding_id_complete",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["confirmation"],
+                "properties": {
+                  "confirmation": { "type": "boolean", "enum": [true] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Onboarding completed and center created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/schedules": {
+      "get": {
+        "summary": "Get weekly operating schedules of a gaming center",
+        "description": "Returns the 7-day operating schedule for the gaming center (Manager/Admin).",
+        "tags": ["GamingCenters"],
+        "operationId": "get_gamingCenters_gamingCenterId_schedules",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Weekly operating schedules",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      },
+      "put": {
+        "summary": "Update weekly operating schedules of a gaming center",
+        "description": "Replaces or updates the weekly day-by-day operating schedule for the gaming center.",
+        "tags": ["GamingCenters"],
+        "operationId": "put_gamingCenters_gamingCenterId_schedules",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["schedules"],
+                "properties": {
+                  "schedules": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 7,
+                    "items": {
+                      "type": "object",
+                      "required": ["dayOfWeek"],
+                      "properties": {
+                        "dayOfWeek": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 6
+                        },
+                        "startTime": {
+                          "type": "string",
+                          "nullable": true,
+                          "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)$"
+                        },
+                        "endTime": {
+                          "type": "string",
+                          "nullable": true,
+                          "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)$"
+                        },
+                        "isClosed": { "type": "boolean", "default": false }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Schedules updated successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" }
+        }
+      }
+    },
+    "/public/gamingCenters/{gamingCenterSlug}/schedules": {
+      "get": {
+        "summary": "Get public weekly operating schedules of a gaming center",
+        "description": "Returns the public operating hours schedule for a verified and active gaming center.",
+        "tags": ["Public"],
+        "operationId": "get_public_gamingCenters_gamingCenterSlug_schedules",
+        "security": [],
+        "parameters": [
+          {
+            "name": "gamingCenterSlug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public weekly schedules",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/closures": {
+      "get": {
+        "summary": "List temporary closures/exceptions for a gaming center",
+        "description": "Returns scheduled temporary closures or holiday exceptions for the gaming center.",
+        "tags": ["GamingCenters"],
+        "operationId": "get_gamingCenters_gamingCenterId_closures",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "schema": { "type": "string", "format": "date-time" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of closures",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" }
+        }
+      },
+      "post": {
+        "summary": "Create a temporary closure/exception for a gaming center",
+        "description": "Registers a planned closure window for the gaming center.",
+        "tags": ["GamingCenters"],
+        "operationId": "post_gamingCenters_gamingCenterId_closures",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["startDate", "endDate"],
+                "properties": {
+                  "title": { "type": "string", "maxLength": 200 },
+                  "reason": { "type": "string", "maxLength": 500 },
+                  "startDate": { "type": "string", "format": "date-time" },
+                  "endDate": { "type": "string", "format": "date-time" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Closure created successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" }
+        }
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/closures/{closureId}": {
+      "delete": {
+        "summary": "Delete a temporary closure",
+        "description": "Removes a scheduled closure entry from the gaming center.",
+        "tags": ["GamingCenters"],
+        "operationId": "delete_gamingCenters_gamingCenterId_closures_closureId",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "closureId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Closure deleted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/public/gamingCenters/{gamingCenterSlug}/closures": {
+      "get": {
+        "summary": "Get public upcoming closures for a gaming center",
+        "description": "Returns upcoming temporary closures for a verified gaming center.",
+        "tags": ["Public"],
+        "operationId": "get_public_gamingCenters_gamingCenterSlug_closures",
+        "security": [],
+        "parameters": [
+          {
+            "name": "gamingCenterSlug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public closures list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/group-reservations": {
+      "get": {
+        "summary": "List group reservations for a gaming center",
+        "description": "Returns paginated group reservations for the gaming center (Manager/Admin).",
+        "tags": ["Group Reservations"],
+        "operationId": "get_gamingCenters_gamingCenterId_group_reservations",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20 }
+          },
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "customerProfileId",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "customerAccountId",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "dateFrom",
+            "in": "query",
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "dateTo",
+            "in": "query",
+            "schema": { "type": "string", "format": "date-time" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated group reservations",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" }
+        }
+      },
+      "post": {
+        "summary": "Create a group reservation across multiple stations (Manager/Admin)",
+        "description": "Creates a multi-station group reservation directly from the manager panel.",
+        "tags": ["Group Reservations"],
+        "operationId": "post_gamingCenters_gamingCenterId_group_reservations",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["startTime", "items", "customer"],
+                "properties": {
+                  "startTime": { "type": "string", "format": "date-time" },
+                  "durationMinutes": {
+                    "type": "integer",
+                    "minimum": 15,
+                    "maximum": 1440,
+                    "default": 60
+                  },
+                  "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": ["stationId"],
+                      "properties": {
+                        "stationId": { "type": "string" },
+                        "staffId": { "type": "string" },
+                        "extraControllers": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ExtraControllerSelectionInput"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "customer": {
+                    "type": "object",
+                    "required": ["fullName", "phone"],
+                    "properties": {
+                      "fullName": { "type": "string", "minLength": 2 },
+                      "phone": { "type": "string", "minLength": 10 },
+                      "email": { "type": "string", "format": "email" }
+                    }
+                  },
+                  "note": { "type": "string", "maxLength": 500 },
+                  "source": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Group reservation created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" }
+        }
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/group-reservations/{id}": {
+      "get": {
+        "summary": "Get group reservation details by ID",
+        "description": "Retrieves full details and constituent station reservations of a group reservation.",
+        "tags": ["Group Reservations"],
+        "operationId": "get_gamingCenters_gamingCenterId_group_reservations_id",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Group reservation details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/group-reservations/{id}/cancel": {
+      "post": {
+        "summary": "Cancel a group reservation",
+        "description": "Cancels all constituent station bookings of a group reservation.",
+        "tags": ["Group Reservations"],
+        "operationId": "post_gamingCenters_gamingCenterId_group_reservations_id_cancel",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": { "type": "string", "maxLength": 500 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Group reservation cancelled",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
+    },
+    "/public/gamingCenters/{gamingCenterSlug}/group-reservations": {
+      "post": {
+        "summary": "Create a public group reservation across multiple stations",
+        "description": "Creates a public multi-station group reservation for a customer.",
+        "tags": ["Group Reservations"],
+        "operationId": "post_public_gamingCenters_gamingCenterSlug_group_reservations",
+        "security": [],
+        "parameters": [
+          {
+            "name": "gamingCenterSlug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "minLength": 16, "maxLength": 128 }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["startTime", "items", "customer"],
+                "properties": {
+                  "startTime": { "type": "string", "format": "date-time" },
+                  "durationMinutes": {
+                    "type": "integer",
+                    "minimum": 15,
+                    "maximum": 1440,
+                    "default": 60
+                  },
+                  "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": ["stationId"],
+                      "properties": {
+                        "stationId": { "type": "string" },
+                        "staffId": { "type": "string" },
+                        "extraControllers": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ExtraControllerSelectionInput"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "customer": {
+                    "type": "object",
+                    "required": ["fullName", "phone"],
+                    "properties": {
+                      "fullName": { "type": "string", "minLength": 2 },
+                      "phone": { "type": "string", "minLength": 10 },
+                      "email": { "type": "string", "format": "email" }
+                    }
+                  },
+                  "note": { "type": "string", "maxLength": 500 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Public group reservation created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" }
+        }
+      }
     }
   },
   "tags": [
@@ -13979,4 +15963,3 @@
   ],
   "security": [{ "bearerAuth": [] }]
 }
-  

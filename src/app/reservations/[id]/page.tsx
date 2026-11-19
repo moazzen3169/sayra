@@ -295,7 +295,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
         onNotificationClick={() => {}}
       />
 
-      <main className="flex-1 flex flex-col gap-4 mt-16 px-4 py-4 max-w-[780px] desk:max-w-[880px] mx-auto w-full">
+      <main className="flex-1 flex flex-col gap-4 mt-16 px-4 py-5 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0">
         {/* Unauthenticated State */}
         {!isLoggedIn && (
           <div className="flex flex-col items-center justify-center gap-4 py-16 px-4 text-center">
@@ -336,7 +336,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
 
         {/* Loading Skeleton */}
         {isLoggedIn && loading && (
-          <div className="flex flex-col gap-4 animate-pulse">
+          <div className="flex flex-col gap-4 w-full animate-pulse">
             <div className="h-44 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)]" />
             <div className="h-28 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)]" />
             <div className="h-52 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)]" />

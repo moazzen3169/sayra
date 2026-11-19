@@ -12,6 +12,8 @@ import {
   AdminPaginatedResult,
   AdminListQueryParams,
   AdminOwnerVerification,
+  AdminVerificationDocument,
+  AdminVerificationReviewLog,
   AdminAdRequest,
   AdminCampaign,
   AdminCampaignInput,
@@ -164,7 +166,7 @@ export const adminService = {
     const end = new Date();
     const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const [opsRes, finRes, reportRes, reservationsRes, adsRes, ticketStatsRes] =
+    const [opsRes, finRes, reportRes, reservationsRes, adsRes, verifsRes, ticketStatsRes] =
       await Promise.allSettled([
         apiClient.get<any>(ENDPOINTS.platformAdmin.operationsOverview, { signal }),
         apiClient.get<any>(ENDPOINTS.platformAdmin.financialsOverview, { signal }),
@@ -177,6 +179,10 @@ export const adminService = {
           signal,
         }),
         apiClient.get<any>(ENDPOINTS.platformAdmin.adRequests, {
+          query: { status: "PENDING", page: 1, limit: 1 },
+          signal,
+        }),
+        apiClient.get<any>(ENDPOINTS.platformAdmin.verifications, {
           query: { status: "PENDING", page: 1, limit: 1 },
           signal,
         }),
@@ -318,8 +324,28 @@ export const adminService = {
               unwrapTicketsList(adsRes.value?.data).length
           )
         : 0;
+    const pendingVerificationsCount =
+      verifsRes.status === "fulfilled"
+        ? Number(
+            verifsRes.value?.meta?.pagination?.total ??
+              verifsRes.value?.meta?.pagination?.totalItems ??
+              unwrapTicketsList(verifsRes.value?.data).length
+          )
+        : 0;
 
     const pendingItems: AdminDashboardData["pendingItems"] = [];
+    if (pendingVerificationsCount > 0) {
+      pendingItems.push({
+        id: "pending-verifications",
+        title: "درخواست‌های احراز هویت گیم‌نت",
+        subtitle: `${pendingVerificationsCount.toLocaleString("fa-IR")} درخواست در انتظار تایید`,
+        type: "owner_verification",
+        date: "اکنون",
+        link: "/admin/owners",
+        badgeText: `${pendingVerificationsCount.toLocaleString("fa-IR")} در انتظار`,
+        badgeVariant: "warning",
+      });
+    }
     if (pendingTicketsCount > 0) {
       pendingItems.push({
         id: "pending-tickets",
@@ -1589,32 +1615,328 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
 
   // ==================== OWNER VERIFICATION ====================
 
+  mapRawVerificationToAdmin(raw: any): AdminOwnerVerification {
+    const formatDateTime = (iso?: string | null): string => {
+      if (!iso) return "";
+      const day = formatDayLabel(String(iso));
+      const clock = formatClock(String(iso), true);
+      if (day && clock) return `${day} - ${clock}`;
+      return day || clock || String(iso);
+    };
+
+    const detectDocType = (url: string): AdminVerificationDocument["type"] => {
+      const clean = url.split("?")[0].toLowerCase();
+      if (clean.endsWith(".pdf")) return "pdf";
+      return "image";
+    };
+
+    const statusRaw = String(raw?.status ?? "PENDING").toUpperCase();
+    const status: AdminOwnerVerification["status"] =
+      statusRaw === "APPROVED" ||
+      statusRaw === "REJECTED" ||
+      statusRaw === "NOT_SUBMITTED"
+        ? (statusRaw as AdminOwnerVerification["status"])
+        : "PENDING";
+
+    const gamingCenterObj =
+      raw?.gamingCenter && typeof raw.gamingCenter === "object"
+        ? raw.gamingCenter
+        : null;
+    const addresses = Array.isArray(gamingCenterObj?.addresses)
+      ? gamingCenterObj.addresses
+      : [];
+    const primaryAddress =
+      addresses.find((a: any) => a?.isPrimary) || addresses[0];
+
+    const ownerName =
+      toSafeText(raw?.ownerFullName) ||
+      toSafeText(raw?.ownerName) ||
+      toSafeText(raw?.owner?.fullName) ||
+      toSafeText(raw?.user?.fullName) ||
+      "نامشخص";
+
+    const rawPhone =
+      toSafeText(raw?.phoneNumber) ||
+      toSafeText(raw?.ownerPhone) ||
+      toSafeText(raw?.owner?.phone) ||
+      toSafeText(raw?.user?.phone);
+    const ownerPhone = rawPhone ? cleanPhoneNumber(rawPhone) || rawPhone : "-";
+
+    const gamecenterId = String(
+      raw?.gamingCenterId ?? gamingCenterObj?.id ?? ""
+    );
+    const gamecenterName =
+      toSafeText(raw?.gamingCenterName) ||
+      toSafeText(gamingCenterObj?.name) ||
+      toSafeText(raw?.gamecenterName) ||
+      "گیم‌نت";
+
+    const cityName =
+      toSafeText(raw?.city) ||
+      toSafeText(primaryAddress?.city) ||
+      "-";
+
+    const fullAddress =
+      toSafeText(raw?.address) ||
+      toSafeText(primaryAddress?.addressLine) ||
+      toSafeText(primaryAddress?.address) ||
+      "-";
+
+    const businessLicenseUrl = normalizeMediaUrl(
+      raw?.businessLicenseUrl || raw?.licenseImageUrl
+    );
+    const nationalCardUrl = normalizeMediaUrl(raw?.nationalCardUrl);
+    const idWithSelfieUrl = normalizeMediaUrl(raw?.idWithSelfieUrl);
+
+    const documents: AdminVerificationDocument[] = [];
+    if (businessLicenseUrl) {
+      documents.push({
+        id: `${raw?.id || "verif"}-license`,
+        name: "پروانه کسب گیم‌نت",
+        url: businessLicenseUrl,
+        type: detectDocType(businessLicenseUrl),
+      });
+    }
+    if (nationalCardUrl) {
+      documents.push({
+        id: `${raw?.id || "verif"}-national-card`,
+        name: "تصویر کارت ملی",
+        url: nationalCardUrl,
+        type: detectDocType(nationalCardUrl),
+      });
+    }
+    if (idWithSelfieUrl) {
+      documents.push({
+        id: `${raw?.id || "verif"}-selfie`,
+        name: "سلفی با مدرک هویتی",
+        url: idWithSelfieUrl,
+        type: detectDocType(idWithSelfieUrl),
+      });
+    }
+
+    const reviewLogs: AdminVerificationReviewLog[] = Array.isArray(raw?.reviewLogs)
+      ? raw.reviewLogs.map((log: any, idx: number) => ({
+          id: String(log?.id ?? `log-${idx}`),
+          adminName: toSafeText(log?.adminName || log?.reviewedBy, "ادمین پلتفرم"),
+          action: (String(log?.action || status).toUpperCase() as AdminVerificationReviewLog["action"]),
+          note: log?.note || log?.rejectionReason || undefined,
+          date: formatDateTime(log?.date || log?.createdAt) || "-",
+        }))
+      : [];
+
+    if (
+      reviewLogs.length === 0 &&
+      (status === "APPROVED" || status === "REJECTED") &&
+      (raw?.reviewedAt || raw?.updatedAt)
+    ) {
+      reviewLogs.push({
+        id: `${raw?.id || "verif"}-decision`,
+        adminName: "ادمین پلتفرم",
+        action: status,
+        note: raw?.rejectionReason || (status === "APPROVED" ? "درخواست تایید شد" : undefined),
+        date: formatDateTime(raw?.reviewedAt || raw?.updatedAt) || "-",
+      });
+    }
+
+    return {
+      id: String(raw?.id ?? raw?.verificationId ?? ""),
+      ownerId: String(raw?.ownerId ?? raw?.userId ?? gamingCenterObj?.ownerId ?? "-"),
+      ownerName,
+      ownerPhone,
+      ownerNationalId: toSafeText(raw?.nationalId, "-"),
+      gamecenterId,
+      gamecenterName,
+      gamecenterAddress: fullAddress,
+      gamecenterCity: cityName,
+      status,
+      submittedAt: formatDateTime(raw?.createdAt) || "-",
+      updatedAt:
+        raw?.updatedAt && raw.updatedAt !== raw.createdAt
+          ? formatDateTime(raw.updatedAt)
+          : undefined,
+      reviewedAt: raw?.reviewedAt ? formatDateTime(raw.reviewedAt) : undefined,
+      createdAtIso: raw?.createdAt ? String(raw.createdAt) : "",
+      businessLicenseUrl: businessLicenseUrl || undefined,
+      verificationData: {
+        centerName: gamecenterName,
+        centerAddress: fullAddress,
+        licenseImageUrl: businessLicenseUrl || undefined,
+        documents,
+        submittedAnswers: [
+          { question: "نام و نام خانوادگی مالک/مدیر", answer: ownerName },
+          { question: "شماره موبایل", answer: ownerPhone },
+          { question: "نام گیم‌نت", answer: gamecenterName },
+        ],
+      },
+      rejectionReason: raw?.rejectionReason ? String(raw.rejectionReason) : undefined,
+      reviewLogs,
+    };
+  },
+
+  /**
+   * GET /platform-admin/verifications
+   */
   async getOwnerVerifications(
     params: AdminListQueryParams = {},
+    signal?: AbortSignal,
   ): Promise<AdminPaginatedResult<AdminOwnerVerification>> {
-    const { page = 1, pageSize = 10 } = params;
-    return Promise.resolve({
-      items: [],
-      total: 0,
+    const {
+      search = "",
+      status = "all",
+      sortBy = "submittedAt",
+      sortOrder = "desc",
+      page = 1,
+      pageSize = 20,
+    } = params;
+
+    const queryPayload: Record<string, string | number> = {
       page,
-      pageSize,
-      totalPages: 1,
+      limit: Math.min(pageSize, 100),
+    };
+    if (status && status !== "all") {
+      queryPayload.status = status;
+    }
+
+    const response = await apiClient.get<any>(
+      ENDPOINTS.platformAdmin.verifications,
+      {
+        query: queryPayload,
+        signal,
+      },
+    );
+
+    const resData = response.data;
+    let rawArray: any[] = [];
+    if (Array.isArray(resData)) rawArray = resData;
+    else if (resData && typeof resData === "object") {
+      if (Array.isArray(resData.data)) rawArray = resData.data;
+      else if (Array.isArray(resData.items)) rawArray = resData.items;
+    }
+
+    let items = rawArray.map((item) =>
+      adminService.mapRawVerificationToAdmin(item)
+    );
+
+    const q = search.trim().toLowerCase();
+    if (q) {
+      items = items.filter(
+        (v) =>
+          v.ownerName.toLowerCase().includes(q) ||
+          v.ownerPhone.toLowerCase().includes(q) ||
+          v.gamecenterName.toLowerCase().includes(q) ||
+          v.gamecenterId.toLowerCase().includes(q) ||
+          v.id.toLowerCase().includes(q)
+      );
+    }
+
+    items.sort((a, b) => {
+      if (sortBy === "ownerName") {
+        const cmp = a.ownerName.localeCompare(b.ownerName, "fa");
+        return sortOrder === "asc" ? cmp : -cmp;
+      }
+      const timeA = Date.parse(a.createdAtIso || "") || 0;
+      const timeB = Date.parse(b.createdAtIso || "") || 0;
+      return sortOrder === "asc" ? timeA - timeB : timeB - timeA;
     });
+
+    const metaPagination =
+      response.meta?.pagination || (resData?.pagination as any) || {};
+    const total = q
+      ? items.length
+      : Number(
+          metaPagination.total ??
+            metaPagination.totalItems ??
+            resData?.total ??
+            items.length
+        );
+    const currentPage = Number(metaPagination.page ?? page);
+    const limit = Number(metaPagination.limit ?? metaPagination.pageSize ?? pageSize);
+    const totalPages = Math.max(
+      1,
+      Number(metaPagination.totalPages ?? Math.ceil(total / Math.max(1, limit)))
+    );
+
+    return {
+      items,
+      total,
+      page: currentPage,
+      pageSize: limit,
+      totalPages,
+    };
   },
 
+  /**
+   * GET /platform-admin/verifications/{id}
+   */
   async getOwnerVerificationById(
-    _id: string,
+    id: string,
+    signal?: AbortSignal,
   ): Promise<AdminOwnerVerification | null> {
-    return Promise.resolve(null);
+    if (!id) return null;
+    const response = await apiClient.get<any>(
+      ENDPOINTS.platformAdmin.verificationById(id),
+      { signal }
+    );
+    const raw = response.data?.data ?? response.data;
+    if (!raw || typeof raw !== "object") return null;
+    return adminService.mapRawVerificationToAdmin(raw);
   },
 
+  /**
+   * تایید یا رد درخواست احراز هویت گیم‌نت مطابق OpenAPI:
+   * - POST /platform-admin/verifications/{id}/approve
+   * - POST /platform-admin/verifications/{id}/reject (body: { rejectionReason })
+   */
   async updateOwnerVerificationStatus(
-    _id: string,
-    _status: "APPROVED" | "REJECTED",
-    _reason?: string,
-    _adminName?: string,
+    id: string,
+    status: "APPROVED" | "REJECTED",
+    reason?: string,
   ): Promise<AdminOwnerVerification> {
-    throw new Error("سرویس احراز هویت صاحبان گیمنت در سرور فعال نیست.");
+    if (!id) {
+      throw new Error("شناسه درخواست احراز هویت نامعتبر است.");
+    }
+
+    if (status === "APPROVED") {
+      await apiClient.post<any>(
+        ENDPOINTS.platformAdmin.approveVerification(id),
+        {}
+      );
+    } else {
+      const trimmedReason = reason?.trim() || "";
+      if (trimmedReason.length < 3) {
+        throw new Error("دلیل لغو/رد درخواست باید حداقل ۳ کاراکتر باشد.");
+      }
+      await apiClient.post<any>(
+        ENDPOINTS.platformAdmin.rejectVerification(id),
+        { rejectionReason: trimmedReason }
+      );
+    }
+
+    const updated = await adminService.getOwnerVerificationById(id).catch(() => null);
+    if (updated) return updated;
+
+    return {
+      id,
+      ownerId: "-",
+      ownerName: "-",
+      ownerPhone: "-",
+      ownerNationalId: "-",
+      gamecenterId: "",
+      gamecenterName: "-",
+      gamecenterAddress: "-",
+      gamecenterCity: "-",
+      status,
+      submittedAt: "-",
+      reviewedAt: "اکنون",
+      verificationData: {
+        centerName: "-",
+        centerAddress: "-",
+        documents: [],
+        submittedAnswers: [],
+      },
+      rejectionReason: status === "REJECTED" ? reason?.trim() : undefined,
+      reviewLogs: [],
+    };
   },
 
   // ==================== ADVERTISING REQUESTS ====================

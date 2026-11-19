@@ -117,6 +117,10 @@ export const ENDPOINTS = {
     adRequests: "/platform-admin/ad-requests",
     adRequestById: (id: string) => `/platform-admin/ad-requests/${enc(id)}`,
     adRequestStatus: (id: string) => `/platform-admin/ad-requests/${enc(id)}/status`,
+    verifications: "/platform-admin/verifications",
+    verificationById: (id: string) => `/platform-admin/verifications/${enc(id)}`,
+    approveVerification: (id: string) => `/platform-admin/verifications/${enc(id)}/approve`,
+    rejectVerification: (id: string) => `/platform-admin/verifications/${enc(id)}/reject`,
     reservations: "/platform-admin/reservations",
     customers: "/platform-admin/customers",
   },
@@ -279,6 +283,7 @@ export const ENDPOINTS = {
     discounts: (c: string) => `/gamingCenters/${enc(c)}/discounts`,
     discount: (c: string, id: string) => `/gamingCenters/${enc(c)}/discounts/${enc(id)}`,
     discountStatus: (c: string, id: string) => `/gamingCenters/${enc(c)}/discounts/${enc(id)}/status`,
+    verification: (c: string) => `/gamingCenters/${enc(c)}/verification`,
   },
   advertisements: {
     publicSlider: "/public/advertisements/slider",

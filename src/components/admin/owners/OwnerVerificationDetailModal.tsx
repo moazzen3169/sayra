@@ -43,7 +43,9 @@ export const OwnerVerificationDetailModal: React.FC<OwnerVerificationDetailModal
       case "APPROVED":
         return <Badge variant="success">تأیید شده</Badge>;
       case "REJECTED":
-        return <Badge variant="danger">رد شده</Badge>;
+        return <Badge variant="danger">لغو / رد شده</Badge>;
+      case "NOT_SUBMITTED":
+        return <Badge variant="neutral">ثبت نشده</Badge>;
       case "PENDING":
       default:
         return <Badge variant="warning">در انتظار بررسی</Badge>;
@@ -52,9 +54,11 @@ export const OwnerVerificationDetailModal: React.FC<OwnerVerificationDetailModal
 
   const handleConfirmAction = async () => {
     if (!actionType) return;
-    if (actionType === "REJECT" && !rejectionReason.trim()) {
-      setErrorMessage("لطفاً دلیل رد درخواست را وارد کنید.");
-      return;
+    if (actionType === "REJECT") {
+      if (rejectionReason.trim().length < 3) {
+        setErrorMessage("لطفاً دلیل لغو/رد درخواست را با حداقل ۳ کاراکتر وارد کنید.");
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -160,28 +164,30 @@ export const OwnerVerificationDetailModal: React.FC<OwnerVerificationDetailModal
 
           {activeTab === "info" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* 1. اطلاعات صاحب گیمنت */}
+              {/* 1. اطلاعات درخواست احراز هویت */}
               <div className="bg-[var(--foreground)]/20 border border-[var(--border-subtle)] rounded-card p-4 space-y-3">
                 <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-2 text-sm font-bold text-[var(--primary)]">
                   <Icon name="user" size={18} />
-                  <h3>۱. اطلاعات صاحب گیمنت</h3>
+                  <h3>۱. اطلاعات مالک و درخواست</h3>
                 </div>
                 <div className="space-y-2 text-xs">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between gap-2">
                     <span className="text-[var(--text-muted)]">نام و نام خانوادگی:</span>
                     <span className="font-bold text-[var(--text-white)]">{verification.ownerName}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between gap-2">
                     <span className="text-[var(--text-muted)]">شماره تماس:</span>
                     <span className="font-bold text-[var(--text-white)] dir-ltr">{verification.ownerPhone}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">کد ملی:</span>
-                    <span className="font-bold text-[var(--text-white)] dir-ltr">{verification.ownerNationalId}</span>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-[var(--text-muted)]">تاریخ ثبت درخواست:</span>
+                    <span className="font-bold text-[var(--text-white)]">{verification.submittedAt}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">شناسه کاربر:</span>
-                    <span className="font-bold text-[var(--text-muted)] dir-ltr">{verification.ownerId}</span>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-[var(--text-muted)]">شناسه درخواست:</span>
+                    <span className="font-bold text-[var(--text-muted)] dir-ltr truncate max-w-[180px]" title={verification.id}>
+                      {verification.id}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -190,46 +196,100 @@ export const OwnerVerificationDetailModal: React.FC<OwnerVerificationDetailModal
               <div className="bg-[var(--foreground)]/20 border border-[var(--border-subtle)] rounded-card p-4 space-y-3">
                 <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-2 text-sm font-bold text-[var(--primary)]">
                   <Icon name="gamepad" size={18} />
-                  <h3>۲. اطلاعات گیمنت</h3>
+                  <h3>۲. اطلاعات گیم‌نت</h3>
                 </div>
                 <div className="space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">نام گیمنت:</span>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-[var(--text-muted)]">نام گیم‌نت:</span>
                     <span className="font-bold text-[var(--text-white)]">{verification.gamecenterName}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">شهر:</span>
-                    <span className="font-bold text-[var(--text-white)]">{verification.gamecenterCity}</span>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-[var(--text-muted)]">شناسه گیم‌نت:</span>
+                    <span className="font-bold text-[var(--text-muted)] dir-ltr truncate max-w-[180px]" title={verification.gamecenterId}>
+                      {verification.gamecenterId || "—"}
+                    </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">آدرس کامل:</span>
-                    <span className="font-bold text-[var(--text-white)] text-left leading-relaxed">{verification.gamecenterAddress}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">تاریخ ثبت درخواست:</span>
-                    <span className="font-bold text-[var(--text-white)]">{verification.submittedAt}</span>
-                  </div>
+                  {verification.gamecenterCity !== "-" && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-[var(--text-muted)]">شهر:</span>
+                      <span className="font-bold text-[var(--text-white)]">{verification.gamecenterCity}</span>
+                    </div>
+                  )}
+                  {verification.reviewedAt && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-[var(--text-muted)]">تاریخ بررسی ادمین:</span>
+                      <span className="font-bold text-[var(--text-white)]">{verification.reviewedAt}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* 5. وضعیت فعلی بررسی */}
+              {/* تصویر پروانه کسب برای بررسی سریع در نمای اصلی */}
+              {verification.verificationData.documents.length > 0 && (
+                <div className="md:col-span-2 bg-[var(--foreground)]/20 border border-[var(--border-subtle)] rounded-card p-4 space-y-3">
+                  <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
+                    <div className="flex items-center gap-2 text-sm font-bold text-[var(--primary)]">
+                      <Icon name="image" size={18} />
+                      <h3>۳. مدرک پروانه کسب ارسال‌شده</h3>
+                    </div>
+                    <a
+                      href={verification.verificationData.documents[0].url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-bold text-[var(--primary)] hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>باز کردن در تب جدید</span>
+                      <Icon name="external-link" size={14} />
+                    </a>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    {verification.verificationData.documents.map((doc) => (
+                      <button
+                        key={doc.id}
+                        type="button"
+                        onClick={() => setPreviewDocument(doc)}
+                        className="relative w-full sm:w-56 h-36 rounded-card overflow-hidden bg-black/50 border border-[var(--border-subtle)] group shrink-0"
+                      >
+                        {doc.type === "image" ? (
+                          <SafeImage
+                            src={doc.url}
+                            alt={doc.name}
+                            fallbackSrc={PLACEHOLDERS.gallery}
+                            className="w-full h-full object-contain transition-transform group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-full gap-1 text-[var(--primary)]">
+                            <Icon name="file" size={28} />
+                            <span className="text-xs font-bold">{doc.name}</span>
+                          </div>
+                        )}
+                        <span className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs font-bold text-white">
+                          بزرگ‌نمایی مدرک
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 4. وضعیت فعلی بررسی */}
               <div className="md:col-span-2 bg-[var(--foreground)]/20 border border-[var(--border-subtle)] rounded-card p-4 space-y-3">
                 <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
                   <div className="flex items-center gap-2 text-sm font-bold text-[var(--primary)]">
                     <Icon name="info" size={18} />
-                    <h3>۵. وضعیت فعلی بررسی</h3>
+                    <h3>وضعیت فعلی بررسی</h3>
                   </div>
                   {getStatusBadge()}
                 </div>
                 <div className="text-xs space-y-2 text-[var(--text-white)]">
                   <p>
                     <span className="text-[var(--text-muted)]">آخرین بروزرسانی: </span>
-                    {verification.updatedAt || verification.submittedAt}
+                    {verification.updatedAt || verification.reviewedAt || verification.submittedAt}
                   </p>
                   {verification.rejectionReason && (
                     <div className="p-3 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20 text-[var(--accent-red)]">
-                      <span className="font-bold">دلیل رد درخواست: </span>
-                      <span>{verification.rejectionReason}</span>
+                      <span className="font-bold">دلیل لغو درخواست: </span>
+                      <span className="text-[var(--text-white)]">{verification.rejectionReason}</span>
                     </div>
                   )}
                 </div>
@@ -390,27 +450,29 @@ export const OwnerVerificationDetailModal: React.FC<OwnerVerificationDetailModal
                     ? isApproved
                       ? "تأیید مجدد / به‌روزرسانی"
                       : "تأیید درخواست احراز هویت"
-                    : "رد درخواست احراز هویت"}
+                    : "لغو / رد درخواست احراز هویت"}
                 </span>
               </h4>
 
               {actionType === "REJECT" && (
                 <div>
                   <label className="text-xs text-[var(--text-muted)] block mb-1">
-                    علت رد درخواست (الزامی):
+                    دلیل لغو درخواست (الزامی — برای مدیر گیم‌نت نمایش داده می‌شود):
                   </label>
                   <textarea
                     rows={3}
                     value={rejectionReason}
                     onChange={(e) => setRejectionReason(e.target.value)}
-                    placeholder="مثال: تصویر مدارک ارسال شده خوانا نیست یا نقص در تاییدیه اماکن وجود دارد..."
+                    placeholder="مثال: تصویر پروانه کسب تار و ناخوانا است..."
                     className="w-full p-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--accent-red)] resize-none"
                   />
                 </div>
               )}
 
               <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                آیا از ثبت تغییر وضعیت این درخواست اطمینان دارید؟ این تصمیم در سوابق بررسی سیستم ذخیره خواهد شد.
+                {actionType === "APPROVE"
+                  ? "با تایید این درخواست، گیم‌نت به وضعیت فعال (APPROVED) تغییر کرده و برای تمام کاربران سایت قابل مشاهده خواهد بود."
+                  : "با ثبت لغو درخواست، مدیر گیم‌نت دلیل لغو را در پنل خود مشاهده کرده و می‌تواند درخواست جدید ارسال کند."}
               </p>
 
               <div className="flex items-center gap-3 pt-1">
@@ -481,7 +543,7 @@ export const OwnerVerificationDetailModal: React.FC<OwnerVerificationDetailModal
                 className="flex items-center gap-1.5"
               >
                 <Icon name="close" size={16} />
-                <span>{isApproved ? "اصلاح به رد شده" : "رد درخواست"}</span>
+                <span>{isApproved ? "تغییر به لغو شده" : "لغو / رد درخواست"}</span>
               </Button>
             )}
 

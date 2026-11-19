@@ -35,8 +35,8 @@ import type { DeviceCatalogItem } from "@/types/catalog";
 export default function OwnerStationsPage() {
   const router = useRouter();
   // گیمنت از روی توکن کاربر توسط OwnerContext تشخیص داده می‌شود
-  const { centerId, center, isCenterLoading, verificationStatus } = useOwner();
-  const canEdit = verificationStatus === "APPROVED";
+  const { centerId, center, isCenterLoading } = useOwner();
+  const canEdit = true;
 
   // داده‌ها
   const [stations, setStations] = useState<GameStationInfo[] | null>(null);

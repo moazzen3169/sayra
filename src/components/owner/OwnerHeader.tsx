@@ -142,11 +142,7 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
         <div className="flex items-center gap-2 shrink-0">
 
 
-          {showBadge && (
-            <div className="hidden sm:block">
-              <OwnerVerificationBadge size="sm" />
-            </div>
-          )}
+          {showBadge && <OwnerVerificationBadge size="sm" />}
 
           <Link
             href="/"

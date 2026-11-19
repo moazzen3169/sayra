@@ -22,7 +22,6 @@ export default function OwnersAdminPage() {
   // Filters & Search
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [cityFilter, setCityFilter] = useState("all");
   const [sortBy, setSortBy] = useState("submittedAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
@@ -45,11 +44,10 @@ export default function OwnersAdminPage() {
       const res = await adminService.getOwnerVerifications({
         search,
         status: statusFilter,
-        city: cityFilter,
         sortBy,
         sortOrder,
         page,
-        pageSize: 10,
+        pageSize: 20,
       });
       setData(res.items);
       setTotal(res.total);
@@ -71,15 +69,23 @@ export default function OwnersAdminPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, statusFilter, cityFilter, sortBy, sortOrder, page, selectedVerification?.id]);
+  }, [search, statusFilter, sortBy, sortOrder, page, selectedVerification?.id]);
 
   useEffect(() => {
     loadVerifications();
   }, [loadVerifications]);
 
-  const handleOpenDetail = (verification: AdminOwnerVerification) => {
+  const handleOpenDetail = async (verification: AdminOwnerVerification) => {
     setSelectedVerification(verification);
     setIsDetailModalOpen(true);
+    try {
+      const fresh = await adminService.getOwnerVerificationById(verification.id);
+      if (fresh) {
+        setSelectedVerification(fresh);
+      }
+    } catch {
+      // fallback to row item already displayed
+    }
   };
 
   const getStatusBadge = (status: AdminOwnerVerification["status"]) => {
@@ -87,7 +93,9 @@ export default function OwnersAdminPage() {
       case "APPROVED":
         return <Badge variant="success">تأیید شده</Badge>;
       case "REJECTED":
-        return <Badge variant="danger">رد شده</Badge>;
+        return <Badge variant="danger">لغو / رد شده</Badge>;
+      case "NOT_SUBMITTED":
+        return <Badge variant="neutral">ثبت نشده</Badge>;
       case "PENDING":
       default:
         return <Badge variant="warning">در انتظار بررسی</Badge>;
@@ -97,7 +105,7 @@ export default function OwnersAdminPage() {
   const columns: Column<AdminOwnerVerification>[] = [
     {
       key: "ownerName",
-      header: "صاحب گیمنت",
+      header: "صاحب / مدیر گیم‌نت",
       render: (v) => (
         <div className="flex flex-col gap-0.5">
           <span className="font-bold text-sm text-[var(--text-white)]">{v.ownerName}</span>
@@ -107,27 +115,41 @@ export default function OwnersAdminPage() {
     },
     {
       key: "gamecenterName",
-      header: "گیمنت مرتبط",
+      header: "گیم‌نت مرتبط",
       render: (v) => (
         <div className="flex flex-col gap-0.5">
           <span className="font-bold text-xs text-[var(--text-white)]">{v.gamecenterName}</span>
-          <span className="text-[11px] text-[var(--text-muted)]">{v.gamecenterCity}</span>
+          <span className="text-[11px] text-[var(--text-muted)] dir-ltr text-right">
+            ID: {v.gamecenterId || "—"}
+          </span>
         </div>
       ),
     },
     {
       key: "status",
       header: "وضعیت بررسی",
-      render: (v) => getStatusBadge(v.status),
+      render: (v) => (
+        <div className="flex flex-col items-start gap-1">
+          {getStatusBadge(v.status)}
+          {v.status === "REJECTED" && v.rejectionReason && (
+            <span
+              className="text-[11px] text-[var(--accent-red)] max-w-[200px] truncate"
+              title={v.rejectionReason}
+            >
+              {v.rejectionReason}
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: "submittedAt",
-      header: "تاریخ ثبت / تغییر",
+      header: "تاریخ ثبت / بررسی",
       render: (v) => (
         <div className="flex flex-col gap-0.5">
           <span className="text-xs text-[var(--text-white)]">{v.submittedAt}</span>
-          {v.updatedAt && (
-            <span className="text-[10px] text-[var(--text-subtle)]">ویرایش: {v.updatedAt}</span>
+          {v.reviewedAt && (
+            <span className="text-[10px] text-[var(--text-subtle)]">بررسی: {v.reviewedAt}</span>
           )}
         </div>
       ),
@@ -186,7 +208,7 @@ export default function OwnersAdminPage() {
             setSearch(val);
             setPage(1);
           }}
-          searchPlaceholder="جستجو نام مالک، گیمنت، تلفن یا کد ملی..."
+          searchPlaceholder="جستجو نام مالک، گیمنت، شماره موبایل یا شناسه..."
         >
           {/* Status Filter */}
           <div className="flex items-center gap-2 text-xs">
@@ -202,26 +224,7 @@ export default function OwnersAdminPage() {
               <option value="all" className="bg-[var(--bg-card)]">همه درخواست‌ها</option>
               <option value="PENDING" className="bg-[var(--bg-card)]">در انتظار بررسی</option>
               <option value="APPROVED" className="bg-[var(--bg-card)]">تأیید شده</option>
-              <option value="REJECTED" className="bg-[var(--bg-card)]">رد شده</option>
-            </select>
-          </div>
-
-          {/* City Filter */}
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-[var(--text-muted)] font-medium">شهر:</span>
-            <select
-              value={cityFilter}
-              onChange={(e) => {
-                setCityFilter(e.target.value);
-                setPage(1);
-              }}
-              className="h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] cursor-pointer"
-            >
-              <option value="all" className="bg-[var(--bg-card)]">همه شهرها</option>
-              <option value="تهران" className="bg-[var(--bg-card)]">تهران</option>
-              <option value="اصفهان" className="bg-[var(--bg-card)]">اصفهان</option>
-              <option value="تبریز" className="bg-[var(--bg-card)]">تبریز</option>
-              <option value="شیراز" className="bg-[var(--bg-card)]">شیراز</option>
+              <option value="REJECTED" className="bg-[var(--bg-card)]">لغو / رد شده</option>
             </select>
           </div>
 
@@ -300,6 +303,7 @@ export default function OwnersAdminPage() {
 
       {/* Verification Detail & Review Panel Modal */}
       <OwnerVerificationDetailModal
+        key={selectedVerification?.id ?? "closed"}
         isOpen={isDetailModalOpen}
         onClose={() => {
           setIsDetailModalOpen(false);

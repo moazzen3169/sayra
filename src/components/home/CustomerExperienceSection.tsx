@@ -84,16 +84,16 @@ export const CustomerExperienceSection: React.FC = () => {
             className="pointer-events-none absolute -inset-4 rounded-full bg-[#B8F34A]/10 blur-[64px]"
           />
 
-          <div className="relative aspect-[4/6] w-full overflow-hidden rounded-[22px] border border-white/10 bg-[#080A07]">
+          <div className="relative  w-full overflow-hidden ">
             <SafeImage
-              src="/img/gamnet-5.webp"
+              src="/img/sayra-game-center.webp"
               alt="فضای داخلی یک گیمنت حرفه‌ای"
               fallbackSrc={PLACEHOLDERS.center}
-              className="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.03]"
+              className="h-full w-full object-contain object-center transition-transform duration-700"
             />
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#080A07]/80 via-transparent to-black/20"
+              className="pointer-events-none absolute inset-0 unselectable"
             />
           </div>
 

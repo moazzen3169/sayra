@@ -216,9 +216,12 @@ export interface AdminOwnerVerification {
   gamecenterName: string;
   gamecenterAddress: string;
   gamecenterCity: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED";
   submittedAt: string;
   updatedAt?: string;
+  reviewedAt?: string;
+  createdAtIso?: string;
+  businessLicenseUrl?: string;
   verificationData: {
     centerName: string;
     centerAddress: string;

@@ -65,21 +65,27 @@ export default function ReservationsHistoryPage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
       <ProfileHeader title="رزروهای من" isSubpage={true} />
 
-      <main className="flex-1 pt-20 flex flex-col">
-
-
+      <main className="flex-1 mt-16 px-4 py-5 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0 flex flex-col gap-4">
         {/* Loading State (Auth initializing or items fetching) */}
         {(isAuthLoading || (isLoggedIn && items === null)) && (
-          <div className="flex flex-col  lg:gap-4 lg:px-8">
+          <div className="flex flex-col gap-4 w-full" aria-busy="true">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="px-4 py-5 flex flex-col gap-3.5 border-b border-[var(--border-color)] animate-pulse">
-                <div className="flex justify-between">
-                  <div className="h-5 w-32 rounded-child bg-[var(--bg-card)]" />
-                  <div className="h-5 w-16 rounded-child bg-[var(--bg-card)]" />
+              <div
+                key={i}
+                className="p-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-3 animate-pulse"
+              >
+                <div className="flex justify-between items-center gap-3">
+                  <div className="h-5 w-36 rounded-child bg-[var(--foreground)]/50" />
+                  <div className="h-6 w-20 rounded-full bg-[var(--foreground)]/50" />
                 </div>
-                <div className="h-4 w-full rounded-child bg-[var(--bg-card)]" />
-                <div className="h-12 w-full rounded-card bg-[var(--bg-card)]" />
-                <div className="h-12 w-full rounded-card bg-[var(--bg-card)]" />
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-card bg-[var(--foreground)]/50" />
+                    <div className="h-4 w-28 rounded-child bg-[var(--foreground)]/50" />
+                  </div>
+                  <div className="h-5 w-24 rounded-child bg-[var(--foreground)]/50" />
+                </div>
+                <div className="h-4 w-48 rounded-child bg-[var(--foreground)]/50" />
               </div>
             ))}
           </div>
@@ -116,7 +122,7 @@ export default function ReservationsHistoryPage() {
 
         {/* Error State */}
         {isLoggedIn && items !== null && error && (
-          <div className="mx-4 mt-4 p-4 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 flex flex-col items-center gap-3 text-center">
+          <div className="p-4 w-full rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 flex flex-col items-center gap-3 text-center">
             <p className="text-sm font-bold text-[var(--accent-red)]">{error}</p>
             <button
               type="button"
@@ -144,7 +150,7 @@ export default function ReservationsHistoryPage() {
 
         {/* Reservation List */}
         {isLoggedIn && items !== null && !error && items.length > 0 && (
-          <div className="flex flex-col lg:grid mx-auto w-full max-w-[var(--max-mini-app-width)] lg:px-8 gap-4">
+          <div className="flex flex-col gap-4 w-full">
             {groupCustomerReservations(items).map((entry: CustomerBookingEntry) => {
               if (entry.isGroup) {
                 return (

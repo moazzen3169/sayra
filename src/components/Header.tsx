@@ -2,11 +2,13 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useCity } from "@/context/CityContext";
 import { toPersianDigits } from "@/lib/format";
 import { customerNotificationService } from "@/services/customerNotificationService";
 import { AppImage } from "@/components/common/AppImage";
+import { Icon } from "@/components/ui/Icon";
 import { CityModal } from "./CityModal";
 import { NotificationModal } from "./NotificationModal";
 import { SearchModal } from "./SearchModal";
@@ -32,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   onCityChange,
   hideOnMobile = false,
 }) => {
+  const pathname = usePathname();
   const { isLoggedIn, role, logout } = useAuth();
   const { selectedCity, setCity } = useCity();
 
@@ -47,8 +50,6 @@ export const Header: React.FC<HeaderProps> = ({
 
   const desktopAccountMenuRef = useRef<HTMLDivElement>(null);
   const desktopAccountButtonRef = useRef<HTMLButtonElement>(null);
-  const mobileAccountMenuRef = useRef<HTMLDivElement>(null);
-  const mobileAccountButtonRef = useRef<HTMLButtonElement>(null);
 
   // Fetch real unread notification count for authenticated customers
   const fetchUnreadCount = useCallback(async () => {
@@ -80,13 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
     const handleOutsideClick = (event: MouseEvent) => {
       const target = event.target as Node;
 
-      const clickedInsideDesktop =
-        desktopAccountMenuRef.current?.contains(target);
-
-      const clickedInsideMobile =
-        mobileAccountMenuRef.current?.contains(target);
-
-      if (!clickedInsideDesktop && !clickedInsideMobile) {
+      if (!desktopAccountMenuRef.current?.contains(target)) {
         setIsAccountMenuOpen(false);
       }
     };
@@ -94,15 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsAccountMenuOpen(false);
-
-        if (
-          desktopAccountButtonRef.current &&
-          desktopAccountButtonRef.current.offsetParent !== null
-        ) {
-          desktopAccountButtonRef.current.focus();
-        } else if (mobileAccountButtonRef.current) {
-          mobileAccountButtonRef.current.focus();
-        }
+        desktopAccountButtonRef.current?.focus();
       }
     };
 
@@ -174,6 +161,9 @@ export const Header: React.FC<HeaderProps> = ({
   // Managed reservations navigation based on role
   const reservationsHref = isOwner ? "/owner/reservations" : "/reservations";
   const reservationsLabel = isOwner ? "رزروهای گیم‌نت" : "رزروهای من";
+  const isReservationsActive =
+    pathname === reservationsHref ||
+    pathname?.startsWith(`${reservationsHref}/`);
 
   // Fallback based on stored role if API request fails
   const centerLinkFallback: "admin" | "center" | "none" = isAdmin
@@ -398,9 +388,9 @@ export const Header: React.FC<HeaderProps> = ({
     </div>
   );
 
-  // Shared profile button for mobile and desktop
-  const renderAccountButton = (isMobile: boolean) => {
-    if (!isLoggedIn && !isMobile) {
+  // Desktop account button
+  const renderAccountButton = () => {
+    if (!isLoggedIn) {
       return (
         <Link
           href="/login"
@@ -413,46 +403,44 @@ export const Header: React.FC<HeaderProps> = ({
 
     return (
       <div
-        ref={isMobile ? mobileAccountMenuRef : desktopAccountMenuRef}
+        ref={desktopAccountMenuRef}
         className="relative"
       >
       <button
-        ref={isMobile ? mobileAccountButtonRef : desktopAccountButtonRef}
+        ref={desktopAccountButtonRef}
         type="button"
         onClick={() => setIsAccountMenuOpen((previous) => !previous)}
         aria-label="پروفایل"
         aria-haspopup="menu"
         aria-expanded={isAccountMenuOpen}
-        className={
-          isMobile
-            ? "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
-            : "relative flex h-10 w-10 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
-        }
+        className="relative flex h-10 w-10 items-center justify-center rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
       >
-        <svg
-          className="h-5 w-5"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={isMobile ? 1.8 : 1.7}
-          aria-hidden="true"
-        >
-          <circle cx="12" cy="8" r="3.5" />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M5 20a7 7 0 0114 0"
-          />
-        </svg>
-
-        {isLoggedIn && unreadCount > 0 && (
-          <span
-            className="absolute -top-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] text-xs font-bold leading-none text-on-primary px-1"
-            aria-label={`${toPersianDigits(unreadCount)} اعلان خوانده‌نشده`}
+        <span className="relative flex shrink-0 items-center justify-center">
+          <svg
+            className="h-5 w-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.7}
+            aria-hidden="true"
           >
-            {notificationBadge}
-          </span>
-        )}
+            <circle cx="12" cy="8" r="3.5" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M5 20a7 7 0 0114 0"
+            />
+          </svg>
+
+          {isLoggedIn && unreadCount > 0 && (
+            <span
+              className="absolute -top-1.5 -left-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-body)] bg-[var(--primary)] px-1 text-xs font-bold leading-none text-on-primary"
+              aria-label={`${toPersianDigits(unreadCount)} اعلان خوانده‌نشده`}
+            >
+              {notificationBadge}
+            </span>
+          )}
+        </span>
       </button>
 
       {isAccountMenuOpen && renderAccountDropdownContent()}
@@ -469,103 +457,120 @@ export const Header: React.FC<HeaderProps> = ({
       >
         {/* ================= MOBILE HEADER ================= */}
         {!hideOnMobile && (
-          <div className="lg:hidden border-b border-[var(--border-subtle)] bg-body-bg">
-          <div className="flex flex-col gap-2 p-4">
-            {/* Row 1 */}
-            <div className="flex items-center justify-between gap-2">
-              <Link
-                href="/"
-                className="flex shrink-0 items-center"
-                aria-label="صفحه اصلی سایرا"
-              >
-                <AppImage
-                  src="/design/sayra.svg"
-                  alt="سایرا"
-                  className="h-5 w-auto sm:h-6"
-                  loading="eager"
-                  priority
+          <div className="lg:hidden border-b border-[var(--border-subtle)] bg-body-bg/95 backdrop-blur-md">
+            <div className="mx-auto flex max-w-[var(--max-app-width)] flex-col gap-3 p-4">
+              {/* Row 1: Brand + Quick Actions (Reservations & Notifications) */}
+              <div className="flex items-center justify-between gap-2">
+                <Link
+                  href="/"
+                  className="flex h-11 shrink-0 items-center justify-center rounded-card px-1 transition-colors hover:bg-[var(--foreground)]/30 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+                  aria-label="صفحه اصلی سایرا"
+                >
+                  <AppImage
+                    src="/design/sayra.svg"
+                    alt="سایرا"
+                    className="h-7   w-auto"
+                    loading="eager"
+                    priority
+                  />
+                </Link>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  <Link
+                    href={reservationsHref}
+                    aria-label={reservationsLabel}
+                    aria-current={isReservationsActive ? "page" : undefined}
+                    className={`flex h-11 shrink-0 items-center justify-center gap-2 rounded-card border px-3 text-xs font-bold transition-colors active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60 ${
+                      isReservationsActive
+                        ? "border-[var(--primary)]/30 bg-[var(--primary-muted)] text-[var(--primary)]"
+                        : "border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-white)] hover:border-[var(--primary)]/40 hover:bg-[var(--foreground)]/40"
+                    }`}
+                  >
+                    <Icon
+                      name="calendar"
+                      size={16}
+                      strokeWidth={1.75}
+                      className={
+                        isReservationsActive
+                          ? "text-[var(--primary)]"
+                          : "text-[var(--text-muted)]"
+                      }
+                    />
+                    <span className="whitespace-nowrap">{reservationsLabel}</span>
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={handleNotificationBtnClick}
+                    aria-label="اعلانات"
+                    title="اعلانات"
+                    className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-card border border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/40 hover:bg-[var(--foreground)]/40 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+                  >
+                    <span className="relative flex items-center justify-center">
+                      <Icon name="bell" size={20} strokeWidth={1.75} />
+
+                      {isLoggedIn && unreadCount > 0 && (
+                        <span
+                          className="absolute -top-2 -left-2 flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--bg-card)] bg-[var(--primary)] px-1 text-xs font-bold leading-none text-on-primary"
+                          aria-label={`${toPersianDigits(unreadCount)} اعلان خوانده‌نشده`}
+                        >
+                          {notificationBadge}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 2: Unified Discovery Bar (Search + City Selector) */}
+              <div className="flex h-11 w-full items-center overflow-hidden rounded-card border border-[var(--border-color)] bg-[var(--bg-card)]">
+                <button
+                  type="button"
+                  onClick={handleSearchBtnClick}
+                  aria-label="جست‌وجو در سایرا"
+                  className="group flex h-full min-w-0 flex-1 items-center gap-2 px-3 text-right transition-colors hover:bg-[var(--foreground)]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--primary)]/60"
+                >
+                  <Icon
+                    name="search"
+                    size={16}
+                    strokeWidth={1.75}
+                    className="text-[var(--primary)] transition-transform group-hover:scale-105"
+                  />
+                  <span className="truncate text-xs font-medium text-[var(--text-muted)]">
+                    جست‌وجوی گیمنت یا بازی…
+                  </span>
+                </button>
+
+                <span
+                  className="h-5 w-px shrink-0 bg-[var(--border-color)]"
+                  aria-hidden="true"
                 />
-              </Link>
 
-              <button
-                type="button"
-                onClick={handleLocationBtnClick}
-                className="flex shrink-0 items-center gap-2 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/60 h-[40px]"
-                aria-label="انتخاب شهر"
-              >
-                <svg
-                  className="h-3.5 w-3.5 shrink-0 text-[var(--primary)]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  aria-hidden="true"
+                <button
+                  type="button"
+                  onClick={handleLocationBtnClick}
+                  aria-label={`انتخاب شهر (${currentCity})`}
+                  className="flex h-full shrink-0 items-center gap-1.5 px-3 text-xs text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/40 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--primary)]/60"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                  <Icon
+                    name="pin"
+                    size={16}
+                    strokeWidth={1.75}
+                    className="text-[var(--primary)]"
                   />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                  <span className="max-w-24 truncate text-xs font-bold">
+                    {currentCity}
+                  </span>
+                  <Icon
+                    name="chevron"
+                    size={16}
+                    strokeWidth={1.75}
+                    className="text-[var(--text-muted)]"
                   />
-                </svg>
-
-                <span className="text-xs font-bold">{currentCity}</span>
-
-                <svg
-                  className="h-3 w-3 shrink-0 text-[var(--text-muted)]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="m19 9-7 7-7-7"
-                  />
-                </svg>
-              </button>
-
-              {/* Profile button on mobile */}
-              {renderAccountButton(true)}
+                </button>
+              </div>
             </div>
-
-            {/* Row 2: Search */}
-            <button
-              type="button"
-              onClick={handleSearchBtnClick}
-              aria-label="جست‌وجو در سایرا"
-              className="group flex h-10 w-full items-center justify-between rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3.5 text-xs text-[var(--text-white)] transition-all hover:border-[var(--primary)]/50"
-            >
-              <span className="flex min-w-0 items-center gap-2">
-                <svg
-                  className="h-4 w-4 shrink-0 text-[var(--primary)] transition-transform group-hover:scale-110"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  aria-hidden="true"
-                >
-                  <circle cx="11" cy="11" r="7" />
-                  <path strokeLinecap="round" d="m20 20-3.5-3.5" />
-                </svg>
-
-                <span className="truncate text-xs text-[var(--text-muted)]">
-                  جست‌وجوی گیمنت یا بازی…
-                </span>
-              </span>
-
-              <span className="shrink-0 rounded-child bg-[var(--foreground)]/50 px-2 py-0.5 text-xs font-bold text-[var(--text-muted)]">
-                جستوجو
-              </span>
-            </button>
           </div>
-        </div>
         )}
 
         {/* ================= DESKTOP HEADER ================= */}
@@ -671,7 +676,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Actions */}
             <div className="flex shrink-0 items-center gap-2">
               {/* Account menu — desktop */}
-              {renderAccountButton(false)}
+              {renderAccountButton()}
             </div>
           </div>
         </div>

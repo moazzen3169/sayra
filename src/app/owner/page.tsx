@@ -27,6 +27,7 @@ const ICONS = {
   megaphone: "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M11 5.882a3 3 0 00-3-3H5a2 2 0 00-2 2v6a2 2 0 002 2h3a3 3 0 003-3",
   tag: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z",
   support: "M4 14v-2a8 8 0 0116 0v2M4 14h3v5H5a1 1 0 01-1-1v-4zm16 0h-3v5h2a1 1 0 001-1v-4zM17 19c0 1.5-2 2-5 2",
+  shield: "M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z M9 12l2 2 4-4",
 };
 
 const TILES: { href: string; label: string; icon: string; badge?: "pending" }[] = [
@@ -41,16 +42,15 @@ const MENU: {
   label: string;
   icon: string;
   comingSoon?: boolean;
+  isVerification?: boolean;
 }[] = [
+  { href: "/owner/verification", label: "احراز هویت", icon: ICONS.shield, isVerification: true },
   { href: "/owner/edit", label: "ویرایش گیمنت", icon: ICONS.edit },
   { href: "/owner/hours", label: "ساعات کاری و تعطیلات", icon: ICONS.clock },
   { label: "ایجاد تبلیغات", icon: ICONS.megaphone, comingSoon: true },
   { href: "/owner/discounts", label: "ایجاد تخفیف", icon: ICONS.tag },
   { href: "/owner/support", label: "پشتیبانی", icon: ICONS.support },
 ];
-
-const verificationInput =
-  "h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none";
 
 export default function OwnerDashboardPage() {
   const router = useRouter();
@@ -63,9 +63,7 @@ export default function OwnerDashboardPage() {
     centerError,
     ownerName,
     verificationStatus,
-    verificationData,
-    submitVerification,
-    setVerificationStatus,
+    verificationInfo,
   } = useOwner();
 
   // اگر احراز هویت شده ولی هیچ گیم‌نتی وجود ندارد، به ساخت گیم‌نت هدایت کن
@@ -85,17 +83,6 @@ export default function OwnerDashboardPage() {
   }, [isCenterLoading, centers.length, centerId, me?.gamingCenterId, router]);
 
   const [query, setQuery] = useState("");
-
-  // Verification Form State
-  const [vOwnerName, setVOwnerName] = useState(verificationData?.ownerName || "");
-  const [vNationalId, setVNationalId] = useState(verificationData?.nationalId || "");
-  const [vCenterName, setVCenterName] = useState(verificationData?.centerName || "");
-  const [vCenterAddress, setVCenterAddress] = useState(verificationData?.centerAddress || "");
-  const [licenseFile, setLicenseFile] = useState<File | null>(null);
-  const [vError, setVError] = useState<string | null>(null);
-
-  const licenseInputRef = useRef<HTMLInputElement>(null);
-
   const isApproved = verificationStatus === "APPROVED";
   const [withdrawable, setWithdrawable] = useState<number | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
@@ -165,29 +152,8 @@ export default function OwnerDashboardPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isApproved) return;
     const q = query.trim();
     router.push(q ? `/owner/reservations?q=${encodeURIComponent(q)}` : "/owner/reservations");
-  };
-
-  const handleVerificationSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!vOwnerName.trim() || !vNationalId.trim() || !vCenterName.trim() || !vCenterAddress.trim()) {
-      setVError("لطفاً تمامی اطلاعات خواسته شده را وارد کنید.");
-      return;
-    }
-    if (!licenseFile && !verificationData?.licenseFileName) {
-      setVError("لطفاً تصویر پروانه کسب را آپلود کنید.");
-      return;
-    }
-    setVError(null);
-    submitVerification({
-      ownerName: vOwnerName.trim(),
-      nationalId: vNationalId.trim(),
-      centerName: vCenterName.trim(),
-      centerAddress: vCenterAddress.trim(),
-      licenseFileName: licenseFile?.name || verificationData?.licenseFileName,
-    });
   };
 
   // آپلود عکس به همراه پیش‌نمایش آنی (Optimistic Preview)
@@ -279,7 +245,7 @@ export default function OwnerDashboardPage() {
       <OwnerHeader
         title="پنل مدیریت"
         isSubpage={false}
-        showSearch={isApproved}
+        showSearch={true}
         searchValue={query}
         onSearchChange={setQuery}
         onSearchSubmit={handleSearch}
@@ -325,137 +291,73 @@ export default function OwnerDashboardPage() {
           </Link>
         </div>
 
-        {/* احراز هویت اگر تأیید نشده */}
+        {/* بنر غیرمسدودکننده وضعیت فعال‌سازی و احراز هویت */}
         {!isApproved && (
-          <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 flex flex-col gap-4">
-            {verificationStatus === "NOT_SUBMITTED" && (
-              <>
-                <div className="flex flex-col gap-1">
-                  <h2 className="text-base font-bold text-[var(--text-white)]">احراز هویت صاحب گیمنت</h2>
-                  <p className="text-xs text-[var(--text-muted)]">
-                    برای دسترسی به سایر بخش‌ها و فعال‌سازی پنل مدیریت، اطلاعات و مدرک شغلی خود را ثبت کنید.
-                  </p>
-                </div>
-
-                {vError && (
-                  <div role="alert" className="p-3 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold">
-                    {vError}
-                  </div>
-                )}
-
-                <form onSubmit={handleVerificationSubmit} className="flex flex-col gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="v-owner-name" className="text-xs font-bold text-[var(--text-muted)]">نام و نام خانوادگی صاحب گیمنت</label>
-                    <input
-                      id="v-owner-name"
-                      value={vOwnerName}
-                      onChange={(e) => setVOwnerName(e.target.value)}
-                      placeholder="مثلا: علی محمدی"
-                      className={verificationInput}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="v-national-id" className="text-xs font-bold text-[var(--text-muted)]">کد ملی</label>
-                    <input
-                      id="v-national-id"
-                      value={vNationalId}
-                      onChange={(e) => setVNationalId(e.target.value)}
-                      inputMode="numeric"
-                      placeholder="کد ۱۰ رقمی ملی"
-                      className={verificationInput}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="v-center-name" className="text-xs font-bold text-[var(--text-muted)]">نام گیمنت</label>
-                    <input
-                      id="v-center-name"
-                      value={vCenterName}
-                      onChange={(e) => setVCenterName(e.target.value)}
-                      placeholder="مثلا: گیمنت گرگدن"
-                      className={verificationInput}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="v-center-address" className="text-xs font-bold text-[var(--text-muted)]">آدرس گیمنت</label>
-                    <textarea
-                      id="v-center-address"
-                      value={vCenterAddress}
-                      onChange={(e) => setVCenterAddress(e.target.value)}
-                      placeholder="آدرس دقیق مجموعه"
-                      rows={2}
-                      className="p-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none resize-none"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-bold text-[var(--text-muted)]">عکس پروانه کسب</span>
-                    <button
-                      type="button"
-                      onClick={() => licenseInputRef.current?.click()}
-                      className="h-20 w-full rounded-card border-2 border-dashed border-[var(--border-subtle)] bg-[var(--foreground)]/20 hover:bg-[var(--foreground)]/30 transition-colors flex flex-col items-center justify-center gap-1"
-                    >
-                      <Icon name="upload" size={24} className="text-[var(--text-muted)]" />
-                      <span className="text-xs font-bold text-[var(--primary)]">
-                        {licenseFile ? licenseFile.name : "انتخاب یا آپلود عکس پروانه کسب"}
-                      </span>
-                    </button>
-                    <input
-                      ref={licenseInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => setLicenseFile(e.target.files?.[0] || null)}
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="mt-2 h-12 rounded-card bg-[var(--primary)] text-on-primary text-sm font-bold hover:bg-[var(--primary-hover)] transition-colors"
-                  >
-                    ارسال جهت بررسی و احراز هویت
-                  </button>
-                </form>
-              </>
-            )}
-
-            {verificationStatus === "PENDING" && (
-              <div className="flex flex-col items-center text-center py-4 gap-3">
-                <div className="w-14 h-14 rounded-full bg-[var(--accent-warning)]/10 border border-[var(--accent-warning)]/30 flex items-center justify-center text-[var(--accent-warning)]">
-                  <Icon name="clock" size={32} />
-                </div>
-                <h2 className="text-base font-bold text-[var(--text-white)]">اطلاعات شما در صف انتظار بررسی است</h2>
-                <p className="text-xs text-[var(--text-muted)] max-w-md leading-relaxed">
-                  مدارک و اطلاعات احراز هویت شما ارسال شده و توسط پشتیبانی در حال بررسی است. پس از تأیید، دسترسی شما به تمام بخش‌های پنل فعال خواهد شد.
+          <div
+            className={`rounded-card border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+              verificationStatus === "PENDING"
+                ? "bg-amber-500/10 border-amber-500/30"
+                : verificationStatus === "REJECTED"
+                  ? "bg-[var(--accent-red)]/10 border-[var(--accent-red)]/30"
+                  : "bg-[var(--bg-card)] border-[var(--primary)]/30"
+            }`}
+          >
+            <div className="flex items-start gap-3 min-w-0">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                  verificationStatus === "PENDING"
+                    ? "bg-amber-500/15 text-amber-400"
+                    : verificationStatus === "REJECTED"
+                      ? "bg-[var(--accent-red)]/15 text-[var(--accent-red)]"
+                      : "bg-[var(--primary)]/15 text-[var(--primary)]"
+                }`}
+              >
+                <Icon
+                  name={
+                    verificationStatus === "PENDING"
+                      ? "clock"
+                      : verificationStatus === "REJECTED"
+                        ? "alert"
+                        : "shield"
+                  }
+                  size={20}
+                />
+              </div>
+              <div className="flex flex-col gap-1 min-w-0">
+                <h2 className="text-xs sm:text-sm font-bold text-[var(--text-white)]">
+                  {verificationStatus === "PENDING"
+                    ? "گیم‌نت غیرفعال است • درخواست احراز هویت در حال انتظار بررسی"
+                    : verificationStatus === "REJECTED"
+                      ? "گیم‌نت غیرفعال است • درخواست احراز هویت لغو شده است"
+                      : "گیم‌نت شما در حال حاضر غیرفعال و در انتظار احراز هویت است"}
+                </h2>
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                  {verificationStatus === "PENDING"
+                    ? "درخواست شما ثبت شده است. تا زمان تایید ادمین، گیم‌نت برای کاربران سایت قابل مشاهده نیست؛ اما می‌توانید دستگاه‌ها، بازی‌ها، آدرس و تخفیف‌ها را تکمیل کنید."
+                    : verificationStatus === "REJECTED"
+                      ? verificationInfo?.rejectionReason
+                        ? `دلیل لغو: ${verificationInfo.rejectionReason}`
+                        : "درخواست احراز هویت شما تایید نشد. می‌توانید علت را مشاهده کرده و درخواست جدید ثبت کنید."
+                      : "تا پیش از تایید احراز هویت، گیم‌نت برای کاربران نمایش داده نمی‌شود؛ اما همین حالا می‌توانید دستگاه‌ها، بازی‌ها، آدرس و تخفیف‌های خود را تکمیل کنید."}
                 </p>
               </div>
-            )}
+            </div>
 
-            {verificationStatus === "REJECTED" && (
-              <div className="flex flex-col items-center text-center py-4 gap-3">
-                <div className="w-14 h-14 rounded-full bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 flex items-center justify-center text-[var(--accent-red)]">
-                  <Icon name="alert" size={28} />
-                </div>
-                <h2 className="text-base font-bold text-[var(--text-white)]">احراز هویت شما تایید نشد</h2>
-                <p className="text-xs text-[var(--text-muted)] max-w-md leading-relaxed">
-                  اطلاعات یا پروانه کسب ارسال شده مورد تایید قرار نگرفت. لطفاً مجدداً اطلاعات صحیح را وارد کرده و تصویر خوانا ارسال کنید.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setVerificationStatus("NOT_SUBMITTED")}
-                  className="mt-2 h-11 px-5 rounded-card bg-[var(--primary)] text-on-primary text-xs font-bold hover:bg-[var(--primary-hover)] transition-colors"
-                >
-                  ویرایش و تلاش مجدد
-                </button>
-              </div>
-            )}
+            <Link
+              href="/owner/verification"
+              className="h-10 px-4 rounded-card bg-[var(--primary)] text-on-primary text-xs font-bold hover:bg-[var(--primary-hover)] transition-colors flex items-center justify-center shrink-0"
+            >
+              {verificationStatus === "PENDING"
+                ? "مشاهده وضعیت درخواست"
+                : verificationStatus === "REJECTED"
+                  ? "بررسی دلیل لغو و ارسال مجدد"
+                  : "احراز هویت و فعال‌سازی"}
+            </Link>
           </div>
         )}
 
-        {/* محتوای قفل‌شده تا زمان تأیید */}
-        <div className={!isApproved ? "pointer-events-none opacity-40 flex flex-col gap-5 select-none" : "flex flex-col gap-5"}>
+        {/* محتوای پنل مدیریت (همیشه در دسترس مدیر برای تکمیل اطلاعات گیم‌نت) */}
+        <div className="flex flex-col gap-5">
           {/* جستجو در هدر شناور بالا قرار گرفته است و در اینجا نیز به عنوان میانبر در دسترس است */}
           <form onSubmit={handleSearch} className="relative md:hidden">
             <input
@@ -537,12 +439,33 @@ export default function OwnerDashboardPage() {
                 <Link
                   key={m.href}
                   href={m.href!}
-                  className="flex items-center gap-3 px-5 h-16 hover:bg-[var(--foreground)]/20 transition-colors"
+                  className="flex items-center justify-between gap-3 px-5 h-16 hover:bg-[var(--foreground)]/20 transition-colors"
                 >
-                  <span className="text-[var(--text-white)]">
-                    <TileIcon d={m.icon} />
-                  </span>
-                  <span className="text-sm font-bold text-[var(--text-white)]">{m.label}</span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className={m.isVerification ? "text-[var(--primary)]" : "text-[var(--text-white)]"}>
+                      <TileIcon d={m.icon} />
+                    </span>
+                    <span className="text-sm font-bold text-[var(--text-white)]">{m.label}</span>
+                  </div>
+                  {m.isVerification && (
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-bold border shrink-0 ${
+                        verificationStatus === "APPROVED"
+                          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                          : verificationStatus === "PENDING"
+                            ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                            : "bg-[var(--accent-red)]/15 text-[var(--accent-red)] border-[var(--accent-red)]/30"
+                      }`}
+                    >
+                      {verificationStatus === "APPROVED"
+                        ? "تایید شده"
+                        : verificationStatus === "PENDING"
+                          ? "در حال انتظار"
+                          : verificationStatus === "REJECTED"
+                            ? "لغو شده"
+                            : "احراز نشده"}
+                    </span>
+                  )}
                 </Link>
               )
             )}
@@ -559,7 +482,7 @@ export default function OwnerDashboardPage() {
               </div>
               <button
                 type="button"
-                disabled={uploading || !isApproved}
+                disabled={uploading}
                 onClick={() => fileRef.current?.click()}
                 className="h-11 px-4 shrink-0 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-[var(--text-white)] text-xs font-bold hover:bg-[var(--border-color)] active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
@@ -637,7 +560,7 @@ export default function OwnerDashboardPage() {
 
                   <button
                     type="button"
-                    disabled={uploading || !isApproved}
+                    disabled={uploading}
                     onClick={() => fileRef.current?.click()}
                     aria-label="افزودن تصویر به گالری"
                     className="aspect-square rounded-card bg-[var(--foreground)]/30 border border-dashed border-[var(--border-subtle)] hover:border-[var(--primary)] flex flex-col items-center justify-center gap-1 text-[var(--text-muted)] hover:text-white transition-all disabled:opacity-50"
@@ -652,7 +575,7 @@ export default function OwnerDashboardPage() {
                 <span className="text-xs text-[var(--text-muted)]">هنوز تصویری برای گالری آپلود نشده است.</span>
                 <button
                   type="button"
-                  disabled={uploading || !isApproved}
+                  disabled={uploading}
                   onClick={() => fileRef.current?.click()}
                   className="h-11 px-4 rounded-card bg-[var(--primary)] text-on-primary text-xs font-bold hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-colors"
                 >

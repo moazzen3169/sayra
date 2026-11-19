@@ -8,11 +8,67 @@ export type VerificationStatus =
   | "REJECTED"
   | "NOT_SUBMITTED";
 
+/**
+ * ساختار رکورد احراز هویت گیم‌نت مطابق با OpenAPI schema: GamingCenterVerification
+ */
+export interface GamingCenterVerificationRecord {
+  id: string;
+  gamingCenterId: string;
+  ownerFullName?: string | null;
+  phoneNumber?: string | null;
+  gamingCenterName?: string | null;
+  businessLicenseUrl: string;
+  nationalCardUrl?: string | null;
+  idWithSelfieUrl?: string | null;
+  status: VerificationStatus;
+  rejectionReason?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * ساختار پاسخ وضعیت احراز هویت مطابق با OpenAPI schema: GamingCenterVerificationStatusResponse
+ */
+export interface GamingCenterVerificationStatusResponse {
+  gamingCenterId: string;
+  name: string;
+  verificationStatus: VerificationStatus;
+  verifiedAt?: string | null;
+  rejectionReason?: string | null;
+  latestVerification?: GamingCenterVerificationRecord | null;
+}
+
+/**
+ * ورودی ثبت درخواست احراز هویت مطابق با OpenAPI schema: SubmitVerificationInput
+ */
+export interface SubmitGamingCenterVerificationInput {
+  ownerFullName: string;
+  phoneNumber: string;
+  gamingCenterName: string;
+  businessLicense: File;
+}
+
+/**
+ * خروجی ثبت درخواست احراز هویت مطابق با 201 POST /gamingCenters/{gamingCenterId}/verification
+ */
+export interface SubmitGamingCenterVerificationResult {
+  verificationId: string;
+  gamingCenterId: string;
+  status: VerificationStatus;
+  ownerFullName: string;
+  phoneNumber: string;
+  gamingCenterName: string;
+  businessLicenseUrl: string;
+  message?: string;
+}
+
 export interface OwnerVerificationData {
   ownerName: string;
-  nationalId: string;
+  nationalId?: string;
+  phoneNumber?: string;
   centerName: string;
-  centerAddress: string;
+  centerAddress?: string;
   licenseImageUrl?: string;
   licenseFileName?: string;
 }
@@ -24,6 +80,7 @@ export interface OwnerGamingCenterRef {
   slug?: string;
   description?: string;
   isActive?: boolean;
+  verificationStatus?: VerificationStatus;
 }
 
 export interface OwnerMe {
@@ -49,6 +106,7 @@ export interface PublicCenter {
   slug: string;
   description?: string;
   isActive?: boolean;
+  verificationStatus?: VerificationStatus;
   pcCount?: number;
   consoleCount?: number;
   is_open?: boolean;

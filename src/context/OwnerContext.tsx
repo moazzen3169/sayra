@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { OwnerAuthModal } from "@/components/owner/OwnerAuthModal";
 import {
@@ -11,10 +11,16 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { isAbortError } from "@/lib/api/client";
 import { ownerService } from "@/services/ownerService";
-import type { OwnerMe, OwnerVerificationData, PublicCenter, VerificationStatus } from "@/types/owner";
+import type {
+  GamingCenterVerificationStatusResponse,
+  OwnerMe,
+  OwnerVerificationData,
+  PublicCenter,
+  SubmitGamingCenterVerificationResult,
+  VerificationStatus,
+} from "@/types/owner";
 
 const OWNER_CENTER_KEY = "sayra_owner_center_id";
-const OWNER_VERIFICATION_KEY = "sayra_owner_verification";
 
 interface OwnerContextType {
   me: OwnerMe | null;
@@ -27,9 +33,12 @@ interface OwnerContextType {
   centerError: string | null;
   ownerName: string;
   verificationStatus: VerificationStatus;
+  verificationInfo: GamingCenterVerificationStatusResponse | null;
   verificationData: OwnerVerificationData | null;
-  submitVerification: (data: OwnerVerificationData) => void;
-  setVerificationStatus: (status: VerificationStatus) => void;
+  isVerificationLoading: boolean;
+  verificationError: string | null;
+  refreshVerification: () => Promise<void>;
+  applyVerificationSubmission: (result: SubmitGamingCenterVerificationResult) => void;
 }
 
 const OwnerContext = createContext<OwnerContextType | null>(null);
@@ -55,47 +64,46 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [accessState, setAccessState] = useState<OwnerAccessVariant | null>(null);
 
   const [authOpen, setAuthOpen] = useState(false);
-  const [verificationStatus, setVerificationStatusState] = useState<VerificationStatus>("APPROVED");
-  const [verificationData, setVerificationData] = useState<OwnerVerificationData | null>(null);
+  const [verificationStatus, setVerificationStatusState] = useState<VerificationStatus>("NOT_SUBMITTED");
+  const [verificationInfo, setVerificationInfo] =
+    useState<GamingCenterVerificationStatusResponse | null>(null);
+  const [isVerificationLoading, setIsVerificationLoading] = useState<boolean>(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [verificationReloadToken, setVerificationReloadToken] = useState<number>(0);
 
-  // Read saved verification from localStorage on mount (for draft/view until backend endpoints arrive)
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(OWNER_VERIFICATION_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.status) setVerificationStatusState(parsed.status);
-        if (parsed.data) setVerificationData(parsed.data);
-      }
-    } catch {
-      // ignore
-    }
+  const refreshVerification = useCallback(async () => {
+    setVerificationReloadToken((t) => t + 1);
   }, []);
 
-  const submitVerification = (data: OwnerVerificationData) => {
-    setVerificationData(data);
-    setVerificationStatusState("PENDING");
-    try {
-      localStorage.setItem(
-        OWNER_VERIFICATION_KEY,
-        JSON.stringify({ status: "PENDING", data })
-      );
-    } catch {
-      // ignore
-    }
-  };
-
-  const setVerificationStatus = (status: VerificationStatus) => {
-    setVerificationStatusState(status);
-    try {
-      localStorage.setItem(
-        OWNER_VERIFICATION_KEY,
-        JSON.stringify({ status, data: verificationData })
-      );
-    } catch {
-      // ignore
-    }
-  };
+  const applyVerificationSubmission = useCallback(
+    (res: SubmitGamingCenterVerificationResult) => {
+      const nowIso = new Date().toISOString();
+      const nextStatus: VerificationStatus = res.status || "PENDING";
+      setVerificationStatusState(nextStatus);
+      setVerificationError(null);
+      setVerificationInfo((prev) => ({
+        gamingCenterId: res.gamingCenterId || prev?.gamingCenterId || centerId,
+        name: res.gamingCenterName || prev?.name || center?.name || "",
+        verificationStatus: nextStatus,
+        verifiedAt: null,
+        rejectionReason: null,
+        latestVerification: {
+          id: res.verificationId,
+          gamingCenterId: res.gamingCenterId || centerId,
+          ownerFullName: res.ownerFullName,
+          phoneNumber: res.phoneNumber,
+          gamingCenterName: res.gamingCenterName,
+          businessLicenseUrl: res.businessLicenseUrl,
+          status: nextStatus,
+          rejectionReason: null,
+          reviewedAt: null,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        },
+      }));
+    },
+    [centerId, center?.name]
+  );
 
   // Center selection function with validation against authorized centers
   const selectCenter = (newCenterId: string) => {
@@ -277,6 +285,9 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         setCenterId(chosenCenter.id);
         setCenter(chosenCenter);
+        if (chosenCenter.verificationStatus) {
+          setVerificationStatusState(chosenCenter.verificationStatus);
+        }
         setAccessState(null);
         setIsCenterLoading(false);
       } catch (err: any) {
@@ -311,15 +322,86 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, [authLoading, isLoggedIn, logout, reloadToken]);
 
+  // Fetch live gaming center verification (KYC) status from backend
+  useEffect(() => {
+    if (authLoading || !isLoggedIn || !centerId) {
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+
+    async function loadVerification() {
+      setIsVerificationLoading(true);
+      setVerificationError(null);
+      try {
+        const res = await ownerService.getVerificationStatus(
+          centerId,
+          controller.signal
+        );
+        if (!active) return;
+        setVerificationInfo(res);
+        setVerificationStatusState(res.verificationStatus);
+      } catch (err: unknown) {
+        if (!active || isAbortError(err)) return;
+        const msg =
+          err instanceof Error
+            ? err.message
+            : "خطا در دریافت وضعیت احراز هویت گیم‌نت.";
+        setVerificationError(msg);
+      } finally {
+        if (active) {
+          setIsVerificationLoading(false);
+        }
+      }
+    }
+
+    loadVerification();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [authLoading, isLoggedIn, centerId, verificationReloadToken]);
+
+  // Refresh verification status when user returns to the browser tab
+  useEffect(() => {
+    if (typeof window === "undefined" || !isLoggedIn || !centerId) return;
+    let lastRefresh = 0;
+    const handleFocus = () => {
+      const now = Date.now();
+      if (now - lastRefresh < 10_000) return;
+      lastRefresh = now;
+      setVerificationReloadToken((t) => t + 1);
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [isLoggedIn, centerId]);
+
   if (!isPublicOwnerRoute && (authLoading || isCenterLoading)) {
     return (
       <OwnerPanelSkeleton statusText="در حال بارگذاری اطلاعات گیم‌نت..." />
     );
   }
 
+  const activeVerificationInfo =
+    isLoggedIn && centerId ? verificationInfo : null;
+  const activeVerificationStatus: VerificationStatus =
+    isLoggedIn && centerId ? verificationStatus : "NOT_SUBMITTED";
+
+  const latestVerif = activeVerificationInfo?.latestVerification;
+  const derivedVerificationData: OwnerVerificationData | null = latestVerif
+    ? {
+        ownerName: latestVerif.ownerFullName || "",
+        phoneNumber: latestVerif.phoneNumber || "",
+        centerName: latestVerif.gamingCenterName || activeVerificationInfo?.name || "",
+        licenseImageUrl: latestVerif.businessLicenseUrl || undefined,
+      }
+    : null;
+
   // Real owner display name resolution
   const resolvedOwnerName =
-    verificationData?.ownerName ||
+    derivedVerificationData?.ownerName ||
     me?.fullName ||
     user?.fullName ||
     "";
@@ -347,10 +429,13 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         centerError,
         refreshCenters,
         ownerName: resolvedOwnerName,
-        verificationStatus,
-        verificationData,
-        submitVerification,
-        setVerificationStatus,
+        verificationStatus: activeVerificationStatus,
+        verificationInfo: activeVerificationInfo,
+        verificationData: derivedVerificationData,
+        isVerificationLoading,
+        verificationError: isLoggedIn && centerId ? verificationError : null,
+        refreshVerification,
+        applyVerificationSubmission,
       }}
     >
       {resolvedAccessBlock ? (

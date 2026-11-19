@@ -4,7 +4,9 @@ import { ENDPOINTS } from "@/lib/api/endpoints";
 import {
   extractMediaItems,
   extractMediaUrl,
+  normalizeMediaUrl,
 } from "@/lib/media";
+import { cleanPhoneNumber, isValidIranPhone } from "@/lib/format";
 import type { GameStationInfo } from "@/services/gamingCenterService";
 import type {
   ExtraControllerConfigInput,
@@ -22,6 +24,8 @@ import type {
   Earning,
   GamingCenterClosure,
   GamingCenterSchedule,
+  GamingCenterVerificationRecord,
+  GamingCenterVerificationStatusResponse,
   MediaItem,
   OwnerAnalyticsSummary,
   OwnerMe,
@@ -33,7 +37,10 @@ import type {
   ReservationPaymentStatusInfo,
   SiteSettings,
   StationInput,
+  SubmitGamingCenterVerificationInput,
+  SubmitGamingCenterVerificationResult,
   Ticket,
+  VerificationStatus,
 } from "@/types/owner";
 import type { ReservationTimeProposal } from "@/types/reservation";
 
@@ -1866,5 +1873,181 @@ export const ownerService = {
     }
 
     throw new Error("آدرس فایل پیوست در پاسخ سرور یافت نشد.");
+  },
+
+  /**
+   * دریافت وضعیت احراز هویت گیم‌نت (KYC) مطابق OpenAPI:
+   * GET /gamingCenters/{gamingCenterId}/verification
+   */
+  async getVerificationStatus(
+    gamingCenterId: string,
+    signal?: AbortSignal
+  ): Promise<GamingCenterVerificationStatusResponse> {
+    if (!gamingCenterId) {
+      throw new Error("شناسه گیم‌نت مشخص نشده است.");
+    }
+
+    const response = await apiClient.get<Record<string, unknown>>(
+      ENDPOINTS.owner.verification(gamingCenterId),
+      { signal }
+    );
+
+    const raw = response.data as Record<string, unknown>;
+    const payload = (
+      raw?.data && typeof raw.data === "object" ? raw.data : raw ?? {}
+    ) as Record<string, unknown>;
+
+    const validStatuses: VerificationStatus[] = [
+      "NOT_SUBMITTED",
+      "PENDING",
+      "APPROVED",
+      "REJECTED",
+    ];
+    const normalizeStatus = (val: unknown): VerificationStatus => {
+      const upper = typeof val === "string" ? val.toUpperCase() : "";
+      return validStatuses.includes(upper as VerificationStatus)
+        ? (upper as VerificationStatus)
+        : "NOT_SUBMITTED";
+    };
+
+    const rawLatest = payload?.latestVerification as
+      | Record<string, unknown>
+      | undefined
+      | null;
+    const latestVerification: GamingCenterVerificationRecord | null =
+      rawLatest && typeof rawLatest === "object"
+        ? {
+            id: String(rawLatest.id ?? rawLatest.verificationId ?? ""),
+            gamingCenterId: String(
+              rawLatest.gamingCenterId ?? payload.gamingCenterId ?? gamingCenterId
+            ),
+            ownerFullName:
+              typeof rawLatest.ownerFullName === "string"
+                ? rawLatest.ownerFullName
+                : null,
+            phoneNumber:
+              typeof rawLatest.phoneNumber === "string"
+                ? rawLatest.phoneNumber
+                : null,
+            gamingCenterName:
+              typeof rawLatest.gamingCenterName === "string"
+                ? rawLatest.gamingCenterName
+                : null,
+            businessLicenseUrl: normalizeMediaUrl(
+              typeof rawLatest.businessLicenseUrl === "string"
+                ? rawLatest.businessLicenseUrl
+                : ""
+            ),
+            nationalCardUrl:
+              typeof rawLatest.nationalCardUrl === "string"
+                ? normalizeMediaUrl(rawLatest.nationalCardUrl)
+                : null,
+            idWithSelfieUrl:
+              typeof rawLatest.idWithSelfieUrl === "string"
+                ? normalizeMediaUrl(rawLatest.idWithSelfieUrl)
+                : null,
+            status: normalizeStatus(rawLatest.status ?? payload.verificationStatus),
+            rejectionReason:
+              typeof rawLatest.rejectionReason === "string"
+                ? rawLatest.rejectionReason
+                : typeof payload.rejectionReason === "string"
+                  ? payload.rejectionReason
+                  : null,
+            reviewedAt:
+              typeof rawLatest.reviewedAt === "string"
+                ? rawLatest.reviewedAt
+                : null,
+            createdAt: String(rawLatest.createdAt ?? ""),
+            updatedAt: String(rawLatest.updatedAt ?? rawLatest.createdAt ?? ""),
+          }
+        : null;
+
+    return {
+      gamingCenterId: String(payload.gamingCenterId ?? gamingCenterId),
+      name: String(payload.name ?? ""),
+      verificationStatus: normalizeStatus(
+        payload.verificationStatus ?? latestVerification?.status
+      ),
+      verifiedAt:
+        typeof payload.verifiedAt === "string" ? payload.verifiedAt : null,
+      rejectionReason:
+        typeof payload.rejectionReason === "string"
+          ? payload.rejectionReason
+          : latestVerification?.rejectionReason ?? null,
+      latestVerification,
+    };
+  },
+
+  /**
+   * ثبت درخواست احراز هویت گیم‌نت (KYC) مطابق OpenAPI:
+   * POST /gamingCenters/{gamingCenterId}/verification (multipart/form-data)
+   */
+  async submitVerification(
+    gamingCenterId: string,
+    payload: SubmitGamingCenterVerificationInput,
+    signal?: AbortSignal
+  ): Promise<SubmitGamingCenterVerificationResult> {
+    if (!gamingCenterId) {
+      throw new Error("شناسه گیم‌نت مشخص نشده است.");
+    }
+
+    const ownerFullName = payload.ownerFullName?.trim() || "";
+    if (ownerFullName.length < 2) {
+      throw new Error("نام و نام خانوادگی باید حداقل ۲ کاراکتر باشد.");
+    }
+
+    const phoneNumber = cleanPhoneNumber(payload.phoneNumber);
+    if (!isValidIranPhone(phoneNumber)) {
+      throw new Error("شماره موبایل معتبر وارد کنید (مثلاً 09123456789).");
+    }
+
+    const gamingCenterName = payload.gamingCenterName?.trim() || "";
+    if (gamingCenterName.length < 2) {
+      throw new Error("نام گیم‌نت باید حداقل ۲ کاراکتر باشد.");
+    }
+
+    const file = payload.businessLicense;
+    if (!file) {
+      throw new Error("لطفاً تصویر پروانه کسب گیم‌نت را انتخاب کنید.");
+    }
+
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB مطابق OpenAPI
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error("حجم فایل پروانه کسب نباید بیشتر از ۵ مگابایت باشد.");
+    }
+
+    const form = new FormData();
+    form.append("ownerFullName", ownerFullName);
+    form.append("phoneNumber", phoneNumber);
+    form.append("gamingCenterName", gamingCenterName);
+    form.append("businessLicense", file);
+
+    const response = await apiClient.post<Record<string, unknown>>(
+      ENDPOINTS.owner.verification(gamingCenterId),
+      form,
+      { signal }
+    );
+
+    const raw = response.data as Record<string, unknown>;
+    const data = (
+      raw?.data && typeof raw.data === "object" ? raw.data : raw ?? {}
+    ) as Record<string, unknown>;
+
+    return {
+      verificationId: String(data.verificationId ?? data.id ?? ""),
+      gamingCenterId: String(data.gamingCenterId ?? gamingCenterId),
+      status:
+        (String(data.status ?? "PENDING").toUpperCase() as VerificationStatus) ||
+        "PENDING",
+      ownerFullName: String(data.ownerFullName ?? ownerFullName),
+      phoneNumber: String(data.phoneNumber ?? phoneNumber),
+      gamingCenterName: String(data.gamingCenterName ?? gamingCenterName),
+      businessLicenseUrl: normalizeMediaUrl(
+        typeof data.businessLicenseUrl === "string"
+          ? data.businessLicenseUrl
+          : ""
+      ),
+      message: typeof data.message === "string" ? data.message : undefined,
+    };
   },
 };

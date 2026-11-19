@@ -31,8 +31,8 @@ const platformsOf = (game?: GameCatalogItem): string =>
 
 export default function NewOwnerGamePage() {
   const router = useRouter();
-  const { centerId, center, isCenterLoading, verificationStatus } = useOwner();
-  const canEdit = verificationStatus === "APPROVED";
+  const { centerId, center, isCenterLoading } = useOwner();
+  const canEdit = true;
 
   // بازی‌های فعلی گیمنت برای تشخیص موارد اضافه‌شده
   const [centerGames, setCenterGames] = useState<CenterGameItem[] | null>(null);

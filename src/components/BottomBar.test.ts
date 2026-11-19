@@ -1,12 +1,26 @@
 import { describe, it, expect } from "bun:test";
-import { TAB_ROUTES, getActiveTabFromPathname } from "@/components/BottomBar";
+import { BOTTOM_BAR_TABS, TAB_ROUTES, getActiveTabFromPathname } from "@/components/BottomBar";
 
 describe("BottomBar navigation contract", () => {
-  it("defines the 4 required bottom bar routes correctly", () => {
+  it("defines the bottom bar routes correctly", () => {
     expect(TAB_ROUTES.home).toBe("/");
     expect(TAB_ROUTES.gamecenters).toBe("/gamecenters");
     expect(TAB_ROUTES.news).toBe("/blog");
+    expect(TAB_ROUTES.profile).toBe("/profile");
     expect(TAB_ROUTES.reservations).toBe("/reservations");
+  });
+
+  it("shows profile (حساب) instead of reservations in mobile bottom bar tabs", () => {
+    expect(BOTTOM_BAR_TABS.map((t) => t.id)).toEqual([
+      "home",
+      "gamecenters",
+      "news",
+      "profile",
+    ]);
+    const profileTab = BOTTOM_BAR_TABS.find((t) => t.id === "profile");
+    expect(profileTab?.label).toBe("حساب");
+    expect(profileTab?.href).toBe("/profile");
+    expect(BOTTOM_BAR_TABS.some((t) => t.id === "reservations")).toBe(false);
   });
 
   it("preserves backward compatibility for legacy history tab", () => {
@@ -26,6 +40,11 @@ describe("BottomBar navigation contract", () => {
     it("resolves /blog and subpaths to news", () => {
       expect(getActiveTabFromPathname("/blog")).toBe("news");
       expect(getActiveTabFromPathname("/blog/article-slug")).toBe("news");
+    });
+
+    it("resolves /profile and subpaths to profile", () => {
+      expect(getActiveTabFromPathname("/profile")).toBe("profile");
+      expect(getActiveTabFromPathname("/profile/wallet")).toBe("profile");
     });
 
     it("resolves /reservations and subpaths to reservations", () => {

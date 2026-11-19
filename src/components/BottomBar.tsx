@@ -29,11 +29,11 @@ export const TAB_ROUTES: Record<TabType, string> = {
   profile: "/profile",
 };
 
-const tabs: { id: TabType; label: string; icon: IconName; href: string }[] = [
+export const BOTTOM_BAR_TABS: { id: TabType; label: string; icon: IconName; href: string }[] = [
   { id: "home", label: "خانه", href: TAB_ROUTES.home, icon: "home" },
   { id: "gamecenters", label: "گیمنت‌ها", href: TAB_ROUTES.gamecenters, icon: "gamepad" },
   { id: "news", label: "اخبار", href: TAB_ROUTES.news, icon: "list" },
-  { id: "reservations", label: "رزروهای من", href: TAB_ROUTES.reservations, icon: "calendar" },
+  { id: "profile", label: "حساب", href: TAB_ROUTES.profile, icon: "user" },
 ];
 
 export function getActiveTabFromPathname(pathname: string | null | undefined): TabType | null {
@@ -41,6 +41,7 @@ export function getActiveTabFromPathname(pathname: string | null | undefined): T
   if (pathname === "/") return "home";
   if (pathname === "/gamecenters" || pathname.startsWith("/gamecenters/")) return "gamecenters";
   if (pathname === "/blog" || pathname.startsWith("/blog/")) return "news";
+  if (pathname === "/profile" || pathname.startsWith("/profile/")) return "profile";
   if (pathname === "/reservations" || pathname.startsWith("/reservations/")) return "reservations";
   return null;
 }
@@ -58,8 +59,8 @@ export const BottomBar: React.FC<BottomBarProps> = ({ activeTab, onTabChange }) 
       aria-label="ناوبری پایین صفحه"
       className="fixed bottom-0 left-0 right-0 z-[var(--z-header)] flex justify-center pointer-events-none lg:hidden"
     >
-      <div className="w-full max-w-[var(--max-app-width)] border-t border-[var(--border-subtle)] bg-[var(--bg-body)]/95 backdrop-blur-md px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex items-center justify-around pointer-events-auto">
-        {tabs.map((tab) => {
+      <div className="grid w-full max-w-[var(--max-app-width)] grid-cols-4 gap-1 border-t border-[var(--border-subtle)] bg-[var(--bg-body)]/95 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-md pointer-events-auto">
+        {BOTTOM_BAR_TABS.map((tab) => {
           const isActive = normalizedActiveTab === tab.id;
           return (
             <Link
@@ -68,14 +69,18 @@ export const BottomBar: React.FC<BottomBarProps> = ({ activeTab, onTabChange }) 
               onClick={() => onTabChange?.(tab.id)}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 px-2 min-w-[64px] min-h-[44px] transition-colors rounded-card",
+                "flex min-h-11 flex-col items-center justify-center gap-1 rounded-card px-2 py-1.5 transition-colors active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60",
                 isActive
-                  ? "text-[var(--primary)] font-bold"
-                  : "text-[var(--text-muted)] hover:text-[var(--text-white)]"
+                  ? "bg-[var(--primary-muted)] font-bold text-[var(--primary)]"
+                  : "font-medium text-[var(--text-muted)] hover:bg-[var(--foreground)]/30 hover:text-[var(--text-white)]"
               )}
             >
-              <Icon name={tab.icon} size={20} />
-              <span className="text-xs font-medium leading-none">{tab.label}</span>
+              <Icon
+                name={tab.icon}
+                size={20}
+                strokeWidth={isActive ? 2 : 1.75}
+              />
+              <span className="text-xs leading-none">{tab.label}</span>
             </Link>
           );
         })}
