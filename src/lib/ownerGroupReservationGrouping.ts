@@ -20,6 +20,9 @@ export interface OwnerGroupBookingItem {
   paymentState: PaymentState;
   totalPrice: number;
   reservationCode?: string;
+  checkInCode?: string;
+  note?: string | null;
+  createdAt?: string;
   devices: GroupedDeviceItem[];
   reservations: OwnerReservation[];
 }
@@ -103,11 +106,16 @@ export function groupOwnerReservations(reservations: OwnerReservation[]): OwnerB
 
       // Customer info from first non-empty record
       const customerName =
-        groupReservations.map((res) => res.customer?.fullName ?? res.customerName).find(Boolean) ||
-        undefined;
+        groupReservations
+          .map((res) => res.customer?.fullName ?? res.user?.fullName ?? res.customerName)
+          .find(Boolean) || undefined;
       const customerPhone =
-        groupReservations.map((res) => res.customer?.phone ?? res.customerPhone).find(Boolean) ||
-        undefined;
+        groupReservations
+          .map((res) => res.customer?.phone ?? res.user?.phone ?? res.customerPhone)
+          .find(Boolean) || undefined;
+      const checkInCode =
+        groupReservations.map((res) => res.checkInCode).find(Boolean) || undefined;
+      const note = groupReservations.map((res) => res.note).find(Boolean) ?? undefined;
 
       const groupItem: OwnerGroupBookingItem = {
         isGroup: true,
@@ -123,6 +131,9 @@ export function groupOwnerReservations(reservations: OwnerReservation[]): OwnerB
         paymentState,
         totalPrice: finalTotalPrice,
         reservationCode: rep.reservationCode || rep.groupBooking?.trackingCode,
+        checkInCode,
+        note,
+        createdAt: rep.createdAt,
         devices,
         reservations: groupReservations,
       };
@@ -131,8 +142,8 @@ export function groupOwnerReservations(reservations: OwnerReservation[]): OwnerB
     } else if (r.items && r.items.length > 1) {
       // Single reservation envelope that internally contains multiple group items
       const devices = groupDevicesForCard([r], r.items);
-      const customerName = r.customer?.fullName ?? r.customerName;
-      const customerPhone = r.customer?.phone ?? r.customerPhone;
+      const customerName = r.customer?.fullName ?? r.user?.fullName ?? r.customerName;
+      const customerPhone = r.customer?.phone ?? r.user?.phone ?? r.customerPhone;
 
       const groupItem: OwnerGroupBookingItem = {
         isGroup: true,
@@ -148,6 +159,9 @@ export function groupOwnerReservations(reservations: OwnerReservation[]): OwnerB
         paymentState: r.paymentState,
         totalPrice: r.totalPrice,
         reservationCode: r.reservationCode,
+        checkInCode: r.checkInCode || undefined,
+        note: r.note,
+        createdAt: r.createdAt,
         devices,
         reservations: [r],
       };

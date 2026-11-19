@@ -158,6 +158,16 @@ const gamingCentersListCache = new TtlDedupeCache<{
   maxEntries: 60,
 });
 
+const availabilitySlotsCache = new TtlDedupeCache<AvailabilitySlot[]>({
+  ttlMs: 20 * 1000,
+  maxEntries: 150,
+});
+
+const publicClosuresCache = new TtlDedupeCache<GamingCenterClosure[]>({
+  ttlMs: 30 * 1000,
+  maxEntries: 50,
+});
+
 function parseListParams(
   paramsOrSignal?: AbortSignal | ListGamingCentersParams
 ): { params: ListGamingCentersParams; signal?: AbortSignal } {
@@ -327,14 +337,22 @@ export const gamingCenterService = {
       query.stationId = stationId;
     }
 
-    const { data } = await apiClient.get<unknown>(
-      ENDPOINTS.gamingCenter.availabilitySlots(slug),
-      {
-        query,
-        signal,
-      }
+    const cacheKey = `${slug}|${date}|${stationId || ""}`;
+
+    return availabilitySlotsCache.getOrFetch(
+      cacheKey,
+      async (internalSignal) => {
+        const { data } = await apiClient.get<unknown>(
+          ENDPOINTS.gamingCenter.availabilitySlots(slug),
+          {
+            query,
+            signal: internalSignal,
+          }
+        );
+        return normalizeAvailabilitySlots(data);
+      },
+      signal
     );
-    return normalizeAvailabilitySlots(data);
   },
 
   /**
@@ -343,17 +361,23 @@ export const gamingCenterService = {
    */
   async getPublicClosures(slug: string, signal?: AbortSignal): Promise<GamingCenterClosure[]> {
     try {
-      const response = await apiClient.get<any>(
-        ENDPOINTS.gamingCenter.publicClosures(slug),
-        { signal }
+      return await publicClosuresCache.getOrFetch(
+        slug,
+        async (internalSignal) => {
+          const response = await apiClient.get<any>(
+            ENDPOINTS.gamingCenter.publicClosures(slug),
+            { signal: internalSignal }
+          );
+          const raw = response.data;
+          if (Array.isArray(raw)) return raw;
+          if (raw && typeof raw === "object") {
+            if (Array.isArray(raw.data)) return raw.data;
+            if (Array.isArray(raw.items)) return raw.items;
+          }
+          return [];
+        },
+        signal
       );
-      const raw = response.data;
-      if (Array.isArray(raw)) return raw;
-      if (raw && typeof raw === "object") {
-        if (Array.isArray(raw.data)) return raw.data;
-        if (Array.isArray(raw.items)) return raw.items;
-      }
-      return [];
     } catch {
       return [];
     }

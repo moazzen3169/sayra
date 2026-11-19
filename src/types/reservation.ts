@@ -112,5 +112,8 @@ export interface ReservationTimeProposal {
   proposedEndTime: string;
   note?: string | null;
   status: ProposalStatus;
+  createdByUserId?: string;
+  customerRespondedAt?: string | null;
   createdAt: string;
+  updatedAt?: string;
 }

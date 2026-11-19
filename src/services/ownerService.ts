@@ -4,7 +4,6 @@ import { ENDPOINTS } from "@/lib/api/endpoints";
 import {
   extractMediaItems,
   extractMediaUrl,
-  normalizeMediaUrl,
 } from "@/lib/media";
 import type { GameStationInfo } from "@/services/gamingCenterService";
 import type {
@@ -16,7 +15,6 @@ import type {
   CenterSettings,
   CommissionListParams,
   CommissionListResult,
-  CreateAdvertisementInput,
   CreateBranchAddressPayload,
   CreateClosureInput,
   CreateGamingCenterPayload,
@@ -25,16 +23,19 @@ import type {
   GamingCenterClosure,
   GamingCenterSchedule,
   MediaItem,
-  OwnerAdvertisement,
   OwnerAnalyticsSummary,
   OwnerMe,
   OwnerRating,
   OwnerReservation,
+  OwnerReservationListParams,
+  OwnerReservationListResult,
   PublicCenter,
+  ReservationPaymentStatusInfo,
   SiteSettings,
   StationInput,
   Ticket,
 } from "@/types/owner";
+import type { ReservationTimeProposal } from "@/types/reservation";
 
 const asArray = <T,>(v: unknown): T[] =>
   Array.isArray(v) ? (v as T[]) : [];
@@ -422,12 +423,7 @@ export const ownerService = {
    */
   async listReservations(
     centerId: string,
-    options?: {
-      page?: number;
-      pageSize?: number;
-      status?: string;
-      signal?: AbortSignal;
-    }
+    options?: OwnerReservationListParams
   ): Promise<OwnerReservation[]> {
     const pageResult =
       await ownerService.listReservationsPaginated(centerId, options);
@@ -437,19 +433,8 @@ export const ownerService = {
 
   async listReservationsPaginated(
     centerId: string,
-    options?: {
-      page?: number;
-      pageSize?: number;
-      status?: string;
-      signal?: AbortSignal;
-    }
-  ): Promise<{
-    items: OwnerReservation[];
-    total: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
-  }> {
+    options?: OwnerReservationListParams
+  ): Promise<OwnerReservationListResult> {
     const requestedPage = options?.page ?? 1;
     const requestedPageSize = options?.pageSize ?? 50;
 
@@ -465,6 +450,14 @@ export const ownerService = {
 
     if (statusFilter) {
       query.status = statusFilter;
+    }
+
+    if (options?.search?.trim()) {
+      query.search = options.search.trim();
+    }
+
+    if (options?.checkInCode?.trim()) {
+      query.checkInCode = options.checkInCode.trim();
     }
 
     const response = await apiClient.get<unknown>(
@@ -635,15 +628,26 @@ export const ownerService = {
   async proposeTime(
     centerId: string,
     reservationId: string,
-    payload: { startTime: string; endTime: string; note?: string }
+    payload: {
+      startTime?: string;
+      endTime?: string;
+      date?: string;
+      slotTime?: string;
+      durationHours?: number;
+      note?: string;
+    }
   ): Promise<void> {
+    const body: Record<string, unknown> = {};
+    if (payload.startTime) body.startTime = payload.startTime;
+    if (payload.endTime) body.endTime = payload.endTime;
+    if (payload.date) body.date = payload.date;
+    if (payload.slotTime) body.slotTime = payload.slotTime;
+    if (typeof payload.durationHours === "number") body.durationHours = payload.durationHours;
+    if (payload.note) body.note = payload.note;
+
     await apiClient.post(
       ENDPOINTS.owner.proposeTime(centerId, reservationId),
-      {
-        startTime: payload.startTime,
-        endTime: payload.endTime,
-        ...(payload.note ? { note: payload.note } : {}),
-      }
+      body
     );
   },
 
@@ -651,9 +655,9 @@ export const ownerService = {
     centerId: string,
     reservationId: string,
     signal?: AbortSignal
-  ): Promise<unknown[]> {
+  ): Promise<ReservationTimeProposal[]> {
     const { data } = await apiClient.get<
-      unknown[] | { data?: unknown[] }
+      ReservationTimeProposal[] | { data?: ReservationTimeProposal[] }
     >(
       ENDPOINTS.owner.proposals(centerId, reservationId),
       { signal }
@@ -670,6 +674,48 @@ export const ownerService = {
     }
 
     return [];
+  },
+
+  async getReservationPaymentStatus(
+    centerId: string,
+    reservationId: string,
+    signal?: AbortSignal
+  ): Promise<ReservationPaymentStatusInfo | null> {
+    const { data } = await apiClient.get<
+      ReservationPaymentStatusInfo | { data?: ReservationPaymentStatusInfo }
+    >(
+      ENDPOINTS.payment.status(centerId, reservationId),
+      { signal }
+    );
+
+    if (!data || typeof data !== "object") return null;
+    if ("data" in data && data.data && typeof data.data === "object") {
+      return data.data as ReservationPaymentStatusInfo;
+    }
+    return data as ReservationPaymentStatusInfo;
+  },
+
+  async updateReservation(
+    centerId: string,
+    reservationId: string,
+    payload: {
+      stationId?: string;
+      staffId?: string;
+      startTime?: string;
+      note?: string;
+    }
+  ): Promise<OwnerReservation> {
+    const { data } = await apiClient.patch<
+      OwnerReservation | { data?: OwnerReservation }
+    >(
+      ENDPOINTS.owner.reservationDetail(centerId, reservationId),
+      payload
+    );
+
+    if (data && typeof data === "object" && "data" in data && (data as any).data) {
+      return (data as any).data as OwnerReservation;
+    }
+    return data as OwnerReservation;
   },
 
   async session(
@@ -1820,130 +1866,5 @@ export const ownerService = {
     }
 
     throw new Error("آدرس فایل پیوست در پاسخ سرور یافت نشد.");
-  },
-
-  async listAdvertisements(
-    gamingCenterId: string,
-    params?: {
-      page?: number;
-      limit?: number;
-      status?: string;
-      search?: string;
-      signal?: AbortSignal;
-    }
-  ): Promise<OwnerAdvertisement[]> {
-    const query: Record<string, string | number> = {};
-
-    if (params?.page) query.page = params.page;
-    if (params?.limit) query.limit = params.limit;
-
-    if (params?.status && params.status !== "all") {
-      query.status = params.status;
-    }
-
-    if (params?.search?.trim()) {
-      query.search = params.search.trim();
-    }
-
-    const response = await apiClient.get<any>(
-      ENDPOINTS.owner.advertisements(gamingCenterId),
-      {
-        query,
-        signal: params?.signal,
-      }
-    );
-
-    const resData = response.data;
-
-    if (Array.isArray(resData)) return resData;
-    if (Array.isArray(resData?.data)) return resData.data;
-    if (Array.isArray(resData?.items)) return resData.items;
-
-    return [];
-  },
-
-  async uploadAdvertisementBanner(
-    gamingCenterId: string,
-    file: File
-  ): Promise<{ url: string; thumbUrl?: string }> {
-    const form = new FormData();
-
-    form.append("banner", file);
-
-    const response = await apiClient.post<any>(
-      ENDPOINTS.owner.advertisementUpload(gamingCenterId),
-      form
-    );
-
-    const resData = response.data;
-    const dataObj = resData?.data || resData;
-
-    const url =
-      dataObj?.url ||
-      dataObj?.bannerUrl ||
-      extractMediaUrl(dataObj) ||
-      (typeof dataObj === "string" ? dataObj : "");
-
-    if (!url) {
-      throw new Error("آدرس بنر آپلودشده از سرور دریافت نشد.");
-    }
-
-    return {
-      url: normalizeMediaUrl(url),
-      thumbUrl: dataObj?.thumbUrl
-        ? normalizeMediaUrl(dataObj.thumbUrl)
-        : undefined,
-    };
-  },
-
-  async createAdvertisement(
-    gamingCenterId: string,
-    input: CreateAdvertisementInput
-  ): Promise<OwnerAdvertisement> {
-    const payload = {
-      title: input.title.trim(),
-      description: input.description?.trim() || undefined,
-      bannerUrl: input.bannerUrl.trim(),
-      destinationUrl: input.destinationUrl?.trim() || undefined,
-      proposedDurationDays: input.proposedDurationDays ?? 30,
-    };
-
-    const response = await apiClient.post<any>(
-      ENDPOINTS.owner.advertisements(gamingCenterId),
-      payload
-    );
-
-    const resData = response.data;
-
-    return (resData?.data || resData) as OwnerAdvertisement;
-  },
-
-  async getAdvertisementById(
-    gamingCenterId: string,
-    id: string
-  ): Promise<OwnerAdvertisement | null> {
-    try {
-      const response = await apiClient.get<any>(
-        ENDPOINTS.owner.advertisementDetail(gamingCenterId, id)
-      );
-
-      const resData = response.data;
-
-      return (resData?.data || resData) as OwnerAdvertisement;
-    } catch (err: any) {
-      if (err?.status === 404) return null;
-      throw err;
-    }
-  },
-
-  async deleteAdvertisement(
-    gamingCenterId: string,
-    id: string
-  ): Promise<boolean> {
-    await apiClient.delete(
-      ENDPOINTS.owner.advertisementDetail(gamingCenterId, id)
-    );
-
-    return true;
   },
 };

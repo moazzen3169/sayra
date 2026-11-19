@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { ownerService } from "@/services/ownerService";
+import { describe, it, expect, afterEach } from "bun:test";
 import { adminService } from "@/services/adminService";
 import { homeService } from "@/services/homeService";
+import { ownerService } from "@/services/ownerService";
 import { apiClient } from "@/lib/api/client";
 
 describe("Advertisements Full Flow Integration", () => {
@@ -17,111 +17,118 @@ describe("Advertisements Full Flow Integration", () => {
     apiClient.delete = originalDelete;
   });
 
-  describe("Owner Advertisement Submission & Banner Upload", () => {
-    it("lists advertisements for a gaming center", async () => {
-      let requestedUrl = "";
-      apiClient.get = (async (url: string, opts?: any) => {
-        requestedUrl = url;
-        return {
-          status: 200,
-          data: {
-            success: true,
-            data: [
-              {
-                id: "ad-1",
-                title: "کمپین نوروز",
-                bannerUrl: "https://cdn.example.com/banner.png",
-                destinationUrl: "/gamecenter/volcan-net",
-                status: "PENDING",
-                durationDays: 30,
-                createdAt: "2026-03-20T00:00:00.000Z",
-              },
-            ],
-          },
-        };
-      }) as any;
-
-      const ads = await ownerService.listAdvertisements("gc-123");
-      expect(requestedUrl).toContain("/gamingCenters/gc-123/advertisements");
-      expect(ads.length).toBe(1);
-      expect(ads[0].title).toBe("کمپین نوروز");
-      expect(ads[0].destinationUrl).toBe("/gamecenter/volcan-net");
+  describe("Owner/Manager Ads Capability Removed", () => {
+    it("does not expose advertisement submission methods on ownerService", () => {
+      expect((ownerService as Record<string, unknown>).listAdvertisements).toBeUndefined();
+      expect((ownerService as Record<string, unknown>).createAdvertisement).toBeUndefined();
+      expect((ownerService as Record<string, unknown>).uploadAdvertisementBanner).toBeUndefined();
     });
+  });
 
-    it("uploads advertisement banner file with required multipart field 'banner'", async () => {
-      let receivedFormData: FormData | null = null;
-      let requestedUrl = "";
+  describe("Admin Two-Step Ad Creation & Auto-Approval", () => {
+    it("uploads .avif and .webp banner files via platform-admin media upload", async () => {
+      const uploadedFields: string[] = [];
+      const requestedUrls: string[] = [];
 
       apiClient.post = (async (url: string, data: any) => {
-        requestedUrl = url;
-        receivedFormData = data;
+        requestedUrls.push(url);
+        if (data instanceof FormData) {
+          uploadedFields.push(data.has("file") ? "file" : "other");
+        }
         return {
           status: 200,
           data: {
             success: true,
             data: {
-              url: "https://api.sayragame.ir/uploads/ads/banner-new.jpg",
-              thumbUrl: "https://api.sayragame.ir/uploads/ads/thumb-new.jpg",
+              url: "https://api.sayra-booking.ir/uploads/banner-summer.avif",
             },
           },
         };
       }) as any;
 
-      const fakeFile = new File(["dummy binary image"], "banner.jpg", { type: "image/jpeg" });
-      const uploadRes = await ownerService.uploadAdvertisementBanner("gc-123", fakeFile);
+      const avifFile = new File(["dummy avif"], "banner.avif", { type: "" });
+      const url1 = await adminService.uploadAdBanner("", avifFile);
+      expect(url1).toBe("https://api.sayra-booking.ir/uploads/banner-summer.avif");
 
-      expect(requestedUrl).toContain("/gamingCenters/gc-123/advertisements/upload");
-      expect(receivedFormData).not.toBeNull();
-      expect(receivedFormData?.has("banner")).toBe(true);
-      expect(uploadRes.url).toBe("https://api.sayragame.ir/uploads/ads/banner-new.jpg");
+      const webpFile = new File(["dummy webp"], "banner.webp", { type: "image/webp" });
+      const url2 = await adminService.uploadAdBanner("", webpFile);
+      expect(url2).toBe("https://api.sayra-booking.ir/uploads/banner-summer.avif");
+
+      expect(requestedUrls).toEqual([
+        "/platform-admin/media/upload",
+        "/platform-admin/media/upload",
+      ]);
+      expect(uploadedFields).toEqual(["file", "file"]);
     });
 
-    it("submits new advertisement request with auto-filled destinationUrl and duration", async () => {
-      let postedPayload: any = null;
-      let requestedUrl = "";
+    it("sends admin ad request then automatically sends second approval request", async () => {
+      const calls: { method: string; url: string; body: any }[] = [];
+      const progressSteps: string[] = [];
 
       apiClient.post = (async (url: string, data: any) => {
-        requestedUrl = url;
-        postedPayload = data;
+        calls.push({ method: "POST", url, body: data });
         return {
           status: 201,
           data: {
             success: true,
             data: {
-              id: "ad-created-1",
+              id: "ad-admin-99",
               title: data.title,
-              description: data.description,
               bannerUrl: data.bannerUrl,
               destinationUrl: data.destinationUrl,
-              proposedDurationDays: data.proposedDurationDays,
               status: "PENDING",
-              createdAt: new Date().toISOString(),
+              createdAt: "2026-11-19T12:00:00.000Z",
             },
           },
         };
       }) as any;
 
-      const newAd = await ownerService.createAdvertisement("gc-123", {
-        title: "مسابقات فیفا در ولکان",
-        description: "جوایز ارزنده برای برندگان",
-        bannerUrl: "https://cdn.example.com/fifa-banner.png",
-        destinationUrl: "/gamecenter/volcan-net",
-        proposedDurationDays: 14,
+      apiClient.patch = (async (url: string, data: any) => {
+        calls.push({ method: "PATCH", url, body: data });
+        return {
+          status: 200,
+          data: {
+            success: true,
+            data: {
+              id: "ad-admin-99",
+              status: "APPROVED",
+              decisionReason: data.decisionReason,
+              durationDays: data.durationDays,
+              priority: data.priority,
+            },
+          },
+        };
+      }) as any;
+
+      const created = await adminService.createApprovedAd({
+        title: "جشنواره تابستانه سایرا",
+        description: "تخفیف ویژه رزرو آنلاین",
+        bannerUrl: "https://api.sayra-booking.ir/uploads/banner.avif",
+        destinationUrl: "/gamecenters",
+        durationDays: 30,
+        priority: 5,
+        adminNote: "انتشار مستقیم ادمین",
+        onProgress: (step) => progressSteps.push(step),
       });
 
-      expect(requestedUrl).toContain("/gamingCenters/gc-123/advertisements");
-      expect(postedPayload.title).toBe("مسابقات فیفا در ولکان");
-      expect(postedPayload.bannerUrl).toBe("https://cdn.example.com/fifa-banner.png");
-      expect(postedPayload.destinationUrl).toBe("/gamecenter/volcan-net");
-      expect(postedPayload.proposedDurationDays).toBe(14);
-      expect(newAd.status).toBe("PENDING");
+      expect(progressSteps).toEqual(["creating", "approving"]);
+      expect(calls.length).toBe(2);
+      expect(calls[0].method).toBe("POST");
+      expect(calls[0].url).toBe("/platform-admin/ad-requests");
+      expect(calls[0].body.title).toBe("جشنواره تابستانه سایرا");
+      expect(calls[0].body.bannerUrl).toBe("https://api.sayra-booking.ir/uploads/banner.avif");
+      expect(calls[1].method).toBe("PATCH");
+      expect(calls[1].url).toBe("/platform-admin/ad-requests/ad-admin-99/status");
+      expect(calls[1].body.status).toBe("APPROVED");
+      expect(created.id).toBe("ad-admin-99");
+      expect(created.status).toBe("APPROVED");
     });
   });
 
   describe("Admin Advertisement Review, Approval, & Rejection", () => {
     it("fetches ad requests for admin review", async () => {
       let requestedUrl = "";
-      apiClient.get = (async (url: string, opts?: any) => {
+      apiClient.get = (async (url: string) => {
         requestedUrl = url;
         return {
           status: 200,
@@ -241,7 +248,7 @@ describe("Advertisements Full Flow Integration", () => {
       expect(banners[0].alt).toBe("تخفیف ویژه ولکان");
     });
 
-    it("falls back to default mock banners when public slider returns empty list", async () => {
+    it("returns empty array when public slider returns empty list", async () => {
       apiClient.get = (async () => {
         return {
           status: 200,
@@ -253,8 +260,7 @@ describe("Advertisements Full Flow Integration", () => {
       }) as any;
 
       const banners = await homeService.getBanners();
-      expect(banners.length).toBeGreaterThan(0);
-      expect(banners[0].imageUrl).toBeDefined();
+      expect(banners).toEqual([]);
     });
   });
 });

@@ -1,5 +1,5 @@
 
-import type { Reservation } from "@/types/reservation";
+import type { Reservation, ReservationTimeProposal } from "@/types/reservation";
 import type { ExtraControllerConfigInput } from "@/types/gaming-center/station.types";
 
 export type VerificationStatus =
@@ -65,20 +65,91 @@ export interface PublicCenter {
   }>;
 }
 
-/** فیلدهای مشتری در OpenAPI برای Reservation تعریف نشده‌اند؛ اختیاری */
+/** فیلدهای تکمیلی رزرو در پنل مدیریت گیم‌نت */
 export interface OwnerReservation extends Reservation {
+  staffId?: string | null;
+  staff?: {
+    id?: string;
+    fullName?: string;
+    publicName?: string;
+    phone?: string;
+  } | null;
+  customerAccountId?: string | null;
   customer?: {
+    id?: string;
     fullName?: string;
     phone?: string;
-  };
+    email?: string;
+    phoneVerifiedAt?: string | null;
+  } | null;
+  user?: {
+    id?: string;
+    fullName?: string;
+    phone?: string;
+  } | null;
   customerName?: string;
   customerPhone?: string;
+  note?: string | null;
+  cancelReason?: string | null;
+  cancellationReason?: string | null;
+  discountAmount?: number;
+  originalPrice?: number;
+  finalPrice?: number;
+  discountCode?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  confirmedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  canceledAt?: string | null;
+  proposals?: ReservationTimeProposal[];
+  session?: {
+    id?: string;
+    status?: string;
+    startedAt?: string | null;
+    pausedAt?: string | null;
+    resumedAt?: string | null;
+    stoppedAt?: string | null;
+    durationMinutes?: number;
+  } | null;
+  station?: {
+    id?: string;
+    name?: string;
+    stationType?: string;
+    hourlyPrice?: number;
+    isVip?: boolean;
+  } | null;
+  gamingCenter?: {
+    id?: string;
+    name?: string;
+    slug?: string;
+    address?: string;
+  } | null;
+  payment?: Record<string, unknown> | null;
+  [key: string]: unknown;
+}
+
+export interface ReservationPaymentStatusInfo {
+  paymentState?: string;
+  status?: string;
+  amount?: number;
+  paidAmount?: number;
+  currency?: string;
+  gateway?: string;
+  authority?: string;
+  refId?: string;
+  trackingCode?: string;
+  paymentId?: string;
+  paidAt?: string | null;
+  [key: string]: unknown;
 }
 
 export interface OwnerReservationListParams {
   page?: number;
   pageSize?: number;
   status?: string;
+  search?: string;
+  checkInCode?: string;
   signal?: AbortSignal;
 }
 
@@ -279,40 +350,4 @@ export interface CreateBranchAddressPayload {
 export interface CreateLinkPayload {
   platform: string;
   url: string;
-}
-
-export interface OwnerAdvertisement {
-  id: string;
-  title: string;
-  description?: string | null;
-  bannerUrl: string;
-  mediaType?: "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT" | "FILE";
-  destinationUrl?: string | null;
-  proposedDurationDays?: number;
-  durationDays?: number;
-  priority?: number;
-  startDate?: string | null;
-  endDate?: string | null;
-  status:
-    | "PENDING"
-    | "APPROVED"
-    | "REJECTED"
-    | "ACTIVE"
-    | "EXPIRED"
-    | "DELETED";
-  decisionReason?: string | null;
-  adminNote?: string | null;
-  gamingCenterId: string;
-  ownerId?: string;
-  remainingDays?: number | null;
-  createdAt: string;
-  updatedAt?: string;
-}
-
-export interface CreateAdvertisementInput {
-  title: string;
-  description?: string;
-  bannerUrl: string;
-  destinationUrl?: string;
-  proposedDurationDays?: number;
 }

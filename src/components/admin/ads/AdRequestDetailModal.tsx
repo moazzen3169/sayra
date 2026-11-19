@@ -112,7 +112,10 @@ export const AdRequestDetailModal: React.FC<AdRequestDetailModalProps> = ({
                 {getStatusBadge()}
               </div>
               <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                گیمنت: {adRequest.gamecenterName} • کد درخواست: {adRequest.id}
+                {adRequest.gamecenterName && adRequest.gamecenterName !== "-"
+                  ? `گیمنت: ${adRequest.gamecenterName}`
+                  : "بنر مدیریتی پلتفرم"}{" "}
+                • کد: {adRequest.id}
               </p>
             </div>
           </div>
@@ -134,34 +137,56 @@ export const AdRequestDetailModal: React.FC<AdRequestDetailModalProps> = ({
             </div>
           )}
 
-          {/* Gaming Center & Owner Cards */}
+          {/* Gaming Center & Source Info Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-[var(--foreground)]/20 border border-[var(--border-subtle)] rounded-card p-4 space-y-2 text-xs">
-              <span className="text-[var(--text-muted)] font-bold block border-b border-[var(--border-subtle)] pb-1.5 text-[var(--primary)]">
-                اطلاعات گیمنت
+              <span className="font-bold block border-b border-[var(--border-subtle)] pb-1.5 text-[var(--primary)]">
+                منبع و هدف تبلیغ
               </span>
               <div className="flex justify-between pt-1">
-                <span className="text-[var(--text-muted)]">نام گیمنت:</span>
-                <span className="font-bold text-[var(--text-white)]">{adRequest.gamecenterName}</span>
+                <span className="text-[var(--text-muted)]">نوع تبلیغ:</span>
+                <span className="font-bold text-[var(--text-white)]">
+                  {adRequest.gamecenterName && adRequest.gamecenterName !== "-"
+                    ? "مرتبط با گیمنت"
+                    : "بنر اختصاصی ادمین"}
+                </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--text-muted)]">شناسه گیمنت:</span>
-                <span className="font-bold text-[var(--text-muted)] dir-ltr">{adRequest.gamecenterId}</span>
-              </div>
+              {adRequest.gamecenterName && adRequest.gamecenterName !== "-" && (
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">نام گیمنت:</span>
+                  <span className="font-bold text-[var(--text-white)]">{adRequest.gamecenterName}</span>
+                </div>
+              )}
+              {adRequest.gamecenterId && (
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">شناسه گیمنت:</span>
+                  <span className="font-bold text-[var(--text-muted)] dir-ltr">{adRequest.gamecenterId}</span>
+                </div>
+              )}
             </div>
 
             <div className="bg-[var(--foreground)]/20 border border-[var(--border-subtle)] rounded-card p-4 space-y-2 text-xs">
-              <span className="text-[var(--text-muted)] font-bold block border-b border-[var(--border-subtle)] pb-1.5 text-[var(--primary)]">
-                اطلاعات صاحب گیمنت
+              <span className="font-bold block border-b border-[var(--border-subtle)] pb-1.5 text-[var(--primary)]">
+                اطلاعات ثبت‌کننده
               </span>
               <div className="flex justify-between pt-1">
-                <span className="text-[var(--text-muted)]">نام و نام خانوادگی:</span>
-                <span className="font-bold text-[var(--text-white)]">{adRequest.ownerName}</span>
+                <span className="text-[var(--text-muted)]">ثبت‌شده توسط:</span>
+                <span className="font-bold text-[var(--text-white)]">
+                  {adRequest.ownerName && adRequest.ownerName !== "-" ? adRequest.ownerName : "ادمین پلتفرم"}
+                </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--text-muted)]">شماره تماس:</span>
-                <span className="font-bold text-[var(--text-white)] dir-ltr">{adRequest.ownerPhone}</span>
-              </div>
+              {adRequest.ownerPhone && adRequest.ownerPhone !== "-" && (
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">شماره تماس:</span>
+                  <span className="font-bold text-[var(--text-white)] dir-ltr">{adRequest.ownerPhone}</span>
+                </div>
+              )}
+              {adRequest.priority !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">اولویت نمایش:</span>
+                  <span className="font-bold text-[var(--text-white)]">{adRequest.priority}</span>
+                </div>
+              )}
             </div>
           </div>
 

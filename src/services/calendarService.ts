@@ -1,10 +1,16 @@
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { APP_TIME_ZONE } from "@/lib/api/config";
+import { TtlDedupeCache } from "@/lib/api/requestLimiter";
 import type {
   IranCalendarDaysResponse,
   IranCalendarDayItem,
 } from "@/types/customerApi";
+
+const calendarDaysCache = new TtlDedupeCache<IranCalendarDayItem[]>({
+  ttlMs: 5 * 60 * 1000,
+  maxEntries: 20,
+});
 
 export interface GetIranCalendarDaysParams {
   from: string;
@@ -41,40 +47,47 @@ export const calendarService = {
     params: GetIranCalendarDaysParams
   ): Promise<IranCalendarDayItem[]> {
     const { from, to, includeEvents = true, includeHolidays = true, signal } = params;
+    const cacheKey = `${from}|${to}|${includeEvents}|${includeHolidays}`;
 
-    const response = await apiClient.get<IranCalendarDaysResponse | { data?: IranCalendarDaysResponse } | IranCalendarDayItem[]>(
-      ENDPOINTS.calendar.days,
-      {
-        query: {
-          from,
-          to,
-          includeEvents,
-          includeHolidays,
-        },
-        signal,
-      }
+    return calendarDaysCache.getOrFetch(
+      cacheKey,
+      async (internalSignal) => {
+        const response = await apiClient.get<IranCalendarDaysResponse | { data?: IranCalendarDaysResponse } | IranCalendarDayItem[]>(
+          ENDPOINTS.calendar.days,
+          {
+            query: {
+              from,
+              to,
+              includeEvents,
+              includeHolidays,
+            },
+            signal: internalSignal,
+          }
+        );
+
+        const resData = response.data;
+        if (!resData) return [];
+
+        // Support both direct IranCalendarDaysResponse, array, or wrapped envelope { data: ... }
+        if (Array.isArray(resData)) {
+          return resData;
+        }
+
+        if ("days" in resData && Array.isArray((resData as IranCalendarDaysResponse).days)) {
+          return (resData as IranCalendarDaysResponse).days;
+        }
+
+        if ("data" in resData && resData.data && typeof resData.data === "object") {
+          const wrapped = resData.data as IranCalendarDaysResponse;
+          if (Array.isArray(wrapped.days)) {
+            return wrapped.days;
+          }
+        }
+
+        return [];
+      },
+      signal
     );
-
-    const resData = response.data;
-    if (!resData) return [];
-
-    // Support both direct IranCalendarDaysResponse, array, or wrapped envelope { data: ... }
-    if (Array.isArray(resData)) {
-      return resData;
-    }
-
-    if ("days" in resData && Array.isArray((resData as IranCalendarDaysResponse).days)) {
-      return (resData as IranCalendarDaysResponse).days;
-    }
-
-    if ("data" in resData && resData.data && typeof resData.data === "object") {
-      const wrapped = resData.data as IranCalendarDaysResponse;
-      if (Array.isArray(wrapped.days)) {
-        return wrapped.days;
-      }
-    }
-
-    return [];
   },
 
   /**

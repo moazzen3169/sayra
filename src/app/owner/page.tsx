@@ -36,10 +36,15 @@ const TILES: { href: string; label: string; icon: string; badge?: "pending" }[] 
   { href: "/owner/reviews", label: "نظرات", icon: "M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" },
 ];
 
-const MENU = [
+const MENU: {
+  href?: string;
+  label: string;
+  icon: string;
+  comingSoon?: boolean;
+}[] = [
   { href: "/owner/edit", label: "ویرایش گیمنت", icon: ICONS.edit },
   { href: "/owner/hours", label: "ساعات کاری و تعطیلات", icon: ICONS.clock },
-  { href: "/owner/ads", label: "ایجاد تبلیغات", icon: ICONS.megaphone },
+  { label: "ایجاد تبلیغات", icon: ICONS.megaphone, comingSoon: true },
   { href: "/owner/discounts", label: "ایجاد تخفیف", icon: ICONS.tag },
   { href: "/owner/support", label: "پشتیبانی", icon: ICONS.support },
 ];
@@ -511,14 +516,36 @@ export default function OwnerDashboardPage() {
 
           {/* منو */}
           <div className="rounded-card bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)]">
-            {MENU.map((m) => (
-              <Link key={m.href} href={m.href} className="flex items-center gap-3 px-5 h-16 hover:bg-[var(--foreground)]/20 transition-colors">
-                <span className="text-[var(--text-white)]">
-                  <TileIcon d={m.icon} />
-                </span>
-                <span className="text-sm font-bold text-[var(--text-white)]">{m.label}</span>
-              </Link>
-            ))}
+            {MENU.map((m) =>
+              m.comingSoon ? (
+                <div
+                  key={m.label}
+                  aria-disabled="true"
+                  className="flex items-center justify-between gap-3 px-5 h-16 opacity-65 cursor-not-allowed select-none"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-[var(--text-muted)]">
+                      <TileIcon d={m.icon} />
+                    </span>
+                    <span className="text-sm font-bold text-[var(--text-muted)]">{m.label}</span>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30 shrink-0">
+                    به‌زودی • Coming Soon
+                  </span>
+                </div>
+              ) : (
+                <Link
+                  key={m.href}
+                  href={m.href!}
+                  className="flex items-center gap-3 px-5 h-16 hover:bg-[var(--foreground)]/20 transition-colors"
+                >
+                  <span className="text-[var(--text-white)]">
+                    <TileIcon d={m.icon} />
+                  </span>
+                  <span className="text-sm font-bold text-[var(--text-white)]">{m.label}</span>
+                </Link>
+              )
+            )}
           </div>
 
           {/* گالری */}

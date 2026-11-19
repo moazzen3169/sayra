@@ -1,7 +1,7 @@
 import { APP_TIME_ZONE } from "@/lib/api/config";
 import { ApiError } from "@/lib/api/client";
 import { toPersianDigits } from "@/lib/format";
-import type { PaymentState, ReservationStatus } from "@/types/reservation";
+import type { PaymentState, ProposalStatus, ReservationStatus } from "@/types/reservation";
 import type { PublicGamingCenter } from "@/types/customerApi";
 
 export const RESERVATION_DISABLED_MESSAGE =
@@ -72,6 +72,38 @@ const PAYMENT_LABELS: Record<PaymentState, string> = {
 
 export const getPaymentLabel = (state: string) => PAYMENT_LABELS[state as PaymentState] ?? state;
 
+const PROPOSAL_STATUS_UI: Record<ProposalStatus, { label: string; className: string }> = {
+  PENDING: {
+    label: "در انتظار پاسخ مشتری",
+    className: "bg-[var(--accent-warning)]/15 text-[var(--accent-warning)] border border-[var(--accent-warning)]/30",
+  },
+  ACCEPTED: {
+    label: "پذیرفته‌شده توسط مشتری",
+    className: "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30",
+  },
+  REJECTED: {
+    label: "ردشده توسط مشتری",
+    className: "bg-[var(--accent-red)]/15 text-[var(--accent-red)] border border-[var(--accent-red)]/30",
+  },
+  EXPIRED: {
+    label: "منقضی‌شده",
+    className: "bg-[var(--foreground)] text-[var(--text-muted)] border border-[var(--border-color)]",
+  },
+  CANCELLED: {
+    label: "لغوشده",
+    className: "bg-[var(--foreground)] text-[var(--text-muted)] border border-[var(--border-color)]",
+  },
+};
+
+export function getProposalStatusUi(status: string) {
+  return (
+    PROPOSAL_STATUS_UI[status as ProposalStatus] ?? {
+      label: status,
+      className: "bg-[var(--foreground)] text-[var(--text-white)] border border-[var(--border-color)]",
+    }
+  );
+}
+
 /* ---------- Date / Time (Timezone-aware) ---------- */
 
 const dayKeyFmt = new Intl.DateTimeFormat("en-CA", {
@@ -91,6 +123,15 @@ const jalaliFmt = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
   weekday: "long",
   day: "numeric",
   month: "long",
+});
+const fullJalaliDateTimeFmt = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+  timeZone: APP_TIME_ZONE,
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
 });
 
 const keyToUtc = (key: string) => {
@@ -134,6 +175,14 @@ export function formatSlotHourEnglish(iso: string): string {
 /** مثال: «امروز از ساعت ۱۳ تا ۱۴» */
 export function formatReservationWhen(startIso: string, endIso: string): string {
   return `${formatDayLabel(startIso)} از ساعت ${formatClock(startIso)} تا ${formatClock(endIso)}`;
+}
+
+/** مثال: «۲۹ آبان ۱۴۰۵، ساعت ۱۴:۳۰» */
+export function formatFullJalaliDateTime(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return fullJalaliDateTimeFmt.format(d);
 }
 
 /* ---------- Misc ---------- */

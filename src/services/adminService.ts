@@ -1724,42 +1724,72 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
 
   /**
    * آپلود بنر تبلیغاتی برای ایجاد مستقیم تبلیغ توسط ادمین
+   * از فرمت‌های تصویری از جمله AVIF، WebP، PNG و JPG پشتیبانی می‌کند.
    */
   async uploadAdBanner(gamingCenterId: string, file: File): Promise<string> {
-    if (gamingCenterId) {
+    const extractUrl = (payload: unknown): string => {
+      const direct = extractMediaUrl(payload);
+      if (direct) return direct;
+      if (payload && typeof payload === "object") {
+        const obj = payload as Record<string, unknown>;
+        const nested =
+          obj.data && typeof obj.data === "object"
+            ? (obj.data as Record<string, unknown>).bannerUrl
+            : undefined;
+        const candidate = obj.bannerUrl || nested;
+        if (typeof candidate === "string" && candidate) {
+          return normalizeMediaUrl(candidate);
+        }
+      }
+      return "";
+    };
+
+    const tryAdminMediaUpload = async (): Promise<string> => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await apiClient.post<unknown>(
+        ENDPOINTS.platformAdmin.mediaUpload,
+        fd,
+      );
+      const url = extractUrl(res.data);
+      if (!url) {
+        throw new Error("آپلود تصویر بنر با خطا مواجه شد.");
+      }
+      return url;
+    };
+
+    const trimmedGcId = gamingCenterId?.trim();
+    if (trimmedGcId) {
       try {
         const fd = new FormData();
         fd.append("banner", file);
-        const res = await apiClient.post<any>(
-          ENDPOINTS.owner.advertisementUpload(gamingCenterId),
+        const res = await apiClient.post<unknown>(
+          ENDPOINTS.advertisements.centerUpload(trimmedGcId),
           fd,
         );
-        const url = extractMediaUrl(res.data);
+        const url = extractUrl(res.data);
         if (url) return url;
-      } catch (err: any) {
-        if (err?.status !== 403 && err?.status !== 404) {
-          throw err;
+      } catch (err: unknown) {
+        const errStatus = (err as { status?: number })?.status;
+        try {
+          return await tryAdminMediaUpload();
+        } catch {
+          if (errStatus !== 403 && errStatus !== 404 && errStatus !== 405) {
+            throw err;
+          }
         }
       }
     }
 
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await apiClient.post<any>(
-      ENDPOINTS.platformAdmin.mediaUpload,
-      fd,
-    );
-    const url = extractMediaUrl(res.data);
-    if (!url) {
-      throw new Error("آپلود تصویر بنر با خطا مواجه شد.");
-    }
-    return url;
+    return await tryAdminMediaUpload();
   },
 
   /**
-   * ایجاد مستقیم تبلیغ با دسترسی کامل ادمین و تأیید خودکار (APPROVED):
-   * 1. POST /gamingCenters/{gamingCenterId}/advertisements
-   * 2. PATCH /platform-admin/ad-requests/{id}/status -> APPROVED
+   * ایجاد مستقیم تبلیغ توسط ادمین در دو مرحله خودکار:
+   * ۱. ارسال درخواست تبلیغ ادمین: POST /platform-admin/ad-requests
+   *    (در صورت عدم پشتیبانی و وجود گیمنت، فال‌بک به POST /gamingCenters/{gamingCenterId}/advertisements)
+   * ۲. ارسال خودکار درخواست دوم برای تأیید و انتشار بنر:
+   *    PATCH /platform-admin/ad-requests/{id}/status -> APPROVED
    */
   async createApprovedAd(input: {
     gamingCenterId?: string;
@@ -1772,60 +1802,158 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     startDate?: string;
     endDate?: string;
     adminNote?: string;
+    onProgress?: (step: "creating" | "approving") => void;
   }): Promise<AdminAdRequest> {
-    if (!input.gamingCenterId?.trim()) {
-      throw new Error(
-        "ایجاد تبلیغ بدون انتخاب گیمنت نیازمند اندپوینت اختصاصی ادمین در سرور است که هنوز در API بک‌اند پیاده‌سازی نشده است."
-      );
-    }
+    const durationDays = Math.max(1, Number(input.durationDays) || 30);
+    const priority = Number(input.priority ?? 0) || 0;
+    const trimmedCenterId = input.gamingCenterId?.trim() || undefined;
 
-    const durationDays = Number(input.durationDays) || 30;
-    let createRes: any;
-    try {
-      createRes = await apiClient.post<any>(
-        ENDPOINTS.owner.advertisements(input.gamingCenterId.trim()),
-        {
-          title: input.title.trim(),
-          description: input.description?.trim() || undefined,
-          bannerUrl: input.bannerUrl.trim(),
-          destinationUrl: input.destinationUrl?.trim() || undefined,
-          proposedDurationDays: durationDays,
-        },
-      );
-    } catch (err: any) {
-      const detailsStr = JSON.stringify(err?.details || "");
-      if (err?.status === 404 && detailsStr.includes("ownerId")) {
-        throw new Error(
-          "سرور برای ثبت تبلیغ، شناسه مالک (Owner) مرتبط با توکن ادمین را پیدا نکرد. برای ایجاد تبلیغ مستقیم توسط ادمین کل، باید اندپوینت اختصاصی ادمین در بک‌اند اضافه شود."
-        );
+    input.onProgress?.("creating");
+
+    const basePayload: Record<string, unknown> = {
+      title: input.title.trim(),
+      bannerUrl: input.bannerUrl.trim(),
+      proposedDurationDays: durationDays,
+    };
+    if (input.description?.trim()) basePayload.description = input.description.trim();
+    if (input.destinationUrl?.trim()) basePayload.destinationUrl = input.destinationUrl.trim();
+    if (trimmedCenterId) basePayload.gamingCenterId = trimmedCenterId;
+
+    const fullAdminPayload: Record<string, unknown> = {
+      ...basePayload,
+      durationDays,
+      priority,
+    };
+    if (input.startDate) fullAdminPayload.startDate = input.startDate;
+    if (input.endDate) fullAdminPayload.endDate = input.endDate;
+    if (input.adminNote?.trim()) fullAdminPayload.adminNote = input.adminNote.trim();
+
+    const unwrapRecord = (val: unknown): Record<string, unknown> => {
+      if (!val || typeof val !== "object") return {};
+      const rec = val as Record<string, unknown>;
+      if (rec.data && typeof rec.data === "object") {
+        return rec.data as Record<string, unknown>;
       }
-      throw err;
+      return rec;
+    };
+
+    let createRes: { data: unknown };
+    try {
+      createRes = await apiClient.post<unknown>(
+        ENDPOINTS.platformAdmin.adRequests,
+        fullAdminPayload,
+      );
+    } catch (err: unknown) {
+      const errStatus = (err as { status?: number })?.status;
+      if (errStatus === 400) {
+        // Retry with minimal DTO fields in case backend uses strict DTO whitelisting
+        try {
+          createRes = await apiClient.post<unknown>(
+            ENDPOINTS.platformAdmin.adRequests,
+            basePayload,
+          );
+        } catch (retryErr: unknown) {
+          const retryStatus = (retryErr as { status?: number })?.status;
+          if (
+            (retryStatus === 404 || retryStatus === 405) &&
+            trimmedCenterId
+          ) {
+            const centerPayload = { ...basePayload };
+            delete centerPayload.gamingCenterId;
+            createRes = await apiClient.post<unknown>(
+              ENDPOINTS.advertisements.centerAds(trimmedCenterId),
+              centerPayload,
+            );
+          } else {
+            throw retryErr;
+          }
+        }
+      } else if ((errStatus === 404 || errStatus === 405) && trimmedCenterId) {
+        const centerPayload = { ...basePayload };
+        delete centerPayload.gamingCenterId;
+        createRes = await apiClient.post<unknown>(
+          ENDPOINTS.advertisements.centerAds(trimmedCenterId),
+          centerPayload,
+        );
+      } else {
+        throw err;
+      }
     }
 
-    const createdRaw = createRes.data?.data || createRes.data;
-    const createdId = String(createdRaw?.id ?? "");
+    const createdRaw = unwrapRecord(createRes.data);
+    const nestedAdRequest =
+      createdRaw.adRequest && typeof createdRaw.adRequest === "object"
+        ? (createdRaw.adRequest as Record<string, unknown>)
+        : undefined;
+    const nestedAdvertisement =
+      createdRaw.advertisement && typeof createdRaw.advertisement === "object"
+        ? (createdRaw.advertisement as Record<string, unknown>)
+        : undefined;
+
+    const createdId = String(
+      createdRaw.id ??
+        createdRaw._id ??
+        nestedAdRequest?.id ??
+        nestedAdvertisement?.id ??
+        "",
+    );
     if (!createdId) {
-      throw new Error("پاسخ معتبری برای ثبت تبلیغ از سرور دریافت نشد.");
+      throw new Error("درخواست تبلیغ ارسال شد اما شناسه آن از سرور دریافت نشد.");
     }
 
+    input.onProgress?.("approving");
+
+    const decisionReason = input.adminNote?.trim() || "تأیید خودکار توسط ادمین";
     const statusPayload: Record<string, unknown> = {
       status: "APPROVED",
+      decisionReason,
       durationDays,
-      priority: Number(input.priority ?? 0),
+      priority,
     };
     if (input.startDate) statusPayload.startDate = input.startDate;
     if (input.endDate) statusPayload.endDate = input.endDate;
     if (input.adminNote?.trim()) statusPayload.adminNote = input.adminNote.trim();
 
-    const approveRes = await apiClient.patch<any>(
-      ENDPOINTS.platformAdmin.adRequestStatus(createdId),
-      statusPayload,
-    );
-    const approvedRaw = approveRes.data?.data || approveRes.data || createdRaw;
+    let approveRes: { data: unknown };
+    try {
+      approveRes = await apiClient.patch<unknown>(
+        ENDPOINTS.platformAdmin.adRequestStatus(createdId),
+        statusPayload,
+      );
+    } catch (approveErr: unknown) {
+      const approveStatus = (approveErr as { status?: number })?.status;
+      const approveMsg = (approveErr as { message?: string })?.message;
+      if (approveStatus === 400) {
+        try {
+          approveRes = await apiClient.patch<unknown>(
+            ENDPOINTS.platformAdmin.adRequestStatus(createdId),
+            { status: "APPROVED", decisionReason },
+          );
+        } catch (fallbackApproveErr: unknown) {
+          const fallbackMsg = (fallbackApproveErr as { message?: string })?.message;
+          const wrapped = new Error(
+            `درخواست تبلیغ با شناسه ${createdId} ثبت شد، اما در مرحله تأیید خودکار خطا رخ داد: ${fallbackMsg || "خطای نامشخص"}. می‌توانید از لیست تبلیغات آن را تأیید کنید.`,
+          ) as Error & { createdAdId?: string };
+          wrapped.createdAdId = createdId;
+          throw wrapped;
+        }
+      } else {
+        const wrapped = new Error(
+          `درخواست تبلیغ با شناسه ${createdId} ثبت شد، اما در مرحله تأیید خودکار خطا رخ داد: ${approveMsg || "خطای نامشخص"}. می‌توانید از لیست تبلیغات آن را تأیید کنید.`,
+        ) as Error & { createdAdId?: string };
+        wrapped.createdAdId = createdId;
+        throw wrapped;
+      }
+    }
+
+    const approvedRaw = unwrapRecord(approveRes.data);
     return adminService.mapRawAdRequestToAdmin({
       ...createdRaw,
       ...approvedRaw,
-      status: "APPROVED",
+      status:
+        typeof approvedRaw.status === "string" && approvedRaw.status
+          ? approvedRaw.status
+          : "APPROVED",
     });
   },
 
