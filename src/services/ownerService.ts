@@ -1,5 +1,5 @@
 
-import { apiClient, ApiError } from "@/lib/api/client";
+import { apiClient, ApiError, isAbortError } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import {
   extractMediaItems,
@@ -80,8 +80,24 @@ export const ownerService = {
       raw?.data && typeof raw.data === "object" ? raw.data : raw;
 
     const resolvedId = profile?.id || profile?.actorId || "";
+    const resolvedGamingCenterObj =
+      profile?.gamingCenter && typeof profile.gamingCenter === "object"
+        ? profile.gamingCenter
+        : undefined;
     const resolvedGamingCenterId =
-      profile?.gamingCenterId || profile?.centerId || "";
+      profile?.gamingCenterId ||
+      profile?.centerId ||
+      resolvedGamingCenterObj?.id ||
+      "";
+    const resolvedGamingCenterSlug =
+      profile?.gamingCenterSlug ||
+      resolvedGamingCenterObj?.slug ||
+      (Array.isArray(profile?.gamingCenters)
+        ? profile.gamingCenters.find(
+            (gc: any) => gc?.id === resolvedGamingCenterId
+          )?.slug || profile.gamingCenters[0]?.slug
+        : undefined) ||
+      undefined;
 
     const actorType = profile?.actorType?.toUpperCase();
 
@@ -105,6 +121,8 @@ export const ownerService = {
       sessionId: profile?.sessionId,
       role: resolvedRole,
       gamingCenterId: resolvedGamingCenterId || undefined,
+      gamingCenterSlug: resolvedGamingCenterSlug,
+      gamingCenter: resolvedGamingCenterObj,
       gamingCenters: Array.isArray(profile?.gamingCenters)
         ? profile.gamingCenters
         : undefined,
@@ -373,14 +391,34 @@ export const ownerService = {
           typeof resData.data === "object" &&
           !Array.isArray(resData.data)
             ? resData.data
-            : resData;
+            : resData?.gamingCenter &&
+                typeof resData.gamingCenter === "object"
+              ? resData.gamingCenter
+              : resData?.center && typeof resData.center === "object"
+                ? resData.center
+                : resData;
 
         if (centerObj && (centerObj.id || centerObj.name)) {
+          let resolvedSlug =
+            typeof centerObj.slug === "string" && centerObj.slug !== centerObj.id
+              ? centerObj.slug
+              : "";
+
+          if (!resolvedSlug) {
+            const centers = await ownerService.listCenters(signal).catch(() => []);
+            const matched = centers.find(
+              (c) => c.id === (centerObj.id || id) || c.slug === id
+            );
+            if (matched?.slug && matched.slug !== matched.id) {
+              resolvedSlug = matched.slug;
+            }
+          }
+
           return {
             id: centerObj.id || id,
             name: centerObj.name || "گیم‌نت",
             englishName: centerObj.englishName,
-            slug: centerObj.slug || id,
+            slug: resolvedSlug,
             description: centerObj.description,
             isActive: centerObj.isActive ?? true,
             pcCount: centerObj.pcCount,
@@ -1481,20 +1519,136 @@ export const ownerService = {
 
   async listMedia(
     slug: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    options?: { noCache?: boolean }
   ): Promise<MediaItem[]> {
     if (!slug) return [];
 
     try {
       const { data } = await apiClient.get<unknown>(
         ENDPOINTS.gamingCenter.media(slug),
-        { signal }
+        {
+          signal,
+          ...(options?.noCache
+            ? {
+                cache: "no-store" as RequestCache,
+                headers: { "Cache-Control": "no-cache" },
+              }
+            : {}),
+        }
       );
 
       return extractMediaItems<MediaItem>(data, "GALLERY");
     } catch {
       return [];
     }
+  },
+
+  /**
+   * دریافت امن لیست تصاویر گالری برای پنل مالک:
+   * - از ارسال شناسه CUID (centerId) به اندپوینت عمومی /public/gamingCenters/{slug}/media جلوگیری می‌کند
+   * - در صورت نبود slug یا خطای 404 (مثلاً گیم‌نت در انتظار تایید)، از GET /gamingCenters/{centerId}
+   *   برای یافتن slug واقعی یا استخراج تصاویر ثبت‌شده استفاده می‌کند.
+   */
+  async listOwnerMedia(
+    centerId: string,
+    slug?: string,
+    signal?: AbortSignal,
+    options?: { noCache?: boolean }
+  ): Promise<MediaItem[]> {
+    const cleanId = centerId?.trim() || "";
+    const cleanSlug = slug?.trim() || "";
+    const hasValidSlug = Boolean(cleanSlug && cleanSlug !== cleanId);
+    const reqOpts = options?.noCache
+      ? {
+          signal,
+          cache: "no-store" as RequestCache,
+          headers: { "Cache-Control": "no-cache" },
+        }
+      : { signal };
+
+    if (hasValidSlug) {
+      try {
+        const { data } = await apiClient.get<unknown>(
+          ENDPOINTS.gamingCenter.media(cleanSlug),
+          reqOpts
+        );
+        return extractMediaItems<MediaItem>(data, "GALLERY");
+      } catch (err) {
+        if (isAbortError(err)) throw err;
+      }
+    }
+
+    if (!cleanId) return [];
+
+    try {
+      const direct = await apiClient.get<any>(
+        ENDPOINTS.owner.center(cleanId),
+        reqOpts
+      );
+      const resData = direct.data;
+      const centerObj: any =
+        resData?.data && typeof resData.data === "object" && !Array.isArray(resData.data)
+          ? resData.data
+          : resData?.gamingCenter && typeof resData.gamingCenter === "object"
+            ? resData.gamingCenter
+            : resData;
+
+      if (centerObj && typeof centerObj === "object") {
+        const discoveredSlug =
+          typeof centerObj.slug === "string" ? centerObj.slug.trim() : "";
+
+        if (
+          discoveredSlug &&
+          discoveredSlug !== cleanId &&
+          discoveredSlug !== cleanSlug
+        ) {
+          try {
+            const { data } = await apiClient.get<unknown>(
+              ENDPOINTS.gamingCenter.media(discoveredSlug),
+              reqOpts
+            );
+            return extractMediaItems<MediaItem>(data, "GALLERY");
+          } catch (err) {
+            if (isAbortError(err)) throw err;
+          }
+        }
+
+        const embeddedMedia = extractMediaItems<MediaItem>(centerObj, "GALLERY");
+        if (embeddedMedia.length > 0) {
+          return embeddedMedia;
+        }
+
+        const fallbackUrls: string[] = [];
+        if (Array.isArray(centerObj.coverImages)) {
+          centerObj.coverImages.forEach((u: unknown) => {
+            if (typeof u === "string" && u.trim()) fallbackUrls.push(u.trim());
+          });
+        }
+        if (typeof centerObj.coverImageUrl === "string" && centerObj.coverImageUrl.trim()) {
+          fallbackUrls.push(centerObj.coverImageUrl.trim());
+        }
+        if (typeof centerObj.banner === "string" && centerObj.banner.trim()) {
+          fallbackUrls.push(centerObj.banner.trim());
+        }
+
+        const uniqueUrls = Array.from(new Set(fallbackUrls));
+        if (uniqueUrls.length > 0) {
+          return uniqueUrls
+            .map((rawUrl, idx) => ({
+              id: `center-cover-${idx}`,
+              url: normalizeMediaUrl(rawUrl),
+              altText: centerObj.name || "تصویر گیم‌نت",
+              purpose: "GALLERY" as const,
+            }))
+            .filter((item) => Boolean(item.url));
+        }
+      }
+    } catch (err) {
+      if (isAbortError(err)) throw err;
+    }
+
+    return [];
   },
 
   async uploadGalleryImage(

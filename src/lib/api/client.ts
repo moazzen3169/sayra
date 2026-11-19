@@ -92,6 +92,7 @@ export interface RequestOptions {
   retryOnAuth?: boolean;
   baseUrl?: string;
   skipAuth?: boolean;
+  cache?: RequestCache;
 
   /**
    * Selects which independent token store is used.
@@ -251,6 +252,7 @@ async function executeFetch<T>(
               ? (options.body as FormData)
               : JSON.stringify(options.body),
         signal: options.signal,
+        ...(options.cache ? { cache: options.cache } : {}),
       }
     );
   } catch (error) {

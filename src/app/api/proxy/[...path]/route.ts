@@ -49,6 +49,7 @@ export async function dynamicHandler(
       method,
       headers: forwardHeaders,
       body: body ? Buffer.from(body) : undefined,
+      cache: "no-store",
       redirect: "manual",
     });
 
@@ -59,6 +60,10 @@ export async function dynamicHandler(
         responseHeaders.set(k, val);
       }
     });
+
+    if (request.headers.get("cache-control")?.includes("no-cache")) {
+      responseHeaders.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    }
 
     const resBuffer = await res.arrayBuffer();
     return new NextResponse(resBuffer, {

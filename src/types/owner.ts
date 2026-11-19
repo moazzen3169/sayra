@@ -95,6 +95,8 @@ export interface OwnerMe {
   verificationStatus?: VerificationStatus;
   verificationData?: OwnerVerificationData;
   gamingCenterId?: string;
+  gamingCenterSlug?: string;
+  gamingCenter?: OwnerGamingCenterRef;
   gamingCenters?: OwnerGamingCenterRef[];
   subscriptionDaysLeft?: number;
 }

@@ -30,7 +30,7 @@ const ICONS = {
   shield: "M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z M9 12l2 2 4-4",
 };
 
-const TILES: { href: string; label: string; icon: string; badge?: "pending" }[] = [
+const PRIMARY_MENU: { href: string; label: string; icon: string; badge?: "pending" }[] = [
   { href: "/owner/reservations", label: "رزروها", icon: "M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z", badge: "pending" },
   { href: "/owner/withdraw", label: "برداشت موجودی", icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" },
   { href: "/owner/stations", label: "دستگاه‌ها", icon: "M15 5M9 9h6M12 6v6M6 15h.01M18 15h.01M15 18h.01M9 18h.01" },
@@ -90,14 +90,14 @@ export default function OwnerDashboardPage() {
 
   // Gallery state
   const [media, setMedia] = useState<MediaItem[]>([]);
+  const [localFallbacks, setLocalFallbacks] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
   const [galleryMsg, setGalleryMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [mediaToken, setMediaToken] = useState(0);
   const [deleteConfirmMedia, setDeleteConfirmMedia] = useState<MediaItem | null>(null);
   const [deletingImage, setDeletingImage] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // واکشی داده‌های زنده: درآمد، تعداد رزروهای در انتظار و تصاویر گالری
+  // واکشی داده‌های زنده: درآمد و تعداد رزروهای در انتظار
   useEffect(() => {
     if (!centerId) {
       setWithdrawable(null);
@@ -107,13 +107,10 @@ export default function OwnerDashboardPage() {
     let active = true;
     setDashboardError(null);
 
-    const targetSlug = center?.slug || centerId;
-
     Promise.allSettled([
       ownerService.getAnalyticsSummary(centerId),
       ownerService.listReservations(centerId),
-      ownerService.listMedia(targetSlug),
-    ]).then(([summaryRes, reservationsRes, mediaRes]) => {
+    ]).then(([summaryRes, reservationsRes]) => {
       if (!active) return;
 
       if (summaryRes.status === "fulfilled") {
@@ -139,16 +136,36 @@ export default function OwnerDashboardPage() {
       } else {
         setDashboardError((prev) => prev || getErrorMessage(reservationsRes.reason));
       }
-
-      if (mediaRes.status === "fulfilled") {
-        setMedia(Array.isArray(mediaRes.value) ? mediaRes.value : []);
-      }
     });
 
     return () => {
       active = false;
     };
-  }, [centerId, center?.slug, mediaToken]);
+  }, [centerId]);
+
+  // واکشی لیست تصاویر گالری بدون کش تا بلافاصله به‌روز باشد
+  const centerSlug = center?.slug;
+
+  useEffect(() => {
+    if (!centerId) return;
+    let active = true;
+    const controller = new AbortController();
+
+    ownerService
+      .listOwnerMedia(centerId, centerSlug, controller.signal, { noCache: true })
+      .then((items) => {
+        if (!active) return;
+        setMedia(Array.isArray(items) ? items : []);
+      })
+      .catch(() => {
+        // در صورت خطا وضعیت فعلی حفظ می‌شود
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [centerId, centerSlug]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,7 +173,7 @@ export default function OwnerDashboardPage() {
     router.push(q ? `/owner/reservations?q=${encodeURIComponent(q)}` : "/owner/reservations");
   };
 
-  // آپلود عکس به همراه پیش‌نمایش آنی (Optimistic Preview)
+  // آپلود عکس به همراه پیش‌نمایش آنی (Optimistic Preview) و همگام‌سازی بدون کش
   const handleUpload = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -182,15 +199,45 @@ export default function OwnerDashboardPage() {
           purpose: "GALLERY",
         });
 
+        const uploadedItem: MediaItem = {
+          ...uploaded,
+          url: uploaded.url || localPreviewUrl,
+          purpose: uploaded.purpose === "LOGO" ? "GALLERY" : uploaded.purpose || "GALLERY",
+        };
+
+        if (uploaded.url) {
+          setLocalFallbacks((prev) => ({
+            ...prev,
+            [uploaded.url]: localPreviewUrl,
+          }));
+        }
+
         setMedia((prev) =>
-          prev.map((m) =>
-            m.id === tempId
-              ? { ...uploaded, url: uploaded.url || localPreviewUrl }
-              : m
-          )
+          prev.map((m) => (m.id === tempId ? uploadedItem : m))
         );
         setGalleryMsg({ ok: true, text: "تصویر به گالری اضافه شد." });
-        setMediaToken((v) => v + 1);
+
+        const hasPublicSlug = Boolean(
+          isApproved && centerSlug && centerSlug !== centerId
+        );
+        if (hasPublicSlug) {
+          const freshList = await ownerService.listOwnerMedia(
+            centerId,
+            centerSlug,
+            undefined,
+            { noCache: true }
+          );
+          if (Array.isArray(freshList) && freshList.length > 0) {
+            const alreadyInServerList = freshList.some(
+              (item) =>
+                (Boolean(uploadedItem.id) && item.id === uploadedItem.id) ||
+                (Boolean(uploadedItem.url) && item.url === uploadedItem.url)
+            );
+            setMedia(
+              alreadyInServerList ? freshList : [uploadedItem, ...freshList]
+            );
+          }
+        }
       } catch (err) {
         setMedia((prev) => prev.filter((m) => m.id !== tempId));
         URL.revokeObjectURL(localPreviewUrl);
@@ -199,10 +246,8 @@ export default function OwnerDashboardPage() {
         setUploading(false);
       }
     },
-    [centerId, uploading]
+    [centerId, centerSlug, isApproved, uploading]
   );
-
-  const centerSlug = center?.slug;
 
   // حذف عکس پس از تأیید کاربر
   const handleConfirmDeleteMedia = useCallback(async () => {
@@ -226,9 +271,16 @@ export default function OwnerDashboardPage() {
       setDeleteConfirmMedia(null);
       setGalleryMsg({ ok: true, text: "تصویر از گالری حذف شد." });
 
-      const updated = await ownerService.listMedia(centerSlug || centerId);
-      if (Array.isArray(updated) && (updated.length > 0 || remainingCount === 0)) {
-        setMedia(updated.filter((item) => !isSameMedia(item)));
+      if (isApproved && centerSlug && centerSlug !== centerId) {
+        const updated = await ownerService.listOwnerMedia(
+          centerId,
+          centerSlug,
+          undefined,
+          { noCache: true }
+        );
+        if (Array.isArray(updated) && (updated.length > 0 || remainingCount === 0)) {
+          setMedia(updated.filter((item) => !isSameMedia(item)));
+        }
       }
     } catch (err) {
       setDeleteConfirmMedia(null);
@@ -236,11 +288,16 @@ export default function OwnerDashboardPage() {
     } finally {
       setDeletingImage(false);
     }
-  }, [centerId, centerSlug, deleteConfirmMedia, deletingImage, media]);
+  }, [centerId, centerSlug, deleteConfirmMedia, deletingImage, isApproved, media]);
+
+  const effectiveMedia = React.useMemo(
+    () => (centerId ? media : []),
+    [centerId, media]
+  );
 
   const galleryItems = React.useMemo(
-    () => media.filter((m) => m.purpose !== "LOGO" && Boolean(m.url)),
-    [media]
+    () => effectiveMedia.filter((m) => m.purpose !== "LOGO" && Boolean(m.url)),
+    [effectiveMedia]
   );
 
   const galleryBanners = React.useMemo(
@@ -248,14 +305,15 @@ export default function OwnerDashboardPage() {
       galleryItems.map((m, idx) => ({
         id: m.id || `owner-gallery-${idx}`,
         imageUrl: m.url,
+        fallbackUrl: localFallbacks[m.url],
         alt: m.altText || "تصویر گالری گیمنت",
       })),
-    [galleryItems]
+    [galleryItems, localFallbacks]
   );
 
   const logoMedia = React.useMemo(
-    () => media.find((m) => m.purpose === "LOGO" || m.purpose === "COVER"),
-    [media]
+    () => effectiveMedia.find((m) => m.purpose === "LOGO" || m.purpose === "COVER"),
+    [effectiveMedia]
   );
 
   if (isCenterLoading) {
@@ -263,13 +321,30 @@ export default function OwnerDashboardPage() {
       <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
         <OwnerHeader title="پنل مدیریت" isSubpage={false} showSearch={false} />
         <main className="flex-1 px-4 pt-20 flex flex-col gap-5 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0">
-          <div className="h-12 rounded-card bg-[var(--bg-card)] animate-pulse" />
-          <div className="h-44 rounded-card bg-[var(--bg-card)] animate-pulse" />
-          <div className="grid grid-cols-4 gap-3">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="aspect-square rounded-card bg-[var(--bg-card)] animate-pulse" />
+          {/* کارت نام گیمنت */}
+          <div className="h-14 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse" />
+          {/* کارت درآمد */}
+          <div className="min-h-[178px] rounded-card bg-[var(--bg-card)] animate-pulse" />
+          {/* دسته اول لینک‌ها (رزروها، برداشت موجودی، دستگاه‌ها، نظرات) */}
+          <div className="rounded-card bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)] animate-pulse">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-3 px-5 h-16">
+                <div className="w-6 h-6 rounded bg-[var(--foreground)]/70 shrink-0" />
+                <div className="h-4 w-28 rounded bg-[var(--foreground)]/60" />
+              </div>
             ))}
           </div>
+          {/* دسته دوم لینک‌ها */}
+          <div className="rounded-card bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)] animate-pulse">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-center gap-3 px-5 h-16">
+                <div className="w-6 h-6 rounded bg-[var(--foreground)]/70 shrink-0" />
+                <div className="h-4 w-32 rounded bg-[var(--foreground)]/60" />
+              </div>
+            ))}
+          </div>
+          {/* بخش گالری تصاویر */}
+          <div className="h-48 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse" />
         </main>
         <BottomBar />
       </div>
@@ -435,25 +510,31 @@ export default function OwnerDashboardPage() {
             </div>
           </Link>
 
-          {/* میانبرها */}
-          <div className="grid grid-cols-4 gap-3">
-            {TILES.map((t) => (
-              <Link key={t.href} href={t.href} className="flex flex-col items-center gap-2">
-                <span className="relative w-full aspect-square rounded-card bg-[var(--foreground)]/70 flex items-center justify-center text-[var(--primary)]">
-                  <TileIcon d={t.icon} />
-                  {t.badge === "pending" && pendingCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-6 h-6 px-1 rounded-full bg-[var(--primary)] text-on-primary text-xs font-bold flex items-center justify-center">
-                      {toPersianDigits(pendingCount)}
-                    </span>
-                  )}
-                </span>
-                <span className="text-xs text-[var(--text-white)] text-center leading-tight">{t.label}</span>
+          {/* دسته اول لینک‌ها: رزروها، برداشت موجودی، دستگاه‌ها، نظرات */}
+          <div className="rounded-card bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)]">
+            {PRIMARY_MENU.map((m) => (
+              <Link
+                key={m.href}
+                href={m.href}
+                className="flex items-center justify-between gap-3 px-5 h-16 hover:bg-[var(--foreground)]/20 transition-colors"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-[var(--text-white)]">
+                    <TileIcon d={m.icon} />
+                  </span>
+                  <span className="text-sm font-bold text-[var(--text-white)]">{m.label}</span>
+                </div>
+                {m.badge === "pending" && pendingCount > 0 && (
+                  <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--primary)] px-2 text-xs font-bold text-on-primary shrink-0">
+                    {toPersianDigits(pendingCount)}
+                  </span>
+                )}
               </Link>
             ))}
           </div>
 
-          {/* منو */}
-          <div className="rounded-card bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)]">
+          {/* دسته دوم لینک‌ها: تنظیمات و پشتیبانی */}
+          <div className="mt-1 rounded-card bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)]">
             {MENU.map((m) =>
               m.comingSoon ? (
                 <div
@@ -569,7 +650,7 @@ export default function OwnerDashboardPage() {
                         <SafeImage
                           src={img.url}
                           alt={img.altText ?? "تصویر گیمنت"}
-                          fallbackSrc={PLACEHOLDERS.gallery}
+                          fallbackSrc={localFallbacks[img.url] || PLACEHOLDERS.gallery}
                           className="w-full h-full object-cover transition-transform group-hover:scale-105"
                         />
 

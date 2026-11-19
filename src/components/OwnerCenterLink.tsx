@@ -17,6 +17,8 @@ interface OwnerCenterLinkProps {
    * "none" یعنی هیچ لینکی نمایش داده نشود.
    */
   fallback?: "admin" | "center" | "none";
+  /** مخفی‌سازی فلش انتهای کارت در حالت card */
+  hideArrow?: boolean;
   className?: string;
 }
 
@@ -44,6 +46,7 @@ export const OwnerCenterLink: React.FC<OwnerCenterLinkProps> = ({
   variant = "menu",
   onNavigate,
   fallback = "none",
+  hideArrow = false,
   className,
 }) => {
   const { status, hasCenter, isAdmin } = useMyGamingCenter();
@@ -87,8 +90,8 @@ export const OwnerCenterLink: React.FC<OwnerCenterLinkProps> = ({
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.75}
-      className="h-[18px] w-[18px]"
+      strokeWidth={1.7}
+      className={variant === "card" ? "h-6 w-6" : "h-[18px] w-[18px]"}
       aria-hidden="true"
     >
       <path strokeLinecap="round" strokeLinejoin="round" d={item.iconPath} />
@@ -105,20 +108,22 @@ export const OwnerCenterLink: React.FC<OwnerCenterLinkProps> = ({
           className
         )}
       >
-        <span className="flex items-center gap-3">
-          <span className={iconColor}>{icon}</span>
-          <span>{item.label}</span>
+        <span className="flex items-center gap-3 min-w-0">
+          <span className={cn("shrink-0", iconColor)}>{icon}</span>
+          <span className="truncate">{item.label}</span>
         </span>
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.75}
-          className="h-4 w-4 text-[var(--text-muted)]"
-          aria-hidden="true"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
+        {!hideArrow && (
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.75}
+            className="h-4 w-4 text-[var(--text-muted)] shrink-0"
+            aria-hidden="true"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        )}
       </Link>
     );
   }

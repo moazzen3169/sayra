@@ -2,6 +2,7 @@ export interface BannerItem {
   id: string;
   imageUrl: string;          // موبایل/تبلت، نسبت ۲:۱ (پیشنهاد ۱۵۶۰×۷۸۰)
   desktopImageUrl?: string;  // دسکتاپ ≥۱۰۲۴، نسبت ۳.۲:۱ (پیشنهاد ۲۴۰۰×۷۵۰)
+  fallbackUrl?: string;      // تصویر جایگزین موقت (مثلاً پیش‌نمایش محلی هنگام آپلود)
   alt: string;               // فقط برای دسترسی‌پذیری
   /** لینک داخلی (/gamecenter/gc-1) یا خارجی (https://...). اگر نباشد، اسلاید کلیک‌پذیر نیست (مثلاً گالری) */
   href?: string;

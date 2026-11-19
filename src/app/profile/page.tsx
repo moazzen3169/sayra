@@ -5,10 +5,12 @@ import Link from "next/link";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { BottomBar } from "@/components/BottomBar";
 import { OwnerCenterLink } from "@/components/OwnerCenterLink";
+import { NotificationModal } from "@/components/NotificationModal";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/context/AuthContext";
 import { authService } from "@/services/authService";
+import { customerNotificationService } from "@/services/customerNotificationService";
 import { walletService } from "@/services/walletService";
 import type {
   CustomerWallet,
@@ -67,6 +69,64 @@ const WITHDRAW_STATUS_LABEL: Record<string, { label: string; color: string }> =
   };
   
 
+const MenuIcon = ({ d }: { d: string }) => (
+  <svg
+    className="w-6 h-6"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={1.7}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d={d} />
+  </svg>
+);
+
+type ProfileMenuItem = {
+  key: string;
+  label: string;
+  icon: string;
+  href?: string;
+  action?: "notifications" | "logout";
+  danger?: boolean;
+};
+
+const PROFILE_MENU: ProfileMenuItem[] = [
+  {
+    key: "reservations",
+    href: "/reservations",
+    label: "رزروهای من",
+    icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+  },
+  {
+    key: "notifications",
+    label: "نوتیفیکیشن‌ها",
+    icon: "M15 17h5l-1.4-1.4a2 2 0 01-.6-1.4V11a6 6 0 00-4-5.66V5a2 2 0 10-4 0v.34C7.67 6.17 6 8.39 6 11v3.2c0 .54-.21 1.05-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
+    action: "notifications",
+  },
+  {
+    key: "wallet",
+    href: "/profile/wallet",
+    label: "کیف پول",
+    icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+  },
+  {
+    key: "support",
+    href: "/support",
+    label: "پشتیبانی",
+    icon: "M4 14v-2a8 8 0 0116 0v2M4 14h3v5H5a1 1 0 01-1-1v-4zm16 0h-3v5h2a1 1 0 001-1v-4zM17 19c0 1.5-2 2-5 2",
+  },
+  {
+    key: "logout",
+    label: "خروج از حساب",
+    icon: "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
+    action: "logout",
+    danger: true,
+  },
+];
+
 export default function ProfilePage() {
   const router = useRouter();
   const { isLoggedIn, isLoading, user, login, logout } = useAuth();
@@ -77,6 +137,8 @@ export default function ProfilePage() {
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
   // Edit Profile Form States
   const [editStep, setEditStep] = useState<"form" | "otp">("form");
@@ -131,6 +193,31 @@ export default function ProfilePage() {
   React.useEffect(() => {
     fetchWalletData();
   }, [fetchWalletData]);
+
+  // Fetch unread notifications count when user is logged in
+  React.useEffect(() => {
+    if (!isLoggedIn) return;
+    let active = true;
+    const controller = new AbortController();
+
+    customerNotificationService
+      .getUnreadCount(controller.signal)
+      .then((count) => {
+        if (active) setUnreadNotificationsCount(count);
+      })
+      .catch(() => {
+        // Best effort
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [isLoggedIn]);
+
+  const effectiveUnreadNotificationsCount = isLoggedIn
+    ? unreadNotificationsCount
+    : 0;
 
   // Fetch history when tab is opened
   const fetchWalletHistory = React.useCallback(async () => {
@@ -538,13 +625,43 @@ export default function ProfilePage() {
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
       <ProfileHeader title="حساب کاربری" isSubpage={false} />
 
-      <main className="flex-1 pt-24 px-4 py-4 flex flex-col gap-5">
+      <main className="flex-1 px-4 pt-20 pb-4 flex flex-col gap-5 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0">
         {/* Loading State */}
         {isLoading && (
-          <div className="w-full max-w-[var(--max-mini-app-width)] h-[500px] mx-auto p-6 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse flex flex-col gap-4">
-            <div className="w-16 h-16 rounded-full bg-[var(--foreground)] mx-auto" />
-            <div className="h-5 w-32 bg-[var(--foreground)] rounded mx-auto" />
-            <div className="h-4 w-24 bg-[var(--foreground)] rounded mx-auto" />
+          <div aria-busy="true" className="w-full flex flex-col gap-5">
+            {/* User Info Card Skeleton */}
+            <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 flex items-center gap-4 animate-pulse">
+              <div className="w-16 h-16 rounded-full bg-[var(--foreground)]/70 shrink-0" />
+              <div className="flex-1 flex flex-col gap-2 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="h-4 w-32 rounded bg-[var(--foreground)]/70" />
+                  <div className="h-7 w-24 rounded-full bg-[var(--foreground)]/50 shrink-0" />
+                </div>
+                <div className="h-3 w-24 rounded bg-[var(--foreground)]/50" />
+              </div>
+            </div>
+
+            {/* Wallet Summary Banner Skeleton */}
+            <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex items-center justify-between animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[var(--foreground)]/70 shrink-0" />
+                <div className="flex flex-col gap-2">
+                  <div className="h-3 w-20 rounded bg-[var(--foreground)]/50" />
+                  <div className="h-4 w-28 rounded bg-[var(--foreground)]/70" />
+                </div>
+              </div>
+              <div className="h-9 w-16 rounded-card bg-[var(--foreground)]/60 shrink-0" />
+            </div>
+
+            {/* Menu Links Skeleton */}
+            <div className="rounded-card bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)] animate-pulse">
+              {[0, 1, 2, 3, 4].map((idx) => (
+                <div key={idx} className="flex items-center gap-3 px-5 h-16">
+                  <div className="w-6 h-6 rounded bg-[var(--foreground)]/70 shrink-0" />
+                  <div className="h-4 w-28 rounded bg-[var(--foreground)]/60" />
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -561,7 +678,7 @@ export default function ProfilePage() {
 
         {/* Authenticated State */}
         {!isLoading && isLoggedIn && user && (
-          <div className="w-full max-w-[var(--max-mini-app-width)] rounded-card bg-[var(--bg-card)] mx-auto flex flex-col gap-4 animate-fadeIn">
+          <div className="w-full flex flex-col gap-5 animate-fadeIn">
             {/* User Info Card */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-5 flex items-center gap-4 shadow-lg relative overflow-hidden">
               <div className="w-16 h-16 rounded-full bg-[var(--foreground)] border-2 border-[var(--primary)] flex items-center justify-center text-[var(--primary)] text-2xl font-bold shrink-0 shadow-md">
@@ -646,137 +763,77 @@ export default function ProfilePage() {
               </button>
             </div>
 
-            {/* Menu Options Group */}
-            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card overflow-hidden divide-y divide-[var(--border-subtle)] shadow-lg">
-              <OwnerCenterLink variant="card" fallback="none" />
+            {/* منو */}
+            <div className="rounded-card bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)]">
+              <OwnerCenterLink
+                variant="card"
+                fallback="none"
+                hideArrow
+                className="rounded-none border-0 px-5 h-16 hover:bg-[var(--foreground)]/20"
+              />
 
-              {/* 1. پشتیبانی */}
-              <Link
-                href="/support"
-                className="w-full p-4 flex items-center justify-between hover:bg-[var(--foreground)]/30 transition-colors text-right group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-card bg-[var(--foreground)] text-[var(--primary)] flex items-center justify-center transition-colors group-hover:scale-105">
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={1.8}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-[var(--text-white)]">
-                      پشتیبانی
-                    </span>
-                  </div>
-                </div>
-                <svg
-                  className="w-5 h-5 text-[var(--text-subtle)] transform rotate-180 group-hover:translate-x-[-2px] transition-transform"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </Link>
+              {PROFILE_MENU.map((item) => {
+                const rowClass = `w-full flex items-center justify-between gap-3 px-5 h-16 text-right transition-colors ${
+                  item.danger
+                    ? "hover:bg-[var(--accent-red)]/10 cursor-pointer"
+                    : "hover:bg-[var(--foreground)]/20 cursor-pointer"
+                }`;
+                const content = (
+                  <>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span
+                        className={
+                          item.danger
+                            ? "text-[var(--accent-red)]"
+                            : "text-[var(--text-white)]"
+                        }
+                      >
+                        <MenuIcon d={item.icon} />
+                      </span>
+                      <span
+                        className={`text-sm font-bold ${
+                          item.danger
+                            ? "text-[var(--accent-red)]"
+                            : "text-[var(--text-white)]"
+                        }`}
+                      >
+                        {item.label}
+                      </span>
+                    </div>
+                    {item.action === "notifications" &&
+                      effectiveUnreadNotificationsCount > 0 && (
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--primary)] px-1.5 text-xs font-bold text-on-primary shrink-0">
+                          {effectiveUnreadNotificationsCount > 9
+                            ? "+۹"
+                            : toPersianDigits(effectiveUnreadNotificationsCount)}
+                        </span>
+                      )}
+                  </>
+                );
 
-              {/* 2. کیف پول */}
-              <button
-                type="button"
-                onClick={() => router.push("/profile/wallet")}
-                className="w-full p-4 flex items-center justify-between hover:bg-[var(--foreground)]/30 transition-colors text-right group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-card bg-[var(--foreground)] text-[var(--primary)] flex items-center justify-center transition-colors group-hover:scale-105">
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={1.8}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-[var(--text-white)]">
-                      کیف پول
-                    </span>
-                  </div>
-                </div>
-                <svg
-                  className="w-5 h-5 text-[var(--text-subtle)] transform rotate-180 group-hover:translate-x-[-2px] transition-transform"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
+                if (item.href) {
+                  return (
+                    <Link key={item.key} href={item.href} className={rowClass}>
+                      {content}
+                    </Link>
+                  );
+                }
 
-              {/* 4. خروج از حساب */}
-              <button
-                type="button"
-                onClick={logout}
-                className="w-full p-4 flex items-center justify-between hover:bg-[var(--accent-red)]/10 transition-colors text-right group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-card bg-[var(--accent-red)]/10 text-[var(--accent-red)] flex items-center justify-center transition-colors group-hover:scale-105">
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={1.8}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-[var(--accent-red)]">
-                      خروج از حساب
-                    </span>
-                  </div>
-                </div>
-                <svg
-                  className="w-5 h-5 text-[var(--accent-red)]/60 transform rotate-180 group-hover:translate-x-[-2px] transition-transform"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={
+                      item.action === "notifications"
+                        ? () => setIsNotificationModalOpen(true)
+                        : logout
+                    }
+                    className={rowClass}
+                  >
+                    {content}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -1590,6 +1647,14 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+
+      {/* Notification Modal */}
+      <NotificationModal
+        isOpen={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
+        onMarkAllAsRead={() => setUnreadNotificationsCount(0)}
+        onUnreadCountChange={setUnreadNotificationsCount}
+      />
 
       <BottomBar activeTab="profile" />
     </div>

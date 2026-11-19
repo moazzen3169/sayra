@@ -303,7 +303,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
                   src={item.imageUrl}
                   alt={item.alt || `تصویر ${toPersianDigits(index + 1)}`}
                   draggable={false}
-                  fallbackSrc={fallbackSrc}
+                  fallbackSrc={item.fallbackUrl || fallbackSrc}
                   loading={index === 0 ? "eager" : "lazy"}
                   {...(index === 0 ? ({ fetchPriority: "high" } as React.ImgHTMLAttributes<HTMLImageElement>) : { decoding: "async" })}
                   className="w-full h-full object-cover select-none pointer-events-none"
@@ -449,7 +449,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
                       src={item.imageUrl}
                       alt={item.alt || `تصویر ${toPersianDigits(index + 1)}`}
                       draggable={false}
-                      fallbackSrc={fallbackSrc}
+                      fallbackSrc={item.fallbackUrl || fallbackSrc}
                       className="h-[95vh] w-full max-w-[1100px] object-contain select-none rounded-card"
                     />
                   </CarouselItem>

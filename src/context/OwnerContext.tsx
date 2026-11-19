@@ -192,13 +192,16 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (profile.gamingCenterId) {
           const fetchedCenter = await ownerService.findCenter(profile.gamingCenterId, controller.signal).catch(() => null);
           if (fetchedCenter) {
-            accessibleCenters = [fetchedCenter];
+            accessibleCenters = [{
+              ...fetchedCenter,
+              slug: fetchedCenter.slug || profile.gamingCenterSlug || profile.gamingCenter?.slug || "",
+            }];
           } else {
             accessibleCenters = [{
               id: profile.gamingCenterId,
-              name: "گیم‌نت",
-              slug: profile.gamingCenterId,
-              isActive: true,
+              name: profile.gamingCenter?.name || "گیم‌نت",
+              slug: profile.gamingCenterSlug || profile.gamingCenter?.slug || "",
+              isActive: profile.gamingCenter?.isActive ?? true,
             }];
           }
         } else if (profile.gamingCenters && profile.gamingCenters.length > 0) {
@@ -206,7 +209,7 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           accessibleCenters = profile.gamingCenters.map((gc) => ({
             id: gc.id,
             name: gc.name || "گیم‌نت",
-            slug: gc.slug || gc.id,
+            slug: gc.slug || "",
             description: gc.description,
             isActive: gc.isActive ?? true,
           }));
@@ -227,7 +230,7 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 {
                   id: fetchedStored.id || storedCenterId,
                   name: fetchedStored.name || "گیم‌نت",
-                  slug: fetchedStored.slug || storedCenterId,
+                  slug: fetchedStored.slug || "",
                   description: fetchedStored.description,
                   isActive: fetchedStored.isActive ?? true,
                 },
