@@ -300,15 +300,26 @@ export function mapMediaToGalleryImages(mediaList: PublicMediaItem[]): Gamecente
  */
 export function mapRatingsToReviews(ratings: PublicRating[]): GamecenterReview[] {
   if (!Array.isArray(ratings)) return [];
-  return ratings.map((r, idx) => ({
-    id: r.id || `rating-${idx + 1}`,
-    author: r.author || "کاربر سایت",
-    rating: typeof r.rating === "number" ? r.rating : 5,
-    comment: r.comment || undefined,
-    createdAt: r.createdAt || undefined,
-    reply: r.reply || undefined,
-    repliedAt: r.repliedAt || undefined,
-  }));
+  return ratings
+    .filter((r) => r && r.status !== "HIDDEN" && r.status !== "DELETED")
+    .map((r, idx) => {
+      const replyText = (r.replyComment ?? r.reply ?? "").trim() || undefined;
+      const replyDate = (r.replyAt ?? r.repliedAt ?? "").trim() || undefined;
+      const commentText = (r.comment ?? "").trim() || undefined;
+
+      return {
+        id: r.id || `rating-${idx + 1}`,
+        author: r.author || r.customerName || "کاربر سایت",
+        rating: typeof r.rating === "number" ? r.rating : 5,
+        comment: commentText,
+        createdAt: r.createdAt || undefined,
+        reply: replyText,
+        repliedAt: replyDate,
+        replyComment: replyText,
+        replyAt: replyDate,
+        repliedById: r.repliedById || undefined,
+      };
+    });
 }
 
 /**

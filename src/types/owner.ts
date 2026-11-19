@@ -289,13 +289,19 @@ export interface SiteSettings {
 
 export interface OwnerRating {
   id: string;
+  gamingCenterId?: string;
+  reservationId?: string;
   rating: number;
-  comment?: string;
+  comment?: string | null;
   status?: "PUBLISHED" | "HIDDEN" | "DELETED";
   customerName?: string;
+  author?: string;
   createdAt?: string;
-  reply?: string;
-  repliedAt?: string;
+  replyComment?: string | null;
+  replyAt?: string | null;
+  repliedById?: string | null;
+  reply?: string | null;
+  repliedAt?: string | null;
 }
 
 export interface MediaItem {

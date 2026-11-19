@@ -69,6 +69,47 @@ export function pickNumber(obj: unknown, keys: string[]): number | null {
   return null;
 }
 
+export function normalizeOwnerRating(raw: OwnerRating): OwnerRating {
+  const replyText = (raw.replyComment ?? raw.reply ?? "").trim() || undefined;
+  const replyDate = (raw.replyAt ?? raw.repliedAt ?? "").trim() || undefined;
+  return {
+    ...raw,
+    customerName: raw.customerName || raw.author || undefined,
+    comment: raw.comment ?? undefined,
+    replyComment: replyText,
+    reply: replyText,
+    replyAt: replyDate,
+    repliedAt: replyDate,
+    repliedById: raw.repliedById ?? undefined,
+  };
+}
+
+function extractRatingsList(resData: unknown): OwnerRating[] {
+  if (Array.isArray(resData)) {
+    return (resData as OwnerRating[]).map(normalizeOwnerRating);
+  }
+  if (
+    resData &&
+    typeof resData === "object" &&
+    Array.isArray((resData as { data?: unknown }).data)
+  ) {
+    return ((resData as { data: OwnerRating[] }).data).map(normalizeOwnerRating);
+  }
+  return [];
+}
+
+function extractSingleRating(resData: unknown): OwnerRating | null {
+  if (!resData || typeof resData !== "object") return null;
+  const obj = resData as Record<string, unknown>;
+  if (typeof obj.id === "string") {
+    return normalizeOwnerRating(obj as unknown as OwnerRating);
+  }
+  if (obj.data && typeof obj.data === "object" && typeof (obj.data as Record<string, unknown>).id === "string") {
+    return normalizeOwnerRating(obj.data as unknown as OwnerRating);
+  }
+  return null;
+}
+
 export const ownerService = {
   async getMe(signal?: AbortSignal): Promise<OwnerMe> {
     const response = await apiClient.get<any>(ENDPOINTS.owner.me, {
@@ -1738,28 +1779,41 @@ export const ownerService = {
       { signal }
     );
 
-    const resData = response.data;
+    return extractRatingsList(response.data);
+  },
 
-    if (Array.isArray(resData)) {
-      return resData as OwnerRating[];
+  async listCenterRatings(
+    centerId: string,
+    options?: {
+      status?: "PUBLISHED" | "HIDDEN" | "DELETED";
+      signal?: AbortSignal;
+    }
+  ): Promise<OwnerRating[]> {
+    if (!centerId?.trim()) {
+      throw new Error("شناسه گیم‌نت مشخص نشده است.");
     }
 
-    if (
-      resData &&
-      typeof resData === "object" &&
-      Array.isArray((resData as any).data)
-    ) {
-      return (resData as any).data as OwnerRating[];
+    const query: Record<string, string> = {};
+    if (options?.status) {
+      query.status = options.status;
     }
 
-    return [];
+    const response = await apiClient.get<unknown>(
+      ENDPOINTS.owner.ratings(centerId.trim()),
+      {
+        query,
+        signal: options?.signal,
+      }
+    );
+
+    return extractRatingsList(response.data);
   },
 
   async replyToRating(
     centerId: string,
     ratingId: string,
     replyText: string
-  ): Promise<void> {
+  ): Promise<OwnerRating | null> {
     if (!centerId?.trim()) {
       throw new Error("شناسه گیم‌نت مشخص نشده است.");
     }
@@ -1772,24 +1826,23 @@ export const ownerService = {
     }
 
     const endpoint = ENDPOINTS.owner.ratingReply(centerId.trim(), ratingId.trim());
-    try {
-      await apiClient.post(endpoint, { reply: cleanReply });
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 404) {
-        try {
-          await apiClient.patch(endpoint, { reply: cleanReply });
-          return;
-        } catch (patchErr) {
-          if (patchErr instanceof ApiError && patchErr.status === 404) {
-            throw new Error(
-              "اندپوینت ثبت پاسخ به نظر در سرور پیاده‌سازی نشده است (خطای ۴۰۴ — مطابق openapi.json فعلی)."
-            );
-          }
-          throw patchErr;
-        }
-      }
-      throw err;
+    const response = await apiClient.post<unknown>(endpoint, { reply: cleanReply });
+    return extractSingleRating(response.data);
+  },
+
+  async deleteRatingReply(
+    centerId: string,
+    ratingId: string
+  ): Promise<void> {
+    if (!centerId?.trim()) {
+      throw new Error("شناسه گیم‌نت مشخص نشده است.");
     }
+    if (!ratingId?.trim()) {
+      throw new Error("شناسه نظر مشخص نشده است.");
+    }
+
+    const endpoint = ENDPOINTS.owner.ratingReply(centerId.trim(), ratingId.trim());
+    await apiClient.delete(endpoint);
   },
 
   async setRatingStatus(

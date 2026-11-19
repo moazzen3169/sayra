@@ -169,6 +169,37 @@ describe("Phase 6: Gaming-Center Detail Data (Mocked Network)", () => {
       expect(reviews[1].rating).toBe(4);
     });
 
+    it("maps OpenAPI replyComment, replyAt, repliedById and filters out hidden/deleted ratings", () => {
+      const ratings = [
+        {
+          id: "r-1",
+          gamingCenterId: "gc-1",
+          rating: 5,
+          comment: "سیستم عالی",
+          customerName: "سارا",
+          replyComment: "سپاس از نظر شما",
+          replyAt: "2026-11-15T10:00:00.000Z",
+          repliedById: "mgr-1",
+          status: "PUBLISHED" as const,
+        },
+        {
+          id: "r-2",
+          gamingCenterId: "gc-1",
+          rating: 1,
+          comment: "مخفی",
+          status: "HIDDEN" as const,
+        },
+      ];
+      const reviews = mapRatingsToReviews(ratings);
+      expect(reviews.length).toBe(1);
+      expect(reviews[0].author).toBe("سارا");
+      expect(reviews[0].reply).toBe("سپاس از نظر شما");
+      expect(reviews[0].replyComment).toBe("سپاس از نظر شما");
+      expect(reviews[0].replyAt).toBe("2026-11-15T10:00:00.000Z");
+      expect(reviews[0].repliedAt).toBe("2026-11-15T10:00:00.000Z");
+      expect(reviews[0].repliedById).toBe("mgr-1");
+    });
+
     it("formats authoritative address with city prefix when needed", () => {
       const addresses = [
         { id: "a-1", city: "تبریز", address: "خیابان ولیعصر، برج تجارت" },

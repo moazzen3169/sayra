@@ -27,6 +27,7 @@ import { GroupBookingSheet } from "@/components/gamecenter/GroupBookingSheet";
 import { GamesMarquee } from "@/components/gamecenter/GamesMarquee";
 import { GamecenterInfoCard } from "@/components/gamecenter/GamecenterInfoCard";
 import { GamecenterLocationCard } from "@/components/gamecenter/GamecenterLocationCard";
+import { ReviewReplyThread } from "@/components/reviews/ReviewReplyThread";
 import { useAuth } from "@/context/AuthContext";
 import { useCity } from "@/context/CityContext";
 import { useDeviceCategories } from "@/hooks/gaming-center/use-device-categories";
@@ -444,20 +445,17 @@ function GameCenterDetailContent({
                               {r.comment}
                             </p>
                           )}
-                          {r.reply && (
-                            <div className="rounded-child border border-[var(--primary)]/20 bg-[var(--foreground)]/30 p-2.5 flex flex-col gap-1">
-                              <span className="text-[11px] font-bold text-[var(--primary)]">
-                                پاسخ گیم‌نت:
-                              </span>
-                              <p className="text-xs text-[var(--text-white)] leading-relaxed">
-                                {r.reply}
-                              </p>
-                            </div>
-                          )}
                           {r.createdAt && (
                             <span className="text-secondary text-[var(--text-muted)]">
                               {formatDayLabel(r.createdAt)}
                             </span>
+                          )}
+                          {(r.replyComment || r.reply) && (
+                            <ReviewReplyThread
+                              replyText={(r.replyComment ?? r.reply)!}
+                              replyAt={r.replyAt ?? r.repliedAt}
+                              label="پاسخ مدیر گیم‌نت به این نظر"
+                            />
                           )}
                         </article>
                       ))}

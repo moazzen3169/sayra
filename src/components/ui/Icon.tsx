@@ -37,7 +37,8 @@ export type IconName =
   | "shield"
   | "image"
   | "trending"
-  | "file";
+  | "file"
+  | "reply";
 
 export interface IconProps extends React.SVGProps<SVGSVGElement> {
   name: IconName;
@@ -85,6 +86,7 @@ const PATHS: Record<IconName, string> = {
   image: "M4 5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V5z M8.5 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3z M20 15l-5-5L6 19",
   trending: "M3 17l6-6 4 4 8-8 M15 7h6v6",
   file: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z M14 2v6h6 M9 13h6 M9 17h4",
+  reply: "M9 10l-5 5 5 5M4 15h12a4 4 0 004-4V5",
 };
 
 export const Icon: React.FC<IconProps> = ({

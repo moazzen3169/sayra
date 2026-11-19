@@ -6,7 +6,7 @@ export const OwnerGrowthSection: React.FC = () => {
   return (
     <section
       aria-labelledby="owner-growth-heading"
-      className="group relative isolate overflow-hidden rounded-[28px] border border-[#B8F34A]/20 bg-[#0D100B] px-6 py-10 text-[#F4F5EF] sm:px-10 sm:py-14 lg:px-14 lg:py-16"
+      className="group relative isolate overflow-hidden rounded-[28px]  py-10 text-[#F4F5EF] sm:px-10 sm:py-14 lg:px-14 lg:py-16"
     >
       {/* Subtle architectural grid & lime aura */}
       <div

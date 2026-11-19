@@ -275,6 +275,7 @@ export const ENDPOINTS = {
     mediaUpload: (c: string) => `/gamingCenters/${enc(c)}/media/upload`,
     mediaPatch: (c: string, mediaId: string) => `/gamingCenters/${enc(c)}/media/${enc(mediaId)}`,
     mediaDelete: (c: string, mediaId: string) => `/gamingCenters/${enc(c)}/media/${enc(mediaId)}`,
+    ratings: (c: string) => `/gamingCenters/${enc(c)}/ratings`,
     ratingStatus: (c: string, ratingId: string) =>
       `/gamingCenters/${enc(c)}/ratings/${enc(ratingId)}/status`,
     ratingReply: (c: string, ratingId: string) =>

@@ -236,12 +236,16 @@ export interface PublicRating {
   gamingCenterId: string;
   reservationId?: string;
   rating: number;
-  comment?: string;
+  comment?: string | null;
   status?: "PUBLISHED" | "HIDDEN" | "DELETED";
   createdAt?: string;
   author?: string;
-  reply?: string;
-  repliedAt?: string;
+  customerName?: string;
+  replyComment?: string | null;
+  replyAt?: string | null;
+  repliedById?: string | null;
+  reply?: string | null;
+  repliedAt?: string | null;
 }
 
 // ---------------------------------------------------------------------------

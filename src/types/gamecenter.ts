@@ -21,6 +21,9 @@ export interface GamecenterReview {
   createdAt?: string;
   reply?: string;
   repliedAt?: string;
+  replyComment?: string;
+  replyAt?: string;
+  repliedById?: string;
 }
 
 export interface GamecenterDetail {

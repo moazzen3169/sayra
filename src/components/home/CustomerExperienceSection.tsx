@@ -7,7 +7,7 @@ export const CustomerExperienceSection: React.FC = () => {
   return (
     <section
       aria-labelledby="customer-experience-heading"
-      className="group relative isolate overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#0D100B] px-6 py-10 text-[#F4F5EF] sm:px-10 sm:py-14 lg:px-14 lg:py-16"
+      className="group relative isolate overflow-hidden rounded-[28px]  py-10 text-[#F4F5EF] sm:px-10 sm:py-14 lg:px-14 lg:py-16"
     >
       {/* Subtle architectural grid & lime aura */}
       <div
