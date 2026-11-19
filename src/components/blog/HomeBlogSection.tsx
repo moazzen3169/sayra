@@ -6,11 +6,23 @@ import { BlogPostCard, BlogPostCardSkeleton } from "@/components/blog/BlogPostCa
 import { blogService } from "@/services/blogService";
 import type { BlogPostSummary } from "@/types/blog";
 
-export const HomeBlogSection: React.FC = () => {
-  const [posts, setPosts] = useState<BlogPostSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export interface HomeBlogSectionProps {
+  initialPosts?: BlogPostSummary[];
+  initialLoaded?: boolean;
+}
+
+export const HomeBlogSection: React.FC<HomeBlogSectionProps> = ({
+  initialPosts = [],
+  initialLoaded = false,
+}) => {
+  const [posts, setPosts] = useState<BlogPostSummary[]>(
+    initialLoaded ? initialPosts : []
+  );
+  const [isLoading, setIsLoading] = useState(!initialLoaded);
 
   useEffect(() => {
+    if (initialLoaded) return;
+
     const controller = new AbortController();
 
     async function loadPosts() {
@@ -20,9 +32,10 @@ export const HomeBlogSection: React.FC = () => {
           { sort: "newest", limit: 4 },
           controller.signal
         );
+        if (controller.signal.aborted) return;
         setPosts(result.items);
       } catch (error) {
-        if ((error as Error)?.name !== "AbortError") {
+        if (!controller.signal.aborted && (error as Error)?.name !== "AbortError") {
           setPosts([]);
         }
       } finally {
@@ -35,7 +48,7 @@ export const HomeBlogSection: React.FC = () => {
     void loadPosts();
 
     return () => controller.abort();
-  }, []);
+  }, [initialLoaded]);
 
   // اگر مقاله‌ای برای نمایش موجود نباشد، بخش وبلاگ را نشان نده.
   if (!isLoading && posts.length === 0) {
@@ -43,7 +56,12 @@ export const HomeBlogSection: React.FC = () => {
   }
 
   return (
-    <section aria-labelledby="home-blog-heading" className="flex flex-col gap-4">
+    <section
+      aria-labelledby="home-blog-heading"
+      aria-busy={isLoading ? "true" : undefined}
+      className="flex flex-col gap-4"
+    >
+      {isLoading && <span className="sr-only">در حال بارگذاری</span>}
       <div className="flex items-center justify-between gap-3">
         <div className="flex flex-col gap-1">
           <h2

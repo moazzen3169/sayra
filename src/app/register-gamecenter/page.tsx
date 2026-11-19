@@ -2,53 +2,35 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { Icon } from "@/components/ui/Icon";
-import { Badge } from "@/components/ui/Badge";
-import { SectionTitle } from "@/components/ui/SectionTitle";
-import { ImageGuideSlot } from "@/components/register-gamecenter/ImageGuideSlot";
-import { StepJourneySection } from "@/components/register-gamecenter/StepJourneySection";
-import { OnboardingReadinessChecklist } from "@/components/register-gamecenter/OnboardingReadinessChecklist";
 import { FaqAccordion } from "@/components/register-gamecenter/FaqAccordion";
-import { StickyRegisterBar } from "@/components/register-gamecenter/StickyRegisterBar";
 import {
-  BENEFITS,
+  BENEFIT_PILLARS,
   COOPERATION_RULES,
   FAQ_ITEMS,
-  IMAGE_GUIDES,
   KEY_HIGHLIGHTS,
-  QUICK_NAV_LINKS,
   REGISTRATION_STEPS,
 } from "@/data/registerGamecenterContent";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "ثبت گیمنت و اتصال به سایرا | راهنمای مراحل، مزایا و قوانین همکاری",
   description:
-    "گیمنت خود را به سایرا متصل کنید؛ راهنمای کامل مزایای رزرو آنلاین، مراحل ۵ گانه ثبت گیمنت، مدارک احراز هویت، مهلت ۳۰ دقیقه‌ای تأیید رزرو، کمیسیون و تسویه‌حساب ۳ روز کاری.",
+    "گیمنت خود را در ۵ مرحله به سایرا متصل کنید؛ رزرو آنلاین با پیش‌پرداخت، پنل مدیریت یکپارچه، مهلت ۳۰ دقیقه‌ای تأیید رزرو و تسویه شفاف ۳ روز کاری.",
   keywords: [
     "ثبت گیمنت",
     "اتصال گیمنت به سایرا",
     "ایجاد گیمنت در سایرا",
     "رزرو آنلاین گیمنت",
     "پنل مدیریت گیمنت",
-    "قوانین همکاری گیمنت سایرا",
-    "مدارک ثبت گیمنت",
   ],
   alternates: {
     canonical: "/register-gamecenter",
   },
   openGraph: {
-    title: "ثبت گیمنت و اتصال به سایرا | راهنمای مراحل، مزایا و قوانین همکاری",
-    description:
-      "همه آنچه برای اتصال گیمنت به پلتفرم رزرو آنلاین سایرا نیاز دارید: مزایا، مراحل ثبت، مدارک لازم و قوانین شفاف همکاری.",
-    type: "website",
-    locale: "fa_IR",
-  },
-  twitter: {
-    card: "summary_large_image",
     title: "ثبت گیمنت و اتصال به سایرا",
     description:
-      "راهنمای جامع آماده‌سازی، قوانین، مزایا و ثبت آنلاین گیمنت در پلتفرم سایرا.",
+      "رزرو آنلاین، پیش‌پرداخت مطمئن و پنل مدیریت یکپارچه برای گیم‌نت‌ها.",
+    type: "website",
+    locale: "fa_IR",
   },
   robots: {
     index: true,
@@ -61,33 +43,14 @@ const STRUCTURED_DATA = {
   "@graph": [
     {
       "@type": "WebPage",
-      name: "ثبت گیمنت و اتصال به سایرا | راهنمای مراحل، مزایا و قوانین همکاری",
+      name: "ثبت گیمنت و اتصال به سایرا",
       description:
-        "راهنمای جامع مدیران و صاحبان گیمنت برای اتصال مجموعه به پلتفرم سایرا، آشنایی با مزایا، مدارک، قوانین همکاری و شروع فرایند ثبت گیمنت.",
+        "راهنمای کوتاه مراحل ثبت، مزایا و قوانین همکاری گیم‌نت‌ها در پلتفرم سایرا.",
       inLanguage: "fa",
-    },
-    {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        {
-          "@type": "ListItem",
-          position: 1,
-          name: "صفحه اصلی",
-          item: "/",
-        },
-        {
-          "@type": "ListItem",
-          position: 2,
-          name: "ثبت و اتصال گیمنت",
-          item: "/register-gamecenter",
-        },
-      ],
     },
     {
       "@type": "HowTo",
       name: "نحوه ثبت و اتصال گیمنت به پلتفرم سایرا",
-      description:
-        "مراحل گام‌به‌گام ثبت اطلاعات اولیه، تأیید شماره، تعیین موقعیت و ساعات کاری و احراز هویت گیمنت در سایرا.",
       step: REGISTRATION_STEPS.map((step, index) => ({
         "@type": "HowToStep",
         position: index + 1,
@@ -109,27 +72,127 @@ const STRUCTURED_DATA = {
   ],
 };
 
-const RULE_TONE_STYLES = {
-  primary: {
-    badge: "primary" as const,
-    iconWrap: "bg-[var(--primary-muted)] text-[var(--primary)] border-[var(--primary)]/30",
-    topBorder: "border-t-[var(--primary)]",
-  },
-  success: {
-    badge: "success" as const,
-    iconWrap: "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border-[var(--accent-green)]/30",
-    topBorder: "border-t-[var(--accent-green)]",
-  },
-  warning: {
-    badge: "warning" as const,
-    iconWrap: "bg-[var(--accent-warning)]/15 text-[var(--accent-warning)] border-[var(--accent-warning)]/30",
-    topBorder: "border-t-[var(--accent-warning)]",
-  },
-};
+function PartnerPortalArtwork() {
+  return (
+    <svg
+      viewBox="0 0 620 620"
+      role="img"
+      aria-label="پورتال اتصال گیمنت به سایرا"
+      className="h-full w-full"
+      fill="none"
+    >
+      <defs>
+        <radialGradient id="partner-aura">
+          <stop offset="0" stopColor="#B8F34A" stopOpacity=".22" />
+          <stop offset=".55" stopColor="#B8F34A" stopOpacity=".06" />
+          <stop offset="1" stopColor="#B8F34A" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="partner-ring" x1="120" y1="90" x2="500" y2="530">
+          <stop stopColor="#E8FFB8" />
+          <stop offset=".48" stopColor="#B8F34A" stopOpacity=".8" />
+          <stop offset="1" stopColor="#B8F34A" stopOpacity=".08" />
+        </linearGradient>
+        <linearGradient id="partner-core" x1="310" y1="150" x2="310" y2="490">
+          <stop stopColor="#B8F34A" stopOpacity=".18" />
+          <stop offset="1" stopColor="#B8F34A" stopOpacity="0" />
+        </linearGradient>
+        <filter id="partner-blur">
+          <feGaussianBlur stdDeviation="18" />
+        </filter>
+      </defs>
+
+      <circle cx="310" cy="310" r="285" fill="url(#partner-aura)" />
+      <ellipse
+        cx="310"
+        cy="505"
+        rx="155"
+        ry="18"
+        fill="#B8F34A"
+        opacity=".2"
+        filter="url(#partner-blur)"
+      />
+
+      <g stroke="url(#partner-ring)">
+        <circle cx="310" cy="310" r="228" opacity=".4" />
+        <circle cx="310" cy="310" r="186" strokeWidth="1.75" opacity=".75" />
+        <circle cx="310" cy="310" r="144" opacity=".28" />
+      </g>
+
+      {/* Stylized center hub frame */}
+      <rect
+        x="212"
+        y="212"
+        width="196"
+        height="196"
+        rx="38"
+        fill="url(#partner-core)"
+        stroke="url(#partner-ring)"
+        strokeWidth="2"
+      />
+      <rect
+        x="236"
+        y="236"
+        width="148"
+        height="148"
+        rx="26"
+        stroke="#B8F34A"
+        strokeOpacity=".45"
+      />
+
+      {/* Minimal gamepad / node icon */}
+      <path
+        d="M276 310h24m-12-12v24M334 304h.01M350 316h.01"
+        stroke="#DFFFAD"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <rect
+        x="258"
+        y="282"
+        width="104"
+        height="56"
+        rx="22"
+        stroke="#B8F34A"
+        strokeWidth="2"
+        strokeOpacity=".85"
+      />
+
+      {/* Orbital nodes */}
+      <circle cx="310" cy="82" r="4" fill="#DFFFAD" />
+      <circle cx="538" cy="310" r="4" fill="#DFFFAD" />
+      <circle cx="82" cy="310" r="3" fill="#DFFFAD" />
+      <circle cx="310" cy="538" r="3" fill="#DFFFAD" />
+      <circle
+        cx="310"
+        cy="310"
+        r="265"
+        stroke="#B8F34A"
+        strokeOpacity=".18"
+        strokeDasharray="2 13"
+      />
+      <circle
+        cx="310"
+        cy="310"
+        r="290"
+        stroke="#B8F34A"
+        strokeOpacity=".12"
+        strokeDasharray="1 18"
+      />
+      <path
+        d="M310 82V42M538 310h40M82 310H42M310 538v40"
+        stroke="#B8F34A"
+        strokeOpacity=".45"
+      />
+    </svg>
+  );
+}
 
 export default function RegisterGamecenterPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--bg-body)] text-[var(--text-white)] selection:bg-[var(--primary)] selection:text-on-primary">
+    <div
+      dir="rtl"
+      className="min-h-screen overflow-x-clip bg-[#080A07] text-[#F4F5EF] selection:bg-[#B8F34A] selection:text-[#080A07]"
+    >
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -139,418 +202,391 @@ export default function RegisterGamecenterPage() {
 
       <Header />
 
-      <main className="mx-auto flex w-full max-w-[var(--max-app-width)] flex-1 flex-col gap-6 px-4 pt-[calc(var(--header-m-h)+4px)] pb-24 lg:gap-10 lg:px-8 lg:pt-[calc(var(--header-h)+20px)] lg:pb-12">
-        {/* Breadcrumb */}
-        <nav
-          aria-label="مسیر راهنما"
-          className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]"
-        >
-          <Link
-            href="/"
-            className="transition-colors hover:text-[var(--text-white)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-child"
-          >
-            صفحه اصلی
-          </Link>
-          <span aria-hidden="true" className="text-[var(--border-color)]">
-            /
-          </span>
-          <span className="font-bold text-[var(--primary)]">
-            ثبت و اتصال گیمنت
-          </span>
-        </nav>
+      <main>
+        {/* ================= HERO ================= */}
+        <section className="relative isolate mx-auto grid min-h-[calc(100svh-76px)] max-w-[1440px] items-center gap-10 px-5 pt-[calc(var(--header-m-h)+20px)] pb-16 sm:px-8 lg:grid-cols-[1fr_1.05fr] lg:px-16 lg:pt-[calc(var(--header-h)+24px)] lg:pb-20">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_72%_45%,rgba(184,243,74,0.09),transparent_38%),linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:auto,64px_64px,64px_64px]"
+          />
 
-        {/* Quick Section Navigation (Mobile-first scrollable strip) */}
-        <nav
-          aria-label="دسترسی سریع بخش‌های راهنما"
-          className="flex items-center gap-2 overflow-x-auto pb-1"
-        >
-          {QUICK_NAV_LINKS.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-[var(--border-subtle)] bg-[var(--bg-card)] px-4 py-2 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:text-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          <div className="relative z-10 order-2 max-w-2xl lg:order-1">
+            <div
+              className="mb-7 inline-flex items-center gap-3 rounded-full border border-[#B8F34A]/20 bg-[#B8F34A]/5 px-4 py-2 text-[10px] tracking-[.24em] text-[#C8F78A] sm:text-xs"
+              dir="ltr"
             >
-              {item.label}
-            </a>
-          ))}
-        </nav>
-
-        {/* ================= 1. HERO SECTION ================= */}
-        <section
-          aria-labelledby="register-hero-title"
-          className="grid grid-cols-1 items-center gap-6 rounded-card border border-[var(--border-color)] bg-[var(--bg-card)] p-4 sm:p-6 lg:grid-cols-12 lg:gap-8 lg:p-8"
-        >
-          <div className="flex flex-col gap-5 lg:col-span-7">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="primary">راهنمای رسمی پذیرش گیمنت‌ها</Badge>
-              <Badge variant="neutral">شروع در ۵ مرحله</Badge>
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#B8F34A]" />
+              SAYRA / PARTNER WITH US
             </div>
 
-            <h1
-              id="register-hero-title"
-              className="text-xl font-bold leading-9 text-[var(--text-white)] sm:text-2xl sm:leading-10 lg:text-3xl lg:leading-[1.45]"
-            >
-              اتصال گیمنت به سایرا؛{" "}
-              <span className="text-[var(--primary)]">
-                راهنمای ثبت، مزایا و قوانین همکاری
-              </span>
+            <h1 className="text-4xl font-black leading-[1.28] tracking-tight sm:text-6xl lg:text-7xl xl:text-[78px]">
+              گیمنتت را
+              <br />
+              <span className="text-[#B8F34A]">به جهان سایرا</span>
+              <br />
+              متصل کن<span className="text-[#B8F34A]">.</span>
             </h1>
 
-            <p className="text-sm font-medium leading-7 text-[var(--text-muted)]">
-              اگر مدیریت یک گیمنت را بر عهده دارید، سایرا مسیر دیده‌شدن مجموعه شما در میان گیمرهای شهرتان را هموار می‌کند. در این صفحه تمام مزایا، مراحل ۵ گانه ثبت اولیه، مدارک احراز هویت و قوانین شفاف رزرو و تسویه‌حساب را پیش از شروع مرور می‌کنید.
+            <p className="mt-7 max-w-xl text-base leading-9 text-white/55 sm:text-lg sm:leading-10">
+              رزرو آنلاین، پیش‌پرداخت مطمئن و پنل مدیریت یکپارچه؛ همه‌چیز برای
+              دیده شدن و رشد گیمنت شما در یک بستر ساده و شفاف.
             </p>
 
-            {/* Hero Actions — visible above the fold on mobile, single primary CTA in viewport */}
-            <div
-              id="hero-primary-cta"
-              className="flex flex-col gap-3 sm:flex-row sm:items-center"
-            >
+            <div className="mt-9 flex flex-wrap items-center gap-4">
               <Link
                 href="/owner/new"
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-card bg-[var(--primary)] px-6 text-sm font-bold text-on-primary transition-colors hover:bg-[var(--primary-hover)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:w-auto sm:min-w-[200px]"
+                className="group inline-flex items-center gap-4 rounded-full bg-[#B8F34A] px-7 py-4 text-sm font-bold text-[#10130A] transition duration-300 hover:-translate-y-1 hover:bg-[#D1FF78]"
               >
-                <span>شروع ثبت گیمنت</span>
-                <Icon name="arrow-left" size={18} />
+                شروع ثبت گیمنت
+                <span
+                  aria-hidden="true"
+                  className="text-lg transition-transform group-hover:-translate-x-1"
+                >
+                  ↗
+                </span>
               </Link>
 
               <a
                 href="#steps"
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)] px-5 text-sm font-bold text-[var(--text-white)] transition-colors hover:border-[var(--border-color)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:w-auto"
+                className="inline-flex items-center gap-3 px-4 py-3 text-sm text-white/65 transition hover:text-[#B8F34A]"
               >
-                <span>مرور مراحل و قوانین</span>
-                <Icon name="chevron" size={18} />
+                مراحل و قوانین <span aria-hidden="true">↓</span>
               </a>
             </div>
 
-            {/* 3 Key Highlights */}
-            <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-3">
-              {KEY_HIGHLIGHTS.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex flex-col gap-1 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-body)]/70 p-3"
+            <div className="mt-14 flex items-center gap-5 border-t border-white/10 pt-6">
+              <span
+                className="text-[10px] tracking-[.28em] text-white/30"
+                dir="ltr"
+              >
+                BUILT FOR OWNERS
+              </span>
+              <span className="h-px w-14 bg-[#B8F34A]/50" />
+              <span className="text-xs text-white/40">
+                ثبت اولیه در ۵ گام کوتاه
+              </span>
+            </div>
+          </div>
+
+          <div className="relative order-1 mx-auto aspect-square w-full max-w-[560px] lg:order-2">
+            <div className="absolute inset-[12%] rounded-full bg-[#B8F34A]/10 blur-[80px]" />
+            <div className="absolute inset-0 animate-[spin_90s_linear_infinite] rounded-full border border-dashed border-[#B8F34A]/15" />
+            <div className="absolute inset-[8%] rounded-full border border-white/[0.06]" />
+            <div className="relative h-full w-full">
+              <PartnerPortalArtwork />
+            </div>
+            <div className="absolute bottom-[13%] left-[2%] rounded-xl border border-white/10 bg-[#0D100A]/80 px-4 py-3 shadow-2xl backdrop-blur">
+              <div
+                className="text-[9px] tracking-[.22em] text-[#B8F34A]"
+                dir="ltr"
+              >
+                ONLINE BOOKING
+              </div>
+              <div className="mt-1 text-xs text-white/65">
+                پیش‌پرداخت و تسویه ۳ روزه
+              </div>
+            </div>
+            <div
+              className="absolute right-[3%] top-[17%] rounded-full border border-[#B8F34A]/25 bg-[#0D100A]/80 px-4 py-2 text-[9px] tracking-[.2em] text-[#D7F8A6]"
+              dir="ltr"
+            >
+              OWNER PORTAL
+            </div>
+          </div>
+        </section>
+
+        {/* ================= 01 — WHY SAYRA ================= */}
+        <section className="border-y border-white/[0.07] bg-[#0D100B]">
+          <div className="mx-auto grid max-w-[1440px] gap-10 px-5 py-20 sm:px-8 lg:grid-cols-[.7fr_1.3fr] lg:px-16 lg:py-28">
+            <div>
+              <p
+                className="text-[10px] tracking-[.3em] text-[#B8F34A]"
+                dir="ltr"
+              >
+                01 — WHY SAYRA
+              </p>
+              <h2 className="mt-5 text-3xl font-black leading-tight sm:text-5xl">
+                دغدغه کمتر،
+                <br />
+                رزروهای قطعی.
+              </h2>
+            </div>
+
+            <div className="max-w-3xl">
+              <p className="text-xl font-medium leading-10 text-white/85 sm:text-2xl sm:leading-[2.1]">
+                گیمرها همین حالا دنبال گیمنت مناسب در شهرشان هستند؛ سایرا آن‌ها را
+                مستقیم به صندلی‌های خالی شما می‌رساند.
+              </p>
+              <p className="mt-6 text-base leading-9 text-white/50">
+                با پیش‌پرداخت آنلاین، خبری از رزروهای بلاتکلیف نیست. تعیین
+                تعرفه، تخفیف‌ها و ساعات کاری کاملاً در اختیار شماست.
+              </p>
+
+              <div className="mt-12 grid grid-cols-3 gap-4 border-t border-white/10 pt-7">
+                {KEY_HIGHLIGHTS.map((item) => (
+                  <div key={item.label}>
+                    <p
+                      className="text-2xl font-black text-[#B8F34A] sm:text-3xl"
+                      dir="ltr"
+                    >
+                      {item.value}
+                    </p>
+                    <p className="mt-2 text-xs text-white/45">{item.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ================= 02 — ADVANTAGES ================= */}
+        <section
+          id="benefits"
+          className="mx-auto max-w-[1440px] px-5 py-20 sm:px-8 lg:px-16 lg:py-28"
+        >
+          <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
+            <div>
+              <p
+                className="text-[10px] tracking-[.3em] text-[#B8F34A]"
+                dir="ltr"
+              >
+                02 — THE ADVANTAGES
+              </p>
+              <h2 className="mt-5 text-3xl font-black sm:text-5xl">
+                هرچه برای رشد
+                <br className="sm:hidden" /> نیاز دارید.
+              </h2>
+            </div>
+            <p className="max-w-sm text-sm leading-8 text-white/45">
+              سه مزیت کلیدی برای نظم‌دهی سانس‌ها و درآمد پایدار گیمنت شما.
+            </p>
+          </div>
+
+          <div className="mt-14 grid gap-4 md:grid-cols-3">
+            {BENEFIT_PILLARS.map((item) => (
+              <article
+                key={item.number}
+                className="group relative min-h-[270px] overflow-hidden rounded-2xl border border-white/10 bg-[#0D100B] p-7 transition duration-500 hover:-translate-y-2 hover:border-[#B8F34A]/40 sm:p-9"
+              >
+                <div className="absolute -left-12 -top-12 h-40 w-40 rounded-full bg-[#B8F34A]/[0.04] blur-3xl transition group-hover:bg-[#B8F34A]/10" />
+                <div className="relative flex items-center justify-between">
+                  <span className="text-sm text-[#B8F34A]" dir="ltr">
+                    {item.number}
+                  </span>
+                  <span
+                    className="text-[9px] tracking-[.25em] text-white/30"
+                    dir="ltr"
+                  >
+                    {item.en}
+                  </span>
+                </div>
+                <h3 className="relative mt-14 text-2xl font-extrabold sm:text-3xl">
+                  {item.title}
+                </h3>
+                <p className="relative mt-4 text-sm leading-8 text-white/45">
+                  {item.description}
+                </p>
+                <div className="absolute bottom-0 right-0 h-px w-0 bg-[#B8F34A] transition-all duration-500 group-hover:w-full" />
+              </article>
+            ))}
+          </div>
+        </section>
+
+        {/* ================= 03 — THE JOURNEY & DOCUMENTS ================= */}
+        <section
+          id="steps"
+          className="relative overflow-hidden border-y border-white/[0.07] bg-[#0D100B] scroll-mt-24"
+        >
+          <div
+            aria-hidden="true"
+            className="absolute -left-40 top-1/2 h-96 w-96 -translate-y-1/2 rounded-full bg-[#B8F34A]/[0.06] blur-[100px]"
+          />
+
+          <div className="relative mx-auto grid max-w-[1440px] gap-12 px-5 py-20 sm:px-8 lg:grid-cols-2 lg:px-16 lg:py-28">
+            <div className="flex flex-col justify-between gap-10">
+              <div>
+                <p
+                  className="text-[10px] tracking-[.3em] text-[#B8F34A]"
+                  dir="ltr"
                 >
-                  <span className="text-lg font-black leading-7 text-[var(--primary)]">
-                    {item.value}
+                  03 — THE JOURNEY
+                </p>
+                <h2 className="mt-5 text-3xl font-black leading-tight sm:text-5xl">
+                  از ثبت‌نام
+                  <br />
+                  تا اولین رزرو.
+                </h2>
+                <p className="mt-6 max-w-md text-sm leading-8 text-white/45">
+                  ثبت اولیه در ۵ گام ساده انجام می‌شود و پس از تأیید مدارک در
+                  پنل، صفحه گیمنت شما در سایت منتشر خواهد شد.
+                </p>
+              </div>
+
+              {/* Minimal Documents Summary */}
+              <div className="max-w-md space-y-3 border-t border-white/10 pt-6 text-xs leading-7 text-white/55 sm:text-sm">
+                <p>
+                  <span className="font-bold text-[#B8F34A]">برای شروع: </span>
+                  شماره موبایل مدیر، نشانی روی نقشه و ساعات کاری.
+                </p>
+                <p>
+                  <span className="font-bold text-white/85">
+                    برای انتشار و تسویه:{" "}
                   </span>
-                  <span className="text-xs font-bold text-[var(--text-white)]">
-                    {item.label}
+                  کد ملی مالک، تصویر پروانه کسب و شماره شبا در پنل.
+                </p>
+              </div>
+            </div>
+
+            <div className="divide-y divide-white/10">
+              {REGISTRATION_STEPS.map((step) => (
+                <div key={step.number} className="flex gap-5 py-5 sm:gap-8 sm:py-6">
+                  <span className="pt-1 text-xs text-[#B8F34A]" dir="ltr">
+                    {step.number}
                   </span>
-                  <span className="text-xs leading-5 text-[var(--text-muted)]">
-                    {item.sublabel}
-                  </span>
+                  <div>
+                    <h3 className="text-base font-bold sm:text-lg">
+                      {step.title}
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-7 text-white/45">
+                      {step.summary}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-
-          {/* Hero Visual Guide Slot */}
-          <div className="lg:col-span-5">
-            <ImageGuideSlot guide={IMAGE_GUIDES.hero} priority />
-          </div>
         </section>
 
-        {/* ================= 2. BENEFITS SECTION ================= */}
-        <section
-          id="benefits"
-          aria-labelledby="benefits-heading"
-          className="flex flex-col gap-4 scroll-mt-36 lg:scroll-mt-28"
-        >
-          <SectionTitle
-            title="چرا گیمنت خود را به سایرا متصل کنید؟"
-            subtitle="امکانات واقعی برای جذب مشتری، نظم‌دهی به رزروها و مدیریت مالی شفاف"
-          />
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {BENEFITS.map((benefit) => (
-              <article
-                key={benefit.id}
-                className="flex flex-col gap-3 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 transition-colors hover:border-[var(--border-color)]"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-card border border-[var(--primary)]/30 bg-[var(--primary-muted)] text-[var(--primary)]">
-                    <Icon name={benefit.icon} size={20} />
-                  </div>
-                  <Badge variant="neutral">{benefit.badge}</Badge>
-                </div>
-
-                <h3 className="text-sm font-bold leading-6 text-[var(--text-white)]">
-                  {benefit.title}
-                </h3>
-
-                <p className="text-xs font-medium leading-6 text-[var(--text-muted)]">
-                  {benefit.description}
-                </p>
-              </article>
-            ))}
-          </div>
-
-          {/* Panel Capabilities Strip + Image Slot 2 */}
-          <div className="grid grid-cols-1 items-center gap-6 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 sm:p-6 lg:grid-cols-12">
-            <div className="flex flex-col gap-4 lg:col-span-6">
-              <div className="flex items-center gap-2">
-                <Icon name="gamepad" size={20} className="text-[var(--primary)]" />
-                <h3 className="text-base font-bold text-[var(--text-white)]">
-                  بعد از ثبت گیمنت چه ابزارهایی در پنل دارید؟
-                </h3>
-              </div>
-
-              <p className="text-xs font-medium leading-6 text-[var(--text-muted)] sm:text-sm sm:leading-7">
-                پس از تکمیل مراحل ثبت اولیه و تأیید مدارک، تمام ابزارهای روزمره اداره آنلاین گیمنت در یک پنل موبایل‌محور در اختیار شما قرار می‌گیرد:
-              </p>
-
-              <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                {[
-                  "مدیریت دستگاه‌ها، بازی‌ها و دسته‌های اضافه",
-                  "تأیید یا رد رزروهای جدید و رزروهای گروهی",
-                  "تنظیم ساعات کاری و روزهای تعطیل مجموعه",
-                  "ایجاد تخفیف اختصاصی برای ساعت‌ها یا دستگاه‌ها",
-                  "بارگذاری گالری تصاویر سالن و لوگوی گیمنت",
-                  "مشاهده نظرات مشتریان، گزارش مالی و برداشت وجه",
-                ].map((feature) => (
-                  <li
-                    key={feature}
-                    className="flex items-start gap-2 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/30 p-3 text-xs font-medium leading-5 text-[var(--text-white)]"
-                  >
-                    <Icon
-                      name="check"
-                      size={16}
-                      className="mt-0.5 shrink-0 text-[var(--primary)]"
-                    />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="lg:col-span-6">
-              <ImageGuideSlot guide={IMAGE_GUIDES.panel} />
-            </div>
-          </div>
-        </section>
-
-        {/* ================= 3. STEP-BY-STEP REGISTRATION ================= */}
-        <section
-          id="steps"
-          aria-labelledby="steps-heading"
-          className="flex flex-col gap-4 scroll-mt-36 lg:scroll-mt-28"
-        >
-          <SectionTitle
-            title="نحوه ثبت و اتصال گیمنت در سایرا"
-            subtitle="از ورود اطلاعات اولیه تا احراز هویت و نمایش عمومی در سایت"
-          />
-
-          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-            <div className="lg:col-span-7">
-              <StepJourneySection />
-            </div>
-
-            <div className="lg:sticky lg:top-28 lg:col-span-5">
-              <ImageGuideSlot guide={IMAGE_GUIDES.location} />
-            </div>
-          </div>
-        </section>
-
-        {/* ================= 4. READINESS & REQUIRED DOCUMENTS ================= */}
-        <section
-          id="documents"
-          aria-labelledby="documents-heading"
-          className="flex flex-col gap-4 scroll-mt-36 lg:scroll-mt-28"
-        >
-          <SectionTitle
-            title="آماده‌سازی اطلاعات و مدارک احراز هویت"
-            subtitle="مواردی که برای شروع سریع و تأیید بدون تأخیر نیاز دارید"
-          />
-
-          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-            <div className="lg:col-span-7">
-              <OnboardingReadinessChecklist />
-            </div>
-
-            <div className="flex flex-col gap-4 lg:col-span-5">
-              <ImageGuideSlot guide={IMAGE_GUIDES.verification} />
-
-              <div className="flex flex-col gap-2 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4">
-                <div className="flex items-center gap-2">
-                  <Icon
-                    name="alert"
-                    size={18}
-                    className="text-[var(--accent-warning)]"
-                  />
-                  <h3 className="text-sm font-bold text-[var(--text-white)]">
-                    نکته مهم درباره احراز هویت و تغییر اطلاعات
-                  </h3>
-                </div>
-                <p className="text-xs leading-6 text-[var(--text-muted)]">
-                  مسئولیت صحت و به‌روز بودن مدارک، اطلاعات بانکی و مشخصات فنی دستگاه‌ها با مدیر گیمنت است. در صورت تغییر در مدیریت، نشانی، شماره شبا یا مجوز فعالیت، اطلاعات جدید باید بدون تأخیر اعلام و به‌روزرسانی شود.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ================= 5. COOPERATION RULES ================= */}
+        {/* ================= 04 — RULES & FAQ ================= */}
         <section
           id="rules"
-          aria-labelledby="rules-heading"
-          className="flex flex-col gap-4 scroll-mt-36 lg:scroll-mt-28"
+          className="mx-auto max-w-[1440px] space-y-20 px-5 py-20 sm:px-8 lg:space-y-28 lg:px-16 lg:py-28"
         >
-          <SectionTitle
-            title="قوانین و شرایط کلیدی همکاری گیمنت‌ها"
-            subtitle="خلاصه تعهدات متقابل برای رزرو مطمئن، شفافیت مالی و حفظ حقوق طرفین"
-          />
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {COOPERATION_RULES.map((rule) => {
-              const tone = RULE_TONE_STYLES[rule.tone];
-              return (
-                <article
-                  key={rule.id}
-                  className={cn(
-                    "flex flex-col gap-3 rounded-card border border-[var(--border-subtle)] border-t-2 bg-[var(--bg-card)] p-4",
-                    tone.topBorder
-                  )}
+          {/* Cooperation Rules */}
+          <div>
+            <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
+              <div>
+                <p
+                  className="text-[10px] tracking-[.3em] text-[#B8F34A]"
+                  dir="ltr"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div
-                      className={cn(
-                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-card border",
-                        tone.iconWrap
-                      )}
-                    >
-                      <Icon name={rule.icon} size={20} />
-                    </div>
-                    <Badge variant={tone.badge}>{rule.articleRef}</Badge>
-                  </div>
-
-                  <h3 className="text-sm font-bold leading-6 text-[var(--text-white)]">
-                    {rule.title}
-                  </h3>
-
-                  <p className="text-xs font-medium leading-6 text-[var(--text-muted)]">
-                    {rule.summary}
-                  </p>
-
-                  <ul className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-3">
-                    {rule.points.map((point, idx) => (
-                      <li
-                        key={idx}
-                        className="flex items-start gap-2 text-xs leading-6 text-[var(--text-white)]"
-                      >
-                        <Icon
-                          name="check"
-                          size={16}
-                          className="mt-1 shrink-0 text-[var(--primary)]"
-                        />
-                        <span>{point}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              );
-            })}
-          </div>
-
-          {/* Link to full legal terms */}
-          <div className="flex flex-col justify-between gap-3 rounded-card border border-[var(--border-color)] bg-[var(--bg-card)] p-4 sm:flex-row sm:items-center">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-card bg-[var(--foreground)]/60 text-[var(--primary)]">
-                <Icon name="shield" size={20} />
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <p className="text-sm font-bold text-[var(--text-white)]">
-                  متن کامل و رسمی قوانین پلتفرم سایرا
+                  04 — COMMITMENTS
                 </p>
-                <p className="text-xs leading-5 text-[var(--text-muted)]">
-                  تمامی جزئیات حقوقی در ۲۲ ماده قانونی در صفحه قوانین و مقررات در دسترس است.
-                </p>
+                <h2 className="mt-5 text-3xl font-black sm:text-5xl">
+                  قوانین شفاف،
+                  <br className="sm:hidden" /> همکاری مطمئن.
+                </h2>
               </div>
-            </div>
 
-            <Link
-              href="/terms"
-              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 text-xs font-bold text-[var(--primary)] underline underline-offset-4 transition-colors hover:text-[var(--primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-child"
-            >
-              <span>مطالعه ۲۲ ماده قوانین و مقررات</span>
-              <Icon name="arrow-left" size={16} />
-            </Link>
-          </div>
-        </section>
-
-        {/* ================= 6. FAQ SECTION ================= */}
-        <section
-          id="faq"
-          aria-labelledby="faq-heading"
-          className="grid grid-cols-1 gap-6 scroll-mt-36 lg:grid-cols-12 lg:scroll-mt-28"
-        >
-          <div className="flex flex-col gap-3 lg:col-span-4">
-            <SectionTitle
-              title="سؤالات متداول صاحبان گیمنت"
-              subtitle="پاسخ پرسش‌های رایج پیش از ثبت مجموعه"
-              className="mb-0"
-            />
-            <p className="text-xs font-medium leading-6 text-[var(--text-muted)] sm:text-sm sm:leading-7">
-              اگر پیش از شروع ثبت گیمنت درباره مدارک، نحوه تسویه یا مدیریت رزروها ابهامی دارید، پاسخ پرسش‌های پرتکرار را اینجا ببینید یا با پشتیبانی در ارتباط باشید.
-            </p>
-            <div className="pt-1">
               <Link
-                href="/support"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)] px-4 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--border-color)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                href="/terms"
+                className="inline-flex items-center gap-2 text-sm text-white/65 transition hover:text-[#B8F34A]"
               >
-                <span>ارسال سؤال به پشتیبانی</span>
-                <Icon name="arrow-left" size={16} />
+                <span>مطالعه متن کامل قوانین (۲۲ ماده)</span>
+                <span aria-hidden="true">←</span>
               </Link>
             </div>
+
+            <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+              {COOPERATION_RULES.map((rule) => (
+                <article
+                  key={rule.number}
+                  className="border-t border-white/10 pt-6"
+                >
+                  <span className="text-xs text-[#B8F34A]" dir="ltr">
+                    {rule.number}
+                  </span>
+                  <h3 className="mt-3 text-base font-bold text-[#F4F5EF]">
+                    {rule.title}
+                  </h3>
+                  <p className="mt-2.5 text-sm leading-7 text-white/45">
+                    {rule.summary}
+                  </p>
+                </article>
+              ))}
+            </div>
           </div>
 
-          <div className="lg:col-span-8">
+          {/* Concise FAQ */}
+          <div className="grid gap-10 lg:grid-cols-[.8fr_1.2fr] lg:gap-16">
+            <div>
+              <p
+                className="text-[10px] tracking-[.3em] text-[#B8F34A]"
+                dir="ltr"
+              >
+                05 — FAQ
+              </p>
+              <h2 className="mt-5 text-3xl font-black sm:text-4xl">
+                پرسش‌های رایج.
+              </h2>
+              <p className="mt-4 max-w-sm text-sm leading-8 text-white/45">
+                پاسخ سریع نکات کلیدی پیش از شروع ثبت‌نام.
+              </p>
+              <div className="mt-7">
+                <Link
+                  href="/support"
+                  className="inline-flex items-center gap-3 rounded-full border border-white/15 px-6 py-3 text-xs font-bold text-white/75 transition hover:border-[#B8F34A]/50 hover:text-[#B8F34A]"
+                >
+                  <span>ارتباط با پشتیبانی</span>
+                  <span aria-hidden="true">←</span>
+                </Link>
+              </div>
+            </div>
+
             <FaqAccordion />
           </div>
         </section>
 
-        {/* ================= 7. FINAL CONVERSION CTA ================= */}
-        <section
-          id="final-primary-cta"
-          aria-labelledby="final-cta-heading"
-          className="flex flex-col gap-5 rounded-card border border-[var(--primary)]/40 bg-[var(--bg-card)] p-5 sm:p-8"
-        >
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex max-w-2xl flex-col gap-2">
-              <Badge variant="primary" className="w-fit">
-                آماده شروع همکاری
-              </Badge>
-              <h2
-                id="final-cta-heading"
-                className="text-lg font-bold leading-8 text-[var(--text-white)] sm:text-2xl sm:leading-9"
-              >
-                همین حالا گیمنت خود را در سایرا ثبت کنید
-              </h2>
-              <p className="text-xs font-medium leading-6 text-[var(--text-muted)] sm:text-sm sm:leading-7">
-                ثبت اولیه در ۵ مرحله کوتاه انجام می‌شود و بلافاصله بعد از تأیید نهایی، به پنل مدیریت گیمنت منتقل خواهید شد.
-              </p>
+        {/* ================= 05 — FINAL CTA ================= */}
+        <section className="mx-auto max-w-[1440px] px-5 pt-4 pb-8 sm:px-8 lg:px-16 lg:pb-12">
+          <div className="relative overflow-hidden rounded-[28px] border border-[#B8F34A]/20 bg-[radial-gradient(ellipse_at_85%_50%,rgba(184,243,74,0.12),transparent_45%),#0D100B] px-7 py-14 sm:px-12 sm:py-20 lg:px-20">
+            <div
+              className="hidden sm:block absolute left-8 top-8 text-[9px] tracking-[.3em] text-white/25"
+              dir="ltr"
+            >
+              SAYRA / PARTNER PORTAL
             </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row lg:shrink-0">
+            <p
+              className="text-[10px] tracking-[.3em] text-[#B8F34A]"
+              dir="ltr"
+            >
+              06 — READY TO LAUNCH
+            </p>
+            <h2 className="mt-7 max-w-3xl text-3xl font-black leading-tight sm:text-5xl lg:text-6xl">
+              گیمنت شما آماده
+              <br />
+              یک <span className="text-[#B8F34A]">شروع تازه</span> است.
+            </h2>
+            <p className="mt-6 max-w-xl text-sm leading-8 text-white/50">
+              فرم ثبت اولیه تنها چند دقیقه زمان می‌برد و بلافاصله بعد از تأیید،
+              به پنل مدیریت گیمنت متصل می‌شوید.
+            </p>
+            <div className="mt-10 flex flex-wrap gap-4">
               <Link
                 href="/owner/new"
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-card bg-[var(--primary)] px-6 text-sm font-bold text-on-primary transition-colors hover:bg-[var(--primary-hover)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:w-auto sm:min-w-[200px]"
+                className="inline-flex items-center gap-4 rounded-full bg-[#B8F34A] px-7 py-4 text-sm font-bold text-[#10130A] transition hover:bg-[#D1FF78]"
               >
-                <span>ایجاد گیمنت جدید</span>
-                <Icon name="arrow-left" size={18} />
+                شروع ثبت گیمنت <span aria-hidden="true">↗</span>
               </Link>
-
               <Link
                 href="/terms"
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)] px-5 text-sm font-bold text-[var(--text-white)] transition-colors hover:border-[var(--border-color)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:w-auto"
+                className="inline-flex items-center rounded-full border border-white/15 px-7 py-4 text-sm text-white/70 transition hover:border-[#B8F34A]/50 hover:text-[#B8F34A]"
               >
-                <span>مشاهده قوانین کامل</span>
+                قوانین همکاری
               </Link>
+            </div>
+            <div
+              className="mt-16 flex items-center justify-between border-t border-white/10 pt-5 text-[9px] tracking-[.25em] text-white/25"
+              dir="ltr"
+            >
+              <span>PARTNER WITH SAYRA</span>
+              <span>SAYRA © {new Date().getFullYear()}</span>
             </div>
           </div>
         </section>
       </main>
 
       <Footer />
-      <StickyRegisterBar />
     </div>
   );
 }

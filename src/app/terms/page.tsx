@@ -3,11 +3,9 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Header } from "@/components/Header";
-import { BottomBar } from "@/components/BottomBar";
-import { Icon } from "@/components/ui/Icon";
-import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Footer } from "@/components/Footer";
-
+import { Icon } from "@/components/ui/Icon";
+import { cn } from "@/lib/utils";
 
 interface TermSection {
   id: string;
@@ -854,6 +852,101 @@ const ARTICLES: TermSection[] = [
   },
 ];
 
+function TermsSealArtwork() {
+  return (
+    <svg
+      viewBox="0 0 620 620"
+      role="img"
+      aria-label="سند رسمی قوانین و مقررات پلتفرم سایرا"
+      className="h-full w-full"
+      fill="none"
+    >
+      <defs>
+        <radialGradient id="terms-aura">
+          <stop offset="0" stopColor="#B8F34A" stopOpacity=".2" />
+          <stop offset=".55" stopColor="#B8F34A" stopOpacity=".05" />
+          <stop offset="1" stopColor="#B8F34A" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="terms-ring" x1="120" y1="90" x2="500" y2="530">
+          <stop stopColor="#E8FFB8" />
+          <stop offset=".48" stopColor="#B8F34A" stopOpacity=".8" />
+          <stop offset="1" stopColor="#B8F34A" stopOpacity=".08" />
+        </linearGradient>
+        <linearGradient id="terms-core" x1="310" y1="150" x2="310" y2="490">
+          <stop stopColor="#B8F34A" stopOpacity=".16" />
+          <stop offset="1" stopColor="#B8F34A" stopOpacity="0" />
+        </linearGradient>
+        <filter id="terms-blur">
+          <feGaussianBlur stdDeviation="18" />
+        </filter>
+      </defs>
+
+      <circle cx="310" cy="310" r="285" fill="url(#terms-aura)" />
+      <ellipse
+        cx="310"
+        cy="505"
+        rx="155"
+        ry="18"
+        fill="#B8F34A"
+        opacity=".18"
+        filter="url(#terms-blur)"
+      />
+
+      <g stroke="url(#terms-ring)">
+        <circle cx="310" cy="310" r="228" opacity=".4" />
+        <circle cx="310" cy="310" r="186" strokeWidth="1.75" opacity=".75" />
+        <circle cx="310" cy="310" r="144" opacity=".28" />
+      </g>
+
+      {/* Minimalist Legal Shield / Document Seal */}
+      <path
+        d="M310 198l84 34v66c0 58-35 108-84 128-49-20-84-70-84-128v-66l84-34Z"
+        fill="url(#terms-core)"
+        stroke="url(#terms-ring)"
+        strokeWidth="2"
+      />
+      <path
+        d="M310 222l62 25v48c0 44-25 82-62 98-37-16-62-54-62-98v-48l62-25Z"
+        stroke="#B8F34A"
+        strokeOpacity=".4"
+      />
+      <path
+        d="M284 302l18 18 36-38"
+        stroke="#DFFFAD"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <circle cx="310" cy="82" r="4" fill="#DFFFAD" />
+      <circle cx="538" cy="310" r="4" fill="#DFFFAD" />
+      <circle cx="82" cy="310" r="3" fill="#DFFFAD" />
+      <circle cx="310" cy="538" r="3" fill="#DFFFAD" />
+      <circle
+        cx="310"
+        cy="310"
+        r="265"
+        stroke="#B8F34A"
+        strokeOpacity=".18"
+        strokeDasharray="2 13"
+      />
+      <circle
+        cx="310"
+        cy="310"
+        r="290"
+        stroke="#B8F34A"
+        strokeOpacity=".12"
+        strokeDasharray="1 18"
+      />
+      <path
+        d="M310 82V42M538 310h40M82 310H42M310 538v40"
+        stroke="#B8F34A"
+        strokeOpacity=".45"
+      />
+    </svg>
+  );
+}
+
 export default function TermsAndRulesPage() {
   const [activeArticle, setActiveArticle] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -861,7 +954,8 @@ export default function TermsAndRulesPage() {
   const filteredArticles = ARTICLES.filter((art) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.trim().toLowerCase();
-    const titleMatch = art.title.toLowerCase().includes(q) || art.number.toLowerCase().includes(q);
+    const titleMatch =
+      art.title.toLowerCase().includes(q) || art.number.toLowerCase().includes(q);
     const clauseMatch = art.clauses.some(
       (c) =>
         c.text.toLowerCase().includes(q) ||
@@ -874,7 +968,7 @@ export default function TermsAndRulesPage() {
     setActiveArticle(id);
     const element = document.getElementById(id);
     if (element) {
-      const topOffset = 90;
+      const topOffset = 112;
       const elementPosition = element.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.pageYOffset - topOffset;
       window.scrollTo({
@@ -885,246 +979,395 @@ export default function TermsAndRulesPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-16 lg:pb-0 selection:bg-[var(--primary)] selection:text-on-primary">
-      {/* Main Global Header */}
+    <div
+      dir="rtl"
+      className="min-h-screen overflow-x-clip bg-[#080A07] text-[#F4F5EF] selection:bg-[#B8F34A] selection:text-[#080A07]"
+    >
       <Header />
 
-      <main className="flex-1 pt-24 lg:pt-28 px-4 sm:px-6 w-full max-w-[var(--max-app-width)] mx-auto flex flex-col gap-8">
-        {/* Breadcrumbs */}
-        <nav aria-label="مسیر راهنما" className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-          <Link href="/" className="hover:text-[var(--text-white)] transition-colors">
-            صفحه اصلی
-          </Link>
-          <span className="text-[var(--border-subtle)]">/</span>
-          <span className="text-[var(--primary)] font-bold">قوانین و مقررات</span>
-        </nav>
+      <main>
+        {/* ================= HERO ================= */}
+        <section className="relative isolate mx-auto grid min-h-[calc(100svh-76px)] max-w-[1440px] items-center gap-10 px-5 pt-[calc(var(--header-m-h)+20px)] pb-16 sm:px-8 lg:grid-cols-[1fr_1.05fr] lg:px-16 lg:pt-[calc(var(--header-h)+24px)] lg:pb-20">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_72%_45%,rgba(184,243,74,0.09),transparent_38%),linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:auto,64px_64px,64px_64px]"
+          />
 
-        {/* Hero Section */}
-        <section className="relative overflow-hidden ">
-          <div className="relative z-10 flex flex-col gap-6 max-w-3xl">
-            <div className="inline-flex items-center gap-2 w-fit px-3 py-1.5 rounded-full bg-[var(--primary)]/15 border border-[var(--primary)]/30 text-[var(--primary)] text-xs font-bold">
-              <Icon name="check" size={14} />
-              <span>سند قانونی و شرایط استفاده رسمی</span>
+          <div className="relative z-10 order-2 max-w-2xl lg:order-1">
+            <div
+              className="mb-7 inline-flex items-center gap-3 rounded-full border border-[#B8F34A]/20 bg-[#B8F34A]/5 px-4 py-2 text-[10px] tracking-[.24em] text-[#C8F78A] sm:text-xs"
+              dir="ltr"
+            >
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#B8F34A]" />
+              SAYRA / TERMS & RULES
             </div>
 
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-[var(--text-white)] leading-tight tracking-tight">
-              شرایط استفاده، قوانین رزرو و مقررات کاربران پلتفرم سایرا
+            <h1 className="text-4xl font-black leading-[1.3] tracking-tight sm:text-5xl lg:text-6xl">
+              شرایط استفاده،
+              <br />
+              <span className="text-[#B8F34A]">قوانین رزرو و مقررات</span>
+              <br />
+              کاربران پلتفرم سایرا<span className="text-[#B8F34A]">.</span>
             </h1>
 
-            <p className="text-xs sm:text-sm text-[var(--text-muted)] leading-relaxed text-justify">
-              این سند شامل شرایط استفاده از وب‌سایت و خدمات پلتفرم سایرا است. استفاده از سایت، ایجاد
-              حساب کاربری، ثبت درخواست رزرو و پرداخت وجه به معنای مطالعه و پذیرش کامل مفاد این سند و
-              مقررات مرتبط با آن است.
+            <p className="mt-7 max-w-xl text-base leading-9 text-white/55 sm:text-lg sm:leading-10">
+              این سند شامل شرایط استفاده از وب‌سایت و خدمات پلتفرم سایرا است.
+              استفاده از سایت، ایجاد حساب کاربری، ثبت درخواست رزرو و پرداخت وجه
+              به معنای مطالعه و پذیرش کامل مفاد این سند و مقررات مرتبط با آن است.
             </p>
-          </div>
 
-          <div className="absolute left-[-20px] bottom-[-30px] opacity-10 pointer-events-none hidden sm:block">
-            <svg width="280" height="280" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-          </div>
-        </section>
-
-        {/* Quick Metadata Info Grid */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {METADATA_INFO.map((item, idx) => (
-            <div
-              key={idx}
-              className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex flex-col gap-1 shadow-sm"
-            >
-              <span className="text-[11px] font-bold text-[var(--text-muted)]">{item.label}</span>
-              <span className="text-xs font-bold text-[var(--text-white)] break-words leading-relaxed">
-                {item.value}
-              </span>
-            </div>
-          ))}
-        </section>
-
-        {/* Introduction & Definitions */}
-        <section className=" flex flex-col gap-5 shadow-sm">
-          <SectionTitle title="مقدمه و تعاریف مفاهیم" />
-          <p className="text-xs sm:text-sm text-[var(--text-white)]/90 leading-relaxed text-justify">
-            پلتفرم سایرا بستری اینترنتی برای معرفی، جست‌وجو و رزرو خدمات گیم‌نت‌های مستقل فراهم
-            می‌کند. گیم‌نت‌های معرفی‌شده در سایت، اشخاص حقیقی یا حقوقی مستقلی هستند که خدمات خود را
-            مستقیماً به مشتریان ارائه می‌کنند.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-            {DEFINITIONS.map((def) => (
-              <div
-                key={def.num}
-                className="rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] p-3.5 flex items-start gap-3"
+            <div className="mt-9 flex flex-wrap items-center gap-4">
+              <a
+                href="#articles"
+                className="group inline-flex items-center gap-4 rounded-full bg-[#B8F34A] px-7 py-4 text-sm font-bold text-[#10130A] transition duration-300 hover:-translate-y-1 hover:bg-[#D1FF78]"
               >
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--primary)]/20 text-[var(--primary)] text-xs font-black">
-                  {def.num}
+                مطالعه ۲۲ ماده قانونی
+                <span
+                  aria-hidden="true"
+                  className="text-lg transition-transform group-hover:translate-y-0.5"
+                >
+                  ↓
                 </span>
-                <div className="flex flex-col gap-1 min-w-0">
-                  <strong className="text-xs text-[var(--primary)] font-bold">{def.term}:</strong>
-                  <p className="text-xs text-[var(--text-muted)] leading-relaxed text-justify">{def.desc}</p>
-                </div>
+              </a>
+
+              <Link
+                href="/register-gamecenter"
+                className="inline-flex items-center gap-3 px-4 py-3 text-sm text-white/65 transition hover:text-[#B8F34A]"
+              >
+                راهنمای ثبت گیمنت <span aria-hidden="true">←</span>
+              </Link>
+            </div>
+
+            <div className="mt-14 flex items-center gap-5 border-t border-white/10 pt-6">
+              <span
+                className="text-[10px] tracking-[.28em] text-white/30"
+                dir="ltr"
+              >
+                OFFICIAL LEGAL CHARTER
+              </span>
+              <span className="h-px w-14 bg-[#B8F34A]/50" />
+              <span className="text-xs text-white/40">
+                سند قانونی و شرایط استفاده رسمی
+              </span>
+            </div>
+          </div>
+
+          <div className="relative order-1 mx-auto aspect-square w-full max-w-[540px] lg:order-2">
+            <div className="absolute inset-[12%] rounded-full bg-[#B8F34A]/10 blur-[80px]" />
+            <div className="absolute inset-0 animate-[spin_90s_linear_infinite] rounded-full border border-dashed border-[#B8F34A]/15" />
+            <div className="absolute inset-[8%] rounded-full border border-white/[0.06]" />
+            <div className="relative h-full w-full">
+              <TermsSealArtwork />
+            </div>
+            <div className="absolute bottom-[13%] left-[2%] rounded-xl border border-white/10 bg-[#0D100A]/80 px-4 py-3 shadow-2xl backdrop-blur">
+              <div
+                className="text-[9px] tracking-[.22em] text-[#B8F34A]"
+                dir="ltr"
+              >
+                22 ARTICLES
               </div>
-            ))}
+              <div className="mt-1 text-xs text-white/65">
+                شفافیت حقوق کاربران و گیم‌نت‌ها
+              </div>
+            </div>
+            <div
+              className="absolute right-[3%] top-[17%] rounded-full border border-[#B8F34A]/25 bg-[#0D100A]/80 px-4 py-2 text-[9px] tracking-[.2em] text-[#D7F8A6]"
+              dir="ltr"
+            >
+              LEGAL TRUST
+            </div>
           </div>
         </section>
 
-        {/* Search & Layout Container */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Sidebar / Table of Contents (Desktop) */}
-          <aside className="hidden lg:flex lg:col-span-4 flex-col gap-4 sticky top-24 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-5 max-h-[calc(100vh-120px)] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-              <span className="text-xs font-bold text-[var(--text-white)] flex items-center gap-2">
-                <Icon name="info" size={16} className="text-[var(--primary)]" />
-                فهرست مواد قانونی (۲۲ ماده)
-              </span>
-              <span className="text-[11px] text-[var(--text-muted)] font-mono">۲۲ بخش</span>
+        {/* ================= 01 — METADATA IDENTITY ================= */}
+        <section className="border-y border-white/[0.07] bg-[#0D100B]">
+          <div className="mx-auto grid max-w-[1440px] gap-10 px-5 py-20 sm:px-8 lg:grid-cols-[.65fr_1.35fr] lg:px-16 lg:py-28">
+            <div>
+              <p
+                className="text-[10px] tracking-[.3em] text-[#B8F34A]"
+                dir="ltr"
+              >
+                01 — LEGAL IDENTITY
+              </p>
+              <h2 className="mt-5 text-3xl font-black leading-tight sm:text-5xl">
+                مشخصات رسمی
+                <br />
+                پلتفرم.
+              </h2>
             </div>
 
-            <nav aria-label="فهرست مواد قوانین" className="flex flex-col gap-1">
-              {ARTICLES.map((art) => {
-                const isSelected = activeArticle === art.id;
-                return (
-                  <button
-                    key={art.id}
-                    type="button"
-                    onClick={() => scrollToArticle(art.id)}
-                    className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs text-right transition-colors ${
-                      isSelected
-                        ? "bg-[var(--primary)]/15 text-[var(--primary)] font-bold border border-[var(--primary)]/30"
-                        : "text-[var(--text-muted)] hover:text-[var(--text-white)] hover:bg-[var(--foreground)]/40"
-                    }`}
-                  >
-                    <span className="truncate">{art.number} ـ {art.title}</span>
-                    <Icon name="back" size={12} className="shrink-0 text-current rotate-180 opacity-60" />
-                  </button>
-                );
-              })}
-            </nav>
-          </aside>
-
-          {/* Main Content Area */}
-          <section className="lg:col-span-8 flex flex-col gap-6">
-            {/* Search Filter Bar */}
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="جست‌وجو در متن قوانین و مواد (مثلاً: لغو، کیف پول، کمیسیون، ۳۰ دقیقه)..."
-                className="w-full h-12 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] focus:border-[var(--primary)] px-4 pr-11 text-xs sm:text-sm text-[var(--text-white)] placeholder:text-[var(--text-subtle)] outline-none transition-all shadow-sm"
-              />
-              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <circle cx="11" cy="11" r="7" />
-                  <path strokeLinecap="round" d="m20 20-3.5-3.5" />
-                </svg>
-              </span>
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text-white)]"
+            <div className="grid gap-x-8 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
+              {METADATA_INFO.map((item) => (
+                <div
+                  key={item.label}
+                  className="border-t border-white/10 pt-4"
                 >
-                  پاک کردن
-                </button>
-              )}
+                  <span className="block text-xs text-white/40">
+                    {item.label}
+                  </span>
+                  <span className="mt-2 block text-sm font-bold leading-7 text-[#F4F5EF] break-words">
+                    {item.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ================= 02 — INTRODUCTION & DEFINITIONS ================= */}
+        <section className="mx-auto max-w-[1440px] px-5 py-20 sm:px-8 lg:px-16 lg:py-28">
+          <div className="grid items-start gap-12 lg:grid-cols-[.72fr_1.28fr] lg:gap-16">
+            <div className="lg:sticky lg:top-28">
+              <p
+                className="text-[10px] tracking-[.3em] text-[#B8F34A]"
+                dir="ltr"
+              >
+                02 — DEFINITIONS
+              </p>
+              <h2 className="mt-5 text-3xl font-black leading-tight sm:text-5xl">
+                مقدمه و
+                <br />
+                تعاریف مفاهیم.
+              </h2>
+              <p className="mt-6 max-w-md text-sm leading-8 text-white/50 sm:text-base sm:leading-9">
+                پلتفرم سایرا بستری اینترنتی برای معرفی، جست‌وجو و رزرو خدمات
+                گیم‌نت‌های مستقل فراهم می‌کند. گیم‌نت‌های معرفی‌شده در سایت،
+                اشخاص حقیقی یا حقوقی مستقلی هستند که خدمات خود را مستقیماً به
+                مشتریان ارائه می‌کنند.
+              </p>
             </div>
 
-            {filteredArticles.length === 0 ? (
-              <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-8 text-center flex flex-col items-center justify-center gap-3">
-                <Icon name="alert" size={32} className="text-[var(--accent-warning)]" />
-                <p className="text-xs sm:text-sm font-bold text-[var(--text-white)]">
-                  هیچ ماده یا بندی منطبق با عبارت جست‌وجوشده یافت نشد.
+            <div className="divide-y divide-white/10 border-t border-white/10 lg:border-t-0">
+              {DEFINITIONS.map((def) => (
+                <div
+                  key={def.num}
+                  className="flex gap-5 py-6 first:pt-2 sm:gap-8"
+                >
+                  <span className="pt-1 text-xs font-bold text-[#B8F34A]">
+                    ۰{def.num}
+                  </span>
+                  <div>
+                    <h3 className="text-base font-bold text-[#F4F5EF] sm:text-lg">
+                      {def.term}
+                    </h3>
+                    <p className="mt-2 text-sm leading-8 text-white/50">
+                      {def.desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ================= 03 — 22 ARTICLES ================= */}
+        <section
+          id="articles"
+          className="border-t border-white/[0.07] bg-[#0D100B] scroll-mt-24"
+        >
+          <div className="mx-auto max-w-[1440px] px-5 py-20 sm:px-8 lg:px-16 lg:py-28">
+            {/* Section Header + Search */}
+            <div className="flex flex-col justify-between gap-8 border-b border-white/10 pb-10 lg:flex-row lg:items-end">
+              <div>
+                <p
+                  className="text-[10px] tracking-[.3em] text-[#B8F34A]"
+                  dir="ltr"
+                >
+                  03 — FULL ARTICLES
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="text-xs text-[var(--primary)] font-bold hover:underline"
-                >
-                  مشاهده همه قوانین
-                </button>
+                <h2 className="mt-5 text-3xl font-black sm:text-5xl">
+                  فهرست و متن کامل{" "}
+                  <span className="text-[#B8F34A]">۲۲ ماده</span> قوانین.
+                </h2>
               </div>
-            ) : (
-              <div className="flex flex-col gap-6">
-                {filteredArticles.map((article) => (
-                  <article
-                    key={article.id}
-                    id={article.id}
-                    className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 sm:p-7 flex flex-col gap-4 shadow-md scroll-mt-28"
+
+              <div className="relative w-full lg:max-w-md">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="جست‌وجو در مواد و بندها (مثلاً: لغو، کیف پول، کمیسیون)..."
+                  className="h-12 w-full rounded-full border border-white/15 bg-[#080A07] px-5 pr-11 text-xs text-[#F4F5EF] placeholder:text-white/30 outline-none transition focus:border-[#B8F34A]/60 sm:text-sm"
+                />
+                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/40">
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
                   >
-                    {/* Article Header */}
-                    <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-                      <div className="flex items-center gap-3">
-                        <span className="px-2.5 py-1 rounded-md bg-[var(--primary)]/15 border border-[var(--primary)]/30 text-[var(--primary)] text-xs font-black">
-                          {article.number}
-                        </span>
-                        <h2 className="text-sm sm:text-base font-bold text-[var(--text-white)]">
-                          {article.title}
-                        </h2>
-                      </div>
-                    </div>
-
-                    {/* Clauses */}
-                    <div className="flex flex-col gap-3.5 pt-1">
-                      {article.clauses.map((clause, cIdx) => (
-                        <div key={cIdx} className="flex flex-col gap-2">
-                          <div className="flex items-start gap-2.5">
-                            <span className="inline-block mt-0.5 px-2 py-0.5 rounded bg-[var(--foreground)]/60 text-[var(--text-muted)] font-mono text-[11px] font-bold shrink-0">
-                              {clause.code}
-                            </span>
-                            <p className="text-xs sm:text-sm text-[var(--text-white)]/90 leading-relaxed text-justify">
-                              {clause.text}
-                            </p>
-                          </div>
-
-                          {clause.subItems && clause.subItems.length > 0 && (
-                            <ul className="mr-8 sm:mr-10 flex flex-col gap-1.5 list-disc list-inside text-xs sm:text-sm text-[var(--text-muted)] leading-relaxed">
-                              {clause.subItems.map((sub, sIdx) => (
-                                <li key={sIdx} className="text-justify">
-                                  {sub}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-
-            {/* Document Footer Note */}
-            <div className="rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] p-5 text-center flex flex-col gap-2">
-              <p className="text-xs font-bold text-[var(--primary)]">
-                پایان شرایط استفاده و قوانین رزرو پلتفرم سایرا
-              </p>
-              <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                هرگونه سوال، ابهام یا درخواست در خصوص مفاد این سند از طریق سامانه تیکتینگ و پشتیبانی
-                رسمی پلتفرم سایرا قابل پیگیری است.
-              </p>
-              <div className="pt-2 flex justify-center gap-3">
-                <Link
-                  href="/support"
-                  className="px-4 py-2 rounded-card bg-[var(--primary)] text-on-primary font-bold text-xs hover:bg-[var(--primary-hover)] transition-colors shadow-sm"
-                >
-                  ارتباط با پشتیبانی سایرا
-                </Link>
-                <Link
-                  href="/"
-                  className="px-4 py-2 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-white)] font-bold text-xs hover:bg-[var(--foreground)]/60 transition-colors"
-                >
-                  بازگشت به صفحه اصلی
-                </Link>
+                    <circle cx="11" cy="11" r="7" />
+                    <path strokeLinecap="round" d="m20 20-3.5-3.5" />
+                  </svg>
+                </span>
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-xs text-white/55 transition hover:text-[#B8F34A] cursor-pointer"
+                  >
+                    پاک کردن
+                  </button>
+                )}
               </div>
             </div>
-          </section>
-        </div>
+
+            {/* TOC Sidebar + Clean Editorial Articles */}
+            <div className="mt-12 grid items-start gap-12 lg:grid-cols-[290px_1fr] lg:gap-16">
+              {/* Minimalist Desktop Sticky Table of Contents */}
+              <aside className="hidden lg:sticky lg:top-28 lg:block">
+                <div className="mb-4 flex items-center justify-between text-xs text-white/40">
+                  <span>فهرست مواد قانونی (۲۲ ماده)</span>
+                  <span dir="ltr">۲۲ بخش</span>
+                </div>
+
+                <nav
+                  aria-label="فهرست مواد قوانین"
+                  className="flex max-h-[calc(100vh-190px)] flex-col gap-0.5 overflow-y-auto border-r border-white/10 pr-3"
+                >
+                  {ARTICLES.map((art) => {
+                    const isSelected = activeArticle === art.id;
+                    return (
+                      <button
+                        key={art.id}
+                        type="button"
+                        onClick={() => scrollToArticle(art.id)}
+                        className={cn(
+                          "flex items-center justify-between gap-2 py-2 pr-2 text-right text-xs transition-colors cursor-pointer",
+                          isSelected
+                            ? "font-bold text-[#B8F34A]"
+                            : "text-white/45 hover:text-white/85"
+                        )}
+                      >
+                        <span className="truncate">
+                          {art.number} ـ {art.title}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </nav>
+              </aside>
+
+              {/* Articles Content */}
+              <div>
+                {filteredArticles.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-4 border border-white/10 rounded-2xl bg-[#080A07] p-12 text-center">
+                    <Icon
+                      name="alert"
+                      size={28}
+                      className="text-[#B8F34A]"
+                    />
+                    <p className="text-sm font-bold text-[#F4F5EF]">
+                      هیچ ماده یا بندی منطبق با عبارت جست‌وجوشده یافت نشد.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="text-xs font-bold text-[#B8F34A] hover:underline cursor-pointer"
+                    >
+                      مشاهده همه قوانین
+                    </button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-white/10">
+                    {filteredArticles.map((article) => (
+                      <article
+                        key={article.id}
+                        id={article.id}
+                        className="py-10 first:pt-0 scroll-mt-28 sm:py-12"
+                      >
+                        <div className="flex flex-col gap-2">
+                          <span className="text-xs font-bold text-[#B8F34A]">
+                            {article.number}
+                          </span>
+                          <h3 className="text-xl font-black text-[#F4F5EF] sm:text-2xl">
+                            {article.title}
+                          </h3>
+                        </div>
+
+                        <div className="mt-7 space-y-5">
+                          {article.clauses.map((clause, cIdx) => (
+                            <div key={cIdx} className="space-y-3">
+                              <div className="flex items-start gap-4 sm:gap-6">
+                                <span
+                                  dir="ltr"
+                                  className="min-w-[42px] shrink-0 pt-1 text-xs font-mono text-[#B8F34A]/75"
+                                >
+                                  {clause.code}
+                                </span>
+                                <p className="text-sm leading-8 text-white/75 sm:text-[15px]">
+                                  {clause.text}
+                                </p>
+                              </div>
+
+                              {clause.subItems && clause.subItems.length > 0 && (
+                                <ul className="mr-14 space-y-2 border-r border-white/10 pr-5 text-sm leading-8 text-white/50 sm:mr-[66px]">
+                                  {clause.subItems.map((sub, sIdx) => (
+                                    <li key={sIdx}>{sub}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ================= 04 — CLOSING / SUPPORT CTA ================= */}
+        <section className="mx-auto max-w-[1440px] px-5 pt-16 pb-8 sm:px-8 lg:px-16 lg:pt-20 lg:pb-12">
+          <div className="relative overflow-hidden rounded-[28px] border border-[#B8F34A]/20 bg-[radial-gradient(ellipse_at_85%_50%,rgba(184,243,74,0.12),transparent_45%),#0D100B] px-7 py-14 sm:px-12 sm:py-20 lg:px-20">
+            <div
+              className="hidden sm:block absolute left-8 top-8 text-[9px] tracking-[.3em] text-white/25"
+              dir="ltr"
+            >
+              SAYRA / LEGAL CHARTER
+            </div>
+            <p
+              className="text-[10px] tracking-[.3em] text-[#B8F34A]"
+              dir="ltr"
+            >
+              04 — END OF DOCUMENT
+            </p>
+            <h2 className="mt-7 max-w-3xl text-2xl font-black leading-tight sm:text-4xl lg:text-5xl">
+              پایان شرایط استفاده و قوانین رزرو پلتفرم سایرا
+            </h2>
+            <p className="mt-6 max-w-xl text-sm leading-8 text-white/50">
+              هرگونه سوال، ابهام یا درخواست در خصوص مفاد این سند از طریق سامانه
+              تیکتینگ و پشتیبانی رسمی پلتفرم سایرا قابل پیگیری است.
+            </p>
+            <div className="mt-10 flex flex-wrap gap-4">
+              <Link
+                href="/support"
+                className="inline-flex items-center gap-4 rounded-full bg-[#B8F34A] px-7 py-4 text-sm font-bold text-[#10130A] transition hover:bg-[#D1FF78]"
+              >
+                ارتباط با پشتیبانی سایرا <span aria-hidden="true">↗</span>
+              </Link>
+              <Link
+                href="/"
+                className="inline-flex items-center rounded-full border border-white/15 px-7 py-4 text-sm text-white/70 transition hover:border-[#B8F34A]/50 hover:text-[#B8F34A]"
+              >
+                بازگشت به صفحه اصلی
+              </Link>
+            </div>
+            <div
+              className="mt-16 flex items-center justify-between border-t border-white/10 pt-5 text-[9px] tracking-[.25em] text-white/25"
+              dir="ltr"
+            >
+              <span>SAYRA LEGAL CHARTER</span>
+              <span>SAYRA © {new Date().getFullYear()}</span>
+            </div>
+          </div>
+        </section>
       </main>
 
-      {/* App Shell BottomBar for Mobile Navigation */}
-      <BottomBar />
       <Footer />
-
     </div>
   );
 }

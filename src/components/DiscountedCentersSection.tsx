@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Carousel,
   CarouselContent,
@@ -11,27 +11,45 @@ import {
 } from "@/components/ui/carousel";
 import { DiscountedCenter } from "@/types/home";
 import { homeService } from "@/services/homeService";
-import { DiscountedGamecenterCard } from "./DiscountedGamecenterCard";
+import {
+  DiscountedGamecenterCard,
+  GamecenterCardSkeleton,
+} from "./DiscountedGamecenterCard";
 
 export interface DiscountedCentersSectionProps {
   city?: string;
   enabled?: boolean;
   className?: string;
+  initialItems?: DiscountedCenter[];
+  initialCity?: string;
+  initialLoaded?: boolean;
 }
 
 export const DiscountedCentersSection: React.FC<DiscountedCentersSectionProps> = ({
   city,
   enabled = true,
   className = "",
+  initialItems = [],
+  initialCity,
+  initialLoaded = false,
 }) => {
-  const [items, setItems] = useState<DiscountedCenter[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [items, setItems] = useState<DiscountedCenter[]>(
+    initialLoaded ? initialItems : []
+  );
+  const [isLoading, setIsLoading] = useState(!initialLoaded);
   const [api, setApi] = useState<CarouselApi>();
+  const skipInitialFetchRef = useRef(initialLoaded);
 
   const isSingleCard = items.length === 1;
 
   useEffect(() => {
     if (!enabled) return;
+
+    if (skipInitialFetchRef.current && city === initialCity) {
+      skipInitialFetchRef.current = false;
+      return;
+    }
+    skipInitialFetchRef.current = false;
 
     const controller = new AbortController();
 
@@ -42,13 +60,16 @@ export const DiscountedCentersSection: React.FC<DiscountedCentersSectionProps> =
           city,
           signal: controller.signal,
         });
+        if (controller.signal.aborted) return;
         setItems(data);
       } catch (err) {
-        if ((err as Error)?.name !== "AbortError") {
+        if (!controller.signal.aborted && (err as Error)?.name !== "AbortError") {
           setItems([]);
         }
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     }
 
@@ -57,7 +78,7 @@ export const DiscountedCentersSection: React.FC<DiscountedCentersSectionProps> =
     return () => {
       controller.abort();
     };
-  }, [city, enabled]);
+  }, [city, enabled, initialCity]);
 
   const handleContainerClickCapture = useCallback(
     (e: React.MouseEvent) => {
@@ -139,22 +160,28 @@ export const DiscountedCentersSection: React.FC<DiscountedCentersSectionProps> =
 
         {/* Carousel Container */}
         {isLoading ? (
-          <div className="flex gap-2 overflow-hidden -mx-4 px-4 pb-2">
+          <div
+            aria-busy="true"
+            className="flex gap-3 overflow-hidden -mx-4 px-4 pb-2"
+          >
+            <span className="sr-only">در حال بارگذاری</span>
             {Array.from({ length: 4 }).map((_, idx) => (
               <div
                 key={idx}
-                className="animate-pulse bg-[var(--bg-card)] rounded-card border border-[var(--border-subtle)] h-[280px] w-[220px] min-w-[220px] shrink-0 sm:w-[240px] sm:min-w-[240px] lg:w-[calc((100%-24px)/4)] lg:min-w-[calc((100%-24px)/4)]"
-              />
+                className="w-[220px] min-w-[220px] shrink-0 sm:w-[240px] sm:min-w-[240px] lg:w-[calc((100%-36px)/4)] lg:min-w-[calc((100%-36px)/4)] flex flex-col"
+              >
+                <GamecenterCardSkeleton />
+              </div>
             ))}
           </div>
         ) : (
           <div onClickCapture={handleContainerClickCapture} className="-mx-4 px-4 pb-2 select-none">
-            <CarouselContent className="gap-2 -mr-2">
+            <CarouselContent className="gap-3 mr-0">
               {items.map((item, index) => (
                 <CarouselItem
                   key={item.id}
                   aria-label={`${index + 1} از ${items.length}`}
-                  className="pr-2 basis-[220px] sm:basis-[240px] lg:basis-[calc((100%-24px)/4)] flex flex-col min-w-[220px] sm:min-w-[240px]"
+                  className="pr-0 basis-[220px] sm:basis-[240px] lg:basis-[calc((100%-36px)/4)] flex flex-col min-w-[220px] sm:min-w-[240px]"
                 >
                   <DiscountedGamecenterCard center={item} />
                 </CarouselItem>

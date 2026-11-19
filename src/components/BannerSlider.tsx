@@ -12,7 +12,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { BannerItem } from "@/types/home";
-import { normalizeMediaUrl, PLACEHOLDERS } from "@/lib/media";
+import { PLACEHOLDERS } from "@/lib/media";
 import { SafeImage } from "@/components/ui/SafeImage";
 
 const DEFAULT_ASPECT = "aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[4/1]";
@@ -212,22 +212,28 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
       >
         <span className="sr-only">در حال بارگذاری</span>
         <div
-          className={`flex ${
-            centerOnDesktop
-              ? "justify-center gap-3 lg:gap-4"
-              : "-mr-3 lg:-mr-4"
+          className={`flex -mr-3 lg:-mr-4 ${
+            centerOnDesktop ? "justify-center" : ""
           }`}
         >
           {[0, 1, 2].map((idx) => (
             <div
               key={idx}
-              className={`min-w-0 shrink-0 grow-0 basis-[92%] sm:basis-[80%] ${desktopSlideBasisClass} ${
-                centerOnDesktop ? "" : "pr-3 lg:pr-4"
-              }`}
+              aria-hidden="true"
+              className={`min-w-0 shrink-0 grow-0 basis-[92%] sm:basis-[80%] ${desktopSlideBasisClass} pr-3 lg:pr-4`}
             >
               <div
-                className={`rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-card)] animate-pulse w-full ${aspectClassName}`}
-              />
+                className={`relative rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-card)] w-full ${aspectClassName}`}
+              >
+                <div className="w-full h-full animate-pulse bg-[var(--foreground)]/45" />
+                {idx === (centerOnDesktop ? 1 : 0) && (
+                  <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center gap-1.5">
+                    <span className="h-1.5 w-5 rounded-full bg-[var(--foreground)]/80" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--foreground)]/60" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--foreground)]/60" />
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>

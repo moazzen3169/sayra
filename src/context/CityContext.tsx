@@ -8,8 +8,9 @@ import React, {
   useSyncExternalStore,
 } from "react";
 
-export const DEFAULT_CITY = "تبریز";
-export const DEFAULT_PROVINCE_ID = "province_east_azerbaijan";
+import { DEFAULT_CITY, DEFAULT_PROVINCE_ID } from "@/lib/cityConstants";
+
+export { DEFAULT_CITY, DEFAULT_PROVINCE_ID };
 
 const CITY_STORAGE_KEY = "sayra_selected_city";
 const PROVINCE_STORAGE_KEY = "sayra_selected_province_id";

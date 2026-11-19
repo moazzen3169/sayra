@@ -1,258 +1,99 @@
-"use client";
-
-import React, { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
-
-import { BottomBar, TabType } from "@/components/BottomBar";
-import { DiscountedGamecenterCard } from "@/components/DiscountedGamecenterCard";
-import { BannerSlider } from "@/components/BannerSlider";
+import React from "react";
+import { HomePageClient } from "@/components/home/HomePageClient";
 import {
-  DeviceCategories,
-  type DeviceCategory,
   mapCatalogDeviceToCategory,
-} from "@/components/DeviceCategories";
-import { DiscountedCentersSection } from "@/components/DiscountedCentersSection";
-import { CustomerExperienceSection } from "@/components/home/CustomerExperienceSection";
-import { OwnerGrowthSection } from "@/components/home/OwnerGrowthSection";
-import { HomeBlogSection } from "@/components/blog/HomeBlogSection";
-import { ErrorState } from "@/components/ui/ErrorState";
-import { SectionTitle } from "@/components/ui/SectionTitle";
-import { CardSkeleton } from "@/components/ui/Skeleton";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselPrevious,
-  CarouselNext,
-} from "@/components/ui/carousel";
-import { homeService } from "@/services/homeService";
+  type DeviceCategory,
+} from "@/lib/deviceCategories";
+import { DEFAULT_CITY } from "@/lib/cityConstants";
+import { fetchSliderBanners, toDiscountedCenter } from "@/services/homeService";
 import { catalogService } from "@/services/catalogService";
 import {
   gamecentersPageService,
   type GamecenterListItem,
 } from "@/services/gamecentersPageService";
-import { isAbortError } from "@/lib/api/client";
-import { getErrorMessage } from "@/lib/reservationUi";
-import { BannerItem } from "@/types/home";
-import { useCity } from "@/context/CityContext";
+import { blogService } from "@/services/blogService";
+import type { BannerItem, DiscountedCenter } from "@/types/home";
+import type { BlogPostSummary } from "@/types/blog";
 
-export default function HomePage() {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabType>("home");
-  const { selectedCity, isCityReady, setCity } = useCity();
-  const [banners, setBanners] = useState<BannerItem[]>([]);
-  const [bannersLoading, setBannersLoading] = useState(true);
+export const dynamic = "force-dynamic";
 
-  // دستگاه‌ها و دسته‌بندی‌ها: واکشی از API /catalog/devices
-  const [categories, setCategories] = useState<DeviceCategory[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
+const SSR_FETCH_TIMEOUT_MS = 2500;
 
-  // گیمنت‌ها: فقط از API
-  const [centers, setCenters] = useState<GamecenterListItem[]>([]);
-  const [centersLoading, setCentersLoading] = useState(true);
-  const [centersError, setCentersError] = useState<string | null>(null);
-  const [reloadToken, setReloadToken] = useState(0);
+export default async function HomePage() {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), SSR_FETCH_TIMEOUT_MS);
 
-  useEffect(() => {
-    const controller = new AbortController();
+  let initialBanners: BannerItem[] = [];
+  let initialBannersLoaded = false;
 
-    async function loadBanners() {
-      try {
-        setBannersLoading(true);
-        const data = await homeService.getBanners(controller.signal);
-        setBanners(data);
-      } catch (err) {
-        if ((err as Error)?.name !== "AbortError") {
-          // Silently handle service error (banner is not a critical section)
-          setBanners([]);
-        }
-      } finally {
-        setBannersLoading(false);
-      }
-    }
+  let initialCategories: DeviceCategory[] = [];
+  let initialCategoriesLoaded = false;
 
-    async function loadCatalogDevices() {
-      try {
-        setCategoriesLoading(true);
-        const devices = await catalogService.listDevices(
+  let initialCenters: GamecenterListItem[] = [];
+  let initialCentersLoaded = false;
+  let initialDiscountedCenters: DiscountedCenter[] = [];
+
+  let initialBlogPosts: BlogPostSummary[] = [];
+  let initialBlogLoaded = false;
+
+  try {
+    const [bannersRes, categoriesRes, centersRes, blogRes] =
+      await Promise.allSettled([
+        fetchSliderBanners(controller.signal),
+        catalogService.listDevices(
           { isActive: true, limit: 50 },
           controller.signal
-        );
-        if (Array.isArray(devices) && devices.length > 0) {
-          const mapped = devices.map(mapCatalogDeviceToCategory);
-          setCategories(mapped);
-        }
-      } catch (err) {
-        if ((err as Error)?.name !== "AbortError") {
-          // If catalog devices API fails or is empty, DeviceCategories defaults safely
-        }
-      } finally {
-        setCategoriesLoading(false);
-      }
+        ),
+        gamecentersPageService.loadAllCenters({
+          city: DEFAULT_CITY,
+          page: 1,
+          limit: 50,
+          signal: controller.signal,
+        }),
+        blogService.list({ sort: "newest", limit: 4 }, controller.signal),
+      ]);
+
+    if (bannersRes.status === "fulfilled") {
+      initialBanners = bannersRes.value;
+      initialBannersLoaded = true;
     }
 
-    loadBanners();
-    loadCatalogDevices();
+    if (categoriesRes.status === "fulfilled") {
+      initialCategories = Array.isArray(categoriesRes.value)
+        ? categoriesRes.value.map(mapCatalogDeviceToCategory)
+        : [];
+      initialCategoriesLoaded = true;
+    }
 
-    return () => {
-      controller.abort();
-    };
-  }, []);
+    if (centersRes.status === "fulfilled") {
+      initialCenters = centersRes.value;
+      initialCentersLoaded = true;
+      initialDiscountedCenters = gamecentersPageService
+        .getDiscountedCenters(initialCenters)
+        .map(toDiscountedCenter)
+        .filter((c): c is DiscountedCenter => c !== null);
+    }
 
-  useEffect(() => {
-    if (!isCityReady) return;
-
-    const controller = new AbortController();
-    let active = true;
-
-    setCentersLoading(true);
-    setCentersError(null);
-
-    gamecentersPageService
-      .loadAllCenters({ city: selectedCity, page: 1, limit: 50, signal: controller.signal })
-      .then((data) => {
-        if (!active) return;
-        setCenters(data);
-      })
-      .catch((e) => {
-        if (!active || isAbortError(e)) return;
-        setCenters([]);
-        setCentersError(getErrorMessage(e));
-      })
-      .finally(() => {
-        if (active) setCentersLoading(false);
-      });
-
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [selectedCity, isCityReady, reloadToken]);
-
-  const popularCenters = useMemo(
-    () => gamecentersPageService.getPopularCenters(centers),
-    [centers]
-  );
-
-  const handleCategorySelect = (id: string) => {
-    router.push(`/gamecenters?category=${encodeURIComponent(id)}`);
-  };
-
-  const skeletonRow = (
-    <div className="flex gap-3 overflow-hidden pb-2" aria-busy="true">
-      <span className="sr-only">در حال بارگذاری</span>
-      {Array.from({ length: 4 }).map((_, idx) => (
-        <CardSkeleton
-          key={idx}
-          className="w-[240px] min-w-[240px] shrink-0 lg:w-[260px] lg:min-w-[260px]"
-        />
-      ))}
-    </div>
-  );
+    if (blogRes.status === "fulfilled") {
+      initialBlogPosts = blogRes.value.items;
+      initialBlogLoaded = true;
+    }
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-[var(--bottom-bar-h)] lg:pb-0">
-      <Header
-        locationName={selectedCity}
-        onCityChange={(city) => setCity(city)}
-      />
-
-      <main className="flex-1 p-4 flex flex-col gap-6 lg:gap-8 pt-[var(--header-m-h)] lg:pt-[var(--header-h)]">
-        {/* ۱. بنر */}
-        <section>
-          <BannerSlider
-            banners={banners}
-            isLoading={bannersLoading}
-            centerOnDesktop
-            desktopSlideBasisClass="lg:basis-[70%]"
-            aspectClassName="aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[3/1]"
-          />
-        </section>
-
-        {/* ۲. دسته‌ها */}
-        {(categoriesLoading || categories.length > 0) && (
-          <section>
-            <DeviceCategories
-              categories={categories}
-              isLoading={categoriesLoading}
-              onSelectCategory={handleCategorySelect}
-            />
-          </section>
-        )}
-
-        {/* ۳. گیمنت‌های تخفیف‌دار */}
-        <DiscountedCentersSection city={selectedCity} enabled={isCityReady} />
-
-        {centersError && (
-          <ErrorState
-            title="بارگذاری گیمنت‌ها انجام نشد"
-            description={centersError}
-            onRetry={() => setReloadToken((v) => v + 1)}
-          />
-        )}
-
-        {/* ۴. گیمنت‌های محبوب */}
-        {!centersError && (centersLoading || popularCenters.length > 0) && (
-          <section className="flex flex-col gap-3">
-            <Carousel
-              opts={{
-                direction: "rtl",
-                align: "start",
-                containScroll: "trimSnaps",
-              }}
-              className="w-full flex flex-col gap-3"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <SectionTitle
-                  title="گیمنت‌های محبوب"
-                  className="mb-0"
-                />
-                <div className="hidden sm:flex items-center gap-1 relative">
-                  <CarouselPrevious
-                    className="static translate-y-0 translate-x-0 w-11 h-11 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                    title="قبلی"
-                  />
-                  <CarouselNext
-                    className="static translate-y-0 translate-x-0 w-11 h-11 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                    title="بعدی"
-                  />
-                </div>
-              </div>
-
-              {centersLoading ? (
-                skeletonRow
-              ) : (
-                <div className="-mx-4 lg:-mx-8 px-4 lg:px-8 pb-2 select-none">
-                  <CarouselContent className="gap-3 -mr-3">
-                    {popularCenters.map((item) => (
-                      <CarouselItem
-                        key={item.id}
-                        className="pr-3 basis-[76%] sm:basis-[240px] lg:basis-[260px] flex flex-col"
-                      >
-                        <DiscountedGamecenterCard center={item} />
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                </div>
-              )}
-            </Carousel>
-          </section>
-        )}
-
-        {/* ۵. بخش مشتریان */}
-        <CustomerExperienceSection />
-
-        {/* ۶. وبلاگ */}
-        <HomeBlogSection />
-
-        {/* ۷. بخش صاحبان گیمنت */}
-        <OwnerGrowthSection />
-      </main>
-
-      <BottomBar activeTab={activeTab} onTabChange={setActiveTab} />
-      <Footer />
-    </div>
+    <HomePageClient
+      initialCity={DEFAULT_CITY}
+      initialBanners={initialBanners}
+      initialBannersLoaded={initialBannersLoaded}
+      initialCategories={initialCategories}
+      initialCategoriesLoaded={initialCategoriesLoaded}
+      initialCenters={initialCenters}
+      initialCentersLoaded={initialCentersLoaded}
+      initialDiscountedCenters={initialDiscountedCenters}
+      initialBlogPosts={initialBlogPosts}
+      initialBlogLoaded={initialBlogLoaded}
+    />
   );
 }

@@ -68,14 +68,29 @@ export const BlogPostCard: React.FC<{ post: BlogPostSummary }> = ({ post }) => (
 export const BlogPostCardSkeleton: React.FC = () => (
   <div
     aria-hidden="true"
-    className="flex flex-col overflow-hidden rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)]"
+    className="flex h-full flex-col overflow-hidden rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)]"
   >
-    <Skeleton className="aspect-[16/10] w-full rounded-none" />
-    <div className="flex flex-col gap-3 p-4">
-      <Skeleton className="h-5 w-3/4" />
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-4 w-2/3" />
-      <Skeleton className="mt-2 h-4 w-1/2" />
+    <Skeleton
+      aria-busy={undefined}
+      className="aspect-[16/10] w-full rounded-none shrink-0"
+    />
+    <div className="flex flex-1 flex-col gap-2.5 p-4">
+      <div className="flex flex-col gap-1.5">
+        <Skeleton aria-busy={undefined} className="h-5 w-4/5 rounded-child" />
+        <Skeleton aria-busy={undefined} className="h-5 w-2/3 rounded-child" />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Skeleton aria-busy={undefined} className="h-4 w-full rounded-child" />
+        <Skeleton aria-busy={undefined} className="h-4 w-3/4 rounded-child" />
+      </div>
+      <div className="flex items-center gap-1.5 pt-0.5">
+        <Skeleton aria-busy={undefined} className="h-6 w-14 rounded-full" />
+        <Skeleton aria-busy={undefined} className="h-6 w-16 rounded-full" />
+      </div>
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-3">
+        <Skeleton aria-busy={undefined} className="h-4 w-20 rounded-child" />
+        <Skeleton aria-busy={undefined} className="h-4 w-16 rounded-child" />
+      </div>
     </div>
   </div>
 );

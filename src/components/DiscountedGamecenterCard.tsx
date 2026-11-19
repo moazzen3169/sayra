@@ -5,6 +5,7 @@ import { formatDiscountBadge } from "@/lib/discount";
 import { Icon } from "@/components/ui/Icon";
 import { Badge } from "@/components/ui/Badge";
 import { SafeImage } from "@/components/ui/SafeImage";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { PLACEHOLDERS } from "@/lib/media";
 
 export interface GamecenterCardData {
@@ -93,7 +94,7 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
           {name}
         </h4>
 
-        <div className="flex items-center gap-2 text-secondary text-[var(--text-muted)] min-w-0">
+        <div className="flex min-h-5 items-center gap-2 text-secondary text-[var(--text-muted)] min-w-0">
           {rating > 0 && (
             <span className="inline-flex items-center gap-1 shrink-0 text-[var(--text-white)] font-bold">
               <Icon
@@ -137,3 +138,29 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
     </Link>
   );
 };
+
+export const GamecenterCardSkeleton: React.FC<{ className?: string }> = ({
+  className = "",
+}) => (
+  <div
+    aria-hidden="true"
+    className={`w-full h-full flex flex-col bg-[var(--bg-card)] rounded-card overflow-hidden border border-[var(--border-subtle)] ${className}`}
+  >
+    <Skeleton
+      aria-busy={undefined}
+      className="w-full aspect-[16/11] rounded-none shrink-0"
+    />
+    <div className="p-3 flex flex-col gap-1.5 flex-1">
+      <div className="h-[22px] flex items-center">
+        <Skeleton aria-busy={undefined} className="h-4 w-3/4 rounded-child" />
+      </div>
+      <div className="h-5 flex items-center gap-2">
+        <Skeleton aria-busy={undefined} className="h-3.5 w-12 rounded-child shrink-0" />
+        <Skeleton aria-busy={undefined} className="h-3.5 w-24 rounded-child" />
+      </div>
+      <div className="mt-auto pt-1 flex items-center h-[26px]">
+        <Skeleton aria-busy={undefined} className="h-4 w-1/2 rounded-child" />
+      </div>
+    </div>
+  </div>
+);

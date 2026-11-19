@@ -6,29 +6,22 @@ import { FAQ_ITEMS } from "@/data/registerGamecenterContent";
 import { cn } from "@/lib/utils";
 
 export const FaqAccordion: React.FC = () => {
-  const [openId, setOpenId] = useState<string | null>(FAQ_ITEMS[0]?.id ?? null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const toggle = (id: string) => {
     setOpenId((prev) => (prev === id ? null : id));
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      {FAQ_ITEMS.map((item) => {
+    <div className="divide-y divide-white/10 border-y border-white/10">
+      {FAQ_ITEMS.map((item, idx) => {
         const isOpen = openId === item.id;
         const panelId = `faq-panel-${item.id}`;
         const buttonId = `faq-btn-${item.id}`;
+        const num = String(idx + 1).padStart(2, "0");
 
         return (
-          <div
-            key={item.id}
-            className={cn(
-              "overflow-hidden rounded-card border transition-colors",
-              isOpen
-                ? "border-[var(--primary)]/40 bg-[var(--bg-card)]"
-                : "border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-color)]"
-            )}
-          >
+          <div key={item.id}>
             <h3>
               <button
                 id={buttonId}
@@ -36,15 +29,34 @@ export const FaqAccordion: React.FC = () => {
                 aria-expanded={isOpen}
                 aria-controls={panelId}
                 onClick={() => toggle(item.id)}
-                className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3.5 text-right text-sm font-bold leading-6 text-[var(--text-white)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
+                className="group flex min-h-14 w-full items-center justify-between gap-4 py-5 text-right transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8F34A]/60 cursor-pointer"
               >
-                <span>{item.question}</span>
+                <span className="flex items-center gap-4 sm:gap-6">
+                  <span
+                    dir="ltr"
+                    className={cn(
+                      "text-xs transition-colors",
+                      isOpen ? "text-[#B8F34A]" : "text-white/30 group-hover:text-[#B8F34A]/70"
+                    )}
+                  >
+                    {num}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-sm font-bold leading-7 transition-colors sm:text-base",
+                      isOpen ? "text-[#B8F34A]" : "text-[#F4F5EF] group-hover:text-white"
+                    )}
+                  >
+                    {item.question}
+                  </span>
+                </span>
+
                 <Icon
                   name="chevron"
-                  size={20}
+                  size={18}
                   className={cn(
-                    "shrink-0 text-[var(--text-muted)] transition-transform duration-200",
-                    isOpen && "rotate-180 text-[var(--primary)]"
+                    "shrink-0 transition-transform duration-300",
+                    isOpen ? "rotate-180 text-[#B8F34A]" : "text-white/40 group-hover:text-white/70"
                   )}
                 />
               </button>
@@ -55,7 +67,7 @@ export const FaqAccordion: React.FC = () => {
               role="region"
               aria-labelledby={buttonId}
               hidden={!isOpen}
-              className="border-t border-[var(--border-subtle)] px-4 py-3.5 text-xs font-medium leading-7 text-[var(--text-muted)] sm:text-sm sm:leading-7"
+              className="pr-8 pb-6 text-sm leading-8 text-white/50 sm:pr-10"
             >
               {item.answer}
             </div>

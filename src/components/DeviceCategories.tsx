@@ -1,16 +1,12 @@
 "use client";
 
 import React from "react";
-import type { DeviceCatalogItem } from "@/types/catalog";
+import {
+  mapCatalogDeviceToCategory,
+  type DeviceCategory,
+} from "@/lib/deviceCategories";
 
-export interface DeviceCategory {
-  id: string;
-  name: string;
-  subtitle?: string;
-  iconType?: "ps5" | "ps4" | "pc" | "steering" | "vr" | "xbox" | "billiards";
-  imageUrl?: string | null;
-  count?: number;
-}
+export { mapCatalogDeviceToCategory, type DeviceCategory };
 
 interface DeviceCategoriesProps {
   categories?: DeviceCategory[];
@@ -20,45 +16,14 @@ interface DeviceCategoriesProps {
 }
 
 const imageMap: Record<NonNullable<DeviceCategory["iconType"]>, string> = {
-  ps5: "/img/PS5.png",
-  ps4: "/img/PS4.png",
+  ps5: "/img/ps5.png",
+  ps4: "/img/ps4.png",
   pc: "/img/pc.png",
   xbox: "/img/xbox.png",
   vr: "/img/vr.png",
   billiards: "/img/bilyard.png",
   steering: "/img/Racing-Wheel.png",
 };
-
-/**
- * نگاشت خودکار آیتم‌های دریافت شده از API به تصاویر و آیکون‌های متناسب
- */
-export function mapCatalogDeviceToCategory(device: DeviceCatalogItem): DeviceCategory {
-  const normalized = (device.name + " " + (device.deviceType || "")).toLowerCase();
-
-  let iconType: DeviceCategory["iconType"] = "pc";
-  if (normalized.includes("ps5") || normalized.includes("پلی‌استیشن ۵") || normalized.includes("پلی استیشن ۵")) {
-    iconType = "ps5";
-  } else if (normalized.includes("ps4") || normalized.includes("پلی‌استیشن ۴") || normalized.includes("پلی استیشن ۴")) {
-    iconType = "ps4";
-  } else if (normalized.includes("xbox") || normalized.includes("ایکس باکس") || device.deviceType === "XBOX") {
-    iconType = "xbox";
-  } else if (normalized.includes("vr") || normalized.includes("واقعیت مجازی") || device.deviceType === "VR") {
-    iconType = "vr";
-  } else if (normalized.includes("billiard") || normalized.includes("بیلیارد")) {
-    iconType = "billiards";
-  } else if (normalized.includes("wheel") || normalized.includes("steering") || normalized.includes("فرمان")) {
-    iconType = "steering";
-  } else if (device.deviceType === "PLAYSTATION") {
-    iconType = "ps5";
-  }
-
-  return {
-    id: device.id,
-    name: device.name,
-    iconType,
-    imageUrl: device.coverImageUrl || undefined,
-  };
-}
 
 import { AppImage } from "@/components/common/AppImage";
 
@@ -95,7 +60,7 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
       aria-label="دسته‌بندی دستگاه‌ها"
       className="w-full min-w-0"
     >
-      <div className="mb-5 flex items-center gap-2">
+      <div className="mb-6 flex items-center gap-2">
         <span className="h-5 w-1 rounded-full bg-[var(--primary)]" />
         <h2 className="text-base font-bold text-[var(--text-white)]">
           دسته‌بندی دستگاه‌ها
@@ -103,16 +68,27 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-3 gap-x-2 gap-y-2 sm:grid-cols-4 sm:gap-x-3 sm:gap-y-10 md:grid-cols-5 lg:grid-cols-7" aria-busy="true">
-          {Array.from({ length: 7 }).map((_, idx) => (
-            <div
-              key={idx}
-              className="mt-7 h-[100px] rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] animate-pulse"
-            />
-          ))}
+        <div aria-busy="true">
+          <span className="sr-only">در حال بارگذاری</span>
+          <div className="grid grid-cols-3 gap-x-2 gap-y-4 sm:grid-cols-4 sm:gap-x-3 sm:gap-y-10 md:grid-cols-5 lg:grid-cols-7">
+            {Array.from({ length: 7 }).map((_, idx) => (
+              <div
+                key={idx}
+                aria-hidden="true"
+                className="relative mt-7 flex min-w-0 flex-col items-center justify-end overflow-visible rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] min-h-[100px] px-1 pb-3 pt-10"
+              >
+                <div className="pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 h-[68px] w-[68px] rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] overflow-hidden sm:-top-9 sm:h-[80px] sm:w-[80px] lg:-top-10 lg:h-[88px] lg:w-[88px]">
+                  <div className="h-full w-full animate-pulse bg-[var(--foreground)]/60" />
+                </div>
+                <div className="mt-2 flex h-5 w-full items-center justify-center">
+                  <div className="h-3.5 w-14 sm:w-16 animate-pulse rounded-child bg-[var(--foreground)]/60" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-x-2 gap-y-2 sm:grid-cols-4 sm:gap-x-3 sm:gap-y-10 md:grid-cols-5 lg:grid-cols-7">
+        <div className="grid grid-cols-3 gap-x-2 gap-y-4 sm:grid-cols-4 sm:gap-x-3 sm:gap-y-10 md:grid-cols-5 lg:grid-cols-7">
           {displayList.map((cat) => {
             const isSelected = selectedCategoryId === cat.id;
 
