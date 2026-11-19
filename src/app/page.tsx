@@ -76,7 +76,10 @@ export default function HomePage() {
     async function loadCatalogDevices() {
       try {
         setCategoriesLoading(true);
-        const devices = await catalogService.listDevices({ isActive: true }, controller.signal);
+        const devices = await catalogService.listDevices(
+          { isActive: true, limit: 50 },
+          controller.signal
+        );
         if (Array.isArray(devices) && devices.length > 0) {
           const mapped = devices.map(mapCatalogDeviceToCategory);
           setCategories(mapped);
@@ -108,7 +111,7 @@ export default function HomePage() {
     setCentersError(null);
 
     gamecentersPageService
-      .loadAllCenters({ city: selectedCity, signal: controller.signal })
+      .loadAllCenters({ city: selectedCity, page: 1, limit: 50, signal: controller.signal })
       .then((data) => {
         if (!active) return;
         setCenters(data);

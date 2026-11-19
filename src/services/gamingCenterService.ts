@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
+import { TtlDedupeCache } from "@/lib/api/requestLimiter";
 import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
 import { buildMockAvailabilitySlots, getMockGamecenterDetail } from "@/lib/mocks/gamecenter.mock";
 import {
@@ -128,67 +129,160 @@ export interface GameStationInfo extends GameStation {
 export type { AvailabilitySlot, AvailabilitySlotsParams };
 
 export interface ListGamingCentersParams {
+  page?: number;
+  limit?: number;
+  search?: string;
   city?: string;
+  province?: string;
+  district?: string;
+  game?: string;
+  stationType?: string;
+  minStationCount?: number;
+  minHourlyRate?: number;
+  maxHourlyRate?: number;
+  hasFoodService?: boolean;
+  minRating?: number;
+  isOpen?: boolean;
+  sortBy?: "createdAt" | "updatedAt" | "name" | "hourlyRate" | "pcCount" | "consoleCount";
+  sortOrder?: "asc" | "desc";
   signal?: AbortSignal;
+}
+
+export const GAMING_CENTERS_MAX_PAGE_LIMIT = 50;
+
+const gamingCentersListCache = new TtlDedupeCache<{
+  items: PublicGamingCenter[];
+  meta?: import("@/types/customerApi").ApiMeta;
+}>({
+  ttlMs: 45 * 1000,
+  maxEntries: 60,
+});
+
+function parseListParams(
+  paramsOrSignal?: AbortSignal | ListGamingCentersParams
+): { params: ListGamingCentersParams; signal?: AbortSignal } {
+  const isSignal =
+    paramsOrSignal &&
+    typeof paramsOrSignal === "object" &&
+    "aborted" in paramsOrSignal;
+  if (isSignal) {
+    return { params: {}, signal: paramsOrSignal as AbortSignal };
+  }
+  const params = (paramsOrSignal as ListGamingCentersParams | undefined) ?? {};
+  return { params, signal: params.signal };
+}
+
+function buildGamingCentersQuery(
+  params: ListGamingCentersParams
+): Record<string, string | number | boolean> | undefined {
+  const query: Record<string, string | number | boolean> = {};
+
+  if (params.page !== undefined) {
+    query.page = Math.max(1, Math.floor(params.page));
+  }
+  if (params.limit !== undefined) {
+    query.limit = Math.min(Math.max(Math.floor(params.limit), 1), GAMING_CENTERS_MAX_PAGE_LIMIT);
+  }
+  if (params.search?.trim()) query.search = params.search.trim();
+  const cleanCity = params.city?.trim();
+  if (cleanCity && cleanCity !== "همه") query.city = cleanCity;
+  if (params.province?.trim()) query.province = params.province.trim();
+  if (params.district?.trim()) query.district = params.district.trim();
+  if (params.game?.trim()) query.game = params.game.trim();
+  if (params.stationType?.trim()) query.stationType = params.stationType.trim().toUpperCase();
+  if (params.minStationCount !== undefined) {
+    query.minStationCount = Math.max(0, Math.floor(params.minStationCount));
+  }
+  if (params.minHourlyRate !== undefined) query.minHourlyRate = params.minHourlyRate;
+  if (params.maxHourlyRate !== undefined) query.maxHourlyRate = params.maxHourlyRate;
+  if (params.hasFoodService !== undefined) query.hasFoodService = params.hasFoodService;
+  if (params.minRating !== undefined) query.minRating = params.minRating;
+  if (params.isOpen !== undefined) query.isOpen = params.isOpen;
+  if (params.sortBy) query.sortBy = params.sortBy;
+  if (params.sortOrder) query.sortOrder = params.sortOrder;
+
+  return Object.keys(query).length > 0 ? query : undefined;
 }
 
 export const gamingCenterService = {
   /**
    * دریافت لیست عمومی گیمنت‌ها
-   * GET /gamingCenters?city=...
+   * GET /gamingCenters?city=...&stationType=...&page=...&limit=...
    */
   async listGamingCenters(
     paramsOrSignal?: AbortSignal | ListGamingCentersParams
   ): Promise<PublicGamingCenter[]> {
-    const isSignal =
-      paramsOrSignal &&
-      typeof paramsOrSignal === "object" &&
-      "aborted" in paramsOrSignal;
-    const signal = isSignal
-      ? (paramsOrSignal as AbortSignal)
-      : (paramsOrSignal as ListGamingCentersParams | undefined)?.signal;
-    const city = isSignal
-      ? undefined
-      : (paramsOrSignal as ListGamingCentersParams | undefined)?.city?.trim();
-
-    const query = city ? { city } : undefined;
-    const response = await apiClient.get<unknown>(ENDPOINTS.gamingCenter.list, {
-      query,
-      signal,
-    });
-    const resData = response.data;
-    if (Array.isArray(resData)) {
-      return resData as PublicGamingCenter[];
-    }
-    if (resData && typeof resData === "object" && "data" in resData && Array.isArray((resData as { data: unknown }).data)) {
-      return (resData as { data: PublicGamingCenter[] }).data;
-    }
-    return [];
+    const result = await this.listGamingCentersPaginated(paramsOrSignal);
+    return result.items;
   },
 
   /**
    * دریافت لیست صفحه‌بندی‌شده گیمنت‌ها همراه با اطلاعات Pagination
    * GET /gamingCenters
    */
-  async listGamingCentersPaginated(signal?: AbortSignal): Promise<{
+  async listGamingCentersPaginated(
+    paramsOrSignal?: AbortSignal | ListGamingCentersParams
+  ): Promise<{
     items: PublicGamingCenter[];
     meta?: import("@/types/customerApi").ApiMeta;
   }> {
-    const response = await apiClient.get<unknown>(ENDPOINTS.gamingCenter.list, { signal });
-    const raw = response.data;
-    let items: PublicGamingCenter[] = [];
-    if (Array.isArray(raw)) {
-      items = raw as PublicGamingCenter[];
-    } else if (raw && typeof raw === "object" && "data" in raw && Array.isArray((raw as { data: unknown }).data)) {
-      items = (raw as { data: PublicGamingCenter[] }).data;
-    }
-    const meta = (raw && typeof raw === "object" && "meta" in raw)
-      ? (raw as { meta?: import("@/types/customerApi").ApiMeta }).meta
-      : response.meta;
-    return {
-      items,
-      meta,
-    };
+    const { params, signal } = parseListParams(paramsOrSignal);
+    const query = buildGamingCentersQuery(params);
+    const cacheKey = query ? JSON.stringify(query) : "__default__";
+
+    return gamingCentersListCache.getOrFetch(
+      cacheKey,
+      async (internalSignal) => {
+        const response = await apiClient.get<unknown>(ENDPOINTS.gamingCenter.list, {
+          query,
+          signal: internalSignal,
+        });
+        const raw = response.data;
+        let items: PublicGamingCenter[] = [];
+        if (Array.isArray(raw)) {
+          items = raw as PublicGamingCenter[];
+        } else if (
+          raw &&
+          typeof raw === "object" &&
+          "data" in raw &&
+          Array.isArray((raw as { data: unknown }).data)
+        ) {
+          items = (raw as { data: PublicGamingCenter[] }).data;
+        }
+        const rawObj =
+          raw && typeof raw === "object" && !Array.isArray(raw)
+            ? (raw as Record<string, unknown>)
+            : undefined;
+        const rawMeta =
+          rawObj && rawObj.meta && typeof rawObj.meta === "object"
+            ? (rawObj.meta as Record<string, unknown>)
+            : undefined;
+        const rawPagination =
+          (rawMeta && rawMeta.pagination && typeof rawMeta.pagination === "object"
+            ? (rawMeta.pagination as import("@/types/customerApi").ApiPaginationMeta)
+            : undefined) ??
+          (rawMeta && ("total" in rawMeta || "page" in rawMeta || "totalPages" in rawMeta)
+            ? (rawMeta as import("@/types/customerApi").ApiPaginationMeta)
+            : undefined) ??
+          response.meta?.pagination ??
+          (response.pagination && typeof response.pagination === "object"
+            ? (response.pagination as import("@/types/customerApi").ApiPaginationMeta)
+            : undefined);
+
+        const meta: import("@/types/customerApi").ApiMeta | undefined =
+          response.meta || rawMeta || rawPagination
+            ? {
+                ...(response.meta ?? {}),
+                pagination: rawPagination,
+              }
+            : undefined;
+        return {
+          items,
+          meta,
+        };
+      },
+      signal
+    );
   },
 
   /**

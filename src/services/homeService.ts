@@ -89,6 +89,8 @@ export const homeService = {
     }
     const inCity = await gamecentersPageService.loadAllCenters({
       city: params?.city,
+      page: 1,
+      limit: 50,
       signal: params?.signal,
     });
 

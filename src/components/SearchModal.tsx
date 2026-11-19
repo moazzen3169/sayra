@@ -64,7 +64,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     setIsLoadingCenters(true);
 
     gamecentersPageService
-      .loadAllCenters({ city: selectedCity, signal: controller.signal })
+      .loadAllCenters({ city: selectedCity, page: 1, limit: 50, signal: controller.signal })
       .then((data) => {
         setCenters(data);
       })

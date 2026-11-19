@@ -1,6 +1,12 @@
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
+import { TtlDedupeCache } from "@/lib/api/requestLimiter";
 import type { DeviceCategory } from "@/types/gaming-center/device-category.types";
+
+const centerDeviceCategoriesCache = new TtlDedupeCache<DeviceCategory[]>({
+  ttlMs: 3 * 60 * 1000,
+  maxEntries: 200,
+});
 
 export const deviceCategoryApi = {
   /**
@@ -11,27 +17,39 @@ export const deviceCategoryApi = {
     gamingCenterSlug: string,
     signal?: AbortSignal
   ): Promise<DeviceCategory[]> {
-    if (!gamingCenterSlug?.trim()) {
+    const cleanSlug = gamingCenterSlug?.trim();
+    if (!cleanSlug) {
       throw new Error("اسلاگ گیمنت نامعتبر است.");
     }
 
-    const response = await apiClient.get<DeviceCategory[]>(
-      ENDPOINTS.gamingCenter.deviceCategories(gamingCenterSlug.trim()),
-      { signal }
+    return centerDeviceCategoriesCache.getOrFetch(
+      cleanSlug,
+      async (internalSignal) => {
+        const response = await apiClient.get<DeviceCategory[]>(
+          ENDPOINTS.gamingCenter.deviceCategories(cleanSlug),
+          { signal: internalSignal }
+        );
+
+        const data = response.data;
+        if (Array.isArray(data)) {
+          // فقط دسته‌هایی که دستگاه دارند و نامعتبر نیستند
+          return data.filter((c) => typeof c.deviceCount === "number" && c.deviceCount > 0);
+        }
+
+        if (
+          data &&
+          typeof data === "object" &&
+          "data" in data &&
+          Array.isArray((data as { data: DeviceCategory[] }).data)
+        ) {
+          return (data as { data: DeviceCategory[] }).data.filter(
+            (c) => typeof c.deviceCount === "number" && c.deviceCount > 0
+          );
+        }
+
+        return [];
+      },
+      signal
     );
-
-    const data = response.data;
-    if (Array.isArray(data)) {
-      // فقط دسته‌هایی که دستگاه دارند و نامعتبر نیستند
-      return data.filter((c) => typeof c.deviceCount === "number" && c.deviceCount > 0);
-    }
-
-    if (data && typeof data === "object" && "data" in data && Array.isArray((data as { data: DeviceCategory[] }).data)) {
-      return (data as { data: DeviceCategory[] }).data.filter(
-        (c) => typeof c.deviceCount === "number" && c.deviceCount > 0
-      );
-    }
-
-    return [];
   },
 };

@@ -13,16 +13,18 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import {
   gamecentersPageService,
-  GamecenterListItem,
-  GamecenterFilterParams,
+  resolveCategoryFilter,
+  type GamecenterListItem,
+  type GamecenterFilterParams,
 } from "@/services/gamecentersPageService";
+import { catalogService } from "@/services/catalogService";
+import { isAbortError } from "@/lib/api/client";
+import type { DeviceCatalogItem } from "@/types/catalog";
 import { toPersianDigits } from "@/lib/format";
 import { useCity } from "@/context/CityContext";
 import { cn } from "@/lib/utils";
 
-const CATEGORIES = [
-  { id: "all", name: "همه" },
-  { id: "discounted", name: "تخفیف‌دار" },
+const FALLBACK_DEVICE_CATEGORIES = [
   { id: "ps5", name: "پلی‌استیشن ۵" },
   { id: "ps4", name: "پلی‌استیشن ۴" },
   { id: "pc", name: "کامپیوتر گیمینگ" },
@@ -63,13 +65,18 @@ function GamecentersContent() {
   const searchParams = useSearchParams();
 
   const queryParam = searchParams.get("q") || "";
-  const categoryParam = searchParams.get("category") || "all";
+  const categoryParam =
+    searchParams.get("category") || searchParams.get("device") || "all";
+  const stationTypeParam = searchParams.get("stationType") || undefined;
   const sortParam =
     (searchParams.get("sort") as GamecenterFilterParams["sort"]) || "default";
   const cityParam = searchParams.get("city")?.trim() || "";
 
   const { selectedCity: contextCity, isCityReady, setCity } = useCity();
   const selectedCity = cityParam || contextCity;
+
+  const [catalogDevices, setCatalogDevices] = useState<DeviceCatalogItem[]>([]);
+  const [isCatalogReady, setIsCatalogReady] = useState(false);
 
   const [allCenters, setAllCenters] = useState<GamecenterListItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -79,35 +86,118 @@ function GamecentersContent() {
   const [isSortOpen, setIsSortOpen] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+
+    catalogService
+      .listDevices({ isActive: true, limit: 50 }, controller.signal)
+      .then((devices) => {
+        if (!active) return;
+        setCatalogDevices(Array.isArray(devices) ? devices : []);
+      })
+      .catch((err) => {
+        if (!active || isAbortError(err)) return;
+        setCatalogDevices([]);
+      })
+      .finally(() => {
+        if (active) setIsCatalogReady(true);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, []);
+
+  const categoryTabs = useMemo(() => {
+    const dynamicItems =
+      catalogDevices.length > 0
+        ? catalogDevices.map((d) => ({ id: d.id, name: d.name }))
+        : FALLBACK_DEVICE_CATEGORIES;
+
+    return [
+      { id: "all", name: "همه" },
+      { id: "discounted", name: "تخفیف‌دار" },
+      ...dynamicItems,
+    ];
+  }, [catalogDevices]);
+
+  const resolvedCategory = useMemo(
+    () => resolveCategoryFilter(categoryParam, catalogDevices, stationTypeParam),
+    [categoryParam, catalogDevices, stationTypeParam]
+  );
+
+  useEffect(() => {
     if (!cityParam && !isCityReady) return;
+    if (!isCatalogReady) return;
 
     const controller = new AbortController();
+    let active = true;
 
     async function fetchCenters() {
       try {
         setIsLoading(true);
         setError(null);
-        const data = await gamecentersPageService.loadAllCenters({
+
+        let effectiveCatalog = catalogDevices;
+        // If user arrived with a catalog device ID not in the active list (e.g. direct deep link
+        // or listDevices failed), fetch that specific device once so stationType filtering still works.
+        if (
+          categoryParam !== "all" &&
+          categoryParam !== "discounted" &&
+          !resolvedCategory.catalogDevice &&
+          !resolvedCategory.stationType
+        ) {
+          try {
+            const singleDevice = await catalogService.getDeviceById(
+              categoryParam,
+              controller.signal
+            );
+            if (singleDevice?.id) {
+              effectiveCatalog = [...catalogDevices, singleDevice];
+            }
+          } catch (deviceErr) {
+            if (isAbortError(deviceErr)) throw deviceErr;
+          }
+        }
+
+        const { centers } = await gamecentersPageService.loadFilteredCenters({
           city: selectedCity,
+          category: categoryParam,
+          stationType: stationTypeParam,
+          catalogDevices: effectiveCatalog,
           signal: controller.signal,
         });
-        setAllCenters(data);
+
+        if (!active) return;
+        setAllCenters(centers);
       } catch (err) {
-        if ((err as Error)?.name !== "AbortError") {
-          setError("خطا در دریافت لیست گیمنت‌ها");
-          setAllCenters([]);
-        }
+        if (!active || isAbortError(err)) return;
+        setError("خطا در دریافت لیست گیمنت‌ها");
+        setAllCenters([]);
       } finally {
-        setIsLoading(false);
+        if (active) setIsLoading(false);
       }
     }
 
     fetchCenters();
 
     return () => {
+      active = false;
       controller.abort();
     };
-  }, [selectedCity, cityParam, isCityReady, reloadToken]);
+  }, [
+    selectedCity,
+    cityParam,
+    isCityReady,
+    isCatalogReady,
+    categoryParam,
+    stationTypeParam,
+    catalogDevices,
+    resolvedCategory.catalogDevice,
+    resolvedCategory.stationType,
+    reloadToken,
+  ]);
 
   const updateQueryParams = (
     updates: Record<string, string | null | undefined>
@@ -115,6 +205,10 @@ function GamecentersContent() {
     setVisibleCount(ITEMS_PER_PAGE);
     const params = new URLSearchParams(searchParams.toString());
     params.delete("page");
+    if ("category" in updates) {
+      params.delete("device");
+      params.delete("stationType");
+    }
     Object.entries(updates).forEach(([key, value]) => {
       if (
         value === null ||
@@ -141,22 +235,18 @@ function GamecentersContent() {
     return Boolean(
       queryParam ||
         (categoryParam && categoryParam !== "all") ||
+        stationTypeParam ||
         sortParam !== "default"
     );
-  }, [queryParam, categoryParam, sortParam]);
+  }, [queryParam, categoryParam, stationTypeParam, sortParam]);
 
   const filteredCenters = useMemo(() => {
-    const baseList =
-      categoryParam === "discounted"
-        ? gamecentersPageService.getDiscountedCenters(allCenters)
-        : allCenters;
-
-    return gamecentersPageService.filterCenters(baseList, {
+    return gamecentersPageService.filterCenters(allCenters, {
       q: queryParam,
-      category: categoryParam === "discounted" ? "all" : categoryParam,
+      category: "all",
       sort: sortParam,
     });
-  }, [allCenters, queryParam, categoryParam, sortParam]);
+  }, [allCenters, queryParam, sortParam]);
 
   const totalItems = filteredCenters.length;
   const visibleCenters = useMemo(
@@ -202,10 +292,14 @@ function GamecentersContent() {
               )}
             </button>
 
-            {CATEGORIES.map((cat) => {
+            {categoryTabs.map((cat) => {
               const isActive =
                 categoryParam === cat.id ||
-                (cat.id === "all" && !categoryParam);
+                (cat.id === "all" && !categoryParam && !stationTypeParam) ||
+                Boolean(
+                  resolvedCategory.catalogDevice?.id &&
+                    resolvedCategory.catalogDevice.id === cat.id
+                );
               return (
                 <button
                   key={cat.id}

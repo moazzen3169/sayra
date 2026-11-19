@@ -1,5 +1,6 @@
 import { apiClient, ApiError } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
+import { TtlDedupeCache } from "@/lib/api/requestLimiter";
 import type {
   CreateDeviceTypeInput,
   CreateGameCatalogInput,
@@ -12,6 +13,16 @@ import type {
   UpdateDeviceTypeInput,
   UpdateGameCatalogInput,
 } from "@/types/catalog";
+
+const deviceListCache = new TtlDedupeCache<DeviceCatalogItem[]>({
+  ttlMs: 5 * 60 * 1000,
+  maxEntries: 30,
+});
+
+const deviceByIdCache = new TtlDedupeCache<DeviceCatalogItem>({
+  ttlMs: 5 * 60 * 1000,
+  maxEntries: 60,
+});
 
 function unwrapListResponse<T>(payload: unknown): T[] {
   if (Array.isArray(payload)) {
@@ -52,18 +63,27 @@ export const catalogService = {
     signal?: AbortSignal
   ): Promise<DeviceCatalogItem[]> {
     const query: Record<string, string | number | boolean | undefined> = {};
-    if (params?.page !== undefined) query.page = params.page;
-    if (params?.limit !== undefined) query.limit = params.limit;
+    if (params?.page !== undefined) query.page = Math.max(1, params.page);
+    if (params?.limit !== undefined) {
+      query.limit = Math.min(Math.max(params.limit, 1), 100);
+    }
     if (params?.deviceType) query.deviceType = params.deviceType;
     if (params?.isActive !== undefined) query.isActive = params.isActive;
     if (params?.search) query.search = params.search;
 
-    const { data } = await apiClient.get<unknown>(ENDPOINTS.catalog.devices, {
-      query,
-      signal,
-    });
+    const cacheKey = JSON.stringify(query);
+    return deviceListCache.getOrFetch(
+      cacheKey,
+      async (internalSignal) => {
+        const { data } = await apiClient.get<unknown>(ENDPOINTS.catalog.devices, {
+          query,
+          signal: internalSignal,
+        });
 
-    return unwrapListResponse<DeviceCatalogItem>(data);
+        return unwrapListResponse<DeviceCatalogItem>(data);
+      },
+      signal
+    );
   },
 
   /**
@@ -71,10 +91,17 @@ export const catalogService = {
    * GET /catalog/devices/{id}
    */
   async getDeviceById(id: string, signal?: AbortSignal): Promise<DeviceCatalogItem> {
-    const { data } = await apiClient.get<unknown>(ENDPOINTS.catalog.deviceById(id), {
-      signal,
-    });
-    return unwrapSingleResponse<DeviceCatalogItem>(data);
+    const cleanId = id.trim();
+    return deviceByIdCache.getOrFetch(
+      cleanId,
+      async (internalSignal) => {
+        const { data } = await apiClient.get<unknown>(ENDPOINTS.catalog.deviceById(cleanId), {
+          signal: internalSignal,
+        });
+        return unwrapSingleResponse<DeviceCatalogItem>(data);
+      },
+      signal
+    );
   },
 
   /**
