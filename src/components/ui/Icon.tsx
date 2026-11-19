@@ -33,7 +33,11 @@ export type IconName =
   | "home"
   | "list"
   | "external-link"
-  | "copy";
+  | "copy"
+  | "shield"
+  | "image"
+  | "trending"
+  | "file";
 
 export interface IconProps extends React.SVGProps<SVGSVGElement> {
   name: IconName;
@@ -77,6 +81,10 @@ const PATHS: Record<IconName, string> = {
   list: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
   "external-link": "M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14",
   copy: "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z",
+  shield: "M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z M9 12l2 2 4-4",
+  image: "M4 5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V5z M8.5 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3z M20 15l-5-5L6 19",
+  trending: "M3 17l6-6 4 4 8-8 M15 7h6v6",
+  file: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z M14 2v6h6 M9 13h6 M9 17h4",
 };
 
 export const Icon: React.FC<IconProps> = ({

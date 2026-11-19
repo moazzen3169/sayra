@@ -7,6 +7,7 @@ const linkGroups = [
     links: [
       { label: "صفحه اصلی", href: "/" },
       { label: "گیمنت‌ها", href: "/gamecenters" },
+      { label: "ثبت و اتصال گیمنت", href: "/register-gamecenter" },
       { label: "وبلاگ", href: "/blog" },
       { label: "درباره ما", href: "/about" },
       { label: "قوانین و مقررات", href: "/terms" },

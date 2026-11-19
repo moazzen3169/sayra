@@ -127,9 +127,12 @@ export const OwnerGrowthSection: React.FC = () => {
               />
             </Link>
 
-            <span className="text-xs font-medium text-white/45">
-              شروع مسیر حضور آنلاین گیمنتت
-            </span>
+            <Link
+              href="/register-gamecenter"
+              className="text-xs font-bold text-[var(--primary)] underline underline-offset-4 transition-colors hover:text-white"
+            >
+              آشنایی با شرایط، مزایا و مراحل ثبت گیمنت
+            </Link>
           </div>
 
         </div>
