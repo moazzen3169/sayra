@@ -12,12 +12,18 @@ import type { Reservation } from "@/types/reservation";
 interface ReservationHistoryCardProps {
   reservation: Reservation;
   onRate?: (reservation: Reservation) => void;
+  isRated?: boolean;
 }
 
 export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({
   reservation,
+  onRate,
+  isRated = false,
 }) => {
   const { status } = reservation;
+  const alreadyRated =
+    isRated || reservation.isRated === true || reservation.canRate === false;
+  const canRateNow = status === "COMPLETED" && !alreadyRated && Boolean(onRate);
 
   return (
     <Link
@@ -58,11 +64,35 @@ export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 text-secondary text-[var(--text-muted)] border-t border-[var(--border-subtle)] pt-2.5">
-        <Icon name="clock" size={16} className="shrink-0" />
-        <span className="truncate text-[var(--text-white)]">
-          {formatReservationWhen(reservation.startTime, reservation.endTime)}
-        </span>
+      <div className="flex items-center justify-between gap-2 text-secondary text-[var(--text-muted)] border-t border-[var(--border-subtle)] pt-2.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <Icon name="clock" size={16} className="shrink-0" />
+          <span className="truncate text-[var(--text-white)]">
+            {formatReservationWhen(reservation.startTime, reservation.endTime)}
+          </span>
+        </div>
+
+        {status === "COMPLETED" && alreadyRated && (
+          <span className="inline-flex items-center gap-1.5 shrink-0 rounded-full border border-[var(--primary)]/25 bg-[var(--primary)]/10 px-2.5 py-1 text-[11px] font-bold text-[var(--primary)]">
+            <Icon name="gamepad" size={13} />
+            <span>امتیاز ثبت شد</span>
+          </span>
+        )}
+
+        {canRateNow && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onRate?.(reservation);
+            }}
+            className="inline-flex items-center gap-1.5 shrink-0 rounded-full bg-[var(--primary)] hover:bg-[#D1FF78] px-3 py-1.5 text-[11px] font-extrabold text-[var(--text-on-primary)] transition-transform active:scale-95"
+          >
+            <Icon name="gamepad" size={14} />
+            <span>ثبت امتیاز</span>
+          </button>
+        )}
       </div>
     </Link>
   );

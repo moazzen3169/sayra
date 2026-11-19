@@ -306,6 +306,8 @@ export function mapRatingsToReviews(ratings: PublicRating[]): GamecenterReview[]
     rating: typeof r.rating === "number" ? r.rating : 5,
     comment: r.comment || undefined,
     createdAt: r.createdAt || undefined,
+    reply: r.reply || undefined,
+    repliedAt: r.repliedAt || undefined,
   }));
 }
 

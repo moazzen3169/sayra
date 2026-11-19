@@ -200,7 +200,7 @@ export function extractMediaItems<
       const thumbUrl = item.thumbUrl ? normalizeMediaUrl(item.thumbUrl) : undefined;
       if (url) {
         result.push({
-          id: item.id || `media-${idx}`,
+          id: item.id || item.mediaId || item._id || `media-${idx}`,
           url,
           thumbUrl,
           altText: item.altText || item.alt || item.title || "",

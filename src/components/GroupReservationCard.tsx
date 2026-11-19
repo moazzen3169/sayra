@@ -11,13 +11,24 @@ import type { GroupBookingItem } from "@/types/reservation";
 
 interface GroupReservationCardProps {
   groupBooking: GroupBookingItem;
+  onRate?: (groupBooking: GroupBookingItem) => void;
+  isRated?: boolean;
 }
 
 export const GroupReservationCard: React.FC<GroupReservationCardProps> = ({
   groupBooking,
+  onRate,
+  isRated = false,
 }) => {
   const targetId =
     groupBooking.groupBookingId || groupBooking.reservations[0]?.id;
+  const alreadyRated =
+    isRated ||
+    groupBooking.reservations.some(
+      (r) => r.isRated === true || r.canRate === false
+    );
+  const canRateNow =
+    groupBooking.status === "COMPLETED" && !alreadyRated && Boolean(onRate);
 
   const firstRes = groupBooking.reservations[0];
   const deviceNames = groupBooking.reservations
@@ -67,6 +78,30 @@ export const GroupReservationCard: React.FC<GroupReservationCardProps> = ({
           </div>
         </div>
       </div>
+
+      {groupBooking.status === "COMPLETED" && (alreadyRated || canRateNow) && (
+        <div className="flex items-center justify-end border-t border-[var(--border-subtle)] pt-2.5">
+          {alreadyRated ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--primary)]/25 bg-[var(--primary)]/10 px-2.5 py-1 text-[11px] font-bold text-[var(--primary)]">
+              <Icon name="gamepad" size={13} />
+              <span>امتیاز ثبت شد</span>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onRate?.(groupBooking);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full bg-[var(--primary)] hover:bg-[#D1FF78] px-3 py-1.5 text-[11px] font-extrabold text-[var(--text-on-primary)] transition-transform active:scale-95"
+            >
+              <Icon name="gamepad" size={14} />
+              <span>ثبت امتیاز</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 

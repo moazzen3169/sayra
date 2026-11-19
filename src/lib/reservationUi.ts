@@ -260,6 +260,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   IDEMPOTENCY_KEY_INVALID_LENGTH: "رزرو انجام نشد. لطفاً دوباره تلاش کنید.",
   IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD: "ثبت رزرو با خطا روبرو شد. لطفاً دوباره امتحان کنید.",
   STATUS_TRANSITION_NOT_IMPLEMENTED: "این عملیات در حال حاضر توسط سرور پشتیبانی نمی‌شود.",
+  ALREADY_RATED: "شما قبلاً برای این رزرو امتیاز و نظر خود را ثبت کرده‌اید.",
+  RESERVATION_NOT_COMPLETED: "ثبت نظر فقط پس از پایان یافتن رزرو امکان‌پذیر است.",
 };
 
 const GENERIC_NOT_FOUND = "مورد درخواستی پیدا نشد. اگر این خطا تکرار شد با پشتیبانی تماس بگیرید.";

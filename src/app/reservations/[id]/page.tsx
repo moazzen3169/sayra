@@ -19,6 +19,12 @@ import {
   stationImageFor,
 } from "@/lib/reservationUi";
 import { AppImage } from "@/components/common/AppImage";
+import { Icon } from "@/components/ui/Icon";
+import {
+  buildReviewTargetFromReservation,
+  isSingleReservationRated,
+} from "@/lib/reservationReview";
+import { customerReviewService } from "@/services/customerReviewService";
 import { reservationService } from "@/services/reservationService";
 import type { Reservation, ReservationStatus, ReservationTimeProposal } from "@/types/reservation";
 
@@ -197,6 +203,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
   const [copied, setCopied] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+  const [ratedIds, setRatedIds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -212,11 +219,25 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
         if (!active) return;
         setReservation(r);
         setError(null);
-        try {
-          const props = await reservationService.listProposals(id, controller.signal);
-          if (active) setProposals(props);
-        } catch {
-          if (active) setProposals([]);
+        const [propsRes, ratedRes] = await Promise.allSettled([
+          reservationService.listProposals(id, controller.signal),
+          r.status === "COMPLETED"
+            ? customerReviewService.getRatedReservationIdsForReservations(
+                [r],
+                controller.signal
+              )
+            : Promise.resolve(new Set<string>()),
+        ]);
+        if (!active) return;
+        setProposals(
+          propsRes.status === "fulfilled" ? propsRes.value : []
+        );
+        if (ratedRes.status === "fulfilled" && ratedRes.value.size > 0) {
+          setRatedIds((prev) => {
+            const next = new Set(prev);
+            ratedRes.value.forEach((rid) => next.add(rid));
+            return next;
+          });
         }
       })
       .catch((e) => {
@@ -283,7 +304,9 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
   const pendingProposals = proposals.filter((p) => p.status === "PENDING");
   const canCancel = reservation?.status === "PENDING" || reservation?.status === "CONFIRMED";
   const isTerminalState = reservation?.status === "CANCELED" || reservation?.status === "NO_SHOW";
-  const showRate = reservation?.status === "COMPLETED" && reservation.canRate !== false && reservation.isRated !== true;
+  const alreadyRated = reservation ? isSingleReservationRated(reservation, ratedIds) : false;
+  const showRate = reservation?.status === "COMPLETED" && !alreadyRated;
+  const reviewTarget = reservation ? buildReviewTargetFromReservation(reservation) : null;
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-12">
@@ -647,10 +670,18 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                 <button
                   type="button"
                   onClick={() => setIsRatingModalOpen(true)}
-                  className="h-12 w-full rounded-card bg-[var(--accent-star)] text-on-primary text-sm font-bold active:scale-[0.98] transition-all shadow-md"
+                  className="h-12 w-full rounded-full bg-[var(--primary)] hover:bg-[#D1FF78] text-on-primary text-sm font-black flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-md"
                 >
-                  ثبت و افزودن نظر برای این رزرو
+                  <Icon name="gamepad" size={18} />
+                  <span>ثبت امتیاز و تجربه من</span>
                 </button>
+              )}
+
+              {reservation.status === "COMPLETED" && alreadyRated && (
+                <div className="h-12 w-full rounded-card border border-[var(--primary)]/30 bg-[var(--primary)]/10 text-[var(--primary)] text-xs font-bold flex items-center justify-center gap-2">
+                  <Icon name="gamepad" size={16} />
+                  <span>امتیاز و نظر شما برای این رزرو ثبت شده است</span>
+                </div>
               )}
 
               {canCancel && (
@@ -715,9 +746,32 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
       {/* Rating Modal */}
       <RatingModal
         isOpen={isRatingModalOpen}
-        reservationId={reservation?.id ?? null}
+        reservationId={reviewTarget?.reservationId ?? null}
+        fallbackReservationIds={reviewTarget?.fallbackReservationIds}
+        gamingCenterId={reviewTarget?.gamingCenterId}
+        gamingCenterSlug={reviewTarget?.gamingCenterSlug}
+        gamingCenterName={reviewTarget?.gamingCenterName}
+        stationName={reviewTarget?.stationName}
+        startTime={reviewTarget?.startTime}
+        endTime={reviewTarget?.endTime}
         onClose={() => setIsRatingModalOpen(false)}
-        onSuccess={() => {
+        onAlreadyRated={(ratedId) => {
+          setRatedIds((prev) => {
+            const next = new Set(prev);
+            next.add(ratedId);
+            if (reviewTarget?.reservationId) next.add(reviewTarget.reservationId);
+            reviewTarget?.fallbackReservationIds?.forEach((rid) => next.add(rid));
+            return next;
+          });
+        }}
+        onSuccess={(ratedId) => {
+          setRatedIds((prev) => {
+            const next = new Set(prev);
+            next.add(ratedId);
+            if (reviewTarget?.reservationId) next.add(reviewTarget.reservationId);
+            reviewTarget?.fallbackReservationIds?.forEach((rid) => next.add(rid));
+            return next;
+          });
           setIsRatingModalOpen(false);
           setReloadToken((v) => v + 1);
         }}

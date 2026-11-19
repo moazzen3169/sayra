@@ -19,6 +19,8 @@ export interface GamecenterReview {
   rating: number;
   comment?: string;
   createdAt?: string;
+  reply?: string;
+  repliedAt?: string;
 }
 
 export interface GamecenterDetail {

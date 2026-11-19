@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { BottomBar } from "@/components/BottomBar";
-import { FirstReservationStrip } from "@/components/FirstReservationStrip";
 import { ReservationHistoryCard } from "@/components/ReservationHistoryCard";
 import { GroupReservationCard } from "@/components/GroupReservationCard";
 import { RatingModal } from "@/components/RatingModal";
@@ -11,7 +10,16 @@ import { AuthModal } from "@/components/AuthModal";
 import { useAuth } from "@/context/AuthContext";
 import { isAbortError } from "@/lib/api/client";
 import { groupCustomerReservations } from "@/lib/groupReservationGrouping";
+import {
+  buildReviewTargetFromGroup,
+  buildReviewTargetFromReservation,
+  getMostRecentEligibleReviewTarget,
+  isGroupBookingRated,
+  isSingleReservationRated,
+  type ReviewTarget,
+} from "@/lib/reservationReview";
 import { getErrorMessage } from "@/lib/reservationUi";
+import { customerReviewService } from "@/services/customerReviewService";
 import { reservationService } from "@/services/reservationService";
 import type { CustomerBookingEntry, Reservation } from "@/types/reservation";
 
@@ -19,9 +27,34 @@ export default function ReservationsHistoryPage() {
   const { isLoggedIn, isLoading: isAuthLoading, login } = useAuth();
   const [items, setItems] = useState<Reservation[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [ratingTarget, setRatingTarget] = useState<Reservation | null>(null);
+  const [backendRatedIds, setBackendRatedIds] = useState<Set<string>>(() => new Set());
+  const [sessionRatedIds, setSessionRatedIds] = useState<Set<string>>(() => new Set());
+  const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(() => new Set());
+  const [ratingTarget, setRatingTarget] = useState<(ReviewTarget & { autoOpened?: boolean }) | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const autoPromptedRef = useRef(false);
+  const sessionRatedIdsRef = useRef(sessionRatedIds);
+  const dismissedKeysRef = useRef(dismissedKeys);
+
+  useEffect(() => {
+    sessionRatedIdsRef.current = sessionRatedIds;
+  }, [sessionRatedIds]);
+
+  useEffect(() => {
+    dismissedKeysRef.current = dismissedKeys;
+  }, [dismissedKeys]);
+
+  const combinedRatedIds = useMemo(() => {
+    const merged = new Set<string>(backendRatedIds);
+    sessionRatedIds.forEach((id) => merged.add(id));
+    return merged;
+  }, [backendRatedIds, sessionRatedIds]);
+
+  const groupedEntries = useMemo(
+    () => (items ? groupCustomerReservations(items) : []),
+    [items]
+  );
 
   useEffect(() => {
     // Only fetch history if the user is authenticated and auth initialization finished
@@ -34,10 +67,43 @@ export default function ReservationsHistoryPage() {
 
     reservationService
       .list(controller.signal)
-      .then((data) => {
+      .then(async (data) => {
         if (!active) return;
         setItems(data);
         setError(null);
+
+        let ratedFromBackend = new Set<string>();
+        const hasCompleted = data.some((r) => r.status === "COMPLETED");
+        if (hasCompleted) {
+          try {
+            ratedFromBackend =
+              await customerReviewService.getRatedReservationIdsForReservations(
+                data,
+                controller.signal
+              );
+            if (!active) return;
+            setBackendRatedIds(ratedFromBackend);
+          } catch (err) {
+            if (!active || isAbortError(err)) return;
+          }
+        } else {
+          setBackendRatedIds(new Set());
+        }
+
+        if (!autoPromptedRef.current && data.length > 0) {
+          const mergedRated = new Set<string>(ratedFromBackend);
+          sessionRatedIdsRef.current.forEach((id) => mergedRated.add(id));
+          const entries = groupCustomerReservations(data);
+          const target = getMostRecentEligibleReviewTarget(
+            entries,
+            mergedRated,
+            dismissedKeysRef.current
+          );
+          if (target) {
+            autoPromptedRef.current = true;
+            setRatingTarget({ ...target, autoOpened: true });
+          }
+        }
       })
       .catch((e) => {
         if (!active || isAbortError(e)) return;
@@ -151,12 +217,19 @@ export default function ReservationsHistoryPage() {
         {/* Reservation List */}
         {isLoggedIn && items !== null && !error && items.length > 0 && (
           <div className="flex flex-col gap-4 w-full">
-            {groupCustomerReservations(items).map((entry: CustomerBookingEntry) => {
+            {groupedEntries.map((entry: CustomerBookingEntry) => {
               if (entry.isGroup) {
                 return (
                   <GroupReservationCard
                     key={`group-${entry.groupBookingId}`}
                     groupBooking={entry}
+                    isRated={isGroupBookingRated(entry, combinedRatedIds)}
+                    onRate={(group) =>
+                      setRatingTarget({
+                        ...buildReviewTargetFromGroup(group),
+                        autoOpened: false,
+                      })
+                    }
                   />
                 );
               }
@@ -164,7 +237,13 @@ export default function ReservationsHistoryPage() {
                 <ReservationHistoryCard
                   key={entry.reservation.id}
                   reservation={entry.reservation}
-                  onRate={setRatingTarget}
+                  isRated={isSingleReservationRated(entry.reservation, combinedRatedIds)}
+                  onRate={(res) =>
+                    setRatingTarget({
+                      ...buildReviewTargetFromReservation(res),
+                      autoOpened: false,
+                    })
+                  }
                 />
               );
             })}
@@ -180,9 +259,42 @@ export default function ReservationsHistoryPage() {
 
       <RatingModal
         isOpen={!!ratingTarget}
-        reservationId={ratingTarget?.id ?? null}
-        onClose={() => setRatingTarget(null)}
-        onSuccess={() => {
+        reservationId={ratingTarget?.reservationId ?? null}
+        fallbackReservationIds={ratingTarget?.fallbackReservationIds}
+        gamingCenterId={ratingTarget?.gamingCenterId}
+        gamingCenterSlug={ratingTarget?.gamingCenterSlug}
+        gamingCenterName={ratingTarget?.gamingCenterName}
+        stationName={ratingTarget?.stationName}
+        startTime={ratingTarget?.startTime}
+        endTime={ratingTarget?.endTime}
+        autoOpened={ratingTarget?.autoOpened}
+        onClose={() => {
+          if (ratingTarget?.key) {
+            setDismissedKeys((prev) => {
+              const next = new Set(prev);
+              next.add(ratingTarget.key);
+              return next;
+            });
+          }
+          setRatingTarget(null);
+        }}
+        onAlreadyRated={(ratedId) => {
+          setSessionRatedIds((prev) => {
+            const next = new Set(prev);
+            next.add(ratedId);
+            if (ratingTarget?.reservationId) next.add(ratingTarget.reservationId);
+            ratingTarget?.fallbackReservationIds?.forEach((id) => next.add(id));
+            return next;
+          });
+        }}
+        onSuccess={(ratedId) => {
+          setSessionRatedIds((prev) => {
+            const next = new Set(prev);
+            next.add(ratedId);
+            if (ratingTarget?.reservationId) next.add(ratingTarget.reservationId);
+            ratingTarget?.fallbackReservationIds?.forEach((id) => next.add(id));
+            return next;
+          });
           setRatingTarget(null);
           setReloadToken((v) => v + 1);
         }}

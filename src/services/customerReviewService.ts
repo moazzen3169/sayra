@@ -1,12 +1,68 @@
-import { apiClient } from "@/lib/api/client";
+import { apiClient, ApiError, isAbortError } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
 import { getMockGamecenterDetail } from "@/lib/mocks/gamecenter.mock";
+import { gamingCenterService } from "@/services/gamecenterDetailService";
+import type { Reservation } from "@/types/reservation";
 import {
   ContractGapError,
   PublicRating,
   SubmitReservationRatingPayload,
 } from "@/types/customerApi";
+
+export interface SubmitReviewOptions {
+  gamingCenterId?: string;
+  gamingCenterSlug?: string;
+  fallbackReservationIds?: string[];
+}
+
+export function isAlreadyRatedError(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false;
+  if (error.status === 409) return true;
+  if (error.code === "ALREADY_RATED" || error.code === "CONFLICT") return true;
+  return /already.*rat|already.*review|قبلاً.*ثبت/i.test(error.message);
+}
+
+function buildRatingBody(payload: SubmitReservationRatingPayload) {
+  return {
+    rating: payload.rating,
+    comment: payload.comment?.trim() ? payload.comment.trim() : undefined,
+  };
+}
+
+function validateReviewPayload(
+  reservationId: string,
+  payload: SubmitReservationRatingPayload
+) {
+  if (!reservationId || !reservationId.trim()) {
+    throw new Error("شناسه رزرو الزامی است.");
+  }
+  if (
+    typeof payload.rating !== "number" ||
+    !Number.isInteger(payload.rating) ||
+    payload.rating < 1 ||
+    payload.rating > 5
+  ) {
+    throw new Error("امتیاز باید یک عدد صحیح بین ۱ تا ۵ باشد.");
+  }
+}
+
+async function resolveSlugForReview(
+  options?: SubmitReviewOptions
+): Promise<string | undefined> {
+  const directSlug = options?.gamingCenterSlug?.trim();
+  if (directSlug) return directSlug;
+
+  const centerId = options?.gamingCenterId?.trim();
+  if (!centerId) return undefined;
+
+  try {
+    const center = await gamingCenterService.resolveGamingCenter(centerId);
+    return center?.slug?.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Service handling Customer Reviews & Ratings according to OpenAPI v1.0-LOCKED.
@@ -54,23 +110,61 @@ export const customerReviewService = {
    */
   async submitCustomerReview(
     reservationId: string,
-    payload: SubmitReservationRatingPayload
+    payload: SubmitReservationRatingPayload,
+    options?: SubmitReviewOptions
   ): Promise<void> {
-    if (!reservationId || !reservationId.trim()) {
-      throw new Error("شناسه رزرو الزامی است.");
-    }
-    if (typeof payload.rating !== "number" || !Number.isInteger(payload.rating) || payload.rating < 1 || payload.rating > 5) {
-      throw new Error("امتیاز باید یک عدد صحیح بین ۱ تا ۵ باشد.");
-    }
+    validateReviewPayload(reservationId, payload);
 
     if (USE_MOCK_RESERVATIONS) {
       return;
     }
 
-    await apiClient.post(ENDPOINTS.reservation.rate(reservationId.trim()), {
-      rating: payload.rating,
-      comment: payload.comment?.trim() ? payload.comment.trim() : undefined,
-    });
+    const body = buildRatingBody(payload);
+    const candidateIds = Array.from(
+      new Set(
+        [reservationId.trim(), ...(options?.fallbackReservationIds ?? []).map((id) => id.trim())].filter(
+          Boolean
+        )
+      )
+    );
+
+    let resolvedSlug: string | undefined;
+    let slugResolved = false;
+    let lastError: unknown;
+
+    for (const targetId of candidateIds) {
+      try {
+        await apiClient.post(ENDPOINTS.reservation.rate(targetId), body);
+        return;
+      } catch (err) {
+        if (!(err instanceof ApiError) || err.status !== 404) {
+          throw err;
+        }
+        lastError = err;
+
+        if (!slugResolved) {
+          slugResolved = true;
+          resolvedSlug = await resolveSlugForReview(options);
+        }
+
+        if (resolvedSlug) {
+          try {
+            await apiClient.post(
+              ENDPOINTS.reservation.publicRate(resolvedSlug, targetId),
+              body
+            );
+            return;
+          } catch (publicErr) {
+            if (!(publicErr instanceof ApiError) || publicErr.status !== 404) {
+              throw publicErr;
+            }
+            lastError = publicErr;
+          }
+        }
+      }
+    }
+
+    throw lastError;
   },
 
   /**
@@ -85,23 +179,81 @@ export const customerReviewService = {
     if (!gamingCenterSlug || !gamingCenterSlug.trim()) {
       throw new Error("شناسه گیمنت الزامی است.");
     }
-    if (!reservationId || !reservationId.trim()) {
-      throw new Error("شناسه رزرو الزامی است.");
-    }
-    if (typeof payload.rating !== "number" || !Number.isInteger(payload.rating) || payload.rating < 1 || payload.rating > 5) {
-      throw new Error("امتیاز باید یک عدد صحیح بین ۱ تا ۵ باشد.");
-    }
+    validateReviewPayload(reservationId, payload);
 
     if (USE_MOCK_RESERVATIONS) {
       return;
     }
 
-    const enc = encodeURIComponent;
-    const url = `/public/gamingCenters/${enc(gamingCenterSlug.trim())}/reservation/${enc(reservationId.trim())}/ratings`;
-    await apiClient.post(url, {
-      rating: payload.rating,
-      comment: payload.comment?.trim() ? payload.comment.trim() : undefined,
-    });
+    const url = ENDPOINTS.reservation.publicRate(
+      gamingCenterSlug.trim(),
+      reservationId.trim()
+    );
+    await apiClient.post(url, buildRatingBody(payload));
+  },
+
+  /**
+   * بررسی نظرات ثبت‌شده در گیم‌نت‌ها برای تشخیص رزروهایی که قبلاً امتیاز گرفته‌اند
+   * بر اساس فیلد reservationId در اسکیمای Rating از OpenAPI
+   */
+  async getRatedReservationIdsForReservations(
+    reservations: Reservation[],
+    signal?: AbortSignal
+  ): Promise<Set<string>> {
+    const ratedIds = new Set<string>();
+    const completed = reservations.filter((r) => r.status === "COMPLETED");
+    if (completed.length === 0 || USE_MOCK_RESERVATIONS) {
+      return ratedIds;
+    }
+
+    const slugs = new Set<string>();
+    const centerIdsToResolve = new Set<string>();
+
+    for (const r of completed) {
+      const directSlug = r.gamingCenterSlug?.trim() || r.gamingCenter?.slug?.trim();
+      if (directSlug) {
+        slugs.add(directSlug);
+      } else if (r.gamingCenterId?.trim()) {
+        centerIdsToResolve.add(r.gamingCenterId.trim());
+      }
+    }
+
+    if (centerIdsToResolve.size > 0) {
+      const resolved = await Promise.allSettled(
+        Array.from(centerIdsToResolve).map((centerId) =>
+          gamingCenterService.resolveGamingCenter(centerId, signal)
+        )
+      );
+      for (const res of resolved) {
+        if (res.status === "fulfilled" && res.value?.slug) {
+          slugs.add(res.value.slug);
+        }
+      }
+    }
+
+    if (slugs.size === 0) {
+      return ratedIds;
+    }
+
+    const ratingLists = await Promise.allSettled(
+      Array.from(slugs).map((slug) =>
+        customerReviewService.listPublicRatings(slug, signal)
+      )
+    );
+
+    for (const res of ratingLists) {
+      if (res.status === "rejected") {
+        if (isAbortError(res.reason)) throw res.reason;
+        continue;
+      }
+      for (const rating of res.value) {
+        if (rating.reservationId && rating.status !== "DELETED") {
+          ratedIds.add(rating.reservationId);
+        }
+      }
+    }
+
+    return ratedIds;
   },
 
   /**

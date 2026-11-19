@@ -3,6 +3,10 @@ import { USE_MOCK_RESERVATIONS } from "@/lib/api/config";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { addMockReservation } from "@/lib/reservations.mock";
 import { mergeGroupReservationsIntoSingle } from "@/lib/groupReservationGrouping";
+import {
+  customerReviewService,
+  type SubmitReviewOptions,
+} from "@/services/customerReviewService";
 import type { Reservation, ReservationTimeProposal } from "@/types/reservation";
 import type { ExtraControllerSelectionInput } from "@/types/gaming-center/station.types";
 import { ContractGapError, PaymentInitResponse } from "@/types/customerApi";
@@ -254,15 +258,12 @@ export const reservationService = {
    * POST /customer/reservation/{reservationId}/ratings
    * ارجاع به customerReviewService برای هماهنگی یکپارچه
    */
-  async rate(reservationId: string, payload: { rating: number; comment?: string }): Promise<void> {
-    if (USE_MOCK_RESERVATIONS) return;
-    if (typeof payload.rating !== "number" || !Number.isInteger(payload.rating) || payload.rating < 1 || payload.rating > 5) {
-      throw new Error("امتیاز باید یک عدد صحیح بین ۱ تا ۵ باشد.");
-    }
-    await apiClient.post(ENDPOINTS.reservation.rate(reservationId), {
-      rating: payload.rating,
-      comment: payload.comment?.trim() ? payload.comment.trim() : undefined,
-    });
+  async rate(
+    reservationId: string,
+    payload: { rating: number; comment?: string },
+    options?: SubmitReviewOptions
+  ): Promise<void> {
+    await customerReviewService.submitCustomerReview(reservationId, payload, options);
   },
 
   /**

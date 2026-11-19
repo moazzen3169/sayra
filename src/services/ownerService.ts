@@ -1554,10 +1554,22 @@ export const ownerService = {
 
   async deleteMedia(
     centerId: string,
-    mediaId: string
+    mediaId: string,
+    signal?: AbortSignal
   ): Promise<void> {
-    throw new Error(
-      "حذف تصویر در حال حاضر توسط سرور پشتیبانی نمی‌شود و منتظر پیاده‌سازی اندپوینت اختصاصی بک‌اند است."
+    const cleanCenterId = centerId?.trim();
+    const cleanMediaId = mediaId?.trim();
+
+    if (!cleanCenterId) {
+      throw new Error("شناسه گیم‌نت مشخص نشده است.");
+    }
+    if (!cleanMediaId) {
+      throw new Error("شناسه تصویر مشخص نشده است.");
+    }
+
+    await apiClient.delete(
+      ENDPOINTS.owner.mediaDelete(cleanCenterId, cleanMediaId),
+      { signal }
     );
   },
 
@@ -1594,9 +1606,36 @@ export const ownerService = {
     ratingId: string,
     replyText: string
   ): Promise<void> {
-    throw new Error(
-      "ثبت پاسخ مدیر به نظر در حال حاضر توسط وب‌سرویس سرور پشتیبانی نمی‌شود و نیازمند پیاده‌سازی اندپوینت اختصاصی بک‌اند است (مستند شده در docs/OWNER_REVIEWS_API_CONTRACT.md)."
-    );
+    if (!centerId?.trim()) {
+      throw new Error("شناسه گیم‌نت مشخص نشده است.");
+    }
+    if (!ratingId?.trim()) {
+      throw new Error("شناسه نظر مشخص نشده است.");
+    }
+    const cleanReply = replyText?.trim();
+    if (!cleanReply) {
+      throw new Error("متن پاسخ نمی‌تواند خالی باشد.");
+    }
+
+    const endpoint = ENDPOINTS.owner.ratingReply(centerId.trim(), ratingId.trim());
+    try {
+      await apiClient.post(endpoint, { reply: cleanReply });
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        try {
+          await apiClient.patch(endpoint, { reply: cleanReply });
+          return;
+        } catch (patchErr) {
+          if (patchErr instanceof ApiError && patchErr.status === 404) {
+            throw new Error(
+              "اندپوینت ثبت پاسخ به نظر در سرور پیاده‌سازی نشده است (خطای ۴۰۴ — مطابق openapi.json فعلی)."
+            );
+          }
+          throw patchErr;
+        }
+      }
+      throw err;
+    }
   },
 
   async setRatingStatus(

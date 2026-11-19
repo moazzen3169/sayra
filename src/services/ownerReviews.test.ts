@@ -113,22 +113,29 @@ describe("ownerService.reviews & moderation operations", () => {
     expect(capturedBody).toEqual({ status: "DELETED" });
   });
 
-  it("refuses guessed reply endpoints and raises contract gap error on replyToRating", async () => {
-    let fetchCalled = false;
-    globalThis.fetch = (async () => {
-      fetchCalled = true;
-      return new Response(JSON.stringify({ success: true }), { status: 200 });
+  it("submits owner reply via POST /gamingCenters/{centerId}/ratings/{id}/reply and surfaces clear error if server returns 404", async () => {
+    const calls: Array<{ url: string; method: string; body: unknown }> = [];
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const urlStr = String(url);
+      calls.push({
+        url: urlStr,
+        method: init?.method || "GET",
+        body: init?.body ? JSON.parse(String(init.body)) : null,
+      });
+      if (urlStr.includes("/gamingCenters/gc-100/ratings/rat-1/reply")) {
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ success: false }), { status: 404 });
     }) as unknown as typeof fetch;
 
-    let thrownError: any = null;
-    try {
-      await ownerService.replyToRating("gc-100", "rat-1", "پاسخ مدیریت گیمنت");
-    } catch (e) {
-      thrownError = e;
-    }
+    await ownerService.replyToRating("gc-100", "rat-1", "پاسخ مدیریت گیمنت");
 
-    expect(fetchCalled).toBe(false);
-    expect(thrownError).not.toBeNull();
-    expect(thrownError.message).toContain("docs/OWNER_REVIEWS_API_CONTRACT.md");
+    expect(calls.length).toBe(1);
+    expect(calls[0].method).toBe("POST");
+    expect(calls[0].url).toContain("/gamingCenters/gc-100/ratings/rat-1/reply");
+    expect(calls[0].body).toEqual({ reply: "پاسخ مدیریت گیمنت" });
   });
 });

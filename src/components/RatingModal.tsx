@@ -1,42 +1,269 @@
 "use client";
 
-import React, { useState } from "react";
-import { customerReviewService } from "@/services/customerReviewService";
-import { getErrorMessage } from "@/lib/reservationUi";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { toPersianDigits } from "@/lib/format";
+import { formatReservationWhen, getErrorMessage } from "@/lib/reservationUi";
+import {
+  customerReviewService,
+  isAlreadyRatedError,
+} from "@/services/customerReviewService";
+import { gamingCenterService } from "@/services/gamecenterDetailService";
 
-interface RatingModalProps {
+export interface RatingModalProps {
   isOpen: boolean;
   reservationId: string | null;
+  fallbackReservationIds?: string[];
+  gamingCenterId?: string;
+  gamingCenterSlug?: string;
+  gamingCenterName?: string;
+  stationName?: string;
+  startTime?: string;
+  endTime?: string;
+  autoOpened?: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (ratedReservationId: string) => void;
+  onAlreadyRated?: (ratedReservationId: string) => void;
 }
 
-export const RatingModal: React.FC<RatingModalProps> = ({ isOpen, reservationId, onClose, onSuccess }) => {
+const RATING_RANKS: Record<number, { badge: string; title: string }> = {
+  1: { badge: "LVL 1", title: "نیاز به بهبود" },
+  2: { badge: "LVL 2", title: "معمولی" },
+  3: { badge: "LVL 3", title: "خوب و ردیف" },
+  4: { badge: "LVL 4", title: "خیلی خفن!" },
+  5: { badge: "LVL 5 · GG", title: "افسانه‌ای و بی‌نقص!" },
+};
+
+const QUICK_VIBE_CHIPS = [
+  "سیستم قوی ⚡",
+  "بدون لگ 🎯",
+  "فضای خفن 🔥",
+  "برخورد عالی 🤝",
+];
+
+function ConsoleControllerIcon({
+  highlighted,
+}: {
+  highlighted: boolean;
+}) {
+  return (
+    <svg
+      viewBox="0 0 64 46"
+      className={`w-10 h-7 sm:w-12 sm:h-9 transition-all duration-200 ${
+        highlighted
+          ? "drop-shadow-[0_0_12px_rgba(184,243,74,0.55)] scale-110"
+          : "opacity-45 hover:opacity-80"
+      }`}
+      fill="none"
+      aria-hidden="true"
+    >
+      {/* Controller Outer Shell */}
+      <path
+        d="M18.5 7.5h27c6.4 0 11.4 4.5 12.7 10.8l2.5 12.2c1.1 5.2-2.6 10-7.6 10-2.6 0-5-1.3-6.4-3.5l-2.7-4.3a4 4 0 0 0-3.4-1.9H23.4a4 4 0 0 0-3.4 1.9l-2.7 4.3c-1.4 2.2-3.8 3.5-6.4 3.5-5 0-8.7-4.8-7.6-10L5.8 18.3C7.1 12 12.1 7.5 18.5 7.5Z"
+        fill={highlighted ? "#B8F34A" : "transparent"}
+        fillOpacity={highlighted ? 0.22 : 0}
+        stroke={highlighted ? "#B8F34A" : "#D4D4D8"}
+        strokeWidth="2.4"
+        strokeLinejoin="round"
+      />
+      {/* Lightbar */}
+      <rect
+        x="25"
+        y="10.5"
+        width="14"
+        height="3.5"
+        rx="1.75"
+        fill={highlighted ? "#B8F34A" : "#71717A"}
+      />
+      {/* D-pad */}
+      <path
+        d="M17.5 15.5v8M13.5 19.5h8"
+        stroke={highlighted ? "#E8FFB8" : "#D4D4D8"}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      {/* Action Buttons */}
+      <circle cx="46.5" cy="16" r="1.7" fill={highlighted ? "#B8F34A" : "#D4D4D8"} />
+      <circle cx="50.5" cy="19.5" r="1.7" fill={highlighted ? "#E8FFB8" : "#D4D4D8"} />
+      <circle cx="46.5" cy="23" r="1.7" fill={highlighted ? "#B8F34A" : "#D4D4D8"} />
+      <circle cx="42.5" cy="19.5" r="1.7" fill={highlighted ? "#E8FFB8" : "#D4D4D8"} />
+      {/* Dual Analog Sticks */}
+      <circle
+        cx="25"
+        cy="25"
+        r="3"
+        fill={highlighted ? "#10130A" : "transparent"}
+        stroke={highlighted ? "#B8F34A" : "#D4D4D8"}
+        strokeWidth="1.8"
+      />
+      <circle
+        cx="39"
+        cy="25"
+        r="3"
+        fill={highlighted ? "#10130A" : "transparent"}
+        stroke={highlighted ? "#B8F34A" : "#D4D4D8"}
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+interface RatingModalPanelProps
+  extends Omit<RatingModalProps, "isOpen" | "reservationId"> {
+  reservationId: string;
+}
+
+const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
+  reservationId,
+  fallbackReservationIds,
+  gamingCenterId,
+  gamingCenterSlug,
+  gamingCenterName,
+  stationName,
+  startTime,
+  endTime,
+  autoOpened = false,
+  onClose,
+  onSuccess,
+  onAlreadyRated,
+}) => {
+  const [entered, setEntered] = useState(false);
   const [rating, setRating] = useState(0);
+  const [hoveredRating, setHoveredRating] = useState<number | null>(null);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [resolvedCenterName, setResolvedCenterName] = useState<string>("");
+  const [resolvedCenterSlug, setResolvedCenterSlug] = useState<string>("");
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  if (!isOpen || !reservationId) return null;
+  useEffect(() => {
+    let innerFrame: number | null = null;
+    const outerFrame = requestAnimationFrame(() => {
+      innerFrame = requestAnimationFrame(() => setEntered(true));
+    });
+    return () => {
+      cancelAnimationFrame(outerFrame);
+      if (innerFrame !== null) cancelAnimationFrame(innerFrame);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
+
+  useEffect(() => {
+    const needsName =
+      !gamingCenterName?.trim() || gamingCenterName.trim() === "گیمنت";
+    const needsSlug = !gamingCenterSlug?.trim();
+
+    if ((!needsName && !needsSlug) || !gamingCenterId?.trim()) {
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+
+    gamingCenterService
+      .resolveGamingCenter(gamingCenterId.trim(), controller.signal)
+      .then((center) => {
+        if (!active || !center) return;
+        if (center.name) setResolvedCenterName(center.name);
+        if (center.slug) setResolvedCenterSlug(center.slug);
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [gamingCenterId, gamingCenterName, gamingCenterSlug]);
+
+  const handleClose = useCallback(() => {
+    if (submitting) return;
+    setEntered(false);
+    closeTimerRef.current = setTimeout(() => {
+      onClose();
+    }, 360);
+  }, [onClose, submitting]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleClose]);
+
+  const displayRating = hoveredRating ?? rating;
+  const activeRank = displayRating > 0 ? RATING_RANKS[displayRating] : null;
+  const centerTitle =
+    resolvedCenterName || gamingCenterName?.trim() || "گیم‌نت سایرا";
+  const effectiveSlug = resolvedCenterSlug || gamingCenterSlug?.trim() || "";
+  const whenText =
+    startTime && endTime ? formatReservationWhen(startTime, endTime) : "";
+
+  const toggleQuickChip = (chip: string) => {
+    setComment((prev) => {
+      const trimmed = prev.trim();
+      if (trimmed.includes(chip)) {
+        return trimmed
+          .replace(chip, "")
+          .replace(/\s*،\s*،\s*/g, "، ")
+          .replace(/^،\s*|\s*،$/g, "")
+          .trim();
+      }
+      return trimmed ? `${trimmed}، ${chip}` : chip;
+    });
+  };
 
   const handleSubmit = async () => {
-    if (submitting) return;
+    if (submitting || submitted) return;
     if (rating < 1) {
-      setError("لطفاً امتیاز خود را انتخاب کنید.");
+      setError("لطفاً یکی از کنترلرها را برای امتیاز انتخاب کنید.");
       return;
     }
     setSubmitting(true);
     setError("");
     try {
-      await customerReviewService.submitCustomerReview(reservationId, {
-        rating,
-        comment: comment.trim() || undefined,
-      });
-      setRating(0);
-      setComment("");
-      onSuccess();
+      await customerReviewService.submitCustomerReview(
+        reservationId,
+        {
+          rating,
+          comment: comment.trim() || undefined,
+        },
+        {
+          gamingCenterId,
+          gamingCenterSlug: effectiveSlug || undefined,
+          fallbackReservationIds,
+        }
+      );
+      setSubmitted(true);
+      successTimerRef.current = setTimeout(() => {
+        setEntered(false);
+        closeTimerRef.current = setTimeout(() => {
+          onSuccess(reservationId);
+        }, 320);
+      }, 1300);
     } catch (e) {
-      setError(getErrorMessage(e));
+      if (isAlreadyRatedError(e)) {
+        setError("شما قبلاً برای این رزرو نظر و امتیاز ثبت کرده‌اید.");
+        onAlreadyRated?.(reservationId);
+      } else {
+        setError(getErrorMessage(e));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -44,59 +271,262 @@ export const RatingModal: React.FC<RatingModalProps> = ({ isOpen, reservationId,
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4"
-      onClick={onClose}
+      className="fixed inset-0 z-50 overflow-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="gaming-review-title"
     >
       <div
-        className="w-full max-w-[460px] bg-[var(--bg-card)] border-t sm:border border-[var(--border-color)] rounded-t-2xl sm:rounded-card lg:rounded-[10px] p-5 flex flex-col gap-4 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        className={`fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity duration-400 ${
+          entered ? "opacity-100" : "opacity-0"
+        }`}
+        onClick={handleClose}
+      />
+
+      {/* Full-screen sliding panel: LEFT -> RIGHT */}
+      <div
+        dir="rtl"
+        className={`relative z-10 h-full w-full overflow-y-auto bg-[#080A07] text-[#F4F5EF] selection:bg-[#B8F34A] selection:text-[#080A07] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
+          entered ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
-        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-          <h3 className="text-base font-bold text-[var(--text-white)]">افزودن نظر</h3>
-          <button type="button" onClick={onClose} className="w-8 h-8 text-[var(--text-muted)] text-lg">
-            ✕
-          </button>
-        </div>
-
-        <div className="flex items-center justify-center gap-2" dir="ltr">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setRating(n)}
-              aria-label={`${n} ستاره`}
-              className={`text-4xl leading-none transition-transform active:scale-90 ${
-                n <= rating ? "text-[var(--accent-star)]" : "text-[var(--text-subtle)]"
-              }`}
-            >
-              ★
-            </button>
-          ))}
-        </div>
-
-        <textarea
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          rows={4}
-          placeholder="تجربه خود را بنویسید (اختیاری)"
-          className="w-full rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] p-3 text-sm text-[var(--text-white)] placeholder:text-[var(--text-subtle)] outline-none resize-none transition-colors"
+        {/* About-page style grid & neon aura */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_75%_18%,rgba(184,243,74,0.12),transparent_45%),linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:auto,64px_64px,64px_64px]"
         />
 
-        {error && (
-          <div className="p-3 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold">
-            {error}
-          </div>
-        )}
+        {/* Exact width of /reservations, compact single-viewport height */}
+        <div className="w-full max-w-[var(--max-mini-app-width)] mx-auto px-4 lg:px-0 py-4 sm:py-6 min-h-[100dvh] flex flex-col justify-center gap-4">
+          {/* Top Bar */}
+          <div className="flex items-center justify-between gap-3">
+            <div
+              className="inline-flex items-center gap-2 rounded-full border border-[#B8F34A]/20 bg-[#B8F34A]/5 px-3 py-1 text-[10px] tracking-[.2em] text-[#C8F78A]"
+              dir="ltr"
+            >
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#B8F34A]" />
+              {autoOpened ? "SAYRA / MISSION COMPLETE" : "SAYRA / REVIEW"}
+            </div>
 
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={submitting}
-          className="h-12 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-60 text-on-primary font-bold text-sm transition-all active:scale-[0.98]"
-        >
-          {submitting ? "در حال ثبت..." : "ثبت نظر"}
-        </button>
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={submitting}
+              aria-label="بستن"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-[#0D100B]/85 px-3.5 py-1.5 text-xs font-bold text-white/75 transition hover:border-[#B8F34A]/50 hover:text-[#B8F34A] active:scale-95 disabled:opacity-50"
+            >
+              <span>بعداً</span>
+              <span className="text-xs leading-none">✕</span>
+            </button>
+          </div>
+
+          {submitted ? (
+            <div className="flex flex-col items-center text-center py-9 px-5 rounded-3xl border border-[#B8F34A]/30 bg-[radial-gradient(ellipse_at_50%_30%,rgba(184,243,74,0.16),transparent_60%),#0D100B]">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[#B8F34A]/45 bg-[#080A07] shadow-[0_0_28px_rgba(184,243,74,0.28)]">
+                <ConsoleControllerIcon highlighted={true} />
+              </div>
+              <span
+                className="text-[10px] tracking-[.26em] text-[#B8F34A]"
+                dir="ltr"
+              >
+                GG WP · RECORDED
+              </span>
+              <h2 className="mt-1.5 text-2xl sm:text-3xl font-black text-white">
+                دمت گرم گیمر<span className="text-[#B8F34A]">!</span>
+              </h2>
+              <p className="mt-2 text-xs sm:text-sm text-white/65">
+                امتیاز{" "}
+                <span className="font-bold text-[#B8F34A]">
+                  {toPersianDigits(rating)} کنترلر
+                </span>{" "}
+                برای <span className="font-bold text-white">{centerTitle}</span>{" "}
+                ثبت شد.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (successTimerRef.current)
+                    clearTimeout(successTimerRef.current);
+                  onSuccess(reservationId);
+                }}
+                className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#B8F34A] px-6 py-2.5 text-xs sm:text-sm font-bold text-[#10130A] transition hover:bg-[#D1FF78]"
+              >
+                بازگشت به رزروها ↗
+              </button>
+            </div>
+          ) : (
+            <div className="relative overflow-hidden rounded-3xl border border-[#B8F34A]/20 bg-[radial-gradient(ellipse_at_88%_12%,rgba(184,243,74,0.12),transparent_42%),#0D100B] p-4 sm:p-6 flex flex-col gap-4">
+              {/* Compact Header with Prominent Gaming Center Name */}
+              <div className="flex flex-col gap-2 border-b border-white/10 pb-3.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#B8F34A]/35 bg-[#B8F34A]/12 px-3 py-0.5 text-xs font-extrabold text-[#B8F34A]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#B8F34A]" />
+                    {centerTitle}
+                  </span>
+                  {stationName && (
+                    <span className="text-[11px] text-white/60">
+                      {stationName}
+                    </span>
+                  )}
+                  {whenText && (
+                    <span className="text-[11px] text-white/40">
+                      · {whenText}
+                    </span>
+                  )}
+                </div>
+
+                <h1
+                  id="gaming-review-title"
+                  className="text-xl sm:text-2xl font-black leading-snug tracking-tight"
+                >
+                  تجربه‌ات در{" "}
+                  <span className="text-[#B8F34A]">{centerTitle}</span> چطور
+                  بود<span className="text-[#B8F34A]">؟</span>
+                </h1>
+              </div>
+
+              {/* 01 — Console Controller Rating (No background, tight spacing) */}
+              <div className="flex flex-col items-center gap-2 py-1">
+                <div
+                  className="flex items-center justify-center gap-1.5 sm:gap-2.5"
+                  dir="ltr"
+                  onMouseLeave={() => setHoveredRating(null)}
+                >
+                  {[1, 2, 3, 4, 5].map((value) => {
+                    const isSelected = value <= rating;
+                    const isHighlighted = value <= displayRating;
+
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          setRating(value);
+                          if (error) setError("");
+                        }}
+                        onMouseEnter={() => setHoveredRating(value)}
+                        aria-label={`امتیاز ${toPersianDigits(value)} از ۵ کنترلر`}
+                        aria-pressed={isSelected}
+                        className="group relative flex flex-col items-center justify-center gap-0.5 bg-transparent border-0 p-1 focus:outline-none cursor-pointer transition-transform active:scale-90"
+                      >
+                        <ConsoleControllerIcon highlighted={isHighlighted} />
+                        <span
+                          className={`text-[11px] font-black transition-colors ${
+                            isHighlighted ? "text-[#B8F34A]" : "text-white/35"
+                          }`}
+                        >
+                          {toPersianDigits(value)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Single-line Rank Status */}
+                <div className="min-h-[24px] flex items-center justify-center gap-2 text-center">
+                  {activeRank ? (
+                    <>
+                      <span
+                        className="rounded bg-[#B8F34A] px-1.5 py-0.5 text-[10px] font-black text-[#10130A]"
+                        dir="ltr"
+                      >
+                        {activeRank.badge}
+                      </span>
+                      <span className="text-xs font-bold text-[#E8FFB8]">
+                        {activeRank.title}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-xs text-white/45">
+                      با انتخاب کنترلرها از ۱ تا ۵ امتیاز بده
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* 02 — Quick Vibes + Comment */}
+              <div className="flex flex-col gap-2.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {QUICK_VIBE_CHIPS.map((chip) => {
+                    const selected = comment.includes(chip);
+                    return (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => toggleQuickChip(chip)}
+                        className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition active:scale-95 ${
+                          selected
+                            ? "border-[#B8F34A] bg-[#B8F34A]/15 text-[#D7F8A6]"
+                            : "border-white/10 bg-white/[0.03] text-white/60 hover:border-[#B8F34A]/40 hover:text-white"
+                        }`}
+                      >
+                        {chip}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  rows={3}
+                  maxLength={500}
+                  placeholder="حس‌وحالت از بازی، کیفیت سیستم‌ها یا فضا رو بنویس... (اختیاری)"
+                  className="w-full rounded-2xl border border-white/15 bg-[#080A07] px-3.5 py-2.5 text-xs sm:text-sm leading-6 text-white placeholder:text-white/35 outline-none resize-none transition-colors focus:border-[#B8F34A]"
+                />
+
+                <div className="flex items-center justify-between text-[11px] text-white/40">
+                  <span>هر رزرو فقط یک بار قابل امتیازدهی است</span>
+                  <span>{toPersianDigits(comment.length)} / ۵۰۰</span>
+                </div>
+              </div>
+
+              {error && (
+                <div className="rounded-xl border border-[#EF4444]/40 bg-[#EF4444]/10 px-3.5 py-2 text-xs font-bold text-[#FCA5A5]">
+                  {error}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex items-center gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="flex-1 h-11 rounded-full bg-[#B8F34A] hover:bg-[#D1FF78] disabled:opacity-60 text-[#10130A] font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-[0_6px_22px_rgba(184,243,74,0.24)] transition active:scale-[0.98]"
+                >
+                  <span>{submitting ? "در حال ثبت..." : "ثبت امتیاز و نظر"}</span>
+                  {!submitting && <span aria-hidden="true">↗</span>}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  disabled={submitting}
+                  className="h-11 px-5 rounded-full border border-white/15 text-xs font-bold text-white/70 transition hover:border-white/35 hover:text-white disabled:opacity-50"
+                >
+                  فعلاً رد شو
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
+  );
+};
+
+export const RatingModal: React.FC<RatingModalProps> = ({
+  isOpen,
+  reservationId,
+  ...rest
+}) => {
+  if (!isOpen || !reservationId) return null;
+  return (
+    <RatingModalPanel
+      key={reservationId}
+      reservationId={reservationId}
+      {...rest}
+    />
   );
 };

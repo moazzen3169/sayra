@@ -1,7 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, spyOn } from "bun:test";
-import { customerReviewService } from "./customerReviewService";
+import {
+  customerReviewService,
+  isAlreadyRatedError,
+} from "./customerReviewService";
+import {
+  getMostRecentEligibleReviewTarget,
+  getRatableReservationIds,
+} from "@/lib/reservationReview";
+import { groupCustomerReservations } from "@/lib/groupReservationGrouping";
 import { apiClient, ApiError } from "@/lib/api/client";
 import { ContractGapError } from "@/types/customerApi";
+import type { Reservation } from "@/types/reservation";
 import * as tokenModule from "@/lib/token";
 
 describe("Phase 18: Customer Reviews and Ratings", () => {
@@ -202,6 +211,82 @@ describe("Phase 18: Customer Reviews and Ratings", () => {
         comment: "متوسط بود.",
       });
     });
+
+    it("falls back to POST /public/gamingCenters/{slug}/reservation/{id}/ratings when customer endpoint returns 404", async () => {
+      const calls: string[] = [];
+
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        calls.push(`${init?.method ?? "GET"} ${url}`);
+        if (url.includes("/customer/reservation/res-404/ratings")) {
+          return new Response(
+            JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Not found" } }),
+            { status: 404, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        if (url.includes("/public/gamingCenters/arena-club/reservation/res-404/ratings")) {
+          return new Response(JSON.stringify({ success: true }), {
+            status: 201,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ success: false }), { status: 404 });
+      }) as any;
+
+      await customerReviewService.submitCustomerReview(
+        "res-404",
+        { rating: 5, comment: "خیلی عالی" },
+        { gamingCenterSlug: "arena-club" }
+      );
+
+      expect(calls.length).toBe(2);
+      expect(calls[0]).toContain("POST");
+      expect(calls[0]).toContain("/customer/reservation/res-404/ratings");
+      expect(calls[1]).toContain("POST");
+      expect(calls[1]).toContain("/public/gamingCenters/arena-club/reservation/res-404/ratings");
+    });
+
+    it("resolves gamingCenterSlug from gamingCenterId before falling back on 404", async () => {
+      const calls: string[] = [];
+
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        calls.push(`${init?.method ?? "GET"} ${url}`);
+        if (url.includes("/customer/reservation/res-404-id/ratings")) {
+          return new Response(
+            JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Not found" } }),
+            { status: 404, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        if (url.endsWith("/public/gamingCenters/gc-uuid-77")) {
+          return new Response(
+            JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Not found" } }),
+            { status: 404, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        if (url.endsWith("/gamingCenters/gc-uuid-77")) {
+          return new Response(
+            JSON.stringify({ success: true, data: { id: "gc-uuid-77", slug: "cyber-zone", name: "سایبر زون" } }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        if (url.includes("/public/gamingCenters/cyber-zone/reservation/res-404-id/ratings")) {
+          return new Response(JSON.stringify({ success: true }), {
+            status: 201,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ success: false }), { status: 404 });
+      }) as any;
+
+      await customerReviewService.submitCustomerReview(
+        "res-404-id",
+        { rating: 4 },
+        { gamingCenterId: "gc-uuid-77" }
+      );
+
+      expect(calls.some((c) => c.includes("/public/gamingCenters/cyber-zone/reservation/res-404-id/ratings"))).toBe(true);
+    });
   });
 
   describe("3. Validation & Rating Scale Constraints (1 to 5)", () => {
@@ -370,6 +455,109 @@ describe("Phase 18: Customer Reviews and Ratings", () => {
   describe("6. Production Safety Guarantee", () => {
     it("ensures no real production requests are ever triggered by tests", () => {
       expect(process.env.NODE_ENV).toBe("test");
+    });
+  });
+
+  describe("7. Single-Review-Per-Reservation & Group ID Resolution", () => {
+    it("extracts real child reservation IDs instead of groupBookingId for merged group envelopes", () => {
+      const mergedGroup: Reservation = {
+        id: "grp-900",
+        groupBookingId: "grp-900",
+        gamingCenterId: "gc-1",
+        stationId: "st-1",
+        startTime: "2026-11-10T10:00:00.000Z",
+        endTime: "2026-11-10T12:00:00.000Z",
+        status: "COMPLETED",
+        paymentState: "PAID",
+        totalHours: 2,
+        totalPrice: 400000,
+        items: [
+          { id: "res-child-1", stationName: "PS5-1" },
+          { id: "res-child-2", stationName: "PS5-2" },
+        ],
+      };
+
+      expect(getRatableReservationIds(mergedGroup)).toEqual([
+        "res-child-1",
+        "res-child-2",
+      ]);
+    });
+
+    it("detects already-rated COMPLETED reservations from center public ratings and selects most recent unrated target", async () => {
+      globalThis.fetch = (async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/public/gamingCenters/pro-arena/ratings")) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: [
+                {
+                  id: "rat-1",
+                  gamingCenterId: "gc-1",
+                  reservationId: "res-old-rated",
+                  rating: 5,
+                  status: "PUBLISHED",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        return new Response(JSON.stringify({ success: false }), { status: 404 });
+      }) as any;
+
+      const reservations: Reservation[] = [
+        {
+          id: "res-old-rated",
+          gamingCenterId: "gc-1",
+          gamingCenterSlug: "pro-arena",
+          gamingCenterName: "پرو آرنا",
+          stationId: "st-1",
+          startTime: "2026-11-01T10:00:00.000Z",
+          endTime: "2026-11-01T12:00:00.000Z",
+          status: "COMPLETED",
+          paymentState: "PAID",
+          totalHours: 2,
+          totalPrice: 200000,
+        },
+        {
+          id: "res-new-unrated",
+          gamingCenterId: "gc-1",
+          gamingCenterSlug: "pro-arena",
+          gamingCenterName: "پرو آرنا",
+          stationId: "st-2",
+          startTime: "2026-11-12T15:00:00.000Z",
+          endTime: "2026-11-12T17:00:00.000Z",
+          status: "COMPLETED",
+          paymentState: "PAID",
+          totalHours: 2,
+          totalPrice: 250000,
+        },
+        {
+          id: "res-pending",
+          gamingCenterId: "gc-1",
+          gamingCenterSlug: "pro-arena",
+          gamingCenterName: "پرو آرنا",
+          stationId: "st-3",
+          startTime: "2026-11-19T18:00:00.000Z",
+          endTime: "2026-11-19T20:00:00.000Z",
+          status: "CONFIRMED",
+          paymentState: "PAID",
+          totalHours: 2,
+          totalPrice: 250000,
+        },
+      ];
+
+      const ratedIds = await customerReviewService.getRatedReservationIdsForReservations(reservations);
+      expect(ratedIds.has("res-old-rated")).toBe(true);
+      expect(ratedIds.has("res-new-unrated")).toBe(false);
+
+      const entries = groupCustomerReservations(reservations);
+      const target = getMostRecentEligibleReviewTarget(entries, ratedIds);
+      expect(target?.reservationId).toBe("res-new-unrated");
+      expect(target?.gamingCenterName).toBe("پرو آرنا");
+
+      expect(isAlreadyRatedError(new ApiError(409, "ALREADY_RATED", "Already rated"))).toBe(true);
     });
   });
 });

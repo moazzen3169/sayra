@@ -60,11 +60,19 @@ export interface Reservation {
 
   // ⚠️ فیلدهای زیر در OpenAPI فعلی (v1.0-LOCKED) وجود ندارند.
   // اختیاری هستند و تا تأیید بک‌اند فقط در صورت وجود نمایش داده می‌شوند.
+  gamingCenterSlug?: string;
   gamingCenterName?: string;
   gamingCenterAddress?: string;
+  gamingCenter?: {
+    id?: string;
+    slug?: string;
+    name?: string;
+    address?: string;
+  } | null;
   reservationCode?: string;
   canRate?: boolean;
   isRated?: boolean;
+  rating?: number | { id?: string; rating?: number; comment?: string };
 }
 
 export interface GroupedDeviceItem {
@@ -82,6 +90,7 @@ export interface GroupBookingItem {
   isGroup: true;
   groupBookingId: string;
   gamingCenterId: string;
+  gamingCenterSlug?: string;
   gamingCenterName?: string;
   gamingCenterAddress?: string;
   startTime: string;

@@ -240,6 +240,8 @@ export interface PublicRating {
   status?: "PUBLISHED" | "HIDDEN" | "DELETED";
   createdAt?: string;
   author?: string;
+  reply?: string;
+  repliedAt?: string;
 }
 
 // ---------------------------------------------------------------------------

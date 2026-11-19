@@ -53,6 +53,8 @@ export const ENDPOINTS = {
     cancel: (reservationId: string) => `/customer/reservation/${enc(reservationId)}/cancel`,
     reschedule: (reservationId: string) => `/customer/reservation/${enc(reservationId)}/reschedule`,
     rate: (reservationId: string) => `/customer/reservation/${enc(reservationId)}/ratings`,
+    publicRate: (gamingCenterSlug: string, reservationId: string) =>
+      `/public/gamingCenters/${enc(gamingCenterSlug)}/reservation/${enc(reservationId)}/ratings`,
     proposals: (reservationId: string) => `/customer/reservation/${enc(reservationId)}/proposals`,
     acceptProposal: (reservationId: string, proposalId: string) =>
       `/customer/reservation/${enc(reservationId)}/proposals/${enc(proposalId)}/accept`,
@@ -272,8 +274,11 @@ export const ENDPOINTS = {
     linkDetail: (c: string, l: string) => `/gamingCenters/${enc(c)}/links/${enc(l)}`,
     mediaUpload: (c: string) => `/gamingCenters/${enc(c)}/media/upload`,
     mediaPatch: (c: string, mediaId: string) => `/gamingCenters/${enc(c)}/media/${enc(mediaId)}`,
+    mediaDelete: (c: string, mediaId: string) => `/gamingCenters/${enc(c)}/media/${enc(mediaId)}`,
     ratingStatus: (c: string, ratingId: string) =>
       `/gamingCenters/${enc(c)}/ratings/${enc(ratingId)}/status`,
+    ratingReply: (c: string, ratingId: string) =>
+      `/gamingCenters/${enc(c)}/ratings/${enc(ratingId)}/reply`,
     analyticsSummary: (c: string) => `/gamingCenters/${enc(c)}/analytics/summary`,
     commissions: (c: string) => `/gamingCenters/${enc(c)}/commissions`,
     tickets: "/tickets",

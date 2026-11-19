@@ -143,6 +143,12 @@ describe("Phase 9 Task 3: Owner Workflow Tests", () => {
           { status: 200, headers: { "Content-Type": "application/json" } }
         );
       }
+      if (urlStr.includes("/gamingCenters/gc-10/media/med-1") && init?.method === "DELETE") {
+        return new Response(
+          JSON.stringify({ success: true, message: "تصویر با موفقیت حذف شد." }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
       return new Response(JSON.stringify({ success: false }), { status: 404 });
     }) as unknown as typeof fetch;
 
@@ -153,6 +159,10 @@ describe("Phase 9 Task 3: Owner Workflow Tests", () => {
     const mediaList = await ownerService.listMedia("golden-center");
     expect(mediaList.length).toBe(1);
     expect(mediaList[0].id).toBe("med-1");
+
+    await expect(ownerService.deleteMedia("gc-10", "med-1")).resolves.toBeUndefined();
+    await expect(ownerService.deleteMedia("", "med-1")).rejects.toThrow();
+    await expect(ownerService.deleteMedia("gc-10", "")).rejects.toThrow();
   });
 
   it("5. loads reservations with pagination and single detail", async () => {

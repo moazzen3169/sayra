@@ -202,6 +202,42 @@ export default function OwnerDashboardPage() {
     [centerId, uploading]
   );
 
+  const centerSlug = center?.slug;
+
+  // حذف عکس پس از تأیید کاربر
+  const handleConfirmDeleteMedia = useCallback(async () => {
+    if (deletingImage || !deleteConfirmMedia || !centerId) return;
+
+    const target = deleteConfirmMedia;
+    const targetId = target.id || target.url;
+    const isSameMedia = (item: MediaItem) =>
+      item === target ||
+      (Boolean(item.id) && Boolean(target.id)
+        ? item.id === target.id
+        : item.url === target.url);
+    const remainingCount = media.filter((item) => !isSameMedia(item)).length;
+
+    setDeletingImage(true);
+    setGalleryMsg(null);
+
+    try {
+      await ownerService.deleteMedia(centerId, targetId);
+      setMedia((prev) => prev.filter((item) => !isSameMedia(item)));
+      setDeleteConfirmMedia(null);
+      setGalleryMsg({ ok: true, text: "تصویر از گالری حذف شد." });
+
+      const updated = await ownerService.listMedia(centerSlug || centerId);
+      if (Array.isArray(updated) && (updated.length > 0 || remainingCount === 0)) {
+        setMedia(updated.filter((item) => !isSameMedia(item)));
+      }
+    } catch (err) {
+      setDeleteConfirmMedia(null);
+      setGalleryMsg({ ok: false, text: getErrorMessage(err) });
+    } finally {
+      setDeletingImage(false);
+    }
+  }, [centerId, centerSlug, deleteConfirmMedia, deletingImage, media]);
+
   const galleryItems = React.useMemo(
     () => media.filter((m) => m.purpose !== "LOGO" && Boolean(m.url)),
     [media]
@@ -549,7 +585,7 @@ export default function OwnerDashboardPage() {
                             type="button"
                             onClick={() => setDeleteConfirmMedia(img)}
                             aria-label="حذف عکس"
-                            className="absolute top-1.5 right-1.5 w-9 h-9 rounded-full bg-black/80 hover:bg-[var(--accent-red)] text-white flex items-center justify-center transition-colors shadow-md"
+                            className="absolute top-1.5 right-1.5 z-10 w-9 h-9 rounded-full bg-black/80 hover:bg-[var(--accent-red)] text-white flex items-center justify-center transition-colors shadow-md cursor-pointer"
                           >
                             <Icon name="close" size={16} />
                           </button>
@@ -627,24 +663,8 @@ export default function OwnerDashboardPage() {
               <button
                 type="button"
                 disabled={deletingImage}
-                onClick={async () => {
-                  if (deletingImage || !deleteConfirmMedia) return;
-                  setDeletingImage(true);
-                  try {
-                    const targetId = deleteConfirmMedia.id || deleteConfirmMedia.url;
-                    await ownerService.deleteMedia(centerId, targetId);
-                    const updated = await ownerService.listMedia(center?.slug || centerId);
-                    setMedia(Array.isArray(updated) ? updated : []);
-                    setDeleteConfirmMedia(null);
-                    setGalleryMsg({ ok: true, text: "تصویر از گالری حذف شد." });
-                  } catch (err) {
-                    setDeleteConfirmMedia(null);
-                    setGalleryMsg({ ok: false, text: getErrorMessage(err) });
-                  } finally {
-                    setDeletingImage(false);
-                  }
-                }}
-                className="flex-1 h-11 rounded-card bg-[var(--accent-red)] text-white font-bold text-xs disabled:opacity-60"
+                onClick={handleConfirmDeleteMedia}
+                className="flex-1 h-11 rounded-card bg-[var(--accent-red)] text-white font-bold text-xs disabled:opacity-60 cursor-pointer"
               >
                 {deletingImage ? "در حال حذف..." : "حذف تصویر"}
               </button>
@@ -652,7 +672,7 @@ export default function OwnerDashboardPage() {
                 type="button"
                 disabled={deletingImage}
                 onClick={() => setDeleteConfirmMedia(null)}
-                className="h-11 px-4 rounded-card bg-[var(--foreground)] text-xs font-bold text-[var(--text-white)]"
+                className="h-11 px-4 rounded-card bg-[var(--foreground)] text-xs font-bold text-[var(--text-white)] cursor-pointer"
               >
                 انصراف
               </button>
