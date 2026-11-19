@@ -1,7 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { SafeImage } from "@/components/ui/SafeImage";
-import { PLACEHOLDERS } from "@/lib/media";
+import { SayraNetworkAnimation } from "./SayraNetworkAnimation";
 
 export const OwnerGrowthSection: React.FC = () => {
   return (
@@ -93,44 +92,14 @@ export const OwnerGrowthSection: React.FC = () => {
           </div>
         </div>
 
-        {/* Left side (RTL): Vertical 4:6 Photo Slot */}
+        {/* Left side (RTL): Continuous SAYRA Network Animation (4:5) */}
         <div className="relative order-1 mx-auto w-full max-w-[300px] sm:max-w-[340px] lg:order-2 lg:max-w-[380px]">
           <div
             aria-hidden="true"
             className="pointer-events-none absolute -inset-4 rounded-full bg-[#B8F34A]/10 blur-[64px]"
           />
 
-          <div className="relative aspect-[4/6] w-full overflow-hidden rounded-[22px] border border-white/10 bg-[#080A07]">
-            <SafeImage
-              src="/img/gamnet-2.webp"
-              alt="فضای حرفه‌ای و تجهیزات یک گیمنت"
-              fallbackSrc={PLACEHOLDERS.center}
-              className="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.03]"
-            />
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#080A07]/80 via-transparent to-black/20"
-            />
-          </div>
-
-          <div
-            className="absolute right-3 top-4 rounded-full border border-[#B8F34A]/25 bg-[#0D100A]/80 px-4 py-1.5 text-[9px] tracking-[.2em] text-[#D7F8A6] backdrop-blur"
-            dir="ltr"
-          >
-            OWNER PORTAL
-          </div>
-
-          <div className="absolute bottom-4 left-3 rounded-xl border border-white/10 bg-[#0D100A]/80 px-4 py-2.5 shadow-2xl backdrop-blur">
-            <div
-              className="text-[9px] tracking-[.22em] text-[#B8F34A]"
-              dir="ltr"
-            >
-              5 SIMPLE STEPS
-            </div>
-            <div className="mt-1 text-xs text-white/75">
-              ثبت سریع و تسویه ۳ روزه
-            </div>
-          </div>
+          <SayraNetworkAnimation />
         </div>
       </div>
     </section>

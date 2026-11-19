@@ -13,6 +13,7 @@
     "clsx": "^2.1.1",
     "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
+    "gsap": "^3.15.1",
     "leaflet": "^1.9.4",
     "next": "16.3.6",
     "react": "19.2.8",
