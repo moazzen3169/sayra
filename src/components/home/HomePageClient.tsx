@@ -18,6 +18,7 @@ import {
 import { DiscountedCentersSection } from "@/components/DiscountedCentersSection";
 import { CustomerExperienceSection } from "@/components/home/CustomerExperienceSection";
 import { OwnerGrowthSection } from "@/components/home/OwnerGrowthSection";
+import { GameCentersMap } from "@/components/map/GameCentersMap";
 import { HomeBlogSection } from "@/components/blog/HomeBlogSection";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -320,13 +321,16 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
         {/* ۵. بخش مشتریان */}
         <CustomerExperienceSection />
 
-        {/* ۶. وبلاگ */}
+        {/* ۶. نقشه گیمنت‌های متصل */}
+        <GameCentersMap city={selectedCity} enabled={isCityReady} />
+
+        {/* ۷. وبلاگ */}
         <HomeBlogSection
           initialPosts={initialBlogPosts}
           initialLoaded={initialBlogLoaded}
         />
 
-        {/* ۷. بخش صاحبان گیمنت */}
+        {/* ۸. بخش صاحبان گیمنت */}
         <OwnerGrowthSection />
       </main>
 

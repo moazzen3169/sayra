@@ -45,6 +45,13 @@ export const ENDPOINTS = {
       `/public/gamingCenters/${enc(slug)}/pages/${enc(pageSlug)}`,
     publicClosures: (slug: string) => `/public/gamingCenters/${enc(slug)}/closures`,
     publicSchedules: (slug: string) => `/public/gamingCenters/${enc(slug)}/schedules`,
+    /**
+     * Public map markers endpoint filtered by required `city` query parameter.
+     * Override via NEXT_PUBLIC_CONNECTED_GAME_CENTERS_ENDPOINT if needed.
+     */
+    connectedMap:
+      process.env.NEXT_PUBLIC_CONNECTED_GAME_CENTERS_ENDPOINT?.trim() ||
+      "/public/gaming-centers/map",
   },
   reservation: {
     create: (gamingCenterSlug: string) => `/public/gamingCenters/${enc(gamingCenterSlug)}/reservation`,

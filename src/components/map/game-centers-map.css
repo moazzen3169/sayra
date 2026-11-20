@@ -1,0 +1,333 @@
+.sayra-map-frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-body);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.sayra-map-vignette {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 350;
+  border-radius: inherit;
+  box-shadow: inset 0 0 28px rgba(16, 16, 20, 0.55);
+}
+
+.sayra-map-container {
+  position: relative;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-body);
+  font-family: var(--font-sans);
+  direction: ltr;
+}
+
+/* Fallback raster OSM dark theme when WebGL or vector tiles are unavailable */
+.sayra-osm-dark-tile {
+  filter: invert(100%) hue-rotate(180deg) brightness(0.84) contrast(0.96) saturate(0.55);
+}
+
+/* ---------- Custom Saira LMarker ---------- */
+.sayra-map-marker-icon {
+  background: transparent;
+  border: none;
+}
+
+.sayra-map-marker-root {
+  position: relative;
+  width: 0;
+  height: 0;
+  direction: ltr;
+}
+
+.sayra-map-marker {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  transform: translateX(-50%);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sayra-map-marker-label {
+  direction: rtl;
+  unicode-bidi: plaintext;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 4px 10px;
+  margin-bottom: 5px;
+  border-radius: 8px;
+  background-color: rgba(31, 31, 35, 0.94);
+  border: 1px solid var(--border-color);
+  color: var(--text-white);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  transition: border-color 0.16s ease, color 0.16s ease, background-color 0.16s ease,
+    transform 0.16s ease;
+}
+
+@media (min-width: 640px) {
+  .sayra-map-marker-label {
+    max-width: 152px;
+  }
+}
+
+.sayra-map-marker-pin-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sayra-map-marker-pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.16s ease;
+}
+
+.sayra-map-marker-anchor-ring {
+  width: 12px;
+  height: 5px;
+  margin-top: -3px;
+  border-radius: 9999px;
+  background-color: rgba(184, 243, 74, 0.28);
+  border: 1px solid rgba(184, 243, 74, 0.45);
+  transition: transform 0.16s ease, background-color 0.16s ease;
+}
+
+.sayra-map-marker:hover .sayra-map-marker-label,
+.leaflet-marker-icon:focus-visible .sayra-map-marker-label {
+  border-color: var(--primary);
+  color: var(--primary);
+  background-color: var(--bg-body);
+  transform: translateY(-1px);
+}
+
+.sayra-map-marker:hover .sayra-map-marker-pin,
+.leaflet-marker-icon:focus-visible .sayra-map-marker-pin {
+  transform: translateY(-2px);
+}
+
+.sayra-map-marker:hover .sayra-map-marker-anchor-ring,
+.leaflet-marker-icon:focus-visible .sayra-map-marker-anchor-ring {
+  transform: scale(1.2);
+  background-color: rgba(184, 243, 74, 0.42);
+}
+
+.sayra-map-container .leaflet-marker-icon:focus-visible {
+  outline: none;
+}
+
+/* ---------- User Location Marker ("من کجام") ---------- */
+.sayra-user-location-icon {
+  background: transparent;
+  border: none;
+}
+
+.sayra-user-location-root {
+  position: relative;
+  width: 0;
+  height: 0;
+  direction: ltr;
+}
+
+.sayra-user-location {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  user-select: none;
+}
+
+.sayra-user-location-label {
+  position: absolute;
+  bottom: 18px;
+  direction: rtl;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background-color: rgba(16, 16, 20, 0.92);
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  color: #e0f2fe;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 700;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+}
+
+.sayra-user-location-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background-color: #38bdf8;
+  border: 2.5px solid var(--text-white);
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.25), 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.sayra-user-accuracy-circle {
+  stroke: #38bdf8;
+  stroke-width: 1;
+  stroke-opacity: 0.45;
+  fill: #38bdf8;
+  fill-opacity: 0.12;
+}
+
+/* ---------- Custom Saira LPopup ---------- */
+.sayra-map-container .leaflet-popup-content-wrapper {
+  background-color: var(--bg-card);
+  color: var(--text-white);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+  font-family: var(--font-sans);
+  direction: rtl;
+}
+
+.sayra-map-container .leaflet-popup-content {
+  margin: 0;
+  min-width: 168px;
+  max-width: 220px;
+}
+
+.sayra-map-container .leaflet-popup-tip-container {
+  width: 20px;
+  height: 10px;
+}
+
+.sayra-map-container .leaflet-popup-tip {
+  background-color: var(--bg-card);
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: none;
+}
+
+.sayra-map-container .leaflet-popup-close-button {
+  top: 8px;
+  left: 8px;
+  right: auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 24px;
+  text-align: center;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sayra-map-container .leaflet-popup-close-button:hover {
+  background-color: var(--foreground);
+  color: var(--text-white);
+}
+
+/* ---------- Zoom & Custom Controls ---------- */
+.sayra-map-container .leaflet-top.leaflet-left {
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sayra-map-container .leaflet-top.leaflet-left .leaflet-control {
+  margin: 0;
+}
+
+.sayra-map-container .leaflet-control-zoom,
+.sayra-map-recenter-control {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  background-color: rgba(31, 31, 35, 0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.sayra-map-container .leaflet-control-zoom a,
+.sayra-map-recenter-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  color: var(--text-white);
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  width: 36px;
+  height: 36px;
+  line-height: 36px;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sayra-map-container .leaflet-control-zoom a:last-child,
+.sayra-map-recenter-btn {
+  border-bottom: none;
+}
+
+.sayra-map-container .leaflet-control-zoom a:hover,
+.sayra-map-container .leaflet-control-zoom a:focus-visible,
+.sayra-map-recenter-btn:hover,
+.sayra-map-recenter-btn:focus-visible {
+  background-color: var(--foreground);
+  color: var(--primary);
+  outline: none;
+}
+
+.sayra-map-container .leaflet-control-attribution {
+  background-color: rgba(16, 16, 20, 0.82);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-top: 1px solid var(--border-subtle);
+  border-left: 1px solid var(--border-subtle);
+  border-top-left-radius: 8px;
+  backdrop-filter: blur(6px);
+}
+
+.sayra-map-container .leaflet-control-attribution a {
+  color: var(--text-white);
+  text-decoration: none;
+}
+
+.sayra-map-container .leaflet-control-attribution a:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sayra-map-marker-label,
+  .sayra-map-marker-pin,
+  .sayra-map-marker-anchor-ring,
+  .sayra-map-container .leaflet-control-zoom a,
+  .sayra-map-recenter-btn {
+    transition: none;
+  }
+}

@@ -99,7 +99,7 @@ The following table summarizes all operations absent from OpenAPI v1.0-LOCKED an
 | **Customer Review Edit** | `PATCH /customer/ratings/{id}` | **Absent from OpenAPI** | Throws `ContractGapError("CustomerReviewEdit", ...)` |
 | **Customer Review Delete** | `DELETE /customer/ratings/{id}` | **Absent from OpenAPI** | Throws `ContractGapError("CustomerReviewDelete", ...)` |
 | **Standalone Review Creation** | `POST /public/gamingCenters/{slug}/ratings` | **Absent from OpenAPI** | Throws `ContractGapError("CustomerStandaloneReview", ...)` |
-| **Author Name & Avatar in Rating** | `Rating.customerName`, `Rating.customerAvatar` | **Absent from Schema** | Optional UI fallbacks ("کاربر سایت") without mock names |
+| **Author Name & Avatar in Rating** | `Rating.customerName`, `Rating.customerAvatar` | **Absent from Schema** | Optional UI fallbacks ("کاربر سایرا") without mock names |
 | **Creation Timestamp in Rating** | `Rating.createdAt` | **Absent from Schema** | UI handles optional timestamp cleanly |
 | **Owner Public Reply in Rating** | `Rating.reply`, `Rating.repliedAt` | **Absent from Schema** | Documented in `OWNER_REVIEWS_API_CONTRACT.md` |
 

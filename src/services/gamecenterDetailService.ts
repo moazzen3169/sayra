@@ -309,7 +309,7 @@ export function mapRatingsToReviews(ratings: PublicRating[]): GamecenterReview[]
 
       return {
         id: r.id || `rating-${idx + 1}`,
-        author: r.author || r.customerName || "کاربر سایت",
+        author: r.author || r.customerName || "کاربر سایرا",
         rating: typeof r.rating === "number" ? r.rating : 5,
         comment: commentText,
         createdAt: r.createdAt || undefined,

@@ -165,7 +165,7 @@ describe("Phase 6: Gaming-Center Detail Data (Mocked Network)", () => {
       expect(reviews.length).toBe(2);
       expect(reviews[0].author).toBe("مهدی");
       expect(reviews[0].rating).toBe(5);
-      expect(reviews[1].author).toBe("کاربر سایت");
+      expect(reviews[1].author).toBe("کاربر سایرا");
       expect(reviews[1].rating).toBe(4);
     });
 
