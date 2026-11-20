@@ -154,6 +154,45 @@ function unwrapTicketsList(resData: unknown): any[] {
   return [];
 }
 
+async function bulkDeletePaginatedItems<T extends { id: string }>(
+  fetchPage: (page: number) => Promise<AdminPaginatedResult<T>>,
+  deleteItem: (id: string) => Promise<boolean>,
+  onProgress?: (current: number, total: number) => void,
+): Promise<{ deleted: number; failed: number; total: number }> {
+  const uniqueIds: string[] = [];
+  const seen = new Set<string>();
+  let currentPage = 1;
+  let totalPages = 1;
+
+  do {
+    const res = await fetchPage(currentPage);
+    for (const item of res.items) {
+      if (item.id && !seen.has(item.id)) {
+        seen.add(item.id);
+        uniqueIds.push(item.id);
+      }
+    }
+    totalPages = res.totalPages || 1;
+    currentPage += 1;
+  } while (currentPage <= totalPages);
+
+  let deleted = 0;
+  let failed = 0;
+  const total = uniqueIds.length;
+
+  for (let i = 0; i < total; i++) {
+    try {
+      await deleteItem(uniqueIds[i]);
+      deleted += 1;
+    } catch {
+      failed += 1;
+    }
+    onProgress?.(i + 1, total);
+  }
+
+  return { deleted, failed, total };
+}
+
 export const adminService = {
   /**
    * Retrieves dashboard summary metrics, trends, pending action items, and recent reservations.
@@ -901,6 +940,16 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     return true;
   },
 
+  async deleteAllGamecenters(
+    onProgress?: (current: number, total: number) => void,
+  ): Promise<{ deleted: number; failed: number; total: number }> {
+    return bulkDeletePaginatedItems(
+      (page) => adminService.getGamecenters({ page, pageSize: 100 }),
+      (id) => adminService.deleteGamecenter(id),
+      onProgress,
+    );
+  },
+
   /**
    * دریافت لیست تصاویر گالری یک گیمنت
    * GET /public/gamingCenters/{slug}/media
@@ -1551,6 +1600,16 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
   async deleteUser(id: string): Promise<boolean> {
     await apiClient.delete(ENDPOINTS.platformAdmin.userById(id));
     return true;
+  },
+
+  async deleteAllUsers(
+    onProgress?: (current: number, total: number) => void,
+  ): Promise<{ deleted: number; failed: number; total: number }> {
+    return bulkDeletePaginatedItems(
+      (page) => adminService.getUsers({ page, pageSize: 100 }),
+      (id) => adminService.deleteUser(id),
+      onProgress,
+    );
   },
 
   async getUserReservations(

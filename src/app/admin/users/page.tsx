@@ -10,6 +10,10 @@ import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { UserFormModal } from "@/components/admin/users/UserFormModal";
 import { DeleteConfirmationModal } from "@/components/admin/gamecenters/DeleteConfirmationModal";
+import {
+  BulkDeleteConfirmationModal,
+  BulkDeleteResult,
+} from "@/components/admin/BulkDeleteConfirmationModal";
 import { AdminUser } from "@/types/admin";
 import { adminService } from "@/services/adminService";
 
@@ -33,6 +37,7 @@ export default function UsersAdminPage() {
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
   const [deletingRelatedInfo, setDeletingRelatedInfo] = useState<{
     ticketsCount?: number;
@@ -114,6 +119,21 @@ export default function UsersAdminPage() {
     if (!deletingUser) return;
     await adminService.deleteUser(deletingUser.id);
     showFeedback("success", `حساب کاربر «${deletingUser.fullName}» با موفقیت حذف شد.`);
+    loadUsers();
+  };
+
+  const handleBulkDeleteCompleted = (result: BulkDeleteResult) => {
+    if (result.total === 0) {
+      showFeedback("danger", "هیچ کاربری برای حذف یافت نشد.");
+    } else if (result.failed === 0) {
+      showFeedback("success", `تمامی ${result.deleted} کاربر با موفقیت حذف شدند.`);
+    } else {
+      showFeedback(
+        "danger",
+        `${result.deleted} کاربر حذف شد، اما حذف ${result.failed} کاربر با خطا مواجه شد.`
+      );
+    }
+    setPage(1);
     loadUsers();
   };
 
@@ -241,17 +261,28 @@ export default function UsersAdminPage() {
               مشاهده لیست کامل، ثبت کاربر جدید، ویرایش اطلاعات، مدیریت نقش‌ها و وضعیت فعال‌سازی ({total} کاربر)
             </p>
           </div>
-          <Button
-            variant="primary"
-            onClick={() => {
-              setEditingUser(null);
-              setIsFormModalOpen(true);
-            }}
-            className="flex items-center gap-2 shrink-0"
-          >
-            <Icon name="user" size={18} />
-            <span>ایجاد کاربر جدید</span>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Button
+              variant="danger"
+              onClick={() => setIsBulkDeleteModalOpen(true)}
+              disabled={isLoading || total === 0}
+              className="flex items-center gap-2"
+            >
+              <Icon name="trash" size={18} />
+              <span>حذف تمامی کاربران</span>
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setEditingUser(null);
+                setIsFormModalOpen(true);
+              }}
+              className="flex items-center gap-2"
+            >
+              <Icon name="user" size={18} />
+              <span>ایجاد کاربر جدید</span>
+            </Button>
+          </div>
         </div>
 
         {/* Feedback Alert */}
@@ -413,6 +444,16 @@ export default function UsersAdminPage() {
           onConfirm={handleDeleteConfirm}
         />
       )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      <BulkDeleteConfirmationModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        itemPluralLabel="کاربران"
+        totalCount={total}
+        onConfirm={(onProgress) => adminService.deleteAllUsers(onProgress)}
+        onCompleted={handleBulkDeleteCompleted}
+      />
     </AdminPageContainer>
   );
 }

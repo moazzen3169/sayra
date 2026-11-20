@@ -1,6 +1,7 @@
 import { apiClient, ApiError } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { TtlDedupeCache } from "@/lib/api/requestLimiter";
+import { extractMediaUrl, normalizeMediaUrl } from "@/lib/media";
 import type {
   CreateDeviceTypeInput,
   CreateGameCatalogInput,
@@ -175,6 +176,25 @@ export const catalogService = {
     const totalPages = pagination?.totalPages ?? (Math.ceil(total / limit) || 1);
 
     return { items, total, page, limit, totalPages };
+  },
+
+  /**
+   * Upload image file for platform admin catalog (Platform Admin)
+   * POST /platform-admin/media/upload
+   */
+  async uploadAdminMedia(file: File, signal?: AbortSignal): Promise<string> {
+    const fd = new FormData();
+    fd.append("file", file);
+    const { data } = await apiClient.post<unknown>(
+      ENDPOINTS.platformAdmin.mediaUpload,
+      fd,
+      { signal }
+    );
+    const candidate = extractMediaUrl(data);
+    if (!candidate) {
+      throw new Error("آپلود تصویر با خطا مواجه شد.");
+    }
+    return normalizeMediaUrl(candidate);
   },
 
   /**

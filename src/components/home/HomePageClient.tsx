@@ -239,7 +239,7 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
               isLoading={bannersLoading}
               centerOnDesktop
               desktopSlideBasisClass="lg:basis-[70%]"
-              aspectClassName="aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[3/1]"
+              aspectClassName="aspect-[2.6/1] sm:aspect-[2.6/1] lg:aspect-[2.6/1]"
             />
           </section>
         )}

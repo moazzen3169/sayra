@@ -11,6 +11,10 @@ import { Icon } from "@/components/ui/Icon";
 import { GamecenterFormModal } from "@/components/admin/gamecenters/GamecenterFormModal";
 import { GamecenterMediaModal } from "@/components/admin/gamecenters/GamecenterMediaModal";
 import { DeleteConfirmationModal } from "@/components/admin/gamecenters/DeleteConfirmationModal";
+import {
+  BulkDeleteConfirmationModal,
+  BulkDeleteResult,
+} from "@/components/admin/BulkDeleteConfirmationModal";
 import { AdminGamecenter } from "@/types/admin";
 import { adminService } from "@/services/adminService";
 
@@ -37,6 +41,7 @@ export default function GamecentersAdminPage() {
   const [mediaGc, setMediaGc] = useState<AdminGamecenter | null>(null);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [deletingGc, setDeletingGc] = useState<AdminGamecenter | null>(null);
   const [deletingRelatedInfo, setDeletingRelatedInfo] = useState<{
     ticketsCount?: number;
@@ -118,6 +123,21 @@ export default function GamecentersAdminPage() {
     if (!deletingGc) return;
     await adminService.deleteGamecenter(deletingGc.id);
     showFeedback("success", `گیمنت «${deletingGc.name}» با موفقیت حذف شد.`);
+    loadGamecenters();
+  };
+
+  const handleBulkDeleteCompleted = (result: BulkDeleteResult) => {
+    if (result.total === 0) {
+      showFeedback("danger", "هیچ گیمنتی برای حذف یافت نشد.");
+    } else if (result.failed === 0) {
+      showFeedback("success", `تمامی ${result.deleted} گیمنت با موفقیت حذف شدند.`);
+    } else {
+      showFeedback(
+        "danger",
+        `${result.deleted} گیمنت حذف شد، اما حذف ${result.failed} گیمنت با خطا مواجه شد.`
+      );
+    }
+    setPage(1);
     loadGamecenters();
   };
 
@@ -253,17 +273,28 @@ export default function GamecentersAdminPage() {
               مشاهده، ایجاد، ویرایش، تغییر وضعیت و مدیریت کامل گیمنت‌های عضو پلتفرم ({total} مرکز)
             </p>
           </div>
-          <Button
-            variant="primary"
-            onClick={() => {
-              setEditingGc(null);
-              setIsFormModalOpen(true);
-            }}
-            className="flex items-center gap-2 shrink-0"
-          >
-            <Icon name="gamepad" size={18} />
-            <span>ثبت گیمنت جدید</span>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Button
+              variant="danger"
+              onClick={() => setIsBulkDeleteModalOpen(true)}
+              disabled={isLoading || total === 0}
+              className="flex items-center gap-2"
+            >
+              <Icon name="trash" size={18} />
+              <span>حذف تمامی گیمنت‌ها</span>
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setEditingGc(null);
+                setIsFormModalOpen(true);
+              }}
+              className="flex items-center gap-2"
+            >
+              <Icon name="gamepad" size={18} />
+              <span>ثبت گیمنت جدید</span>
+            </Button>
+          </div>
         </div>
 
         {/* Feedback Alert */}
@@ -449,6 +480,16 @@ export default function GamecentersAdminPage() {
           onConfirm={handleDeleteConfirm}
         />
       )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      <BulkDeleteConfirmationModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        itemPluralLabel="گیمنت‌ها"
+        totalCount={total}
+        onConfirm={(onProgress) => adminService.deleteAllGamecenters(onProgress)}
+        onCompleted={handleBulkDeleteCompleted}
+      />
     </AdminPageContainer>
   );
 }

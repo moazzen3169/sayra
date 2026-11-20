@@ -1024,7 +1024,7 @@ export default function TermsAndRulesPage() {
                 <span
                   aria-hidden="true"
                   className="text-lg transition-transform group-hover:translate-y-0.5"
-                >
+                >ّ
                   ↓
                 </span>
               </a>

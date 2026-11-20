@@ -15,7 +15,7 @@ import { BannerItem } from "@/types/home";
 import { PLACEHOLDERS } from "@/lib/media";
 import { SafeImage } from "@/components/ui/SafeImage";
 
-const DEFAULT_ASPECT = "aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[4/1]";
+const DEFAULT_ASPECT = "aspect-[2.6/1] sm:aspect-[2.6/1] lg:aspect-[2.6/1]";
 const DEFAULT_DESKTOP_BASIS = "lg:basis-full";
 
 export interface BannerSliderProps {
