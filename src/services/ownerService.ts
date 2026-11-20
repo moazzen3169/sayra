@@ -110,6 +110,112 @@ function extractSingleRating(resData: unknown): OwnerRating | null {
   return null;
 }
 
+interface StationsPageResult {
+  items: GameStationInfo[];
+  page: number;
+  limit: number | null;
+  total: number | null;
+  totalPages: number | null;
+}
+
+function readPaginationMeta(source: unknown): {
+  page: number | null;
+  limit: number | null;
+  total: number | null;
+  totalPages: number | null;
+} {
+  if (!source || typeof source !== "object") {
+    return { page: null, limit: null, total: null, totalPages: null };
+  }
+  const rec = source as Record<string, unknown>;
+  const nested =
+    rec.pagination && typeof rec.pagination === "object"
+      ? (rec.pagination as Record<string, unknown>)
+      : rec;
+
+  return {
+    page: pickNumber(nested, ["page", "currentPage"]),
+    limit: pickNumber(nested, ["limit", "pageSize", "perPage"]),
+    total: pickNumber(nested, ["total", "totalItems", "count"]),
+    totalPages: pickNumber(nested, ["totalPages", "pageCount", "pages"]),
+  };
+}
+
+function extractStationsPage(response: {
+  data?: unknown;
+  meta?: unknown;
+  pagination?: unknown;
+}): StationsPageResult {
+  const data = response?.data;
+  let items: GameStationInfo[] = [];
+  let innerMetaSource: unknown = null;
+
+  if (Array.isArray(data)) {
+    items = data as GameStationInfo[];
+  } else if (data && typeof data === "object") {
+    const rec = data as Record<string, unknown>;
+    if (Array.isArray(rec.data)) {
+      items = rec.data as GameStationInfo[];
+      innerMetaSource = rec.meta ?? rec.pagination ?? null;
+    } else if (
+      rec.data &&
+      typeof rec.data === "object" &&
+      Array.isArray((rec.data as Record<string, unknown>).data)
+    ) {
+      const inner = rec.data as Record<string, unknown>;
+      items = inner.data as GameStationInfo[];
+      innerMetaSource = inner.meta ?? inner.pagination ?? rec.meta ?? null;
+    } else if (Array.isArray(rec.stations)) {
+      items = rec.stations as GameStationInfo[];
+      innerMetaSource = rec.meta ?? rec.pagination ?? null;
+    } else if (Array.isArray(rec.items)) {
+      items = rec.items as GameStationInfo[];
+      innerMetaSource = rec.meta ?? rec.pagination ?? null;
+    } else {
+      items = asArray<GameStationInfo>(data);
+    }
+  }
+
+  const outerMeta = readPaginationMeta(response?.meta ?? response?.pagination);
+  const innerMeta = readPaginationMeta(innerMetaSource);
+
+  return {
+    items,
+    page: Math.max(1, innerMeta.page ?? outerMeta.page ?? 1),
+    limit: innerMeta.limit ?? outerMeta.limit,
+    total: innerMeta.total ?? outerMeta.total,
+    totalPages: innerMeta.totalPages ?? outerMeta.totalPages,
+  };
+}
+
+function resolveTotalPages(first: StationsPageResult): number {
+  if (first.totalPages !== null && first.totalPages >= 1) {
+    return first.totalPages;
+  }
+  const effectiveLimit = first.limit ?? first.items.length;
+  if (
+    first.total !== null &&
+    effectiveLimit > 0 &&
+    first.total > first.items.length
+  ) {
+    return Math.ceil(first.total / effectiveLimit);
+  }
+  return 1;
+}
+
+function dedupeStationsById(items: GameStationInfo[]): GameStationInfo[] {
+  const seen = new Set<string>();
+  const result: GameStationInfo[] = [];
+  for (const item of items) {
+    if (item?.id) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+    }
+    result.push(item);
+  }
+  return result;
+}
+
 export const ownerService = {
   async getMe(signal?: AbortSignal): Promise<OwnerMe> {
     const response = await apiClient.get<any>(ENDPOINTS.owner.me, {
@@ -1035,12 +1141,15 @@ export const ownerService = {
 
   async listStations(
     centerId: string,
-    options?: { catalogDeviceId?: string; signal?: AbortSignal } | AbortSignal
+    options?:
+      | { catalogDeviceId?: string; page?: number; limit?: number; signal?: AbortSignal }
+      | AbortSignal
   ): Promise<GameStationInfo[]> {
     if (!centerId) return [];
 
     let signal: AbortSignal | undefined;
-    const query: Record<string, string> = {};
+    let explicitPage: number | undefined;
+    const baseQuery: Record<string, string | number> = {};
 
     if (options instanceof AbortSignal) {
       signal = options;
@@ -1048,45 +1157,55 @@ export const ownerService = {
       signal = options.signal;
 
       if (options.catalogDeviceId) {
-        query.catalogDeviceId = options.catalogDeviceId;
+        baseQuery.catalogDeviceId = options.catalogDeviceId;
+      }
+      if (typeof options.page === "number" && options.page >= 1) {
+        explicitPage = options.page;
+        baseQuery.page = options.page;
+      }
+      if (typeof options.limit === "number" && options.limit >= 1) {
+        baseQuery.limit = options.limit;
       }
     }
 
-    const { data } = await apiClient.get<any>(
-      ENDPOINTS.owner.stations(centerId),
-      {
+    const fetchPage = async (pageOverride?: number) => {
+      const query =
+        pageOverride !== undefined ? { ...baseQuery, page: pageOverride } : baseQuery;
+      const response = await apiClient.get<unknown>(ENDPOINTS.owner.stations(centerId), {
         query: Object.keys(query).length > 0 ? query : undefined,
         signal,
-      }
-    );
+      });
+      return extractStationsPage(response);
+    };
 
-    if (Array.isArray(data)) {
-      return data as GameStationInfo[];
+    const first = await fetchPage();
+    if (explicitPage !== undefined) {
+      return first.items;
     }
 
-    if (data && typeof data === "object") {
-      if (Array.isArray(data.data)) {
-        return data.data as GameStationInfo[];
-      }
+    const totalPages = resolveTotalPages(first);
+    if (totalPages <= first.page) {
+      return first.items;
+    }
 
-      if (
-        data.data &&
-        typeof data.data === "object" &&
-        Array.isArray(data.data.data)
-      ) {
-        return data.data.data as GameStationInfo[];
-      }
+    const MAX_PAGES = 50;
+    const lastPage = Math.min(totalPages, MAX_PAGES);
+    const remainingPages: number[] = [];
+    for (let p = first.page + 1; p <= lastPage; p += 1) {
+      remainingPages.push(p);
+    }
 
-      if (Array.isArray(data.stations)) {
-        return data.stations as GameStationInfo[];
-      }
-
-      if (Array.isArray(data.items)) {
-        return data.items as GameStationInfo[];
+    const allItems = [...first.items];
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < remainingPages.length; i += BATCH_SIZE) {
+      const batch = remainingPages.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(batch.map((p) => fetchPage(p)));
+      for (const res of results) {
+        allItems.push(...res.items);
       }
     }
 
-    return asArray<GameStationInfo>(data);
+    return dedupeStationsById(allItems);
   },
 
   async getStation(

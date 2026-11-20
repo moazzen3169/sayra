@@ -206,6 +206,44 @@ describe("ownerService: Station & Games Management", () => {
     }
   });
 
+  it("fetches all pages when stations endpoint is paginated across multiple pages", async () => {
+    const originalGet = apiClient.get;
+    const requestedPages: Array<number | undefined> = [];
+
+    apiClient.get = (async (_url: string, opts: any) => {
+      const page = opts?.query?.page ?? 1;
+      requestedPages.push(opts?.query?.page);
+      if (page === 1) {
+        return {
+          data: {
+            data: [
+              { id: "st-pc", name: "PC 1", stationType: "PC", catalogDeviceId: "cat-pc" },
+              { id: "st-ps4", name: "PS4 1", stationType: "PLAYSTATION", catalogDeviceId: "cat-ps4" },
+              { id: "st-xbox", name: "Xbox 1", stationType: "XBOX", catalogDeviceId: "cat-xbox" },
+            ],
+            meta: { total: 4, page: 1, limit: 3, totalPages: 2 },
+          },
+        };
+      }
+      return {
+        data: {
+          data: [
+            { id: "st-ps5", name: "PS5 1", stationType: "PLAYSTATION", catalogDeviceId: "cat-ps5" },
+          ],
+          meta: { total: 4, page: 2, limit: 3, totalPages: 2 },
+        },
+      };
+    }) as any;
+
+    try {
+      const res = await ownerService.listStations(centerId);
+      expect(requestedPages).toEqual([undefined, 2]);
+      expect(res.map((s) => s.id)).toEqual(["st-pc", "st-ps4", "st-xbox", "st-ps5"]);
+    } finally {
+      apiClient.get = originalGet;
+    }
+  });
+
   it("lists selected center games via GET /gamingCenters/{id}/stations/games", async () => {
     let capturedUrl = "";
     const originalGet = apiClient.get;

@@ -37,11 +37,20 @@ export interface StationGroup {
   count: number;
 }
 
-/** کلید گروه: اگر دستگاه به کاتالوگ وصل است با catalogDeviceId، وگرنه با نوع دستگاه */
-export const stationGroupKey = (station: GameStationInfo): string =>
-  station.catalogDeviceId
-    ? `catalog:${station.catalogDeviceId}`
-    : `type:${(station.stationType || "OTHER").toUpperCase()}`;
+/** کلید گروه: اول با catalogDeviceId، سپس deviceTypeId / deviceModel، وگرنه با نوع کلی دستگاه */
+export const stationGroupKey = (station: GameStationInfo): string => {
+  if (station.catalogDeviceId) {
+    return `catalog:${station.catalogDeviceId}`;
+  }
+  const raw = station as unknown as { deviceTypeId?: string | null; deviceModel?: string | null };
+  if (raw.deviceTypeId) {
+    return `deviceType:${raw.deviceTypeId}`;
+  }
+  if (raw.deviceModel && raw.deviceModel.trim()) {
+    return `model:${raw.deviceModel.trim().toUpperCase()}`;
+  }
+  return `type:${(station.stationType || "OTHER").toUpperCase()}`;
+};
 
 const stationCover = (station: GameStationInfo): string | null => {
   const raw = station as unknown as { coverImageUrl?: string | null };
@@ -66,10 +75,15 @@ export function buildStationGroups(
     const catalog = station.catalogDeviceId
       ? catalogById.get(station.catalogDeviceId)
       : undefined;
+    const raw = station as unknown as { deviceModel?: string | null };
+    const fallbackName =
+      raw.deviceModel && raw.deviceModel.trim()
+        ? raw.deviceModel.trim()
+        : stationTypeLabel(station.stationType);
 
     groups.set(key, {
       key,
-      name: catalog?.name ?? stationTypeLabel(station.stationType),
+      name: catalog?.name ?? fallbackName,
       deviceType: String(catalog?.deviceType ?? station.stationType ?? "OTHER"),
       catalogId: station.catalogDeviceId ?? null,
       coverImageUrl: (catalog?.coverImageUrl ? normalizeMediaUrl(catalog.coverImageUrl) : null) || stationCover(station),

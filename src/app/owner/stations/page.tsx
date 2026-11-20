@@ -92,13 +92,13 @@ export default function OwnerStationsPage() {
     };
   }, [centerId, reload]);
 
-  // کاتالوگ: برای نام و تصویر دسته‌ها و گزینه‌های افزودن
+  // کاتالوگ: برای نام و تصویر دسته‌ها
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
 
     catalogService
-      .listDevices({ isActive: true, limit: 100 }, controller.signal)
+      .listDevices({ limit: 100 }, controller.signal)
       .then((items) => {
         if (!active) return;
         setCatalogDevices(items);
@@ -114,6 +114,44 @@ export default function OwnerStationsPage() {
       controller.abort();
     };
   }, [catalogReload]);
+
+  // اگر دستگاهی catalogDeviceId دارد که در لیست کاتالوگ نیست (مثلاً صفحه‌بندی > 100)، جداگانه دریافت شود
+  useEffect(() => {
+    if (!stations || stations.length === 0) return;
+    const knownIds = new Set(catalogDevices.map((d) => d.id));
+    const missingIds = Array.from(
+      new Set(
+        stations
+          .map((s) => s.catalogDeviceId)
+          .filter((id): id is string => Boolean(id && !knownIds.has(id)))
+      )
+    );
+    if (missingIds.length === 0) return;
+
+    const controller = new AbortController();
+    let active = true;
+
+    Promise.allSettled(
+      missingIds.map((id) => catalogService.getDeviceById(id, controller.signal))
+    ).then((results) => {
+      if (!active) return;
+      const fetched = results
+        .filter((r): r is PromiseFulfilledResult<DeviceCatalogItem> => r.status === "fulfilled")
+        .map((r) => r.value);
+      if (fetched.length > 0) {
+        setCatalogDevices((prev) => {
+          const existing = new Set(prev.map((d) => d.id));
+          const additions = fetched.filter((d) => !existing.has(d.id));
+          return additions.length > 0 ? [...prev, ...additions] : prev;
+        });
+      }
+    });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [stations, catalogDevices]);
 
   // پیام موفقیت کوتاه
   useEffect(() => {
