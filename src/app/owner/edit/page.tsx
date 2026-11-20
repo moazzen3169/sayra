@@ -7,6 +7,7 @@ import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService } from "@/services/ownerService";
 import { IRAN_PROVINCES } from "@/data/iranLocations";
 import { LocationMapPicker } from "@/components/owner/LocationMapPicker";
+import { geocodeIranLocation } from "@/lib/iranGeocoding";
 import { Icon } from "@/components/ui/Icon";
 
 const inputClass =
@@ -67,6 +68,8 @@ export default function OwnerEditPage() {
   const [postalCode, setPostalCode] = useState("");
   const [lat, setLat] = useState<number>(37.5527);
   const [lng, setLng] = useState<number>(45.0761);
+  const [mapZoom, setMapZoom] = useState<number>(14);
+  const geocodeAbortRef = React.useRef<AbortController | null>(null);
   const [primaryAddressId, setPrimaryAddressId] = useState<string | null>(null);
   const [geoLocating, setGeoLocating] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
@@ -180,16 +183,38 @@ export default function OwnerEditPage() {
     };
   }, [centerId]);
 
+  const centerMapOnRegion = (provName: string, nextCity: string) => {
+    if (geocodeAbortRef.current) {
+      geocodeAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    geocodeAbortRef.current = controller;
+    geocodeIranLocation(provName, nextCity, controller.signal).then((viewport) => {
+      if (!viewport || controller.signal.aborted) return;
+      setLat(viewport.lat);
+      setLng(viewport.lng);
+      setMapZoom(viewport.zoom);
+    });
+  };
+
   const handleProvinceChange = (provName: string) => {
     setProvince(provName);
     const found = IRAN_PROVINCES.find((p) => p.name === provName);
+    const nextCity = found && found.cities.length > 0 ? found.cities[0] : "";
+    if (nextCity) {
+      setCity(nextCity);
+    }
     if (found) {
-      if (found.cities.length > 0) {
-        setCity(found.cities[0]);
-      }
       setLat(found.defaultLat);
       setLng(found.defaultLng);
+      setMapZoom(nextCity ? 13 : 11);
     }
+    centerMapOnRegion(provName, nextCity);
+  };
+
+  const handleCityChange = (nextCity: string) => {
+    setCity(nextCity);
+    centerMapOnRegion(province, nextCity);
   };
 
   const handleGetCurrentLocation = () => {
@@ -455,7 +480,7 @@ export default function OwnerEditPage() {
                   </label>
                   <select
                     value={city}
-                    onChange={(e) => setCity(e.target.value)}
+                    onChange={(e) => handleCityChange(e.target.value)}
                     className={inputClass}
                   >
                     {currentProvinceInfo.cities.map((c) => (
@@ -502,6 +527,7 @@ export default function OwnerEditPage() {
                 <LocationMapPicker
                   latitude={lat}
                   longitude={lng}
+                  zoom={mapZoom}
                   cityName={city}
                   provinceName={province}
                   onChange={(newLat, newLng) => {

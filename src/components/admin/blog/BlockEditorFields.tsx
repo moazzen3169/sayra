@@ -46,11 +46,10 @@ const OPENING_DAYS = [
 ];
 
 const MAP_PROVIDERS = [
-  { value: "google", label: "Google Maps" },
-  { value: "neshan", label: "نشان (Neshan)" },
-  { value: "balad", label: "بلد (Balad)" },
   { value: "openstreetmap", label: "OpenStreetMap" },
   { value: "leaflet", label: "Leaflet" },
+  { value: "google", label: "Google Maps" },
+  { value: "balad", label: "بلد (Balad)" },
   { value: "mapbox", label: "Mapbox" },
 ];
 

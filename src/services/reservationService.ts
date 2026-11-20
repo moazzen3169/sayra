@@ -22,6 +22,8 @@ export interface CreateReservationInput {
   staffId?: string;
   note?: string;
   extraControllers?: ExtraControllerSelectionInput[];
+  useWallet?: boolean;
+  provider?: string;
 }
 
 /** فقط برای حالت Mock؛ در حالت واقعی همه‌چیز از پاسخ Backend می‌آید */
@@ -88,6 +90,8 @@ export const reservationService = {
         ...(input.extraControllers && input.extraControllers.length > 0
           ? { extraControllers: input.extraControllers }
           : {}),
+        ...(input.useWallet !== undefined ? { useWallet: input.useWallet } : {}),
+        ...(input.provider ? { provider: input.provider } : {}),
       },
       { headers: { "idempotency-key": input.idempotencyKey } }
     );

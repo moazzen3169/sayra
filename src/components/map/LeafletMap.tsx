@@ -3,6 +3,8 @@
 import React, { useEffect, useRef } from "react";
 import type * as LType from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "@/components/map/game-centers-map.css";
+import { attachSairaTileLayer } from "@/lib/sairaLeafletTileLayer";
 import { cn } from "@/lib/utils";
 
 export interface LeafletMapProps {
@@ -63,6 +65,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
   useEffect(() => {
     let isMounted = true;
     let resizeObserver: ResizeObserver | null = null;
+    let cleanupTileLayer: (() => void) | null = null;
     const container = containerRef.current;
     if (!container) return;
 
@@ -85,10 +88,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
         keyboard: interactive,
       });
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "© OpenStreetMap",
-      }).addTo(map);
+      cleanupTileLayer = attachSairaTileLayer(map, L, { attribution: false });
 
       const marker = L.marker([latitude, longitude], {
         icon: createPinIcon(L, markerLabel),
@@ -135,6 +135,10 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
+      if (cleanupTileLayer) {
+        cleanupTileLayer();
+        cleanupTileLayer = null;
+      }
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -145,7 +149,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interactive]);
 
-  // Sync marker position and map center when coordinates change externally
+  // Sync marker position and map center/zoom when coordinates change externally
   useEffect(() => {
     const map = mapRef.current;
     const marker = markerRef.current;
@@ -158,9 +162,9 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
       Math.abs(current.lng - longitude) > 1e-6
     ) {
       marker.setLatLng([latitude, longitude]);
-      map.panTo([latitude, longitude], { animate: true });
+      map.setView([latitude, longitude], zoom ?? map.getZoom(), { animate: true });
     }
-  }, [latitude, longitude]);
+  }, [latitude, longitude, zoom]);
 
   // Update marker label if it changes
   useEffect(() => {
@@ -174,12 +178,19 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
 
   return (
     <div
-      ref={containerRef}
       className={cn(
-        "relative z-0 w-full h-56 sm:h-64 rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[#1e232a]",
-        interactive ? "cursor-crosshair" : "cursor-default",
+        "sayra-map-frame relative z-0 w-full h-56 sm:h-64 rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-body)]",
         className
       )}
-    />
+    >
+      <div
+        ref={containerRef}
+        className={cn(
+          "sayra-map-container w-full h-full",
+          interactive ? "cursor-crosshair" : "cursor-default"
+        )}
+      />
+      <div aria-hidden="true" className="sayra-map-vignette" />
+    </div>
   );
 };

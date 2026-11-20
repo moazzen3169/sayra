@@ -35,6 +35,13 @@ export const FullScreenDialog: React.FC<FullScreenDialogProps> = ({
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  const disableCloseRef = useRef(disableClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    disableCloseRef.current = disableClose;
+  }, [onClose, disableClose]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -51,9 +58,9 @@ export const FullScreenDialog: React.FC<FullScreenDialogProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (!disableClose) {
+        if (!disableCloseRef.current) {
           e.stopPropagation();
-          onClose();
+          onCloseRef.current();
         }
         return;
       }
@@ -88,7 +95,7 @@ export const FullScreenDialog: React.FC<FullScreenDialogProps> = ({
       window.removeEventListener("keydown", handleKeyDown);
       previousFocusRef.current?.focus();
     };
-  }, [isOpen, onClose, disableClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

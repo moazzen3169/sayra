@@ -43,7 +43,6 @@ import { BookingStepper, type BookingStep } from "@/components/gamecenter/Bookin
 import { TimeStep, type SlotView } from "@/components/gamecenter/booking/TimeStep";
 import { ReviewStep } from "@/components/gamecenter/booking/ReviewStep";
 import { paymentService } from "@/services/paymentService";
-import { reservationService } from "@/services/reservationService";
 import { walletService } from "@/services/walletService";
 import { bookingDraftStorage } from "@/lib/bookingDraftStorage";
 import { createIdempotencyKey } from "@/services/bookingService";
@@ -730,96 +729,12 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
         !walletLoading && !walletError && availableWallet > 0 && useWallet;
 
       if (shouldUseWallet) {
-        const res = await submit(payload);
-        const resolvedCenterId = res.gamingCenterId || gamingCenterId;
-
-        setIsPaying(true);
-        const idempotencyKey = createIdempotencyKey();
-
-        try {
-          // اولویت با مسیر مشتری (/customer/reservation/{id}/payments/*) است که نیازی به gamingCenterId ندارد
-          try {
-            await paymentService.calculateCustomerPayment(res.id, true);
-          } catch {
-            // ادامه فرآیند با initCustomerPayment
-          }
-
-          let payRes;
-          try {
-            payRes = await paymentService.initCustomerPayment(
-              res.id,
-              idempotencyKey,
-              { useWallet: true }
-            );
-          } catch (initErr: unknown) {
-            const ie = initErr as { status?: number; code?: string };
-            if (
-              (ie?.status === 404 || ie?.code === "NOT_FOUND") &&
-              resolvedCenterId &&
-              resolvedCenterId !== gamingCenterSlug
-            ) {
-              payRes = await paymentService.initPayment(
-                resolvedCenterId,
-                res.id,
-                idempotencyKey,
-                { useWallet: true }
-              );
-            } else {
-              throw initErr;
-            }
-          }
-
-          if (payRes.paymentUrl) {
-            bookingDraftStorage.update({
-              reservationId: res.id,
-              gamingCenterId: resolvedCenterId,
-              paymentUrl: payRes.paymentUrl,
-              grandTotal: payRes.gatewayAmount ?? Math.max(0, estimate - availableWallet),
-            });
-            window.location.href = payRes.paymentUrl;
-            return;
-          }
-
-          const paidViaWallet =
-            payRes.coversEntireAmount === true ||
-            payRes.paymentState === "PAID" ||
-            payRes.status === "PAID" ||
-            payRes.status === "COMPLETED" ||
-            availableWallet >= (res.totalPrice || estimate);
-
-          if (paidViaWallet) {
-            bookingDraftStorage.update({
-              reservationId: res.id,
-              gamingCenterId: resolvedCenterId,
-              grandTotal: res.totalPrice || estimate,
-            });
-            const tracking = encodeURIComponent(payRes.trackingCode || res.trackingCode || "");
-            router.push(
-              `/payment/success?reservationId=${encodeURIComponent(
-                res.id
-              )}&trackingCode=${tracking}&status=success&purpose=RESERVATION`
-            );
-            return;
-          }
-
-          // اگر نه لینک درگاه برگشت و نه پرداخت کامل تایید شد، رزرو را لغو کن
-          throw new Error("پاسخ معتبری برای پرداخت دریافت نشد.");
-        } catch (payErr: unknown) {
-          // جلوگیری از باقی ماندن رزرو پرداخت‌نشده در صورت خطا در پرداخت
-          try {
-            await reservationService.cancel(res.id);
-          } catch {
-            // اگر لغو خودکار ممکن نبود، خطای اصلی پرداخت نمایش داده می‌شود
-          }
-          const pe = payErr as { message?: string };
-          setClientError(
-            pe?.message ||
-              "خطا در شروع فرآیند پرداخت با کیف پول. رزرو ثبت نشد؛ لطفاً دوباره تلاش کنید."
-          );
-          return;
-        } finally {
-          setIsPaying(false);
-        }
+        // تا زمان پشتیبانی بک‌اند از useWallet در مسیر group-reservations/checkout
+        // یا رفع خطای Zod در مسیر /reservation، از ثبت رزرو پرداخت‌نشده جلوگیری می‌کنیم.
+        setClientError(
+          "پرداخت با کیف پول در حال حاضر روی سرور برای این نوع رزرو فعال نیست (خطای 404 در payments/init). برای جلوگیری از ثبت رزرو پرداخت‌نشده، لطفاً سوییچ «استفاده از کیف پول» را خاموش کرده و پرداخت آنلاین را انجام دهید."
+        );
+        return;
       }
 
       try {

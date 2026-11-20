@@ -752,16 +752,15 @@ function getLocationMapUrl(
   zoom: number
 ): string {
   switch (provider) {
-    case "openstreetmap":
-    case "leaflet":
-      return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=${zoom}/${latitude}/${longitude}`;
-    case "neshan":
-      return `https://neshan.org/maps/@${latitude},${longitude},${zoom}z`;
     case "balad":
       return `https://balad.ir/#${zoom}/${latitude}/${longitude}`;
     case "google":
-    default:
       return `https://www.google.com/maps?q=${latitude},${longitude}&z=${zoom}`;
+    case "openstreetmap":
+    case "leaflet":
+    case "neshan":
+    default:
+      return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=${zoom}/${latitude}/${longitude}`;
   }
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { use, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GamecenterDetailHeader } from "@/components/GamecenterDetailHeader";
@@ -16,7 +17,6 @@ import {
   formatDayLabel,
   getErrorMessage,
   getPaymentLabel,
-  mapsUrl,
   stationImageFor,
 } from "@/lib/reservationUi";
 import { AppImage } from "@/components/common/AppImage";
@@ -26,8 +26,28 @@ import {
   isSingleReservationRated,
 } from "@/lib/reservationReview";
 import { customerReviewService } from "@/services/customerReviewService";
+import {
+  extractAuthoritativeLocation,
+  gamingCenterService,
+} from "@/services/gamecenterDetailService";
 import { reservationService } from "@/services/reservationService";
+import type { PublicAddress } from "@/types/customerApi";
 import type { Reservation, ReservationStatus, ReservationTimeProposal } from "@/types/reservation";
+
+const ReservationRouteMap = dynamic(
+  () =>
+    import("@/components/map/ReservationRouteMap").then(
+      (mod) => mod.ReservationRouteMap
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full aspect-video rounded-card bg-[var(--bg-body)]/60 border border-[var(--border-subtle)] animate-pulse flex items-center justify-center text-xs text-[var(--text-muted)]">
+        در حال بارگذاری نقشه...
+      </div>
+    ),
+  }
+);
 
 /* ---------- Stepper Component ---------- */
 
@@ -217,6 +237,8 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
   const [ratedIds, setRatedIds] = useState<Set<string>>(() => new Set());
+  const [centerCoords, setCenterCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [coordsLoading, setCoordsLoading] = useState(isLoggedIn);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -226,13 +248,39 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
     let active = true;
     const controller = new AbortController();
 
+    const fetchCenterCoords = async (r: Reservation): Promise<{ lat: number; lng: number } | null> => {
+      const slug = r.gamingCenterSlug || r.gamingCenter?.slug;
+      const centerId = r.gamingCenterId || r.gamingCenter?.id;
+      if (!slug && !centerId) return null;
+
+      const center = slug
+        ? await gamingCenterService.getPublicGamingCenter(slug, controller.signal)
+        : await gamingCenterService.getGamingCenterById(centerId!, controller.signal);
+
+      const embeddedAddresses = Array.isArray(center?.addresses)
+        ? (center.addresses as PublicAddress[])
+        : [];
+      const directLocation = extractAuthoritativeLocation(embeddedAddresses, center);
+      if (directLocation) return directLocation;
+
+      if (center?.slug) {
+        const fetchedAddresses = await gamingCenterService.getPublicAddresses(
+          center.slug,
+          controller.signal
+        );
+        return extractAuthoritativeLocation(fetchedAddresses, center);
+      }
+
+      return null;
+    };
+
     reservationService
       .get(id, controller.signal)
       .then(async (r) => {
         if (!active) return;
         setReservation(r);
         setError(null);
-        const [propsRes, ratedRes] = await Promise.allSettled([
+        const [propsRes, ratedRes, coordsRes] = await Promise.allSettled([
           reservationService.listProposals(id, controller.signal),
           r.status === "COMPLETED"
             ? customerReviewService.getRatedReservationIdsForReservations(
@@ -240,6 +288,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                 controller.signal
               )
             : Promise.resolve(new Set<string>()),
+          fetchCenterCoords(r),
         ]);
         if (!active) return;
         setProposals(
@@ -252,13 +301,17 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
             return next;
           });
         }
+        setCenterCoords(coordsRes.status === "fulfilled" ? coordsRes.value : null);
       })
       .catch((e) => {
         if (!active || isAbortError(e)) return;
         setError(getErrorMessage(e));
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setCoordsLoading(false);
+        }
       });
 
     return () => {
@@ -438,6 +491,21 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
 
               {/* Reservation Code integrated here cleanly */}
               <ReservationCodeStrip code={displayCode} />
+
+              {/* OpenStreetMap 16:9 Route Map inside first container below reservation code */}
+              {coordsLoading && (
+                <div className="w-full aspect-video rounded-card bg-[var(--bg-body)]/60 border border-[var(--border-subtle)] animate-pulse flex items-center justify-center text-xs text-[var(--text-muted)]">
+                  در حال دریافت موقعیت گیمنت...
+                </div>
+              )}
+              {!coordsLoading && centerCoords && (
+                <ReservationRouteMap
+                  destLat={centerCoords.lat}
+                  destLng={centerCoords.lng}
+                  destName={reservation.gamingCenterName}
+                  destAddress={reservation.gamingCenterAddress}
+                />
+              )}
 
               <div className="h-[1px] w-full bg-[var(--border-subtle)]" />
 
@@ -649,21 +717,6 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
 
             {/* Actions Section */}
             <section className="flex flex-col gap-3">
-              {reservation.gamingCenterAddress && !isTerminalState && (
-                <a
-                  href={mapsUrl(reservation.gamingCenterAddress)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="h-12 w-full rounded-card bg-[var(--text-white)] text-[var(--bg-body)] text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-md"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 14L4 9l5-5" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 9h10a6 6 0 016 6v5" />
-                  </svg>
-                  <span>مسیریابی تا گیمنت</span>
-                </a>
-              )}
-
               {showRate && (
                 <button
                   type="button"

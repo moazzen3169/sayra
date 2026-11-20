@@ -16,7 +16,13 @@ import { Icon } from "@/components/ui/Icon";
 import { InlineAlert } from "@/components/ui/InlineAlert";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
-import { CardSkeleton, Skeleton } from "@/components/ui/Skeleton";
+import {
+  BookingCardSkeleton,
+  GamesSectionSkeleton,
+  InfoCardSkeleton,
+  LocationSkeleton,
+  ReviewsListSkeleton,
+} from "@/components/gamecenter/GamecenterDetailSkeletons";
 import { BannerSlider } from "@/components/BannerSlider";
 import {
   DevicePicker,
@@ -54,38 +60,12 @@ import type { PhysicalStation } from "@/types/gaming-center/station.types";
 import { PLACEHOLDERS } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
-const GALLERY_ASPECT = "aspect-[2/1] lg:aspect-[16/10]";
+const GALLERY_ASPECT = "aspect-[2/1]";
 
 const scrollToId = (id: string) =>
   document
     .getElementById(id)
     ?.scrollIntoView({ behavior: "smooth", block: "start" });
-
-const GameCenterDetailSkeleton: React.FC = () => (
-  <div
-    className="px-4 lg:p-6 relative flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8 lg:items-start"
-    aria-busy="true"
-  >
-    <span className="sr-only">در حال بارگذاری</span>
-    <aside className="flex flex-col gap-4 min-w-0 lg:order-2 w-full">
-      <Skeleton className={`w-full ${GALLERY_ASPECT}`} />
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-6 w-2/3" />
-        <Skeleton className="h-4 w-1/2" />
-      </div>
-      <Skeleton className="hidden lg:block h-36 w-full" />
-    </aside>
-
-    <div className="flex flex-col gap-6 min-w-0 mt-6 lg:mt-0 lg:order-1 w-full">
-      <Skeleton className="h-5 w-24" />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <CardSkeleton key={i} />
-        ))}
-      </div>
-    </div>
-  </div>
-);
 
 export default function GameCenterDetailPage({
   params,
@@ -299,8 +279,6 @@ function GameCenterDetailContent({
       <PageHeader title={title} onBack={handleBack} className="lg:hidden" />
 
       <main className="flex-1 lg:pt-[var(--header-h)] flex flex-col gap-6 pt-3">
-        {!detail && !loadError && <GameCenterDetailSkeleton />}
-
         {loadError && (
           <div className="px-4 py-8 max-w-lg mx-auto w-full">
             <ErrorState
@@ -311,37 +289,50 @@ function GameCenterDetailContent({
           </div>
         )}
 
-        {detail && (
-          <div className="px-4 lg:p-6 relative flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8 lg:items-start">
+        {!loadError && (
+          <div className="px-4 lg:p-6 relative flex flex-col lg:grid lg:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)] lg:gap-x-6 lg:items-start">
             {/* موبایل: گالری + اطلاعات؛ دسکتاپ: ستون کناری */}
-            <aside className="flex flex-col gap-4 min-w-0 lg:order-2">
+            <aside className="flex flex-col gap-4 lg:gap-5 min-w-0 lg:order-2">
               {galleryItems.length > 0 && (
                 <BannerSlider
+                  isLoading={!detail}
                   banners={galleryItems}
                   fallbackSrc={PLACEHOLDERS.gallery}
                   aspectClassName={GALLERY_ASPECT}
+                  desktopSlideBasisClass="lg:basis-[92%]"
                   ariaLabel="گالری تصاویر گیمنت"
                 />
               )}
 
-              <GamecenterInfoCard
-                title={title}
-                address={address}
-                rating={rating}
-                onScrollTo={scrollToId}
-              />
-
-              {detail.location && (
-                <GamecenterLocationCard
-                  lat={detail.location.lat}
-                  lng={detail.location.lng}
+              {detail ? (
+                <GamecenterInfoCard
                   title={title}
                   address={address}
+                  rating={rating}
+                  onScrollTo={scrollToId}
                 />
+              ) : (
+                <InfoCardSkeleton />
+              )}
+
+              {!detail ? (
+                <LocationSkeleton />
+              ) : (
+                detail.location && (
+                  <GamecenterLocationCard
+                    lat={detail.location.lat}
+                    lng={detail.location.lng}
+                    title={title}
+                    address={address}
+                  />
+                )
               )}
 
               {/* سایدبار دسکتاپ */}
-              <div className="hidden lg:flex sticky top-20 self-start flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 w-full">
+              {!detail ? (
+                <BookingCardSkeleton />
+              ) : (
+              <div className="hidden lg:flex sticky top-20 self-start flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 lg:p-6 lg:gap-6 w-full">
                 {deviceCount > 0 ? (
                   <div className="flex flex-col gap-1">
                     <span className="text-card-title text-[var(--text-white)]">
@@ -376,22 +367,24 @@ function GameCenterDetailContent({
                   ادامه
                 </Button>
               </div>
+              )}
             </aside>
 
             {/* ستون اصلی: دستگاه‌ها ← بازی‌ها ← نظرات */}
             <div className="flex flex-col gap-8 min-w-0 mt-4 lg:mt-0 lg:order-1">
               <section id="stations" className="flex flex-col gap-3 scroll-mt-20">
-                <SectionTitle title="دستگاه" className="mb-0" />
+                <SectionTitle title="دستگاه" className="mb-0 lg:hidden" />
 
-                {reservationDisabled && (
+                {detail && reservationDisabled && (
                   <InlineAlert variant="error">
                     رزرو آنلاین این گیمنت فعال نیست.
                   </InlineAlert>
                 )}
 
+                {/* تا وضعیت رزرو گیمنت مشخص نشده، دستگاه‌ها قابل انتخاب نیستند */}
                 <DevicePicker
                   categories={categories}
-                  isLoading={isCategoriesLoading}
+                  isLoading={isCategoriesLoading || !detail}
                   error={categoriesError}
                   onRetry={refetchCategories}
                   selection={selection}
@@ -400,26 +393,37 @@ function GameCenterDetailContent({
                 />
               </section>
 
-              {detail.games.length > 0 && (
-                <section id="games" className="flex flex-col gap-3 scroll-mt-20">
-                  <SectionTitle title="بازی‌ها" className="mb-0" />
-                  <GamesMarquee games={detail.games} />
-                </section>
+              {!detail ? (
+                <GamesSectionSkeleton />
+              ) : (
+                detail.games.length > 0 && (
+                  <section id="games" className="flex flex-col gap-3 scroll-mt-20">
+                    <SectionTitle title="بازی‌ها" className="mb-0" />
+                    <GamesMarquee games={detail.games} />
+                  </section>
+                )
               )}
+            </div>
 
-              <section id="reviews" className="flex flex-col gap-3 scroll-mt-20">
+            {/* نظرات: در دسکتاپ تمام عرض صفحه (هر دو ستون) */}
+            <section
+              id="reviews"
+              className="flex flex-col gap-3 scroll-mt-20 mt-8 lg:order-3 lg:col-span-2"
+            >
                 <SectionTitle title="نظرات" className="mb-0" />
-                {reviews.length === 0 ? (
+                {!detail ? (
+                  <ReviewsListSkeleton />
+                ) : reviews.length === 0 ? (
                   <p className="rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6 text-center text-secondary text-[var(--text-muted)]">
                     هنوز نظری ثبت نشده
                   </p>
                 ) : (
                   <>
-                    <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2">
+                    <div className="flex  flex-col gap-3 lg:block lg:columns-3 lg:gap-3">
                       {visibleReviews.map((r) => (
                         <article
                           key={r.id}
-                          className="bg-[var(--bg-card)] rounded-card p-4 border border-[var(--border-subtle)] flex flex-col gap-2"
+                          className="bg-[var(--bg-card)] rounded-card p-4 border border-[var(--border-subtle)] flex flex-col gap-2 lg:mb-3 lg:break-inside-avoid"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
@@ -475,7 +479,6 @@ function GameCenterDetailContent({
                   </>
                 )}
               </section>
-            </div>
           </div>
         )}
       </main>

@@ -91,11 +91,11 @@ export const GamesMarquee: React.FC<{ games: GameItem[] }> = ({ games }) => {
         {!q && (
           <div className="hidden sm:flex items-center gap-1 relative shrink-0">
             <CarouselPrevious
-              className="static translate-y-0 translate-x-0 w-11 h-11 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              className="static translate-y-0 translate-x-0 w-11 h-11 rounded-card lg:rounded-full! bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
               title="قبلی"
             />
             <CarouselNext
-              className="static translate-y-0 translate-x-0 w-11 h-11 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              className="static translate-y-0 translate-x-0 w-11 h-11 rounded-card lg:rounded-full! bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-white)] hover:bg-[var(--primary)] hover:text-on-primary transition-colors disabled:opacity-30 disabled:pointer-events-none"
               title="بعدی"
             />
           </div>
@@ -122,13 +122,13 @@ export const GamesMarquee: React.FC<{ games: GameItem[] }> = ({ games }) => {
         )
       ) : (
         <div className="pb-2 select-none">
-          <CarouselContent className="gap-3 -mr-3">
+          <CarouselContent className="gap-3 lg:gap-0 -mr-3 lg:-mr-4">
             {games.map((g) => (
               <CarouselItem
                 key={g.id}
-                className="pr-3 basis-[36%] sm:basis-[140px] lg:basis-[150px] flex flex-col"
+                className="pr-3 lg:pr-4 basis-[36%] sm:basis-[140px] lg:basis-[112px] flex flex-col"
               >
-                <GameTile game={g} className="w-full aspect-[3/4]" />
+                <GameTile game={g} className="w-full aspect-[3/4] lg:aspect-[3/5]" />
               </CarouselItem>
             ))}
           </CarouselContent>

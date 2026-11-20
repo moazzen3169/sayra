@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
 import { LocationMapPicker } from "@/components/owner/LocationMapPicker";
+import { geocodeIranLocation } from "@/lib/iranGeocoding";
 import { Icon } from "@/components/ui/Icon";
 import { useAuth } from "@/context/AuthContext";
 import { useOwner } from "@/context/OwnerContext";
@@ -80,6 +81,7 @@ export default function NewGamingCenterPage() {
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState(35.6892);
   const [longitude, setLongitude] = useState(51.389);
+  const [mapZoom, setMapZoom] = useState(12);
   // مرحله ۴
   const [openingTime, setOpeningTime] = useState("10:00");
   const [closingTime, setClosingTime] = useState("23:00");
@@ -257,6 +259,18 @@ export default function NewGamingCenterPage() {
     setClosedDays((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id].sort()));
   const provinceName = provinces.find((p) => p.id === provinceId)?.name;
   const cityName = cities.find((c) => c.id === cityId)?.name;
+
+  useEffect(() => {
+    if (!provinceName && !cityName) return;
+    const c = new AbortController();
+    geocodeIranLocation(provinceName, cityName, c.signal).then((viewport) => {
+      if (!viewport || c.signal.aborted) return;
+      setLatitude(viewport.lat);
+      setLongitude(viewport.lng);
+      setMapZoom(viewport.zoom);
+    });
+    return () => c.abort();
+  }, [provinceName, cityName]);
 
   const backTo = (s: OnboardingStep) => {
     setError(null);
@@ -440,6 +454,7 @@ export default function NewGamingCenterPage() {
               <LocationMapPicker
                 latitude={latitude}
                 longitude={longitude}
+                zoom={mapZoom}
                 cityName={cityName}
                 provinceName={provinceName}
                 onChange={(lat, lng) => {

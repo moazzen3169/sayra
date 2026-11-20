@@ -7,6 +7,7 @@ import { LeafletMap } from "@/components/map/LeafletMap";
 interface LocationMapPickerProps {
   latitude: number;
   longitude: number;
+  zoom?: number;
   onChange: (lat: number, lng: number) => void;
   cityName?: string;
   provinceName?: string;
@@ -15,6 +16,7 @@ interface LocationMapPickerProps {
 export const LocationMapPicker: React.FC<LocationMapPickerProps> = ({
   latitude,
   longitude,
+  zoom = 14,
   onChange,
   cityName,
 }) => {
@@ -39,7 +41,7 @@ export const LocationMapPicker: React.FC<LocationMapPickerProps> = ({
         <LeafletMap
           latitude={safeLat}
           longitude={safeLng}
-          zoom={14}
+          zoom={zoom}
           interactive={true}
           onSelect={onChange}
           markerLabel={markerLabel}

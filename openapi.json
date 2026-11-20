@@ -7061,6 +7061,14 @@
                     "items": {
                       "$ref": "#/components/schemas/ExtraControllerSelectionInput"
                     }
+                  },
+                  "useWallet": {
+                    "type": "boolean",
+                    "description": "Whether to use customer wallet balance for payment"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "description": "Optional payment gateway provider (e.g. ZIBAL, ZARINPAL)"
                   }
                 }
               }
@@ -7183,6 +7191,14 @@
                     "items": {
                       "$ref": "#/components/schemas/ExtraControllerSelectionInput"
                     }
+                  },
+                  "useWallet": {
+                    "type": "boolean",
+                    "description": "Whether to use customer wallet balance for payment"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "description": "Optional payment gateway provider (e.g. ZIBAL, ZARINPAL)"
                   }
                 }
               }

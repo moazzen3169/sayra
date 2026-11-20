@@ -45,7 +45,7 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
       </div>
 
       {address && (
-        <div className="flex items-start gap-1.5 text-secondary text-[var(--text-muted)]">
+        <div className="flex items-start gap-1.5 lg:gap-2 text-secondary lg:text-sm text-[var(--text-muted)]">
           <Icon name="pin" size={16} className="shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0 flex items-baseline gap-1.5 flex-wrap">
             <span
@@ -60,7 +60,7 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
             <button
               type="button"
               onClick={() => setIsAddressExpanded((v) => !v)}
-              className="shrink-0 text-xs font-bold text-[var(--primary)] hover:underline cursor-pointer"
+              className="shrink-0 text-xs lg:text-sm font-bold text-[var(--primary)] hover:underline cursor-pointer"
             >
               {isAddressExpanded ? "بستن" : "مشاهده بیشتر"}
             </button>

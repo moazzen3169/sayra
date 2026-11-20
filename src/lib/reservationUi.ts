@@ -209,11 +209,25 @@ const STATION_TYPE_LABELS: Record<string, string> = {
 export const getStationTypeLabel = (type?: string) =>
   (type && STATION_TYPE_LABELS[type]) || type || "دستگاه";
 
-export const googleMapsCoordsUrl = (lat: number, lng: number) =>
-  `https://www.google.com/maps?q=${lat},${lng}`;
+export const openStreetMapCoordsUrl = (lat: number, lng: number, zoom = 16) =>
+  `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=${zoom}/${lat}/${lng}`;
 
-export const neshanCoordsUrl = (lat: number, lng: number) =>
-  `https://nshn.ir/?lat=${lat}&lng=${lng}`;
+export const openStreetMapDirectionsUrl = (
+  destLat: number,
+  destLng: number,
+  originLat?: number | null,
+  originLng?: number | null
+) => {
+  if (
+    typeof originLat === "number" &&
+    Number.isFinite(originLat) &&
+    typeof originLng === "number" &&
+    Number.isFinite(originLng)
+  ) {
+    return `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${originLat}%2C${originLng}%3B${destLat}%2C${destLng}`;
+  }
+  return `https://www.openstreetmap.org/directions?to=${destLat}%2C${destLng}`;
+};
 
 export const mapsUrl = (
   address: string,
@@ -226,9 +240,9 @@ export const mapsUrl = (
     typeof coords.lng === "number" &&
     Number.isFinite(coords.lng)
   ) {
-    return googleMapsCoordsUrl(coords.lat, coords.lng);
+    return openStreetMapDirectionsUrl(coords.lat, coords.lng);
   }
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  return `https://www.openstreetmap.org/search?query=${encodeURIComponent(address)}`;
 };
 
 const ERROR_MESSAGES: Record<string, string> = {
