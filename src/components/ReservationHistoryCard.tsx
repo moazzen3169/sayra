@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ReservationCodeStrip } from "@/components/ReservationCodeStrip";
 import { Icon } from "@/components/ui/Icon";
 import { formatPrice } from "@/lib/format";
 import { formatReservationWhen, stationImageFor } from "@/lib/reservationUi";
@@ -21,6 +22,10 @@ export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({
   isRated = false,
 }) => {
   const { status } = reservation;
+  const trackingCode =
+    reservation.checkInCode ||
+    reservation.reservationCode ||
+    reservation.groupBooking?.trackingCode;
   const alreadyRated =
     isRated || reservation.isRated === true || reservation.canRate === false;
   const canRateNow = status === "COMPLETED" && !alreadyRated && Boolean(onRate);
@@ -63,6 +68,8 @@ export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({
           </div>
         </div>
       </div>
+
+      <ReservationCodeStrip code={trackingCode} compact />
 
       <div className="flex items-center justify-between gap-2 text-secondary text-[var(--text-muted)] border-t border-[var(--border-subtle)] pt-2.5">
         <div className="flex items-center gap-2 min-w-0">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GamecenterDetailHeader } from "@/components/GamecenterDetailHeader";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ReservationCodeStrip } from "@/components/ReservationCodeStrip";
 import { AuthModal } from "@/components/AuthModal";
 import { RatingModal } from "@/components/RatingModal";
 import { useAuth } from "@/context/AuthContext";
@@ -114,11 +115,18 @@ function StatusStepper({ status }: { status: ReservationStatus }) {
 
 /* ---------- Terminal Status Card (CANCELED / NO_SHOW) ---------- */
 
-function TerminalStatusCard({ status }: { status: "CANCELED" | "NO_SHOW" }) {
+function TerminalStatusCard({
+  status,
+  reason,
+}: {
+  status: "CANCELED" | "NO_SHOW";
+  reason?: string | null;
+}) {
   const isCanceled = status === "CANCELED";
+  const trimmedReason = reason?.trim();
   return (
     <div
-      className={`rounded-card p-4 flex items-center gap-3.5 border ${
+      className={`rounded-card p-4 flex items-start gap-3.5 border ${
         isCanceled
           ? "bg-[var(--accent-red)]/10 border-[var(--accent-red)]/30 text-[var(--accent-red)]"
           : "bg-[var(--foreground)]/40 border-[var(--border-color)] text-[var(--text-muted)]"
@@ -133,7 +141,7 @@ function TerminalStatusCard({ status }: { status: "CANCELED" | "NO_SHOW" }) {
           )}
         </svg>
       </div>
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-1 min-w-0 flex-1">
         <h4 className="text-sm font-bold text-[var(--text-white)]">
           {isCanceled ? "رزرو لغو شده است" : "عدم حضور ثبت شده است"}
         </h4>
@@ -142,6 +150,12 @@ function TerminalStatusCard({ status }: { status: "CANCELED" | "NO_SHOW" }) {
             ? "این رزرو لغو شده و دیگر فعال نمی‌باشد."
             : "عدم حضور شما در زمان تعیین‌شده توسط گیمنت ثبت گردیده است."}
         </p>
+        {isCanceled && trimmedReason && (
+          <div className="mt-1.5 rounded-child bg-[var(--bg-body)]/55 border border-[var(--accent-red)]/25 px-3 py-2 text-xs text-[var(--text-white)] leading-relaxed break-words">
+            <span className="font-bold text-[var(--accent-red)]">دلیل لغو رزرو: </span>
+            <span>{trimmedReason}</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -200,7 +214,6 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [busyProposalId, setBusyProposalId] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
   const [ratedIds, setRatedIds] = useState<Set<string>>(() => new Set());
@@ -285,17 +298,6 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
     }
   };
 
-  const handleCopyCode = async () => {
-    if (!reservation?.reservationCode) return;
-    try {
-      await navigator.clipboard.writeText(reservation.reservationCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // ignore
-    }
-  };
-
   const handleAuthSuccess = (fullName: string, phone: string, token?: string, refreshToken?: string) => {
     login(fullName, phone, token, refreshToken);
     setIsAuthModalOpen(false);
@@ -304,6 +306,15 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
   const pendingProposals = proposals.filter((p) => p.status === "PENDING");
   const canCancel = reservation?.status === "PENDING" || reservation?.status === "CONFIRMED";
   const isTerminalState = reservation?.status === "CANCELED" || reservation?.status === "NO_SHOW";
+  const displayCode =
+    reservation?.checkInCode ||
+    reservation?.reservationCode ||
+    reservation?.groupBooking?.trackingCode;
+  const cancelReason =
+    reservation?.cancelReason ||
+    reservation?.cancellationReason ||
+    reservation?.canceledReason ||
+    (reservation?.status === "CANCELED" ? reservation.reason : null);
   const alreadyRated = reservation ? isSingleReservationRated(reservation, ratedIds) : false;
   const showRate = reservation?.status === "COMPLETED" && !alreadyRated;
   const reviewTarget = reservation ? buildReviewTargetFromReservation(reservation) : null;
@@ -426,29 +437,16 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
               </div>
 
               {/* Reservation Code integrated here cleanly */}
-              {reservation.reservationCode && (
-                <div className="flex items-center justify-between gap-3 bg-[var(--foreground)]/40 border border-[var(--border-subtle)] rounded-child p-3">
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="text-[var(--text-muted)]">کد رزرو:</span>
-                    <span className="text-base font-black tracking-wider text-[var(--text-white)] font-mono">
-                      {toPersianDigits(reservation.reservationCode)}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCopyCode}
-                    className="h-8 px-3 rounded-child bg-[var(--bg-card)] border border-[var(--border-color)] text-xs font-bold text-[var(--primary)] hover:bg-[var(--foreground)]/50 transition-colors"
-                  >
-                    {copied ? "کپی شد ✓" : "کپی کد"}
-                  </button>
-                </div>
-              )}
+              <ReservationCodeStrip code={displayCode} />
 
               <div className="h-[1px] w-full bg-[var(--border-subtle)]" />
 
               {/* Status Section: Stepper for Active or Terminal Status Card */}
               {isTerminalState ? (
-                <TerminalStatusCard status={reservation.status as "CANCELED" | "NO_SHOW"} />
+                <TerminalStatusCard
+                  status={reservation.status as "CANCELED" | "NO_SHOW"}
+                  reason={cancelReason}
+                />
               ) : (
                 <StatusStepper status={reservation.status} />
               )}

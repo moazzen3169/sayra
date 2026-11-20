@@ -34,10 +34,12 @@ const RATING_RANKS: Record<number, { badge: string; title: string }> = {
 };
 
 const QUICK_VIBE_CHIPS = [
-  "سیستم قوی ⚡",
-  "بدون لگ 🎯",
-  "فضای خفن 🔥",
-  "برخورد عالی 🤝",
+  "عالی بود، سیستم‌ها قوی و بدون لگ",
+  "فضاش دنج و تمیز بود، برخوردشون هم عالی",
+  "خیلی خوش گذشت، قطعاً دوباره میام",
+  "در کل خوب و معمولی بود، راضی‌ام",
+  "بد نبود ولی دسته‌ها و تجهیزات جای بهتر شدن داشت",
+  "کمی شلوغ بود و کیفیت سیستم‌ها انتظارمو برآورده نکرد",
 ];
 
 function ConsoleControllerIcon({
@@ -50,7 +52,7 @@ function ConsoleControllerIcon({
       viewBox="0 0 64 46"
       className={`w-10 h-7 sm:w-12 sm:h-9 transition-all duration-200 ${
         highlighted
-          ? "drop-shadow-[0_0_12px_rgba(184,243,74,0.55)] scale-110"
+          ? "drop-shadow-[0_0_5px_rgba(184,243,74,0.18)] scale-105"
           : "opacity-45 hover:opacity-80"
       }`}
       fill="none"
@@ -60,7 +62,7 @@ function ConsoleControllerIcon({
       <path
         d="M18.5 7.5h27c6.4 0 11.4 4.5 12.7 10.8l2.5 12.2c1.1 5.2-2.6 10-7.6 10-2.6 0-5-1.3-6.4-3.5l-2.7-4.3a4 4 0 0 0-3.4-1.9H23.4a4 4 0 0 0-3.4 1.9l-2.7 4.3c-1.4 2.2-3.8 3.5-6.4 3.5-5 0-8.7-4.8-7.6-10L5.8 18.3C7.1 12 12.1 7.5 18.5 7.5Z"
         fill={highlighted ? "#B8F34A" : "transparent"}
-        fillOpacity={highlighted ? 0.22 : 0}
+        fillOpacity={highlighted ? 0.14 : 0}
         stroke={highlighted ? "#B8F34A" : "#D4D4D8"}
         strokeWidth="2.4"
         strokeLinejoin="round"
@@ -168,8 +170,9 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
     const needsName =
       !gamingCenterName?.trim() || gamingCenterName.trim() === "گیمنت";
     const needsSlug = !gamingCenterSlug?.trim();
+    const lookupKey = gamingCenterId?.trim() || gamingCenterSlug?.trim();
 
-    if ((!needsName && !needsSlug) || !gamingCenterId?.trim()) {
+    if ((!needsName && !needsSlug) || !lookupKey) {
       return;
     }
 
@@ -177,7 +180,7 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
     const controller = new AbortController();
 
     gamingCenterService
-      .resolveGamingCenter(gamingCenterId.trim(), controller.signal)
+      .resolveGamingCenter(lookupKey, controller.signal)
       .then((center) => {
         if (!active || !center) return;
         if (center.name) setResolvedCenterName(center.name);
@@ -210,22 +213,30 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
   const displayRating = hoveredRating ?? rating;
   const activeRank = displayRating > 0 ? RATING_RANKS[displayRating] : null;
   const centerTitle =
-    resolvedCenterName || gamingCenterName?.trim() || "گیم‌نت سایرا";
+    resolvedCenterName || gamingCenterName?.trim() || "گیمنت";
   const effectiveSlug = resolvedCenterSlug || gamingCenterSlug?.trim() || "";
   const whenText =
     startTime && endTime ? formatReservationWhen(startTime, endTime) : "";
 
   const toggleQuickChip = (chip: string) => {
     setComment((prev) => {
-      const trimmed = prev.trim();
-      if (trimmed.includes(chip)) {
-        return trimmed
+      const lines = prev
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      if (lines.includes(chip)) {
+        return lines.filter((line) => line !== chip).join("\n");
+      }
+
+      if (prev.includes(chip)) {
+        return prev
           .replace(chip, "")
-          .replace(/\s*،\s*،\s*/g, "، ")
-          .replace(/^،\s*|\s*،$/g, "")
+          .replace(/\n{2,}/g, "\n")
           .trim();
       }
-      return trimmed ? `${trimmed}، ${chip}` : chip;
+
+      return [...lines, chip].join("\n");
     });
   };
 
@@ -290,21 +301,21 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
           entered ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* About-page style grid & neon aura */}
+        {/* Subtle background grid & low-intensity aura */}
         <div
           aria-hidden="true"
-          className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_75%_18%,rgba(184,243,74,0.12),transparent_45%),linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:auto,64px_64px,64px_64px]"
+          className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_75%_18%,rgba(184,243,74,0.035),transparent_48%),linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:auto,64px_64px,64px_64px]"
         />
 
-        {/* Exact width of /reservations, compact single-viewport height */}
+        {/* Exact width of /reservations, seamless against main background */}
         <div className="w-full max-w-[var(--max-mini-app-width)] mx-auto px-4 lg:px-0 py-4 sm:py-6 min-h-[100dvh] flex flex-col justify-center gap-4">
           {/* Top Bar */}
           <div className="flex items-center justify-between gap-3">
             <div
-              className="inline-flex items-center gap-2 rounded-full border border-[#B8F34A]/20 bg-[#B8F34A]/5 px-3 py-1 text-[10px] tracking-[.2em] text-[#C8F78A]"
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[10px] tracking-[.2em] text-white/60"
               dir="ltr"
             >
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#B8F34A]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-[#B8F34A]/70" />
               {autoOpened ? "SAYRA / MISSION COMPLETE" : "SAYRA / REVIEW"}
             </div>
 
@@ -313,7 +324,7 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
               onClick={handleClose}
               disabled={submitting}
               aria-label="بستن"
-              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-[#0D100B]/85 px-3.5 py-1.5 text-xs font-bold text-white/75 transition hover:border-[#B8F34A]/50 hover:text-[#B8F34A] active:scale-95 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.03] px-3.5 py-1.5 text-xs font-bold text-white/75 transition hover:border-white/30 hover:text-white active:scale-95 disabled:opacity-50"
             >
               <span>بعداً</span>
               <span className="text-xs leading-none">✕</span>
@@ -321,12 +332,12 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
           </div>
 
           {submitted ? (
-            <div className="flex flex-col items-center text-center py-9 px-5 rounded-3xl border border-[#B8F34A]/30 bg-[radial-gradient(ellipse_at_50%_30%,rgba(184,243,74,0.16),transparent_60%),#0D100B]">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[#B8F34A]/45 bg-[#080A07] shadow-[0_0_28px_rgba(184,243,74,0.28)]">
+            <div className="flex flex-col items-center text-center py-9 px-2 bg-transparent border-0">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[#B8F34A]/25 bg-white/[0.03] shadow-[0_0_12px_rgba(184,243,74,0.1)]">
                 <ConsoleControllerIcon highlighted={true} />
               </div>
               <span
-                className="text-[10px] tracking-[.26em] text-[#B8F34A]"
+                className="text-[10px] tracking-[.26em] text-[#B8F34A]/85"
                 dir="ltr"
               >
                 GG WP · RECORDED
@@ -355,37 +366,29 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
               </button>
             </div>
           ) : (
-            <div className="relative overflow-hidden rounded-3xl border border-[#B8F34A]/20 bg-[radial-gradient(ellipse_at_88%_12%,rgba(184,243,74,0.12),transparent_42%),#0D100B] p-4 sm:p-6 flex flex-col gap-4">
-              {/* Compact Header with Prominent Gaming Center Name */}
-              <div className="flex flex-col gap-2 border-b border-white/10 pb-3.5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#B8F34A]/35 bg-[#B8F34A]/12 px-3 py-0.5 text-xs font-extrabold text-[#B8F34A]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#B8F34A]" />
+            <div className="relative bg-transparent border-0 py-2 flex flex-col gap-5">
+              {/* Header: Gamenet name on top, question directly beneath */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                  <h2 className="text-xl sm:text-2xl font-black text-white leading-snug">
                     {centerTitle}
-                  </span>
-                  {stationName && (
-                    <span className="text-[11px] text-white/60">
-                      {stationName}
-                    </span>
-                  )}
-                  {whenText && (
-                    <span className="text-[11px] text-white/40">
-                      · {whenText}
+                  </h2>
+                  {(stationName || whenText) && (
+                    <span className="text-[11px] text-white/50">
+                      {[stationName, whenText].filter(Boolean).join(" · ")}
                     </span>
                   )}
                 </div>
 
                 <h1
                   id="gaming-review-title"
-                  className="text-xl sm:text-2xl font-black leading-snug tracking-tight"
+                  className="text-sm sm:text-base font-bold text-white/85 leading-snug"
                 >
-                  تجربه‌ات در{" "}
-                  <span className="text-[#B8F34A]">{centerTitle}</span> چطور
-                  بود<span className="text-[#B8F34A]">؟</span>
+                  تجربت از این گیمنت چطوری بود؟
                 </h1>
               </div>
 
-              {/* 01 — Console Controller Rating (No background, tight spacing) */}
+              {/* 01 — Console Controller Rating */}
               <div className="flex flex-col items-center gap-2 py-1">
                 <div
                   className="flex items-center justify-center gap-1.5 sm:gap-2.5"
@@ -412,7 +415,7 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
                         <ConsoleControllerIcon highlighted={isHighlighted} />
                         <span
                           className={`text-[11px] font-black transition-colors ${
-                            isHighlighted ? "text-[#B8F34A]" : "text-white/35"
+                            isHighlighted ? "text-[#B8F34A]/90" : "text-white/35"
                           }`}
                         >
                           {toPersianDigits(value)}
@@ -427,12 +430,12 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
                   {activeRank ? (
                     <>
                       <span
-                        className="rounded bg-[#B8F34A] px-1.5 py-0.5 text-[10px] font-black text-[#10130A]"
+                        className="rounded bg-[#B8F34A]/90 px-1.5 py-0.5 text-[10px] font-black text-[#10130A]"
                         dir="ltr"
                       >
                         {activeRank.badge}
                       </span>
-                      <span className="text-xs font-bold text-[#E8FFB8]">
+                      <span className="text-xs font-bold text-white/90">
                         {activeRank.title}
                       </span>
                     </>
@@ -444,7 +447,7 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
                 </div>
               </div>
 
-              {/* 02 — Quick Vibes + Comment */}
+              {/* 02 — Realistic Quick Answers + Comment */}
               <div className="flex flex-col gap-2.5">
                 <div className="flex flex-wrap gap-1.5">
                   {QUICK_VIBE_CHIPS.map((chip) => {
@@ -454,10 +457,10 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
                         key={chip}
                         type="button"
                         onClick={() => toggleQuickChip(chip)}
-                        className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition active:scale-95 ${
+                        className={`rounded-full border px-3 py-1.5 text-[11px] font-medium text-right leading-relaxed transition active:scale-95 ${
                           selected
-                            ? "border-[#B8F34A] bg-[#B8F34A]/15 text-[#D7F8A6]"
-                            : "border-white/10 bg-white/[0.03] text-white/60 hover:border-[#B8F34A]/40 hover:text-white"
+                            ? "border-[#B8F34A]/60 bg-[#B8F34A]/10 text-[#D7F8A6]"
+                            : "border-white/10 bg-white/[0.03] text-white/65 hover:border-white/25 hover:text-white"
                         }`}
                       >
                         {chip}
@@ -471,8 +474,8 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
                   onChange={(e) => setComment(e.target.value)}
                   rows={3}
                   maxLength={500}
-                  placeholder="حس‌وحالت از بازی، کیفیت سیستم‌ها یا فضا رو بنویس... (اختیاری)"
-                  className="w-full rounded-2xl border border-white/15 bg-[#080A07] px-3.5 py-2.5 text-xs sm:text-sm leading-6 text-white placeholder:text-white/35 outline-none resize-none transition-colors focus:border-[#B8F34A]"
+                  placeholder="نظرت درباره سیستم‌ها، فضا یا برخورد پرسنل رو بنویس... (اختیاری)"
+                  className="w-full rounded-2xl border border-white/12 bg-white/[0.03] px-3.5 py-2.5 text-xs sm:text-sm leading-6 text-white placeholder:text-white/35 outline-none resize-none transition-colors focus:border-[#B8F34A]/60"
                 />
 
                 <div className="flex items-center justify-between text-[11px] text-white/40">
@@ -493,7 +496,7 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
                   type="button"
                   onClick={handleSubmit}
                   disabled={submitting}
-                  className="flex-1 h-11 rounded-full bg-[#B8F34A] hover:bg-[#D1FF78] disabled:opacity-60 text-[#10130A] font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-[0_6px_22px_rgba(184,243,74,0.24)] transition active:scale-[0.98]"
+                  className="flex-1 h-11 rounded-full bg-[#B8F34A] hover:bg-[#D1FF78] disabled:opacity-60 text-[#10130A] font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition active:scale-[0.98]"
                 >
                   <span>{submitting ? "در حال ثبت..." : "ثبت امتیاز و نظر"}</span>
                   {!submitting && <span aria-hidden="true">↗</span>}

@@ -192,6 +192,12 @@ export function groupCustomerReservations(reservations: Reservation[]): Customer
 
       const rep = groupReservations[0];
       const devices = groupDevicesForCard(groupReservations, rep.items);
+      const reservationCode =
+        groupReservations
+          .map((res) => res.reservationCode || res.groupBooking?.trackingCode)
+          .find(Boolean) || undefined;
+      const checkInCode =
+        groupReservations.map((res) => res.checkInCode).find(Boolean) || undefined;
 
       const groupItem: GroupBookingItem = {
         isGroup: true,
@@ -205,7 +211,8 @@ export function groupCustomerReservations(reservations: Reservation[]): Customer
         status,
         paymentState,
         totalPrice: finalTotalPrice,
-        reservationCode: rep.reservationCode,
+        reservationCode,
+        checkInCode,
         devices,
         reservations: groupReservations,
       };
@@ -226,7 +233,8 @@ export function groupCustomerReservations(reservations: Reservation[]): Customer
         status: r.status,
         paymentState: r.paymentState,
         totalPrice: r.totalPrice,
-        reservationCode: r.reservationCode,
+        reservationCode: r.reservationCode || r.groupBooking?.trackingCode,
+        checkInCode: r.checkInCode || undefined,
         devices,
         reservations: [r],
       };
@@ -288,10 +296,30 @@ export function mergeGroupReservationsIntoSingle(
     0
   );
 
+  const checkInCode =
+    groupReservations.map((r) => r.checkInCode).find(Boolean) ?? rep.checkInCode;
+  const reservationCode =
+    groupReservations
+      .map((r) => r.reservationCode || r.groupBooking?.trackingCode)
+      .find(Boolean) ?? rep.reservationCode;
+  const cancelReason =
+    groupReservations
+      .map(
+        (r) =>
+          r.cancelReason ||
+          r.cancellationReason ||
+          r.canceledReason ||
+          (r.status === "CANCELED" ? r.reason : undefined)
+      )
+      .find(Boolean) ?? null;
+
   return {
     ...rep,
     id: groupId,
     groupBookingId: groupId,
+    checkInCode,
+    reservationCode,
+    cancelReason: rep.cancelReason ?? cancelReason,
     startTime: earliestStart,
     endTime: latestEnd,
     status,

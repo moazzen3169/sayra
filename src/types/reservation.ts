@@ -70,6 +70,10 @@ export interface Reservation {
     address?: string;
   } | null;
   reservationCode?: string;
+  cancelReason?: string | null;
+  cancellationReason?: string | null;
+  canceledReason?: string | null;
+  reason?: string | null;
   canRate?: boolean;
   isRated?: boolean;
   rating?: number | { id?: string; rating?: number; comment?: string };
@@ -99,6 +103,7 @@ export interface GroupBookingItem {
   paymentState: PaymentState;
   totalPrice: number;
   reservationCode?: string;
+  checkInCode?: string | null;
   devices: GroupedDeviceItem[];
   reservations: Reservation[];
 }

@@ -202,7 +202,12 @@ export const reservationService = {
         try {
           const list = await reservationService.list(signal);
           // ۱. جستجو بر اساس شناسه مستقیم یا کد رزرو
-          const exactMatch = list.find((r) => r.id === reservationId || r.reservationCode === reservationId);
+          const exactMatch = list.find(
+            (r) =>
+              r.id === reservationId ||
+              r.reservationCode === reservationId ||
+              r.checkInCode === reservationId
+          );
           if (exactMatch) {
             // اگر بخشی از یک گروه بود، بررسی کنیم آیا رزروهای هم‌گروه دیگری هم وجود دارند
             const groupId = exactMatch.groupBookingId || exactMatch.groupBooking?.id;

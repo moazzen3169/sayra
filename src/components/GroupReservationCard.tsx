@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ReservationCodeStrip } from "@/components/ReservationCodeStrip";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { formatPrice, toPersianDigits } from "@/lib/format";
@@ -31,6 +32,12 @@ export const GroupReservationCard: React.FC<GroupReservationCardProps> = ({
     groupBooking.status === "COMPLETED" && !alreadyRated && Boolean(onRate);
 
   const firstRes = groupBooking.reservations[0];
+  const trackingCode =
+    groupBooking.checkInCode ||
+    groupBooking.reservationCode ||
+    firstRes?.checkInCode ||
+    firstRes?.reservationCode ||
+    firstRes?.groupBooking?.trackingCode;
   const deviceNames = groupBooking.reservations
     .map((r) => r.stationSnapshot?.name)
     .filter(Boolean)
@@ -55,6 +62,8 @@ export const GroupReservationCard: React.FC<GroupReservationCardProps> = ({
           {deviceNames}
         </p>
       )}
+
+      <ReservationCodeStrip code={trackingCode} compact />
 
       <div className="flex items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-2.5">
         {firstRes ? (
