@@ -166,7 +166,7 @@ export const OwnerAccessState: React.FC<OwnerAccessStateProps> = ({
                   ورود به حساب کاربری
                 </Link>
               )}
-              <Link href="/owner/new" className={secondaryBtn}>
+              <Link href="/register-gamecenter" className={secondaryBtn}>
                 ثبت گیم‌نت جدید
               </Link>
             </>
@@ -174,7 +174,7 @@ export const OwnerAccessState: React.FC<OwnerAccessStateProps> = ({
 
           {variant === "forbidden" && (
             <>
-              <Link href="/owner/new" className={primaryBtn}>
+              <Link href="/register-gamecenter" className={primaryBtn}>
                 ثبت گیم‌نت جدید
               </Link>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -197,7 +197,7 @@ export const OwnerAccessState: React.FC<OwnerAccessStateProps> = ({
 
           {variant === "no_center" && (
             <>
-              <Link href="/owner/new" className={primaryBtn}>
+              <Link href="/register-gamecenter" className={primaryBtn}>
                 ساخت گیم‌نت جدید
               </Link>
               {onRetry && (

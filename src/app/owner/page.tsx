@@ -77,7 +77,7 @@ export default function OwnerDashboardPage() {
       }
 
       if (!storedCenterId) {
-        router.push("/owner/new");
+        router.push("/register-gamecenter");
       }
     }
   }, [isCenterLoading, centers.length, centerId, me?.gamingCenterId, router]);

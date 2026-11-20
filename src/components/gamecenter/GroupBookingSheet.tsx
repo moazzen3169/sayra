@@ -728,30 +728,55 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
       const shouldUseWallet =
         !walletLoading && !walletError && availableWallet > 0 && useWallet;
 
-      if (shouldUseWallet) {
-        // تا زمان پشتیبانی بک‌اند از useWallet در مسیر group-reservations/checkout
-        // یا رفع خطای Zod در مسیر /reservation، از ثبت رزرو پرداخت‌نشده جلوگیری می‌کنیم.
-        setClientError(
-          "پرداخت با کیف پول در حال حاضر روی سرور برای این نوع رزرو فعال نیست (خطای 404 در payments/init). برای جلوگیری از ثبت رزرو پرداخت‌نشده، لطفاً سوییچ «استفاده از کیف پول» را خاموش کرده و پرداخت آنلاین را انجام دهید."
-        );
-        return;
-      }
-
       try {
-        const checkoutRes = await checkout(payload);
+        const checkoutRes = await checkout({
+          ...payload,
+          useWallet: shouldUseWallet,
+        });
 
         bookingDraftStorage.update({
           holdId: checkoutRes.holdId,
           paymentId: checkoutRes.paymentId,
           paymentUrl: checkoutRes.paymentUrl,
-          holdExpiresAt: checkoutRes.expiresAt,
+          holdExpiresAt: checkoutRes.holdExpiresAt || checkoutRes.expiresAt,
           gamingCenterId: checkoutRes.gamingCenterId || gamingCenterId,
-          grandTotal: checkoutRes.amount || estimate,
+          grandTotal:
+            checkoutRes.gatewayAmount ??
+            checkoutRes.totalAmount ??
+            checkoutRes.amount ??
+            estimate,
         });
 
         if (checkoutRes.paymentUrl) {
           setIsPaying(true);
           window.location.href = checkoutRes.paymentUrl;
+          return;
+        }
+
+        const paidViaWallet =
+          checkoutRes.paymentStatus === "PAID" ||
+          checkoutRes.gatewayAmount === 0 ||
+          (shouldUseWallet && availableWallet >= (checkoutRes.totalAmount ?? estimate));
+
+        if (paidViaWallet) {
+          const params = new URLSearchParams({
+            status: "success",
+            purpose: "RESERVATION",
+          });
+          if (checkoutRes.reservationId) {
+            params.set("reservationId", checkoutRes.reservationId);
+          }
+          if (checkoutRes.paymentId) {
+            params.set("paymentId", checkoutRes.paymentId);
+          }
+          if (checkoutRes.trackingCode) {
+            params.set("trackingCode", checkoutRes.trackingCode);
+          }
+          const finalTotal = checkoutRes.totalAmount ?? checkoutRes.amount ?? estimate;
+          if (finalTotal > 0) {
+            params.set("amount", String(finalTotal));
+          }
+          router.push(`/payment/success?${params.toString()}`);
           return;
         }
       } catch (checkoutErr: unknown) {

@@ -1003,11 +1003,10 @@ export default function TermsAndRulesPage() {
             </div>
 
             <h1 className="text-4xl font-black leading-[1.3] tracking-tight sm:text-5xl lg:text-6xl">
-              شرایط استفاده،
+             قوانین و مقررات
               <br />
-              <span className="text-[#B8F34A]">قوانین رزرو و مقررات</span>
-              <br />
-              کاربران پلتفرم سایرا<span className="text-[#B8F34A]">.</span>
+              <span className="text-[#B8F34A]"> پلتفرم  گیمینگ  سایرا</span>
+
             </h1>
 
             <p className="mt-7 max-w-xl text-base leading-9 text-white/55 sm:text-lg sm:leading-10">

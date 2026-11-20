@@ -128,6 +128,8 @@ export const groupReservationApi = {
         ...(payload.customer.email?.trim() ? { email: payload.customer.email.trim() } : {}),
       },
       ...(payload.note?.trim() ? { note: payload.note.trim() } : {}),
+      ...(payload.provider?.trim() ? { provider: payload.provider.trim() } : {}),
+      ...(payload.useWallet !== undefined ? { useWallet: payload.useWallet } : {}),
     };
 
     const response = await apiClient.post<

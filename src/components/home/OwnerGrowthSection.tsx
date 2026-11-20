@@ -70,7 +70,7 @@ export const OwnerGrowthSection: React.FC = () => {
           {/* CTAs */}
           <div className="mt-9 flex flex-wrap items-center gap-4">
             <Link
-              href="/owner/new"
+              href="/register-gamecenter"
               className="group/btn inline-flex items-center gap-4 rounded-full bg-[#B8F34A] px-7 py-4 text-sm font-bold text-[#10130A] transition duration-300 hover:-translate-y-1 hover:bg-[#D1FF78]"
             >
               <span>اتصال گیمنت به سایرا</span>

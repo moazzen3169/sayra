@@ -413,7 +413,7 @@ export default function AboutPage() {
                 ورود به جهان سایرا <span aria-hidden="true">↗</span>
               </Link>
               <Link
-                href="/owner/new"
+                href="/register-gamecenter"
                 className="inline-flex items-center rounded-full border border-white/15 px-7 py-4 text-sm text-white/70 transition hover:border-[#B8F34A]/50 hover:text-[#B8F34A]"
               >
                 معرفی گیم‌نت

@@ -54,6 +54,8 @@ export interface GroupReservationCheckoutPayload {
   items: GroupReservationItemPayload[];
   customer: GroupReservationCustomer;
   note?: string;
+  provider?: string;
+  useWallet?: boolean;
 }
 
 /**
@@ -63,10 +65,18 @@ export interface GroupReservationCheckoutPayload {
 export interface GroupReservationCheckoutResponse {
   holdId: string;
   paymentId: string;
-  paymentUrl: string; // URL درگاه (Zibal, ZarinPal, etc.)
+  paymentStatus?: string;
+  holdExpiresAt?: string;
+  paymentUrl?: string; // URL درگاه (در پرداخت کامل با کیف پول ممکن است خالی باشد)
   token?: string; // Payment gateway token / authority
-  expiresAt: string; // زمان انقضای هولد ۱۰ دقیقه‌ای
-  amount: number; // مبلغ محاسبه شده توسط سرور
+  expiresAt?: string; // زمان انقضای هولد ۱۰ دقیقه‌ای
+  amount?: number; // مبلغ محاسبه شده توسط سرور
+  totalAmount?: number;
+  walletAmount?: number;
+  gatewayAmount?: number;
+  currency?: string;
+  reservationId?: string;
+  trackingCode?: string;
   gamingCenterId?: string;
   gamingCenterSlug?: string;
   hold?: BookingHold;
