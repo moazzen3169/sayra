@@ -134,4 +134,145 @@ describe("paymentService API Contract Conformance", () => {
       apiClient.get = originalGet;
     }
   });
+
+  it("calculates wallet and gateway split via GET /gamingCenters/{id}/reservation/{id}/payments/calculate", async () => {
+    let capturedUrl = "";
+    let capturedQuery: Record<string, string> = {};
+
+    const originalGet = apiClient.get;
+    (apiClient as any).get = async (url: string, options: any) => {
+      capturedUrl = url;
+      capturedQuery = options?.query || {};
+      return {
+        data: {
+          success: true,
+          data: {
+            reservationId: "res-200",
+            totalAmount: 100000,
+            walletBalance: 50000,
+            walletContribution: 50000,
+            gatewayAmount: 50000,
+            currency: "IRR",
+            useWallet: true,
+            coversEntireAmount: false,
+          },
+        },
+      };
+    };
+
+    try {
+      const res = await paymentService.calculatePayment("gc-100", "res-200", true);
+      expect(capturedUrl).toBe("/gamingCenters/gc-100/reservation/res-200/payments/calculate");
+      expect(capturedQuery.useWallet).toBe("true");
+      expect(res.walletContribution).toBe(50000);
+      expect(res.gatewayAmount).toBe(50000);
+      expect(res.coversEntireAmount).toBe(false);
+    } finally {
+      apiClient.get = originalGet;
+    }
+  });
+
+  it("calculates wallet split via GET /customer/reservation/{id}/payments/calculate", async () => {
+    let capturedUrl = "";
+    let capturedQuery: Record<string, string> = {};
+
+    const originalGet = apiClient.get;
+    (apiClient as any).get = async (url: string, options: any) => {
+      capturedUrl = url;
+      capturedQuery = options?.query || {};
+      return {
+        data: {
+          success: true,
+          data: {
+            reservationId: "res-200",
+            totalAmount: 100000,
+            walletBalance: 120000,
+            walletContribution: 100000,
+            gatewayAmount: 0,
+            currency: "IRR",
+            useWallet: true,
+            coversEntireAmount: true,
+          },
+        },
+      };
+    };
+
+    try {
+      const res = await paymentService.calculateCustomerPayment("res-200", true);
+      expect(capturedUrl).toBe("/customer/reservation/res-200/payments/calculate");
+      expect(capturedQuery.useWallet).toBe("true");
+      expect(res.coversEntireAmount).toBe(true);
+      expect(res.gatewayAmount).toBe(0);
+    } finally {
+      apiClient.get = originalGet;
+    }
+  });
+
+  it("initiates payment with useWallet=true via POST /gamingCenters/{id}/reservation/{id}/payments/init", async () => {
+    let capturedUrl = "";
+    let capturedBody: any = null;
+    let capturedHeaders: Record<string, string> = {};
+
+    const originalPost = apiClient.post;
+    (apiClient as any).post = async (url: string, body: any, options: any) => {
+      capturedUrl = url;
+      capturedBody = body;
+      capturedHeaders = options?.headers || {};
+      return {
+        data: {
+          success: true,
+          data: {
+            paymentUrl: "https://gateway.example.com/pay/partial",
+            walletContribution: 50000,
+            gatewayAmount: 50000,
+          },
+        },
+      };
+    };
+
+    try {
+      const res = await paymentService.initPayment("gc-100", "res-200", "idem-wallet-1", {
+        useWallet: true,
+      });
+      expect(capturedUrl).toBe("/gamingCenters/gc-100/reservation/res-200/payments/init");
+      expect(capturedHeaders["idempotency-key"]).toBe("idem-wallet-1");
+      expect(capturedBody).toEqual({ useWallet: true });
+      expect(res.paymentUrl).toBe("https://gateway.example.com/pay/partial");
+    } finally {
+      apiClient.post = originalPost;
+    }
+  });
+
+  it("initiates full wallet payment via POST /customer/reservation/{id}/payments/init", async () => {
+    let capturedUrl = "";
+    let capturedBody: any = null;
+
+    const originalPost = apiClient.post;
+    (apiClient as any).post = async (url: string, body: any) => {
+      capturedUrl = url;
+      capturedBody = body;
+      return {
+        data: {
+          success: true,
+          data: {
+            paymentState: "PAID",
+            coversEntireAmount: true,
+            trackingCode: "TRK-WALLET-1",
+          },
+        },
+      };
+    };
+
+    try {
+      const res = await paymentService.initCustomerPayment("res-200", "idem-wallet-2", {
+        useWallet: true,
+      });
+      expect(capturedUrl).toBe("/customer/reservation/res-200/payments/init");
+      expect(capturedBody).toEqual({ useWallet: true });
+      expect(res.paymentState).toBe("PAID");
+      expect(res.coversEntireAmount).toBe(true);
+    } finally {
+      apiClient.post = originalPost;
+    }
+  });
 });

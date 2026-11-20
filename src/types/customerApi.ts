@@ -428,6 +428,22 @@ export interface SendCustomerTicketMessagePayload {
 // Payments (/gamingCenters/{id}/reservation/{id}/payments/*)
 // ---------------------------------------------------------------------------
 
+export interface PaymentCalculation {
+  reservationId: string;
+  totalAmount: number;
+  walletBalance: number;
+  walletContribution: number;
+  gatewayAmount: number;
+  currency: string;
+  useWallet: boolean;
+  coversEntireAmount: boolean;
+}
+
+export interface PaymentInitPayload {
+  provider?: string;
+  useWallet?: boolean;
+}
+
 export interface PaymentInitResponse {
   paymentUrl?: string;
   authority?: string;
@@ -435,6 +451,11 @@ export interface PaymentInitResponse {
   trackingCode?: string;
   amount?: number;
   reservationId?: string;
+  paymentState?: string;
+  status?: string;
+  walletContribution?: number;
+  gatewayAmount?: number;
+  coversEntireAmount?: boolean;
   [key: string]: unknown;
 }
 

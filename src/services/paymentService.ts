@@ -1,6 +1,8 @@
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import type {
+  PaymentCalculation,
+  PaymentInitPayload,
   PaymentInitResponse,
   PaymentVerifyGetParams,
   PaymentVerifyPostPayload,
@@ -8,9 +10,86 @@ import type {
   PaymentStatusResponse,
 } from "@/types/customerApi";
 
+export interface PaymentInitOptions extends PaymentInitPayload {
+  signal?: AbortSignal;
+}
+
+function resolveInitOptions(
+  optionsOrSignal?: PaymentInitOptions | AbortSignal
+): { body: PaymentInitPayload | undefined; signal?: AbortSignal } {
+  if (!optionsOrSignal) {
+    return { body: undefined, signal: undefined };
+  }
+  if (typeof AbortSignal !== "undefined" && optionsOrSignal instanceof AbortSignal) {
+    return { body: undefined, signal: optionsOrSignal };
+  }
+  const opts = optionsOrSignal as PaymentInitOptions;
+  const payload: PaymentInitPayload = {};
+  if (opts.provider !== undefined) payload.provider = opts.provider;
+  if (opts.useWallet !== undefined) payload.useWallet = opts.useWallet;
+  return {
+    body: Object.keys(payload).length > 0 ? payload : undefined,
+    signal: opts.signal,
+  };
+}
+
 export const paymentService = {
   /**
-   * شروع فرآیند پرداخت برای رزرو
+   * محاسبه سهم کیف پول و مبلغ باقیمانده درگاه برای رزرو
+   * GET /gamingCenters/{gamingCenterId}/reservation/{reservationId}/payments/calculate
+   */
+  async calculatePayment(
+    gamingCenterId: string,
+    reservationId: string,
+    useWallet?: boolean,
+    signal?: AbortSignal
+  ): Promise<PaymentCalculation> {
+    if (!gamingCenterId?.trim()) throw new Error("شناسه گیم‌نت نامعتبر است.");
+    if (!reservationId?.trim()) throw new Error("شناسه رزرو نامعتبر است.");
+
+    const query: Record<string, string> = {};
+    if (useWallet !== undefined) query.useWallet = String(useWallet);
+
+    const response = await apiClient.get<PaymentCalculation | { data?: PaymentCalculation }>(
+      ENDPOINTS.payment.calculate(gamingCenterId, reservationId),
+      { query, signal }
+    );
+
+    const resData = response.data;
+    if (resData && typeof resData === "object" && "data" in resData && (resData as { data?: PaymentCalculation }).data) {
+      return (resData as { data: PaymentCalculation }).data;
+    }
+    return resData as PaymentCalculation;
+  },
+
+  /**
+   * محاسبه سهم کیف پول و مبلغ باقیمانده درگاه از مسیر مشتری
+   * GET /customer/reservation/{reservationId}/payments/calculate
+   */
+  async calculateCustomerPayment(
+    reservationId: string,
+    useWallet?: boolean,
+    signal?: AbortSignal
+  ): Promise<PaymentCalculation> {
+    if (!reservationId?.trim()) throw new Error("شناسه رزرو نامعتبر است.");
+
+    const query: Record<string, string> = {};
+    if (useWallet !== undefined) query.useWallet = String(useWallet);
+
+    const response = await apiClient.get<PaymentCalculation | { data?: PaymentCalculation }>(
+      ENDPOINTS.payment.customerCalculate(reservationId),
+      { query, signal }
+    );
+
+    const resData = response.data;
+    if (resData && typeof resData === "object" && "data" in resData && (resData as { data?: PaymentCalculation }).data) {
+      return (resData as { data: PaymentCalculation }).data;
+    }
+    return resData as PaymentCalculation;
+  },
+
+  /**
+   * شروع فرآیند پرداخت برای رزرو (با پشتیبانی از پرداخت کامل یا جزئی با کیف پول)
    * POST /gamingCenters/{gamingCenterId}/reservation/{reservationId}/payments/init
    * Header: idempotency-key (الزامی طبق OpenAPI)
    */
@@ -18,15 +97,47 @@ export const paymentService = {
     gamingCenterId: string,
     reservationId: string,
     idempotencyKey: string,
-    signal?: AbortSignal
+    optionsOrSignal?: PaymentInitOptions | AbortSignal
   ): Promise<PaymentInitResponse> {
     if (!gamingCenterId?.trim()) throw new Error("شناسه گیم‌نت نامعتبر است.");
     if (!reservationId?.trim()) throw new Error("شناسه رزرو نامعتبر است.");
     if (!idempotencyKey?.trim()) throw new Error("کلید یکتایی (idempotency-key) الزامی است.");
 
+    const { body, signal } = resolveInitOptions(optionsOrSignal);
+
     const response = await apiClient.post<PaymentInitResponse | { data?: PaymentInitResponse }>(
       ENDPOINTS.payment.init(gamingCenterId, reservationId),
-      undefined,
+      body,
+      {
+        headers: { "idempotency-key": idempotencyKey },
+        signal,
+      }
+    );
+
+    const resData = response.data;
+    if (resData && typeof resData === "object" && "data" in resData && (resData as { data?: PaymentInitResponse }).data) {
+      return (resData as { data: PaymentInitResponse }).data;
+    }
+    return resData as PaymentInitResponse;
+  },
+
+  /**
+   * شروع فرآیند پرداخت از مسیر مشتری (پشتیبانی از کیف پول و درگاه بانکی)
+   * POST /customer/reservation/{reservationId}/payments/init
+   */
+  async initCustomerPayment(
+    reservationId: string,
+    idempotencyKey: string,
+    optionsOrSignal?: PaymentInitOptions | AbortSignal
+  ): Promise<PaymentInitResponse> {
+    if (!reservationId?.trim()) throw new Error("شناسه رزرو نامعتبر است.");
+    if (!idempotencyKey?.trim()) throw new Error("کلید یکتایی (idempotency-key) الزامی است.");
+
+    const { body, signal } = resolveInitOptions(optionsOrSignal);
+
+    const response = await apiClient.post<PaymentInitResponse | { data?: PaymentInitResponse }>(
+      ENDPOINTS.payment.customerInit(reservationId),
+      body,
       {
         headers: { "idempotency-key": idempotencyKey },
         signal,

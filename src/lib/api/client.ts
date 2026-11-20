@@ -543,7 +543,7 @@ async function request<T>(
 if (
   error instanceof ApiError &&
   (
-    error.status === 401 ||
+    (error.status === 401 && error.code !== "OTP_REQUIRED") ||
     (
       authScope === "blog" &&
       error.code === "TOKEN_NOT_VALID"

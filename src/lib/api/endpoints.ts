@@ -71,6 +71,12 @@ export const ENDPOINTS = {
   payment: {
     init: (gamingCenterId: string, reservationId: string) =>
       `/gamingCenters/${enc(gamingCenterId)}/reservation/${enc(reservationId)}/payments/init`,
+    calculate: (gamingCenterId: string, reservationId: string) =>
+      `/gamingCenters/${enc(gamingCenterId)}/reservation/${enc(reservationId)}/payments/calculate`,
+    customerCalculate: (reservationId: string) =>
+      `/customer/reservation/${enc(reservationId)}/payments/calculate`,
+    customerInit: (reservationId: string) =>
+      `/customer/reservation/${enc(reservationId)}/payments/init`,
     verifyGet: (gamingCenterId: string, reservationId: string) =>
       `/gamingCenters/${enc(gamingCenterId)}/reservation/${enc(reservationId)}/payments/verify`,
     verifyPost: (gamingCenterId: string, reservationId: string) =>

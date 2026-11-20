@@ -43,6 +43,8 @@ import { BookingStepper, type BookingStep } from "@/components/gamecenter/Bookin
 import { TimeStep, type SlotView } from "@/components/gamecenter/booking/TimeStep";
 import { ReviewStep } from "@/components/gamecenter/booking/ReviewStep";
 import { paymentService } from "@/services/paymentService";
+import { reservationService } from "@/services/reservationService";
+import { walletService } from "@/services/walletService";
 import { bookingDraftStorage } from "@/lib/bookingDraftStorage";
 import { createIdempotencyKey } from "@/services/bookingService";
 
@@ -178,6 +180,44 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
 
   const isActionBusy = isSubmitting || isPaying;
   const submitLockRef = useRef(false);
+
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
+  const [walletRetryToken, setWalletRetryToken] = useState(0);
+  const [useWallet, setUseWallet] = useState(false);
+
+  useEffect(() => {
+    if (!isReviewStage || !isLoggedIn) return;
+
+    let active = true;
+    const controller = new AbortController();
+
+    (async () => {
+      await Promise.resolve();
+      if (!active) return;
+      setWalletLoading(true);
+      setWalletError(null);
+      try {
+        const wallet = await walletService.getWallet(controller.signal);
+        if (!active) return;
+        const available = Math.max(0, Number(wallet.availableBalance ?? 0));
+        setWalletBalance(available);
+        setUseWallet(available > 0);
+      } catch (err) {
+        if (!active || isAbortError(err)) return;
+        setWalletError("خطا در دریافت موجودی کیف پول");
+        setUseWallet(false);
+      } finally {
+        if (active) setWalletLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [isReviewStage, isLoggedIn, walletRetryToken]);
 
   useEffect(() => {
     let active = true;
@@ -655,8 +695,8 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
         return;
       }
 
-      const cleanPhone = cleanPhoneNumber(phone || user?.phone || "");
-      const targetName = (fullName || user?.fullName || "").trim();
+      const cleanPhone = cleanPhoneNumber(user?.phone || phone || "");
+      const targetName = (user?.fullName || fullName || "").trim();
 
       if (targetName.length < 2) {
         setClientError("اطلاعات حساب کاربری ناقص است.");
@@ -684,6 +724,103 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
         },
         ...(note.trim() ? { note: note.trim() } : {}),
       };
+
+      const availableWallet = Math.max(0, walletBalance ?? 0);
+      const shouldUseWallet =
+        !walletLoading && !walletError && availableWallet > 0 && useWallet;
+
+      if (shouldUseWallet) {
+        const res = await submit(payload);
+        const resolvedCenterId = res.gamingCenterId || gamingCenterId;
+
+        setIsPaying(true);
+        const idempotencyKey = createIdempotencyKey();
+
+        try {
+          // اولویت با مسیر مشتری (/customer/reservation/{id}/payments/*) است که نیازی به gamingCenterId ندارد
+          try {
+            await paymentService.calculateCustomerPayment(res.id, true);
+          } catch {
+            // ادامه فرآیند با initCustomerPayment
+          }
+
+          let payRes;
+          try {
+            payRes = await paymentService.initCustomerPayment(
+              res.id,
+              idempotencyKey,
+              { useWallet: true }
+            );
+          } catch (initErr: unknown) {
+            const ie = initErr as { status?: number; code?: string };
+            if (
+              (ie?.status === 404 || ie?.code === "NOT_FOUND") &&
+              resolvedCenterId &&
+              resolvedCenterId !== gamingCenterSlug
+            ) {
+              payRes = await paymentService.initPayment(
+                resolvedCenterId,
+                res.id,
+                idempotencyKey,
+                { useWallet: true }
+              );
+            } else {
+              throw initErr;
+            }
+          }
+
+          if (payRes.paymentUrl) {
+            bookingDraftStorage.update({
+              reservationId: res.id,
+              gamingCenterId: resolvedCenterId,
+              paymentUrl: payRes.paymentUrl,
+              grandTotal: payRes.gatewayAmount ?? Math.max(0, estimate - availableWallet),
+            });
+            window.location.href = payRes.paymentUrl;
+            return;
+          }
+
+          const paidViaWallet =
+            payRes.coversEntireAmount === true ||
+            payRes.paymentState === "PAID" ||
+            payRes.status === "PAID" ||
+            payRes.status === "COMPLETED" ||
+            availableWallet >= (res.totalPrice || estimate);
+
+          if (paidViaWallet) {
+            bookingDraftStorage.update({
+              reservationId: res.id,
+              gamingCenterId: resolvedCenterId,
+              grandTotal: res.totalPrice || estimate,
+            });
+            const tracking = encodeURIComponent(payRes.trackingCode || res.trackingCode || "");
+            router.push(
+              `/payment/success?reservationId=${encodeURIComponent(
+                res.id
+              )}&trackingCode=${tracking}&status=success&purpose=RESERVATION`
+            );
+            return;
+          }
+
+          // اگر نه لینک درگاه برگشت و نه پرداخت کامل تایید شد، رزرو را لغو کن
+          throw new Error("پاسخ معتبری برای پرداخت دریافت نشد.");
+        } catch (payErr: unknown) {
+          // جلوگیری از باقی ماندن رزرو پرداخت‌نشده در صورت خطا در پرداخت
+          try {
+            await reservationService.cancel(res.id);
+          } catch {
+            // اگر لغو خودکار ممکن نبود، خطای اصلی پرداخت نمایش داده می‌شود
+          }
+          const pe = payErr as { message?: string };
+          setClientError(
+            pe?.message ||
+              "خطا در شروع فرآیند پرداخت با کیف پول. رزرو ثبت نشد؛ لطفاً دوباره تلاش کنید."
+          );
+          return;
+        } finally {
+          setIsPaying(false);
+        }
+      }
 
       try {
         const checkoutRes = await checkout(payload);
@@ -722,7 +859,8 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
             const payRes = await paymentService.initPayment(
               resolvedCenterId,
               res.id,
-              idempotencyKey
+              idempotencyKey,
+              { useWallet: false }
             );
             if (payRes.paymentUrl) {
               window.location.href = payRes.paymentUrl;
@@ -741,7 +879,16 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
       }
     } catch (err: unknown) {
       const e = err as { status?: number; code?: string };
-      if (e?.status === 401 || e?.code === "UNAUTHORIZED") {
+      if (
+        e?.status === 401 ||
+        e?.code === "UNAUTHORIZED" ||
+        e?.code === "OTP_REQUIRED"
+      ) {
+        setClientError(
+          e?.code === "OTP_REQUIRED"
+            ? "شماره موبایل نیاز به تایید مجدد با کد یک‌بارمصرف دارد."
+            : null
+        );
         setIsAuthModalOpen(true);
       } else if (e?.code === "LEAD_TIME_TOO_SHORT") {
         setIsLeadTimeError(true);
@@ -796,6 +943,31 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
 
   const timeActionLabel = !isLoggedIn ? "ورود و ادامه" : "ادامه";
 
+  const availableWallet = Math.max(0, walletBalance ?? 0);
+  const canUseWallet = !walletLoading && !walletError && availableWallet > 0;
+  const isWalletActive = canUseWallet && useWallet;
+  const walletContribution = isWalletActive ? Math.min(availableWallet, estimate) : 0;
+  const gatewayAmount = Math.max(0, estimate - walletContribution);
+  const coversEntireAmount = isWalletActive && gatewayAmount === 0 && estimate > 0;
+
+  const reviewActionLabel = coversEntireAmount
+    ? "پرداخت با کیف پول"
+    : isWalletActive
+    ? `پرداخت ${formatPrice(gatewayAmount)} تومان`
+    : "پرداخت";
+
+  const reviewLoadingLabel = coversEntireAmount
+    ? "در حال پرداخت"
+    : isPaying
+    ? "در حال انتقال"
+    : "در حال ثبت";
+
+  const reviewCaption = coversEntireAmount
+    ? `کسر ${formatPrice(walletContribution)} تومان از کیف پول`
+    : isWalletActive
+    ? `${formatPrice(walletContribution)} تومان کیف پول + ${formatPrice(gatewayAmount)} تومان درگاه`
+    : "انتقال به درگاه بانکی";
+
   const footer = !isReviewStage ? (
     <StickyActionBar
       inDialog
@@ -827,19 +999,30 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
       className="lg:hidden"
       info={
         <div className="flex flex-col gap-0.5">
-          <span className="text-secondary text-[var(--text-muted)]">برآورد مبلغ</span>
+          <span className="text-secondary text-[var(--text-muted)]">
+            {coversEntireAmount
+              ? "پرداخت کامل با کیف پول"
+              : isWalletActive
+              ? "باقیمانده پرداخت آنلاین"
+              : "برآورد مبلغ"}
+          </span>
           <span className="text-key-number text-[var(--primary)]">
-            {formatPrice(estimate)}{" "}
+            {formatPrice(gatewayAmount)}{" "}
             <span className="text-xs font-normal text-[var(--text-white)]">تومان</span>
           </span>
+          {isWalletActive && (
+            <span className="text-[11px] text-[var(--accent-green)]">
+              کسر {formatPrice(walletContribution)} تومان از کیف پول
+            </span>
+          )}
         </div>
       }
-      actionLabel="پرداخت"
+      actionLabel={reviewActionLabel}
       onAction={handleConfirmAndPay}
       disabled={isActionBusy}
       loading={isActionBusy}
-      loadingLabel={isPaying ? "در حال انتقال" : "در حال ثبت"}
-      caption="انتقال به درگاه بانکی"
+      loadingLabel={reviewLoadingLabel}
+      caption={reviewCaption}
       error={errorText ?? undefined}
     />
   );
@@ -927,6 +1110,12 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
             errorText={errorText}
             showLeadTimeAction={showLeadTimeAction}
             onLeadTimeReset={handleLeadTimeReset}
+            walletBalance={walletBalance}
+            walletLoading={walletLoading}
+            walletError={walletError}
+            onRetryWallet={() => setWalletRetryToken((t) => t + 1)}
+            useWallet={useWallet}
+            onToggleWallet={setUseWallet}
           />
         )}
       </FullScreenDialog>
@@ -934,7 +1123,7 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
-        initialPhone={phone}
+        initialPhone={cleanPhoneNumber(user?.phone || phone || "")}
         onSuccess={handleAuthSuccess}
       />
     </>
