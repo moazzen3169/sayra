@@ -21,7 +21,10 @@ import {
   cleanPhoneNumber,
   isValidIranPhone,
   toPersianDigits,
+  toEnglishDigits,
   formatPrice,
+  formatToman,
+  tomanToRial,
 } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import {
@@ -502,7 +505,7 @@ export default function ProfilePage() {
     setWalletSuccess("");
 
     const targetAmount = customChargeAmount.trim()
-      ? Number(customChargeAmount.replace(/[,٬،\s]/g, ""))
+      ? Number(toEnglishDigits(customChargeAmount).replace(/[,٬،\s]/g, ""))
       : walletChargeAmount;
 
     if (!targetAmount || isNaN(targetAmount) || targetAmount <= 0) {
@@ -519,15 +522,16 @@ export default function ProfilePage() {
 
     setWalletCharging(true);
     try {
+      const amountRial = tomanToRial(targetAmount);
       // Connect to real charge wallet flow
       const chargeRes = await walletService.chargeWallet({
-        amount: targetAmount,
-        currency: "IRT",
+        amount: amountRial,
+        currency: "IRR",
         redirectUrl:
           typeof window !== "undefined"
             ? `${window.location.origin}/profile?wallet=verify`
             : undefined,
-        description: `افزایش موجودی کیف پول به مبلغ ${formatPrice(targetAmount)} تومان`,
+        description: `افزایش موجودی کیف پول به مبلغ ${formatToman(targetAmount)} تومان`,
       });
 
       if (chargeRes?.paymentUrl) {
@@ -535,7 +539,7 @@ export default function ProfilePage() {
         window.location.href = chargeRes.paymentUrl;
       } else {
         setWalletSuccess(
-          `پرداخت برای مبلغ ${formatPrice(targetAmount)} تومان ثبت شد.`,
+          `پرداخت برای مبلغ ${formatToman(targetAmount)} تومان ثبت شد.`,
         );
       }
     } catch (err: unknown) {
@@ -554,7 +558,7 @@ export default function ProfilePage() {
     setWalletError("");
     setWalletSuccess("");
 
-    const parsedAmt = Number(withdrawAmount.replace(/[,٬،\s]/g, ""));
+    const parsedAmt = Number(toEnglishDigits(withdrawAmount).replace(/[,٬،\s]/g, ""));
     const cleanHolder = withdrawHolder.trim();
     const cleanSheba = withdrawSheba
       .trim()
@@ -575,7 +579,9 @@ export default function ProfilePage() {
       return;
     }
 
-    if (wallet && parsedAmt > wallet.availableBalance) {
+    const amountRial = tomanToRial(parsedAmt);
+
+    if (wallet && amountRial > wallet.availableBalance) {
       setWalletError("مبلغ درخواستی بیشتر از موجودی قابل برداشت شما است.");
       return;
     }
@@ -595,7 +601,7 @@ export default function ProfilePage() {
     try {
       await walletService.requestWithdrawal(
         {
-          amount: parsedAmt,
+          amount: amountRial,
           bankDetails: {
             sheba: cleanSheba,
             accountHolderName: cleanHolder,
@@ -1356,7 +1362,7 @@ export default function ProfilePage() {
                                 : "bg-[var(--foreground)]/40 border-[var(--border-subtle)] text-[var(--text-white)] hover:border-[var(--primary)]/50"
                             }`}
                           >
-                            {formatPrice(amt)} تومان
+                            {formatToman(amt)} تومان
                           </button>
                         );
                       },

@@ -8,6 +8,7 @@ import { AdminStatCard } from "@/components/admin/AdminStatCard";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
+import { formatPrice } from "@/lib/format";
 import { CampaignFormWizardModal } from "@/components/admin/campaigns/CampaignFormWizardModal";
 import { CampaignDetailsModal } from "@/components/admin/campaigns/CampaignDetailsModal";
 import { CampaignDeleteModal } from "@/components/admin/campaigns/CampaignDeleteModal";
@@ -204,11 +205,11 @@ export default function CampaignsAdminPage() {
           <span className="font-bold text-xs text-[var(--text-white)]">
             {cmp.discountType === "PERCENTAGE"
               ? `${cmp.discountValue}٪`
-              : `${cmp.discountValue.toLocaleString("fa-IR")} تومان`}
+              : `${formatPrice(cmp.discountValue)} تومان`}
           </span>
           <span className="text-[11px] text-[var(--text-subtle)]">
             {cmp.maxDiscountAmount
-              ? `سقف ${cmp.maxDiscountAmount.toLocaleString("fa-IR")} تومان`
+              ? `سقف ${formatPrice(cmp.maxDiscountAmount)} تومان`
               : cmp.discountType === "PERCENTAGE"
               ? "بدون سقف"
               : "مبلغ ثابت"}

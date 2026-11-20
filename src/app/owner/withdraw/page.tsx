@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
 import { useOwner } from "@/context/OwnerContext";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, rialToToman, tomanToRial } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService, pickNumber } from "@/services/ownerService";
 import { walletService } from "@/services/walletService";
@@ -68,7 +68,8 @@ export default function OwnerWithdrawPage() {
       setFormError("لطفاً مبلغ معتبری برای برداشت وارد کنید.");
       return;
     }
-    if (amount !== null && parsedAmt > amount) {
+    const amountRial = tomanToRial(parsedAmt);
+    if (amount !== null && amountRial > amount) {
       setFormError("مبلغ درخواستی بیشتر از موجودی قابل برداشت شما است.");
       return;
     }
@@ -88,7 +89,7 @@ export default function OwnerWithdrawPage() {
       try {
         await walletService.requestWithdrawal(
           {
-            amount: parsedAmt,
+            amount: amountRial,
             bankDetails: {
               sheba: cleanIban,
               accountHolderName: cleanHolder,
@@ -104,7 +105,7 @@ export default function OwnerWithdrawPage() {
           try {
             await ownerService.requestWithdrawal({
               centerId,
-              amount: parsedAmt,
+              amount: amountRial,
               accountHolder: cleanHolder,
               iban: `IR${cleanIban}`,
             });
@@ -301,7 +302,7 @@ export default function OwnerWithdrawPage() {
                 {amount !== null && (
                   <button
                     type="button"
-                    onClick={() => setWithdrawAmount(String(amount))}
+                    onClick={() => setWithdrawAmount(String(rialToToman(amount)))}
                     className="text-[11px] font-bold text-[var(--primary)] hover:underline"
                   >
                     کل موجودی قابل برداشت
@@ -364,7 +365,7 @@ export default function OwnerWithdrawPage() {
           {earnings?.map((e) => (
             <div key={e.id} className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3.5 flex items-center justify-between text-xs">
               <span className="text-[var(--text-muted)]">{STATUS_LABEL[e.status] ?? e.status}</span>
-              <span className="font-black">{formatPrice(e.commissionAmount)} {e.currency ?? "تومان"}</span>
+              <span className="font-black">{formatPrice(e.commissionAmount)} تومان</span>
             </div>
           ))}
         </div>

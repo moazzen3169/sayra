@@ -9,7 +9,7 @@ import { InlineAlert } from "@/components/ui/InlineAlert";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useOwner } from "@/context/OwnerContext";
 import { isAbortError } from "@/lib/api/client";
-import { formatPrice, toEnglishDigits, toPersianDigits } from "@/lib/format";
+import { formatPrice, formatToman, toEnglishDigits, toPersianDigits, tomanToRial } from "@/lib/format";
 import { discountService } from "@/services/discountService";
 import type { GameStationInfo } from "@/services/gamingCenterService";
 import { ownerService } from "@/services/ownerService";
@@ -123,7 +123,7 @@ export default function NewOwnerDiscountPage() {
         targetType: targetScope,
         targetId: targetScope === "STATION" ? selectedStationId : centerId,
         valueType,
-        value: numericValue,
+        value: valueType === "FIXED_AMOUNT" ? tomanToRial(numericValue) : numericValue,
         startAt: now.toISOString(),
         endAt: end.toISOString(),
         isActive: true,
@@ -294,9 +294,9 @@ export default function NewOwnerDiscountPage() {
             </div>
 
             <div className="text-xs text-[var(--text-muted)] flex items-center justify-between bg-[var(--foreground)]/25 px-3 py-2 rounded-card">
-              <span>نمونه قیمت {formatPrice(SAMPLE_PRICE)} تومان:</span>
+              <span>نمونه قیمت {formatToman(SAMPLE_PRICE)} تومان:</span>
               <span className="font-bold text-[var(--primary)]">
-                {formatPrice(sampleFinalPrice)} تومان
+                {formatToman(sampleFinalPrice)} تومان
               </span>
             </div>
           </div>

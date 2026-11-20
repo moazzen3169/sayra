@@ -4,7 +4,7 @@ import type {
   PhysicalStation,
   StationExtraController,
 } from "@/types/gaming-center/station.types";
-import { toEnglishDigits, toPersianDigits } from "@/lib/format";
+import { toEnglishDigits, toPersianDigits, tomanToRial } from "@/lib/format";
 import { parseAmount } from "@/lib/ownerStations";
 
 export interface ExtraControllerDraftRow {
@@ -83,7 +83,7 @@ export function validateExtraControllerRows(rows: ExtraControllerDraftRow[]): {
       ...(row.existingId ? { existingId: row.existingId } : {}),
       controllerType: typeName,
       quantity: qty,
-      hourlyPrice: price,
+      hourlyPrice: tomanToRial(price),
       isActive: row.isActive,
     });
   }

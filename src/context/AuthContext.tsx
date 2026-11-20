@@ -7,6 +7,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 
 import { AUTH_USER_KEY } from "@/lib/api/config";
@@ -335,6 +336,7 @@ export const AuthProvider: React.FC<{
   const [user, setUser] = useState<UserProfile | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
+  const refreshPromiseRef = useRef<Promise<void> | null>(null);
 
   // ------------------------------------------------
   // Authentication State
@@ -431,6 +433,10 @@ const isLoggedIn = isAuthenticated;
   const refreshUser = useCallback(async () => {
     if (typeof window === "undefined") return;
 
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
+
     const token = getAccessToken();
 
     if (!token) {
@@ -439,82 +445,88 @@ const isLoggedIn = isAuthenticated;
       return;
     }
 
-    setIsLoading(true);
+    const runRefresh = (async () => {
+      setIsLoading(true);
 
-    try {
-      const response = await authService.getMe();
+      try {
+        const response = await authService.getMe();
 
-      if (!response) {
-        throw new Error("Empty user response");
-      }
+        if (!response) {
+          throw new Error("Empty user response");
+        }
 
-      const updatedUser = buildUserProfile(
-        response,
-        token,
-        getSavedUser(token)
-      );
+        const updatedUser = buildUserProfile(
+          response,
+          token,
+          getSavedUser(token)
+        );
 
-      setUser(updatedUser);
+        setUser(updatedUser);
 
-      saveUser(updatedUser);
-    } catch (error: any) {
-      if (isAbortError(error)) return;
+        saveUser(updatedUser);
+      } catch (error: any) {
+        if (isAbortError(error)) return;
 
-      const status = getErrorStatus(error);
+        const status = getErrorStatus(error);
 
-      if (status === 401) {
-        const refreshToken = getRefreshToken();
+        if (status === 401) {
+          const refreshToken = getRefreshToken();
 
-        if (!refreshToken) {
-          clearTokens();
-          setUser(null);
+          if (!refreshToken) {
+            clearTokens();
+            setUser(null);
+            return;
+          }
+
+          try {
+            const refreshResponse = await authService.refresh(refreshToken);
+            const refreshed = extractApiData(refreshResponse);
+
+            if (!refreshed?.accessToken) {
+              throw new Error("Invalid refresh response");
+            }
+
+            const newAccessToken = refreshed.accessToken;
+            const newRefreshToken = refreshed.refreshToken || refreshToken;
+
+            setTokens({
+              accessToken: newAccessToken,
+              refreshToken: newRefreshToken,
+            });
+
+            const freshResponse = await authService.getMe();
+            if (!freshResponse) {
+              throw new Error("Empty user response after refresh");
+            }
+
+            const updatedUser = buildUserProfile(
+              freshResponse,
+              newAccessToken,
+              getSavedUser(newAccessToken)
+            );
+
+            setUser(updatedUser);
+            saveUser(updatedUser);
+          } catch {
+            clearTokens();
+            setUser(null);
+          }
           return;
         }
 
-        try {
-          const refreshResponse = await authService.refresh(refreshToken);
-          const refreshed = extractApiData(refreshResponse);
-
-          if (!refreshed?.accessToken) {
-            throw new Error("Invalid refresh response");
-          }
-
-          const newAccessToken = refreshed.accessToken;
-          const newRefreshToken = refreshed.refreshToken || refreshToken;
-
-          setTokens({
-            accessToken: newAccessToken,
-            refreshToken: newRefreshToken,
-          });
-
-          const freshResponse = await authService.getMe();
-          if (!freshResponse) {
-            throw new Error("Empty user response after refresh");
-          }
-
-          const updatedUser = buildUserProfile(
-            freshResponse,
-            newAccessToken,
-            getSavedUser(newAccessToken)
-          );
-
-          setUser(updatedUser);
-          saveUser(updatedUser);
-        } catch {
-          clearTokens();
+        if (status === 403) {
           setUser(null);
         }
-        return;
-      }
 
-      if (status === 403) {
-        setUser(null);
+        // خطاهای شبکه و سرور باعث حذف نشست نمی‌شوند.
+      } finally {
+        refreshPromiseRef.current = null;
+        setIsLoading(false);
       }
+    })();
 
-      // خطاهای شبکه و سرور باعث حذف نشست نمی‌شوند.
-    } finally {
-      setIsLoading(false);
-    }
+    refreshPromiseRef.current = runRefresh;
+    return runRefresh;
   }, []);
 
   // ------------------------------------------------

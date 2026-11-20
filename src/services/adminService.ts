@@ -27,7 +27,7 @@ import {
   extractMediaUrl,
   normalizeMediaUrl,
 } from "@/lib/media";
-import { cleanPhoneNumber } from "@/lib/format";
+import { cleanPhoneNumber, formatPrice } from "@/lib/format";
 import type {
   BlogPostDetail,
   BlogPostStatus,
@@ -267,14 +267,14 @@ export const adminService = {
       {
         id: "gross_booking_value",
         title: "مبلغ کل رزروها (ناخالص)",
-        value: grossBookingValue !== null && grossBookingValue !== undefined ? Number(grossBookingValue).toLocaleString("fa-IR") : "---",
+        value: grossBookingValue !== null && grossBookingValue !== undefined ? formatPrice(Number(grossBookingValue)) : "---",
         unit: grossBookingValue !== null && grossBookingValue !== undefined ? "تومان" : undefined,
         iconName: "wallet",
       },
       {
         id: "net_revenue",
         title: "درآمد خالص پلتفرم (کارمزد)",
-        value: netRevenue !== null && netRevenue !== undefined ? Number(netRevenue).toLocaleString("fa-IR") : "---",
+        value: netRevenue !== null && netRevenue !== undefined ? formatPrice(Number(netRevenue)) : "---",
         unit: netRevenue !== null && netRevenue !== undefined ? "تومان" : undefined,
         iconName: "star",
       },

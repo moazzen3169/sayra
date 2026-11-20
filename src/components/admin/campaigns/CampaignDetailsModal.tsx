@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
+import { formatPrice } from "@/lib/format";
 import type { AdminCampaign } from "@/types/admin";
 
 interface CampaignDetailsModalProps {
@@ -124,15 +125,15 @@ export const CampaignDetailsModal: React.FC<CampaignDetailsModalProps> = ({
             <span className="text-sm font-bold text-[var(--text-white)]">
               {campaign.discountType === "PERCENTAGE"
                 ? `${campaign.discountValue}٪ تخفیف`
-                : `${campaign.discountValue.toLocaleString("fa-IR")} تومان تخفیف ثابت`}
+                : `${formatPrice(campaign.discountValue)} تومان تخفیف ثابت`}
             </span>
           </div>
 
           <div className="p-3.5 rounded-card bg-[var(--foreground)]/10 border border-[var(--border-subtle)] flex flex-col gap-1">
-            <span className="text-xs text-[var(--text-muted)]">سقف تخفیف ریالی</span>
+            <span className="text-xs text-[var(--text-muted)]">سقف تخفیف</span>
             <span className="text-sm font-bold text-[var(--text-white)]">
               {campaign.maxDiscountAmount
-                ? `${campaign.maxDiscountAmount.toLocaleString("fa-IR")} تومان`
+                ? `${formatPrice(campaign.maxDiscountAmount)} تومان`
                 : "بدون سقف"}
             </span>
           </div>
@@ -141,7 +142,7 @@ export const CampaignDetailsModal: React.FC<CampaignDetailsModalProps> = ({
             <span className="text-xs text-[var(--text-muted)]">حداقل مبلغ سفارش</span>
             <span className="text-sm font-bold text-[var(--text-white)]">
               {campaign.minOrderAmount
-                ? `${campaign.minOrderAmount.toLocaleString("fa-IR")} تومان`
+                ? `${formatPrice(campaign.minOrderAmount)} تومان`
                 : "بدون حداقل"}
             </span>
           </div>

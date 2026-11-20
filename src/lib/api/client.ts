@@ -98,6 +98,16 @@ export interface RequestOptions {
    * Selects which independent token store is used.
    */
   authScope?: AuthScope;
+
+  /**
+   * Deduplicates concurrent identical GET requests while in-flight (default: true).
+   */
+  dedupe?: boolean;
+
+  /**
+   * Skips client-side burst/cooldown protection for this request.
+   */
+  bypassRateLimit?: boolean;
 }
 
 type HttpMethod =
@@ -188,6 +198,114 @@ function getTokenForScope(
 }
 
 // ==================================================
+// Deduplication & Rate-Limit Protection
+// ==================================================
+
+const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 5_000;
+const MIN_RATE_LIMIT_COOLDOWN_MS = 2_000;
+const MAX_RATE_LIMIT_COOLDOWN_MS = 60_000;
+const GET_BURST_WINDOW_MS = 3_000;
+const GET_BURST_MAX_REQUESTS = 20;
+
+const inFlightGetRequests = new Map<string, Promise<ApiResponse<unknown>>>();
+const rateLimitCooldowns = new Map<string, number>();
+const recentGetTimestamps = new Map<string, number[]>();
+let lastTrackedFetch: typeof globalThis.fetch | undefined;
+
+function syncFetchEnvironment(): void {
+  const currentFetch =
+    typeof globalThis !== "undefined" ? globalThis.fetch : undefined;
+  if (lastTrackedFetch !== currentFetch) {
+    inFlightGetRequests.clear();
+    rateLimitCooldowns.clear();
+    recentGetTimestamps.clear();
+    lastTrackedFetch = currentFetch;
+  }
+}
+
+function parseRetryAfterMs(response: Response): number {
+  const rawHeader = response.headers?.get?.("Retry-After");
+  if (!rawHeader) return DEFAULT_RATE_LIMIT_COOLDOWN_MS;
+
+  const seconds = Number(rawHeader);
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return Math.min(
+      MAX_RATE_LIMIT_COOLDOWN_MS,
+      Math.max(MIN_RATE_LIMIT_COOLDOWN_MS, Math.round(seconds * 1000))
+    );
+  }
+
+  const targetDateMs = Date.parse(rawHeader);
+  if (Number.isFinite(targetDateMs)) {
+    const deltaMs = targetDateMs - Date.now();
+    if (deltaMs > 0) {
+      return Math.min(
+        MAX_RATE_LIMIT_COOLDOWN_MS,
+        Math.max(MIN_RATE_LIMIT_COOLDOWN_MS, deltaMs)
+      );
+    }
+  }
+
+  return DEFAULT_RATE_LIMIT_COOLDOWN_MS;
+}
+
+function buildRateLimitKey(
+  method: HttpMethod,
+  url: string,
+  scope: AuthScope
+): string {
+  return `${method}:${scope}:${url}`;
+}
+
+function assertNotRateLimited(
+  method: HttpMethod,
+  url: string,
+  scope: AuthScope,
+  bypassRateLimit?: boolean
+): void {
+  if (bypassRateLimit) return;
+
+  const key = buildRateLimitKey(method, url, scope);
+  const now = Date.now();
+  const cooldownUntil = rateLimitCooldowns.get(key);
+
+  if (cooldownUntil !== undefined) {
+    if (cooldownUntil > now) {
+      throw new ApiError(
+        429,
+        "RATE_LIMITED",
+        "تعداد درخواست‌ها بیش از حد مجاز است. لطفاً کمی صبر کنید."
+      );
+    }
+    rateLimitCooldowns.delete(key);
+  }
+
+  if (method === "GET") {
+    const timestamps = recentGetTimestamps.get(key) ?? [];
+    const windowStart = now - GET_BURST_WINDOW_MS;
+    const activeTimestamps = timestamps.filter((ts) => ts > windowStart);
+
+    if (activeTimestamps.length >= GET_BURST_MAX_REQUESTS) {
+      rateLimitCooldowns.set(key, now + DEFAULT_RATE_LIMIT_COOLDOWN_MS);
+      recentGetTimestamps.delete(key);
+      if (typeof console !== "undefined") {
+        console.warn(
+          `[apiClient] Blocked burst loop on GET ${url} (${activeTimestamps.length} requests in ${GET_BURST_WINDOW_MS}ms).`
+        );
+      }
+      throw new ApiError(
+        429,
+        "CLIENT_RATE_LIMITED",
+        "تعداد درخواست‌ها بیش از حد مجاز است. لطفاً کمی صبر کنید."
+      );
+    }
+
+    activeTimestamps.push(now);
+    recentGetTimestamps.set(key, activeTimestamps);
+  }
+}
+
+// ==================================================
 // Raw Fetch
 // ==================================================
 
@@ -207,6 +325,11 @@ async function executeFetch<T>(
     );
   }
 
+  syncFetchEnvironment();
+  const authScope = resolveAuthScope(options.authScope);
+  const fullUrl = buildUrl(path, options.query, targetBaseUrl);
+  assertNotRateLimited(method, fullUrl, authScope, options.bypassRateLimit);
+
   const isFormData =
     typeof FormData !== "undefined" &&
     options.body instanceof FormData;
@@ -221,12 +344,10 @@ async function executeFetch<T>(
   }
 
   if (!options.skipAuth) {
-    const scope = resolveAuthScope(options.authScope);
-
     const token =
       overrideToken !== undefined
         ? overrideToken
-        : getTokenForScope(scope);
+        : getTokenForScope(authScope);
 
     if (token) {
       headers.Authorization = `Bearer ${token}`;
@@ -241,7 +362,7 @@ async function executeFetch<T>(
 
   try {
     response = await fetch(
-      buildUrl(path, options.query, targetBaseUrl),
+      fullUrl,
       {
         method,
         headers,
@@ -321,26 +442,38 @@ if (!response.ok || json?.success === false) {
       rawErrorText
     );
 
+  if (response.status === 429 && !options.bypassRateLimit) {
+    const cooldownMs = parseRetryAfterMs(response);
+    rateLimitCooldowns.set(
+      buildRateLimitKey(method, fullUrl, authScope),
+      Date.now() + cooldownMs
+    );
+  }
+
   const errorCode =
     json?.error?.code ||
     (isInvalidToken
       ? "TOKEN_NOT_VALID"
-      : response.status === 401
-        ? "UNAUTHORIZED"
-        : response.status === 403
-          ? "FORBIDDEN"
-          : response.status === 404
-            ? "NOT_FOUND"
-            : "HTTP_ERROR");
+      : response.status === 429
+        ? "RATE_LIMITED"
+        : response.status === 401
+          ? "UNAUTHORIZED"
+          : response.status === 403
+            ? "FORBIDDEN"
+            : response.status === 404
+              ? "NOT_FOUND"
+              : "HTTP_ERROR");
 
   const errorMessage =
     json?.error?.message ||
     messages[0] ||
-    (response.status === 401
-      ? "نشست کاربری نامعتبر است."
-      : response.status === 403
-        ? "دسترسی غیرمجاز."
-        : "خطای نامشخص از سمت سرور.");
+    (response.status === 429
+      ? "تعداد درخواست‌ها بیش از حد مجاز است. لطفاً کمی صبر کنید."
+      : response.status === 401
+        ? "نشست کاربری نامعتبر است."
+        : response.status === 403
+          ? "دسترسی غیرمجاز."
+          : "خطای نامشخص از سمت سرور.");
 
   throw new ApiError(
     response.status,
@@ -516,6 +649,7 @@ async function request<T>(
   path: string,
   options: RequestOptions = {}
 ): Promise<ApiResponse<T>> {
+  syncFetchEnvironment();
   const authScope = resolveAuthScope(options.authScope);
 
   const isRefreshRequest =
@@ -533,52 +667,82 @@ async function request<T>(
     !isRefreshRequest &&
     !isLoginRequest;
 
-  try {
-    return await executeFetch<T>(
-      method,
-      path,
-      options
-    );
-  } catch (error) {
-if (
-  error instanceof ApiError &&
-  (
-    (error.status === 401 && error.code !== "OTP_REQUIRED") ||
-    (
-      authScope === "blog" &&
-      error.code === "TOKEN_NOT_VALID"
-    )
-  ) &&
-  shouldRetry
-) {
-      const newToken =
-        authScope === "blog"
-          ? await refreshBlogAccessToken()
-          : authScope === "admin"
-            ? await refreshAdminAccessToken(performTokenRefresh)
-            : await refreshAccessToken(performTokenRefresh);
+  const performRequest = async (): Promise<ApiResponse<T>> => {
+    try {
+      return await executeFetch<T>(
+        method,
+        path,
+        options
+      );
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        (
+          (error.status === 401 && error.code !== "OTP_REQUIRED") ||
+          (
+            authScope === "blog" &&
+            error.code === "TOKEN_NOT_VALID"
+          )
+        ) &&
+        shouldRetry
+      ) {
+        const newToken =
+          authScope === "blog"
+            ? await refreshBlogAccessToken()
+            : authScope === "admin"
+              ? await refreshAdminAccessToken(performTokenRefresh)
+              : await refreshAccessToken(performTokenRefresh);
 
-      if (newToken) {
-        return executeFetch<T>(
-          method,
-          path,
-          {
-            ...options,
-            retryOnAuth: false,
-          },
-          newToken
-        );
+        if (newToken) {
+          return executeFetch<T>(
+            method,
+            path,
+            {
+              ...options,
+              retryOnAuth: false,
+            },
+            newToken
+          );
+        }
+
+        if (authScope === "admin") {
+          clearAdminTokens();
+        } else if (authScope === "platform") {
+          clearTokens();
+        }
       }
 
-      if (authScope === "admin") {
-        clearAdminTokens();
-      } else if (authScope === "platform") {
-        clearTokens();
-      }
+      throw error;
     }
+  };
 
-    throw error;
+  const canDedupe =
+    method === "GET" &&
+    options.dedupe !== false &&
+    !options.signal;
+
+  if (!canDedupe) {
+    return performRequest();
   }
+
+  const targetBaseUrl = options.baseUrl || API_BASE_URL;
+  const fullUrl = buildUrl(path, options.query, targetBaseUrl);
+  const tokenKey = options.skipAuth ? "anon" : (getTokenForScope(authScope) ?? "none");
+  const dedupeKey = `${authScope}:${tokenKey}:${fullUrl}`;
+
+  const existing = inFlightGetRequests.get(dedupeKey);
+  if (existing) {
+    return existing as Promise<ApiResponse<T>>;
+  }
+
+  const promise = performRequest().finally(() => {
+    if (inFlightGetRequests.get(dedupeKey) === promise) {
+      inFlightGetRequests.delete(dedupeKey);
+    }
+  });
+
+  inFlightGetRequests.set(dedupeKey, promise as Promise<ApiResponse<unknown>>);
+  return promise;
 }
 
 // ==================================================

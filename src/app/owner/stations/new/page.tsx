@@ -14,7 +14,7 @@ import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useOwner } from "@/context/OwnerContext";
 import { isAbortError } from "@/lib/api/client";
-import { formatPrice, toEnglishDigits, toPersianDigits } from "@/lib/format";
+import { formatToman, toEnglishDigits, toPersianDigits, tomanToRial } from "@/lib/format";
 import { PLACEHOLDERS } from "@/lib/media";
 import {
   STATION_TYPE_OPTIONS,
@@ -173,7 +173,7 @@ function NewStationContent() {
   const parsedPrice = parseAmount(price, toEnglishDigits);
   const priceHelper =
     parsedPrice !== null && parsedPrice > 0
-      ? `${formatPrice(parsedPrice)} تومان در هر ساعت`
+      ? `${formatToman(parsedPrice)} تومان در هر ساعت`
       : undefined;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -210,12 +210,13 @@ function NewStationContent() {
     if (Object.keys(errors).length > 0 || hourlyPrice === null || count === null) return;
 
     setSaving(true);
+    const hourlyPriceRial = tomanToRial(hourlyPrice);
     try {
       if (mode === "catalog") {
         const created = await ownerService.createStationsFromCatalog(centerId, {
           catalogDeviceId: effectiveCatalogId,
           quantity: count,
-          hourlyPrice,
+          hourlyPrice: hourlyPriceRial,
           customNamePrefix: trimmedName || undefined,
           isVip,
         });
@@ -254,7 +255,7 @@ function NewStationContent() {
               supportsExtraControllers && extraValidation.configs.length > 0
                 ? extraValidation.configs
                 : undefined,
-            hourlyPrice,
+            hourlyPrice: hourlyPriceRial,
             isVip,
           });
           ok += 1;

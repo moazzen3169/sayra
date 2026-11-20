@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
+import { formatPrice } from "@/lib/format";
 import { adminService } from "@/services/adminService";
 import type {
   AdminGamecenter,
@@ -255,7 +256,7 @@ export function TicketInfoModal({
                     {data.reservation.date}، {data.reservation.timeSlot}
                   </Row>
                   <Row label="مبلغ">
-                    {data.reservation.amount.toLocaleString("fa-IR")} تومان
+                    {formatPrice(data.reservation.amount)} تومان
                   </Row>
                   <Row label="وضعیت رزرو">
                     <StatusBadge status={data.reservation.status} />

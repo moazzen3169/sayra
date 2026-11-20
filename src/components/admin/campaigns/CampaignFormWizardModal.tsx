@@ -17,6 +17,7 @@ import type {
   AdminUser,
 } from "@/types/admin";
 import { adminService } from "@/services/adminService";
+import { formatToman, rialToToman, tomanToRial } from "@/lib/format";
 
 interface CampaignFormWizardModalProps {
   isOpen: boolean;
@@ -74,12 +75,22 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
   const [discountType, setDiscountType] = useState<DiscountType>(
     initialData?.discountType || "PERCENTAGE"
   );
-  const [discountValue, setDiscountValue] = useState<number>(initialData?.discountValue || 20);
+  const [discountValue, setDiscountValue] = useState<number>(
+    initialData
+      ? initialData.discountType === "FIXED_AMOUNT"
+        ? rialToToman(initialData.discountValue)
+        : initialData.discountValue
+      : 20
+  );
   const [maxDiscountAmount, setMaxDiscountAmount] = useState<number | undefined>(
-    initialData?.maxDiscountAmount
+    initialData?.maxDiscountAmount !== undefined
+      ? rialToToman(initialData.maxDiscountAmount)
+      : undefined
   );
   const [minOrderAmount, setMinOrderAmount] = useState<number | undefined>(
-    initialData?.minOrderAmount
+    initialData?.minOrderAmount !== undefined
+      ? rialToToman(initialData.minOrderAmount)
+      : undefined
   );
 
   // Step 5: Time Period & Usage Limits
@@ -110,9 +121,23 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
       setTargetAudience(initialData?.targetAudience || "ALL");
       setSelectedUserIds(initialData?.specificUserIds || []);
       setDiscountType(initialData?.discountType || "PERCENTAGE");
-      setDiscountValue(initialData?.discountValue || 20);
-      setMaxDiscountAmount(initialData?.maxDiscountAmount);
-      setMinOrderAmount(initialData?.minOrderAmount);
+      setDiscountValue(
+        initialData
+          ? initialData.discountType === "FIXED_AMOUNT"
+            ? rialToToman(initialData.discountValue)
+            : initialData.discountValue
+          : 20
+      );
+      setMaxDiscountAmount(
+        initialData?.maxDiscountAmount !== undefined
+          ? rialToToman(initialData.maxDiscountAmount)
+          : undefined
+      );
+      setMinOrderAmount(
+        initialData?.minOrderAmount !== undefined
+          ? rialToToman(initialData.minOrderAmount)
+          : undefined
+      );
       setStartDate(initialData?.startDate || "۱۴۰۳/۰۷/۰۱");
       setEndDate(initialData?.endDate || "۱۴۰۳/۰۷/۳۰");
       setTotalUsageLimit(initialData?.totalUsageLimit);
@@ -221,9 +246,12 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
       targetAudience,
       specificUserIds: targetAudience === "SPECIFIC_USERS" ? selectedUserIds : undefined,
       discountType,
-      discountValue: Number(discountValue),
-      maxDiscountAmount: maxDiscountAmount ? Number(maxDiscountAmount) : undefined,
-      minOrderAmount: minOrderAmount ? Number(minOrderAmount) : undefined,
+      discountValue:
+        discountType === "FIXED_AMOUNT"
+          ? tomanToRial(Number(discountValue))
+          : Number(discountValue),
+      maxDiscountAmount: maxDiscountAmount ? tomanToRial(Number(maxDiscountAmount)) : undefined,
+      minOrderAmount: minOrderAmount ? tomanToRial(Number(minOrderAmount)) : undefined,
       startDate: startDate.trim(),
       endDate: endDate.trim(),
       totalUsageLimit: totalUsageLimit ? Number(totalUsageLimit) : undefined,
@@ -801,8 +829,8 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
                 </div>
                 <span className="text-[var(--text-white)] font-bold">
                   {discountType === "PERCENTAGE"
-                    ? `${discountValue}٪ (سقف ${maxDiscountAmount ? maxDiscountAmount.toLocaleString("fa-IR") + " تومان" : "نامحدود"})`
-                    : `${discountValue.toLocaleString("fa-IR")} تومان`}
+                    ? `${discountValue}٪ (سقف ${maxDiscountAmount ? formatToman(maxDiscountAmount) + " تومان" : "نامحدود"})`
+                    : `${formatToman(discountValue)} تومان`}
                 </span>
               </div>
 

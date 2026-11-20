@@ -4,7 +4,7 @@ import React from "react";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
-import { formatPrice, toEnglishDigits, toPersianDigits } from "@/lib/format";
+import { formatToman, toEnglishDigits, toPersianDigits } from "@/lib/format";
 import { parseAmount } from "@/lib/ownerStations";
 import {
   createEmptyExtraControllerRow,
@@ -101,7 +101,7 @@ export const ExtraControllersEditor: React.FC<ExtraControllersEditorProps> = ({
             const parsedRowPrice = parseAmount(row.hourlyPrice, toEnglishDigits);
             const priceHelper =
               parsedRowPrice !== null && parsedRowPrice >= 0
-                ? `${formatPrice(parsedRowPrice)} تومان / ساعت`
+                ? `${formatToman(parsedRowPrice)} تومان / ساعت`
                 : undefined;
 
             return (

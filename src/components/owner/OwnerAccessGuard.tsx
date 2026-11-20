@@ -53,6 +53,26 @@ export const OwnerAccessGuard: React.FC<{
   const [reverifiedToken, setReverifiedToken] = useState<string | null>(null);
   const [isManualRetrying, setIsManualRetrying] = useState(false);
   const verifyingRef = useRef(false);
+  const attemptedTokenRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!currentToken) {
+      attemptedTokenRef.current = null;
+      return;
+    }
+
+    if (attemptedTokenRef.current && attemptedTokenRef.current !== currentToken) {
+      attemptedTokenRef.current = null;
+    }
+  }, [currentToken]);
 
   const isOpenPath = isOpenOwnerPath(pathname);
 
@@ -71,40 +91,45 @@ export const OwnerAccessGuard: React.FC<{
       isOpenPath ||
       isLoading ||
       !isLoggedIn ||
+      !currentToken ||
       hasAccess ||
       hasReverified ||
-      verifyingRef.current
+      verifyingRef.current ||
+      attemptedTokenRef.current === currentToken
     ) {
       return;
     }
 
-    let active = true;
     verifyingRef.current = true;
+    attemptedTokenRef.current = currentToken;
+    const tokenBeingVerified = currentToken;
 
     Promise.resolve(refreshUser())
       .catch(() => undefined)
       .finally(() => {
         verifyingRef.current = false;
-        if (active) {
-          setReverifiedToken(currentToken);
+        if (isMountedRef.current) {
+          setReverifiedToken(tokenBeingVerified);
         }
       });
-
-    return () => {
-      active = false;
-    };
   }, [isOpenPath, isLoading, isLoggedIn, hasAccess, hasReverified, currentToken, refreshUser]);
 
   const handleRetry = useCallback(async () => {
     if (verifyingRef.current) return;
     verifyingRef.current = true;
     setIsManualRetrying(true);
+    const tokenBeingVerified = currentToken;
+    if (tokenBeingVerified) {
+      attemptedTokenRef.current = tokenBeingVerified;
+    }
     try {
       await refreshUser();
     } finally {
       verifyingRef.current = false;
-      setIsManualRetrying(false);
-      setReverifiedToken(currentToken);
+      if (isMountedRef.current) {
+        setIsManualRetrying(false);
+        setReverifiedToken(tokenBeingVerified);
+      }
     }
   }, [currentToken, refreshUser]);
 
@@ -112,7 +137,7 @@ export const OwnerAccessGuard: React.FC<{
     return <>{children}</>;
   }
 
-  if (isLoading || (isLoggedIn && !hasAccess && !hasReverified)) {
+  if (isLoading || (isLoggedIn && !hasAccess && !hasReverified && Boolean(currentToken))) {
     return (
       <OwnerPanelSkeleton
         statusText={

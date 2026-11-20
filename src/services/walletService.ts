@@ -53,8 +53,9 @@ export const walletService = {
       );
     }
 
-    // Minimum charge threshold (e.g. 1,000 Tomans or 10,000 Rials)
-    if (amount < 1000) {
+    // Minimum charge threshold: 1,000 Tomans = 10,000 Rials
+    const minAmount = currency === "IRT" ? 1000 : 10000;
+    if (amount < minAmount) {
       throw new WalletValidationError(
         "حداقل مبلغ شارژ کیف پول ۱,۰۰۰ تومان می‌باشد.",
         "MINIMUM_AMOUNT"

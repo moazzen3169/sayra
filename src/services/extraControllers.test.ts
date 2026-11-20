@@ -303,8 +303,8 @@ describe("Extra Controllers & Device Types (OpenAPI)", () => {
     ]);
     expect(valid.error).toBeUndefined();
     expect(valid.configs).toEqual([
-      { controllerType: "دسته PS5", quantity: 2, hourlyPrice: 30000, isActive: true },
-      { controllerType: "دسته Xbox", quantity: 1, hourlyPrice: 25000, isActive: true },
+      { controllerType: "دسته PS5", quantity: 2, hourlyPrice: 300000, isActive: true },
+      { controllerType: "دسته Xbox", quantity: 1, hourlyPrice: 250000, isActive: true },
     ]);
 
     const dup = validateExtraControllerRows([

@@ -11,7 +11,7 @@ import type {
   WithdrawalRequest,
   WalletTransaction,
 } from "@/types/wallet";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, formatToman, toEnglishDigits, tomanToRial } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import {
   UnifiedAuthForm,
@@ -66,7 +66,7 @@ const inputClassName =
 const labelClassName = "text-xs font-bold text-[var(--text-muted)]";
 
 function cleanAmount(value: string) {
-  return Number(value.replace(/[,٬،\s]/g, ""));
+  return Number(toEnglishDigits(value).replace(/[,٬،\s]/g, ""));
 }
 
 function formatDate(value?: string) {
@@ -206,14 +206,15 @@ export default function WalletPage() {
     setCharging(true);
 
     try {
+      const amountRial = tomanToRial(amount);
       const result = await walletService.chargeWallet({
-        amount,
-        currency: "IRT",
+        amount: amountRial,
+        currency: "IRR",
         redirectUrl:
           typeof window !== "undefined"
             ? `${window.location.origin}/profile?wallet=verify`
             : undefined,
-        description: `افزایش موجودی کیف پول به مبلغ ${formatPrice(amount)} تومان`,
+        description: `افزایش موجودی کیف پول به مبلغ ${formatToman(amount)} تومان`,
       });
 
       if (result?.paymentUrl) {
@@ -221,7 +222,7 @@ export default function WalletPage() {
         window.location.href = result.paymentUrl;
       } else {
         setSuccessMessage(
-          `پرداخت برای مبلغ ${formatPrice(amount)} تومان ثبت شد.`,
+          `پرداخت برای مبلغ ${formatToman(amount)} تومان ثبت شد.`,
         );
       }
     } catch (error: unknown) {
@@ -264,7 +265,9 @@ export default function WalletPage() {
       return;
     }
 
-    if (wallet && amount > wallet.availableBalance) {
+    const amountRial = tomanToRial(amount);
+
+    if (wallet && amountRial > wallet.availableBalance) {
       setErrorMessage("مبلغ درخواستی بیشتر از موجودی قابل برداشت شما است.");
       return;
     }
@@ -285,7 +288,7 @@ export default function WalletPage() {
     try {
       await walletService.requestWithdrawal(
         {
-          amount,
+          amount: amountRial,
           bankDetails: {
             sheba,
             accountHolderName: holder,
@@ -515,7 +518,7 @@ export default function WalletPage() {
                             : "border-[var(--border-subtle)] bg-[var(--foreground)]/30 text-[var(--text-white)] hover:border-[var(--primary)]/50"
                         }`}
                       >
-                        {formatPrice(amount)} تومان
+                        {formatToman(amount)} تومان
                       </button>
                     );
                   })}
@@ -541,7 +544,7 @@ export default function WalletPage() {
                           : ""
                       }
                       onChange={(event) => {
-                        const raw = event.target.value.replace(/[^0-9]/g, "");
+                        const raw = toEnglishDigits(event.target.value).replace(/[^0-9]/g, "");
 
                         setCustomAmount(raw);
                         setSelectedAmount(raw ? Number(raw) : null);

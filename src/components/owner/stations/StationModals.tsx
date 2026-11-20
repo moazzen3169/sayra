@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { isAbortError } from "@/lib/api/client";
-import { toEnglishDigits, toPersianDigits } from "@/lib/format";
+import { rialToToman, toEnglishDigits, toPersianDigits, tomanToRial } from "@/lib/format";
 import {
   STATION_TYPE_OPTIONS,
   getStationPrice,
@@ -154,12 +154,13 @@ export const AddStationModal: React.FC<AddStationModalProps> = ({
     if (Object.keys(errors).length > 0 || hourlyPrice === null || count === null) return;
 
     setSaving(true);
+    const hourlyPriceRial = tomanToRial(hourlyPrice);
     try {
       if (mode === "catalog") {
         const created = await ownerService.createStationsFromCatalog(centerId, {
           catalogDeviceId: effectiveCatalogId,
           quantity: count,
-          hourlyPrice,
+          hourlyPrice: hourlyPriceRial,
           customNamePrefix: trimmedName || undefined,
           isVip,
         });
@@ -176,7 +177,7 @@ export const AddStationModal: React.FC<AddStationModalProps> = ({
           await ownerService.createStation(centerId, {
             name: count > 1 ? `${trimmedName} ${toPersianDigits(i)}` : trimmedName,
             stationType: type as StationType,
-            hourlyPrice,
+            hourlyPrice: hourlyPriceRial,
             isVip,
           });
           ok += 1;
@@ -342,7 +343,7 @@ export const EditStationModal: React.FC<EditStationModalProps> = ({
 }) => {
   const currentPrice = getStationPrice(station);
   const [name, setName] = useState(station.name ?? "");
-  const [price, setPrice] = useState(currentPrice !== null ? String(currentPrice) : "");
+  const [price, setPrice] = useState(currentPrice !== null ? String(rialToToman(currentPrice)) : "");
   const [isVip, setIsVip] = useState(Boolean(station.isVip));
   const [active, setActive] = useState(station.isActive !== false);
   const [extraEnabled, setExtraEnabled] = useState(false);
@@ -391,7 +392,7 @@ export const EditStationModal: React.FC<EditStationModalProps> = ({
             existingId: ec.id,
             controllerType: ec.controllerType,
             quantity: String(ec.quantity),
-            hourlyPrice: String(ec.hourlyPrice),
+            hourlyPrice: String(rialToToman(ec.hourlyPrice)),
             isActive: ec.isActive !== false,
           }))
         );
@@ -434,12 +435,13 @@ export const EditStationModal: React.FC<EditStationModalProps> = ({
     if (Object.keys(errors).length > 0 || hourlyPrice === null) return;
 
     setSaving(true);
+    const hourlyPriceRial = tomanToRial(hourlyPrice);
     try {
       // ارسال همزمان فیلدهای متداول برای سازگاری کامل با بک‌اند
       const res = await ownerService.updateStation(centerId, station.id, {
         name: trimmed,
-        hourlyPrice,
-        hourlyRate: hourlyPrice,
+        hourlyPrice: hourlyPriceRial,
+        hourlyRate: hourlyPriceRial,
         isVip,
         stationType: station.stationType,
         isActive: active,
@@ -458,7 +460,7 @@ export const EditStationModal: React.FC<EditStationModalProps> = ({
         ...station,
         ...(res || {}),
         name: trimmed,
-        hourlyPrice,
+        hourlyPrice: hourlyPriceRial,
         isVip,
         isActive: active,
       };

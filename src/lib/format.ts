@@ -8,12 +8,33 @@ export const toEnglishDigits = (value: string | number): string =>
     .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
     .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
 
-/** 230000 -> ۲۳۰,۰۰۰ */
-export const formatPrice = (value: number | null | undefined): string => {
+/** تبدیل مبلغ ریالی (استاندارد API و درگاه) به تومان با حذف یک صفر */
+export const rialToToman = (value: number | null | undefined): number => {
+  if (value === null || value === undefined || isNaN(Number(value))) {
+    return 0;
+  }
+  return Math.round(Number(value) / 10);
+};
+
+/** تبدیل مبلغ تومانی (ورودی کاربر) به ریال برای ارسال به API و محاسبات */
+export const tomanToRial = (value: number | null | undefined): number => {
+  if (value === null || value === undefined || isNaN(Number(value))) {
+    return 0;
+  }
+  return Math.round(Number(value) * 10);
+};
+
+/** فرمت‌دهی عددی که از قبل بر حسب تومان است (مثل پیش‌نمایش ورودی کاربر): 230000 -> ۲۳۰,۰۰۰ */
+export const formatToman = (value: number | null | undefined): string => {
   if (value === null || value === undefined || isNaN(Number(value))) {
     return "۰";
   }
   return toPersianDigits(Number(value).toLocaleString("en-US"));
+};
+
+/** فرمت‌دهی مبلغ ریالی دریافتی از API به تومان برای نمایش در رابط کاربری: 2300000 ریال -> ۲۳۰,۰۰۰ */
+export const formatPrice = (value: number | null | undefined): string => {
+  return formatToman(rialToToman(value));
 };
 
 /**
