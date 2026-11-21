@@ -55,13 +55,20 @@ function extractTokens(body: Record<string, unknown>): OnboardingTokens | null {
 
 function toOptions(data: unknown): LocationOption[] {
   const root = asRecord(data);
+  const nested = asRecord(root?.data);
   const list = Array.isArray(data)
     ? data
     : Array.isArray(root?.data)
       ? (root?.data as unknown[])
       : Array.isArray(root?.items)
         ? (root?.items as unknown[])
-        : [];
+        : Array.isArray(root?.provinces)
+          ? (root?.provinces as unknown[])
+          : Array.isArray(root?.cities)
+            ? (root?.cities as unknown[])
+            : Array.isArray(nested?.items)
+              ? (nested?.items as unknown[])
+              : [];
   const out: LocationOption[] = [];
   for (const item of list) {
     const rec = asRecord(item);

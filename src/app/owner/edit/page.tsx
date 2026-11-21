@@ -134,17 +134,28 @@ export default function OwnerEditPage() {
           list.find((a) => Boolean(a?.isPrimary)) ??
           list[list.length - 1];
 
+        const pickPlaceName = (val: unknown): string => {
+          if (typeof val === "string" && val.trim()) return val.trim();
+          if (val && typeof val === "object" && typeof (val as { name?: unknown }).name === "string") {
+            return String((val as { name: string }).name).trim();
+          }
+          return "";
+        };
+
         if (primaryAddr?.id) {
           setPrimaryAddressId(String(primaryAddr.id));
         }
         if (typeof (primaryAddr?.addressLine || primaryAddr?.address) === "string") {
           setAddressLine(String(primaryAddr.addressLine || primaryAddr.address));
         }
-        if (typeof primaryAddr?.city === "string" && primaryAddr.city) {
-          setCity(primaryAddr.city);
+        const resolvedCity = pickPlaceName(primaryAddr?.city) || pickPlaceName(primaryAddr?.cityName);
+        if (resolvedCity) {
+          setCity(resolvedCity);
         }
-        if (typeof primaryAddr?.province === "string" && primaryAddr.province) {
-          setProvince(primaryAddr.province);
+        const resolvedProvince =
+          pickPlaceName(primaryAddr?.province) || pickPlaceName(primaryAddr?.provinceName);
+        if (resolvedProvince) {
+          setProvince(resolvedProvince);
         }
         if (typeof primaryAddr?.phone === "string" && primaryAddr.phone) {
           setPhone(primaryAddr.phone);

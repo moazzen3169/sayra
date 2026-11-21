@@ -224,10 +224,8 @@ export default function OwnerStationsPage() {
 
   const navigateToNewStation = () => {
     const params = new URLSearchParams();
-    if (selectedGroup) {
-      params.set("mode", selectedGroup.catalogId ? "catalog" : "custom");
-      if (selectedGroup.catalogId) params.set("catalogId", selectedGroup.catalogId);
-      if (selectedGroup.deviceType) params.set("stationType", selectedGroup.deviceType);
+    if (selectedGroup?.catalogId) {
+      params.set("catalogId", selectedGroup.catalogId);
     }
     const qs = params.toString();
     router.push(qs ? `/owner/stations/new?${qs}` : "/owner/stations/new");

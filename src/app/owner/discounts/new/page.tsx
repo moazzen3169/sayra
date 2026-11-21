@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
@@ -10,11 +10,14 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useOwner } from "@/context/OwnerContext";
 import { isAbortError } from "@/lib/api/client";
 import { formatPrice, formatToman, toEnglishDigits, toPersianDigits, tomanToRial } from "@/lib/format";
+import { buildStationGroups, stationGroupKey } from "@/lib/ownerStations";
+import { catalogService } from "@/services/catalogService";
 import { discountService } from "@/services/discountService";
 import type { GameStationInfo } from "@/services/gamingCenterService";
 import { ownerService } from "@/services/ownerService";
+import type { DeviceCatalogItem } from "@/types/catalog";
 
-type TargetScope = "GAMING_CENTER" | "STATION";
+type TargetScope = "GAMING_CENTER" | "CATALOG" | "STATION";
 type ValueType = "PERCENTAGE" | "FIXED_AMOUNT";
 
 const DURATION_OPTIONS = [1, 3, 7, 14, 30] as const;
@@ -42,9 +45,12 @@ export default function NewOwnerDiscountPage() {
   const { centerId, isCenterLoading } = useOwner();
 
   const [stations, setStations] = useState<GameStationInfo[]>([]);
-  const [stationsLoading, setStationsLoading] = useState(false);
+  const [catalogDevices, setCatalogDevices] = useState<DeviceCatalogItem[]>([]);
+  const [loadedCenterId, setLoadedCenterId] = useState<string | null>(null);
+  const stationsLoading = Boolean(centerId) && loadedCenterId !== centerId;
 
   const [targetScope, setTargetScope] = useState<TargetScope>("GAMING_CENTER");
+  const [selectedCatalogKey, setSelectedCatalogKey] = useState("");
   const [selectedStationId, setSelectedStationId] = useState("");
   const [valueType, setValueType] = useState<ValueType>("PERCENTAGE");
   const [value, setValue] = useState("20");
@@ -58,21 +64,48 @@ export default function NewOwnerDiscountPage() {
 
     const controller = new AbortController();
     let active = true;
-    ownerService
-      .listStations(centerId, controller.signal)
-      .then((list) => {
+
+    Promise.all([
+      ownerService.listStations(centerId, controller.signal),
+      catalogService.listDevices({ limit: 100 }, controller.signal).catch(() => []),
+    ])
+      .then(async ([list, devices]) => {
         if (!active) return;
         setStations(list);
         if (list.length > 0) {
           setSelectedStationId((prev) => prev || list[0].id);
         }
+
+        const knownIds = new Set(devices.map((d) => d.id));
+        const missingIds = Array.from(
+          new Set(
+            list
+              .map((s) => s.catalogDeviceId)
+              .filter((id): id is string => Boolean(id && !knownIds.has(id)))
+          )
+        );
+
+        let allDevices = devices;
+        if (missingIds.length > 0) {
+          const extraResults = await Promise.allSettled(
+            missingIds.map((id) => catalogService.getDeviceById(id, controller.signal))
+          );
+          if (!active) return;
+          const fetched = extraResults
+            .filter((r): r is PromiseFulfilledResult<DeviceCatalogItem> => r.status === "fulfilled")
+            .map((r) => r.value);
+          if (fetched.length > 0) {
+            allDevices = [...devices, ...fetched];
+          }
+        }
+        setCatalogDevices(allDevices);
       })
       .catch((err) => {
         if (!active || isAbortError(err)) return;
         setStations([]);
       })
       .finally(() => {
-        if (active) setStationsLoading(false);
+        if (active) setLoadedCenterId(centerId);
       });
 
     return () => {
@@ -80,6 +113,19 @@ export default function NewOwnerDiscountPage() {
       controller.abort();
     };
   }, [centerId]);
+
+  const stationGroups = useMemo(
+    () => buildStationGroups(stations, catalogDevices),
+    [stations, catalogDevices]
+  );
+  const effectiveCatalogKey =
+    selectedCatalogKey && stationGroups.some((g) => g.key === selectedCatalogKey)
+      ? selectedCatalogKey
+      : stationGroups[0]?.key ?? "";
+  const selectedCatalogGroup = useMemo(
+    () => stationGroups.find((g) => g.key === effectiveCatalogKey) ?? null,
+    [stationGroups, effectiveCatalogKey]
+  );
 
   const numericValue = Number(toEnglishDigits(value).replace(/,/g, "").trim());
   const validNumeric = !isNaN(numericValue) && numericValue > 0 ? numericValue : 0;
@@ -109,6 +155,11 @@ export default function NewOwnerDiscountPage() {
       return;
     }
 
+    if (targetScope === "CATALOG" && !effectiveCatalogKey) {
+      setError("یک دسته‌بندی یا کاتالوگ دستگاه انتخاب کنید.");
+      return;
+    }
+
     if (targetScope === "STATION" && !selectedStationId) {
       setError("یک دستگاه را انتخاب کنید.");
       return;
@@ -118,12 +169,52 @@ export default function NewOwnerDiscountPage() {
     try {
       const now = new Date();
       const end = new Date(now.getTime() + durationDays * 86400000);
+      const computedValue = valueType === "FIXED_AMOUNT" ? tomanToRial(numericValue) : numericValue;
+
+      if (targetScope === "CATALOG") {
+        const matchingStations = stations.filter(
+          (st) => stationGroupKey(st) === effectiveCatalogKey
+        );
+        if (matchingStations.length === 0) {
+          setError("در این دسته‌بندی دستگاهی پیدا نشد.");
+          return;
+        }
+
+        const results = await Promise.allSettled(
+          matchingStations.map((st) =>
+            discountService.createDiscount(centerId, {
+              targetType: "STATION",
+              targetId: st.id,
+              valueType,
+              value: computedValue,
+              startAt: now.toISOString(),
+              endAt: end.toISOString(),
+              isActive: true,
+            })
+          )
+        );
+
+        const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+        const succeededCount = results.length - failed.length;
+        if (failed.length === 0) {
+          router.push("/owner/discounts?created=1");
+          return;
+        }
+        if (succeededCount > 0) {
+          setError(
+            `تخفیف برای ${toPersianDigits(succeededCount)} دستگاه ثبت شد اما برای ${toPersianDigits(failed.length)} دستگاه خطا رخ داد.`
+          );
+          return;
+        }
+        const firstErr = failed[0].reason;
+        throw firstErr instanceof Error ? firstErr : new Error("ثبت تخفیف انجام نشد.");
+      }
 
       await discountService.createDiscount(centerId, {
         targetType: targetScope,
         targetId: targetScope === "STATION" ? selectedStationId : centerId,
         valueType,
-        value: valueType === "FIXED_AMOUNT" ? tomanToRial(numericValue) : numericValue,
+        value: computedValue,
         startAt: now.toISOString(),
         endAt: end.toISOString(),
         isActive: true,
@@ -184,7 +275,7 @@ export default function NewOwnerDiscountPage() {
             <label className="text-xs font-bold text-[var(--text-white)]">
               برای کجا اعمال شود؟
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setTargetScope("GAMING_CENTER")}
@@ -198,6 +289,17 @@ export default function NewOwnerDiscountPage() {
               </button>
               <button
                 type="button"
+                onClick={() => setTargetScope("CATALOG")}
+                className={`h-11 rounded-card text-xs font-bold border transition-all cursor-pointer ${
+                  targetScope === "CATALOG"
+                    ? "bg-[var(--primary)] text-on-primary border-[var(--primary)]"
+                    : "bg-[var(--foreground)]/40 text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-white)]"
+                }`}
+              >
+                کاتالوگ / دسته
+              </button>
+              <button
+                type="button"
                 onClick={() => setTargetScope("STATION")}
                 className={`h-11 rounded-card text-xs font-bold border transition-all cursor-pointer ${
                   targetScope === "STATION"
@@ -208,6 +310,45 @@ export default function NewOwnerDiscountPage() {
                 یک دستگاه
               </button>
             </div>
+
+            {targetScope === "CATALOG" && (
+              isCenterLoading || stationsLoading ? (
+                <Skeleton className="h-11 w-full rounded-card" />
+              ) : stationGroups.length > 0 ? (
+                <div className="flex flex-col gap-1.5">
+                  <select
+                    value={effectiveCatalogKey}
+                    onChange={(e) => setSelectedCatalogKey(e.target.value)}
+                    className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none text-[var(--text-white)]"
+                  >
+                    {stationGroups.map((group) => (
+                      <option key={group.key} value={group.key} className="bg-[var(--bg-card)]">
+                        {group.name} ({toPersianDigits(group.count)} دستگاه)
+                      </option>
+                    ))}
+                  </select>
+                  {selectedCatalogGroup && (
+                    <span className="text-[11px] text-[var(--text-muted)]">
+                      تخفیف برای تمام {toPersianDigits(selectedCatalogGroup.count)} دستگاه «{selectedCatalogGroup.name}» اعمال می‌شود.
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <InlineAlert
+                  variant="warning"
+                  action={
+                    <Link
+                      href="/owner/stations/new"
+                      className="text-xs font-bold underline"
+                    >
+                      افزودن دستگاه
+                    </Link>
+                  }
+                >
+                  هنوز دستگاهی ثبت نکرده‌اید.
+                </InlineAlert>
+              )
+            )}
 
             {targetScope === "STATION" && (
               isCenterLoading || stationsLoading ? (

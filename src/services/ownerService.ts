@@ -594,7 +594,22 @@ export const ownerService = {
     centerId: string,
     signal?: AbortSignal
   ): Promise<
-    Array<{ id?: string; address: string; city?: string; phone?: string }>
+    Array<{
+      id?: string;
+      address?: string;
+      addressLine?: string;
+      city?: string;
+      cityName?: string;
+      province?: string;
+      provinceName?: string;
+      phone?: string;
+      postalCode?: string;
+      lat?: number;
+      lng?: number;
+      latitude?: number;
+      longitude?: number;
+      isPrimary?: boolean;
+    }>
   > {
     if (!centerId) return [];
 
@@ -604,7 +619,15 @@ export const ownerService = {
         { signal }
       );
 
-      return asArray<any>(res.data);
+      const raw = res.data;
+      if (Array.isArray(raw)) return raw;
+      if (raw && typeof raw === "object") {
+        const rec = raw as Record<string, unknown>;
+        if (Array.isArray(rec.data)) return rec.data;
+        if (Array.isArray(rec.items)) return rec.items;
+        if (Array.isArray(rec.addresses)) return rec.addresses;
+      }
+      return [];
     } catch {
       return [];
     }

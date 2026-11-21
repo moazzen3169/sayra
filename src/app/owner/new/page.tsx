@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
 import { LocationMapPicker } from "@/components/owner/LocationMapPicker";
-import { geocodeIranLocation } from "@/lib/iranGeocoding";
+import { geocodeIranLocation, reverseGeocodeIranLocation } from "@/lib/iranGeocoding";
 import { Icon } from "@/components/ui/Icon";
 import { useAuth } from "@/context/AuthContext";
 import { useOwner } from "@/context/OwnerContext";
@@ -13,6 +13,7 @@ import { isAbortError } from "@/lib/api/client";
 import { cleanPhoneNumber, isValidIranPhone, toEnglishDigits, toPersianDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { onboardingService } from "@/services/onboardingService";
+import { ownerService } from "@/services/ownerService";
 import type {
   LocationOption,
   OnboardingCompletion,
@@ -79,9 +80,13 @@ export default function NewGamingCenterPage() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupToken, setLookupToken] = useState(0);
   const [address, setAddress] = useState("");
+  const [addressSuggesting, setAddressSuggesting] = useState(false);
+  const [addressSuggestedFromMap, setAddressSuggestedFromMap] = useState(false);
   const [latitude, setLatitude] = useState(35.6892);
   const [longitude, setLongitude] = useState(51.389);
   const [mapZoom, setMapZoom] = useState(12);
+  const reverseGeocodeAbortRef = useRef<AbortController | null>(null);
+  const lastGeocodedRegionRef = useRef<string>("");
   // مرحله ۴
   const [openingTime, setOpeningTime] = useState("10:00");
   const [closingTime, setClosingTime] = useState("23:00");
@@ -240,6 +245,87 @@ export default function NewGamingCenterPage() {
       if (completion.tokens) {
         // نقش را محلی تعیین نمی‌کنیم؛ بعد از ورود، نقش واقعی از سرور خوانده می‌شود
         login(managerName.trim(), cleanPhoneNumber(managerPhone), completion.tokens.accessToken, completion.tokens.refreshToken);
+
+        let targetCenterId = completion.gamingCenterId;
+        if (!targetCenterId) {
+          const me = await ownerService.getMe().catch(() => null);
+          targetCenterId = me?.gamingCenterId;
+          if (!targetCenterId) {
+            const centers = await ownerService.listCenters().catch(() => []);
+            targetCenterId = centers[0]?.id;
+          }
+          if (targetCenterId) {
+            try {
+              localStorage.setItem("sayra_owner_center_id", targetCenterId);
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        const selectedProvinceName = provinces.find((p) => p.id === provinceId)?.name?.trim();
+        const selectedCityName = cities.find((c) => c.id === cityId)?.name?.trim();
+
+        if (targetCenterId) {
+          await Promise.allSettled([
+            // اطمینان از ذخیره استان و شهر در آدرس اصلی گیمنت
+            (async () => {
+              if (!selectedProvinceName && !selectedCityName) return;
+              const existingAddresses = await ownerService.listAddresses(targetCenterId).catch(() => []);
+              const primaryAddr =
+                existingAddresses.find((a) => Boolean(a?.isPrimary)) ?? existingAddresses[0];
+              const existingProvince =
+                typeof primaryAddr?.province === "string"
+                  ? primaryAddr.province.trim()
+                  : typeof primaryAddr?.provinceName === "string"
+                    ? primaryAddr.provinceName.trim()
+                    : "";
+              const existingCity =
+                typeof primaryAddr?.city === "string"
+                  ? primaryAddr.city.trim()
+                  : typeof primaryAddr?.cityName === "string"
+                    ? primaryAddr.cityName.trim()
+                    : "";
+              const needsAddressSync =
+                !primaryAddr ||
+                (selectedProvinceName && existingProvince !== selectedProvinceName) ||
+                (selectedCityName && existingCity !== selectedCityName);
+
+              if (!needsAddressSync) return;
+
+              const cleanAddressLine = address.trim();
+              const fullAddr = [selectedProvinceName, selectedCityName, cleanAddressLine]
+                .filter(Boolean)
+                .join("، ");
+              const addressPayload = {
+                province: selectedProvinceName || undefined,
+                city: selectedCityName || existingCity || "تهران",
+                addressLine: cleanAddressLine,
+                address: fullAddr,
+                lat: latitude,
+                lng: longitude,
+                isPrimary: true,
+              };
+
+              if (primaryAddr?.id) {
+                await ownerService
+                  .updateAddress(targetCenterId, String(primaryAddr.id), addressPayload)
+                  .catch(() => ownerService.createAddress(targetCenterId, addressPayload));
+              } else {
+                await ownerService.createAddress(targetCenterId, addressPayload);
+              }
+            })(),
+            // فعال‌سازی خودکار رزرو آنلاین برای گیمنت جدید
+            ownerService.updateSettings(targetCenterId, {
+              allowOnlineBooking: true,
+              workStartTime: openingTime,
+              workEndTime: closingTime,
+              timeZone: "Asia/Tehran",
+              closedDays,
+            }),
+          ]);
+        }
+
         await refreshUser();
         await refreshCenters().catch(() => undefined);
         setResult(completion);
@@ -262,6 +348,10 @@ export default function NewGamingCenterPage() {
 
   useEffect(() => {
     if (!provinceName && !cityName) return;
+    const regionKey = `${provinceName ?? ""}::${cityName ?? ""}`;
+    if (lastGeocodedRegionRef.current === regionKey) return;
+    lastGeocodedRegionRef.current = regionKey;
+
     const c = new AbortController();
     geocodeIranLocation(provinceName, cityName, c.signal).then((viewport) => {
       if (!viewport || c.signal.aborted) return;
@@ -271,6 +361,35 @@ export default function NewGamingCenterPage() {
     });
     return () => c.abort();
   }, [provinceName, cityName]);
+
+  useEffect(() => {
+    return () => {
+      reverseGeocodeAbortRef.current?.abort();
+    };
+  }, []);
+
+  const handleMapLocationChange = useCallback((lat: number, lng: number) => {
+    setLatitude(lat);
+    setLongitude(lng);
+
+    reverseGeocodeAbortRef.current?.abort();
+    const controller = new AbortController();
+    reverseGeocodeAbortRef.current = controller;
+    setAddressSuggesting(true);
+    setAddressSuggestedFromMap(false);
+
+    reverseGeocodeIranLocation(lat, lng, controller.signal)
+      .then((suggested) => {
+        if (controller.signal.aborted || !suggested) return;
+        setAddress(suggested);
+        setAddressSuggestedFromMap(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setAddressSuggesting(false);
+        }
+      });
+  }, []);
 
   const backTo = (s: OnboardingStep) => {
     setError(null);
@@ -328,7 +447,7 @@ export default function NewGamingCenterPage() {
               </p>
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="ob-center" className="text-xs font-bold">نام گیمنت</label>
-                <input id="ob-center" className={inputClass} value={centerName} onChange={(e) => setCenterName(e.target.value)} placeholder="مثلاً گیمنت گرگدن" disabled={busy} />
+                <input id="ob-center" className={inputClass} value={centerName} onChange={(e) => setCenterName(e.target.value)} placeholder="مثلاً گیمنت سایرا" disabled={busy} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="ob-manager" className="text-xs font-bold">نام و نام خانوادگی مدیر</label>
@@ -440,15 +559,31 @@ export default function NewGamingCenterPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="ob-address" className="text-xs font-bold">آدرس دقیق</label>
+                <div className="flex items-center justify-between gap-2">
+                  <label htmlFor="ob-address" className="text-xs font-bold">آدرس دقیق</label>
+                  {addressSuggesting && (
+                    <span className="text-[11px] font-medium text-[var(--primary)]">
+                      در حال دریافت آدرس پیشنهادی از نقشه…
+                    </span>
+                  )}
+                </div>
                 <textarea
                   id="ob-address"
                   rows={3}
                   className="w-full p-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none text-[var(--text-white)] resize-none"
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onChange={(e) => {
+                    setAddress(e.target.value);
+                    setAddressSuggestedFromMap(false);
+                  }}
+                  placeholder="با انتخاب موقعیت روی نقشه، آدرس دقیق‌تر به‌صورت خودکار پیشنهاد می‌شود"
                   disabled={busy}
                 />
+                {addressSuggestedFromMap && !addressSuggesting && (
+                  <span className="text-[11px] text-[var(--text-muted)]">
+                    آدرس بر اساس نقطهٔ انتخاب‌شده روی نقشه پیشنهاد شد؛ در صورت نیاز ویرایش کنید.
+                  </span>
+                )}
               </div>
 
               <LocationMapPicker
@@ -457,10 +592,8 @@ export default function NewGamingCenterPage() {
                 zoom={mapZoom}
                 cityName={cityName}
                 provinceName={provinceName}
-                onChange={(lat, lng) => {
-                  setLatitude(lat);
-                  setLongitude(lng);
-                }}
+                showCoordinates={false}
+                onChange={handleMapLocationChange}
               />
 
               <div className="flex flex-col gap-2 sm:flex-row-reverse">
@@ -535,6 +668,7 @@ export default function NewGamingCenterPage() {
                   ["نام گیمنت", pick(preview, ["gameCenterName", "name"]) ?? centerName],
                   ["مدیر", pick(preview, ["managerFullName"]) ?? managerName],
                   ["شماره مدیر", toPersianDigits(pick(preview, ["managerPhone"]) ?? cleanPhoneNumber(managerPhone))],
+                  ["استان و شهر", [pick(preview, ["provinceName", "province"]) ?? provinceName, pick(preview, ["cityName", "city"]) ?? cityName].filter(Boolean).join("، ") || "—"],
                   ["آدرس", pick(preview, ["address"]) ?? address],
                   ["ساعات کاری", `${toPersianDigits(pick(preview, ["openingTime"]) ?? openingTime)} تا ${toPersianDigits(pick(preview, ["closingTime"]) ?? closingTime)}`],
                 ].map(([k, v]) => (

@@ -7,6 +7,103 @@ export interface GeocodedViewport {
 }
 
 const geocodeCache = new Map<string, GeocodedViewport>();
+const reverseGeocodeCache = new Map<string, string>();
+
+interface NominatimAddressDetails {
+  house_number?: string;
+  road?: string;
+  pedestrian?: string;
+  footway?: string;
+  neighbourhood?: string;
+  suburb?: string;
+  quarter?: string;
+  city_district?: string;
+  district?: string;
+  town?: string;
+  city?: string;
+  county?: string;
+  state?: string;
+  amenity?: string;
+  shop?: string;
+  building?: string;
+}
+
+function formatIranReverseAddress(
+  address?: NominatimAddressDetails,
+  displayName?: string
+): string | null {
+  if (address) {
+    const parts: string[] = [];
+    const pushUnique = (val?: string) => {
+      const clean = val?.trim();
+      if (!clean) return;
+      if (!parts.some((p) => p === clean || p.includes(clean) || clean.includes(p))) {
+        parts.push(clean);
+      }
+    };
+
+    pushUnique(address.city_district || address.district);
+    pushUnique(address.suburb || address.quarter || address.neighbourhood);
+    pushUnique(address.road || address.pedestrian || address.footway);
+    if (address.house_number?.trim()) {
+      pushUnique(`پلاک ${address.house_number.trim()}`);
+    }
+    pushUnique(address.building || address.amenity || address.shop);
+
+    if (parts.length > 0) {
+      return parts.join("، ");
+    }
+  }
+
+  if (displayName?.trim()) {
+    const cleaned = displayName
+      .split(/[،,]/)
+      .map((s) => s.trim())
+      .filter((s) => s && s !== "ایران" && !/^\d{5,10}$/.test(s))
+      .slice(0, 4)
+      .join("، ");
+    if (cleaned) return cleaned;
+  }
+
+  return null;
+}
+
+/**
+ * Reverse-geocodes coordinates using OpenStreetMap Nominatim to suggest a Persian street address.
+ */
+export async function reverseGeocodeIranLocation(
+  lat: number,
+  lng: number,
+  signal?: AbortSignal
+): Promise<string | null> {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  const cacheKey = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+  const cached = reverseGeocodeCache.get(cacheKey);
+  if (cached) return cached;
+
+  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(
+    String(lat)
+  )}&lon=${encodeURIComponent(String(lng))}&accept-language=fa&addressdetails=1&zoom=18`;
+
+  try {
+    const res = await fetch(url, { signal });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      display_name?: string;
+      address?: NominatimAddressDetails;
+    };
+    const formatted = formatIranReverseAddress(data.address, data.display_name);
+    if (formatted) {
+      reverseGeocodeCache.set(cacheKey, formatted);
+      return formatted;
+    }
+  } catch {
+    // Aborted or network error
+  }
+
+  return null;
+}
 
 function normalizeFa(value: string): string {
   return value

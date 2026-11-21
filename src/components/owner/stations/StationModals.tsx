@@ -9,7 +9,6 @@ import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { isAbortError } from "@/lib/api/client";
 import { rialToToman, toEnglishDigits, toPersianDigits, tomanToRial } from "@/lib/format";
 import {
-  STATION_TYPE_OPTIONS,
   getStationPrice,
   parseAmount,
   stationTypeLabel,
@@ -25,7 +24,6 @@ import {
 } from "@/components/owner/stations/ExtraControllersEditor";
 import type { DeviceCatalogItem } from "@/types/catalog";
 import type { StationExtraController } from "@/types/gaming-center/station.types";
-import type { StationInput } from "@/types/owner";
 
 /* ---------- اجزای مشترک ---------- */
 
@@ -68,22 +66,16 @@ const noop = () => {};
 
 /* ---------- افزودن دستگاه ---------- */
 
-type StationType = StationInput["stationType"];
-
 interface AddStationModalProps {
   centerId: string;
   catalogDevices: DeviceCatalogItem[];
   catalogLoading: boolean;
   catalogError: string | null;
   onRetryCatalog: () => void;
-  initialMode: "catalog" | "custom";
   initialCatalogId?: string;
-  initialStationType?: string;
   onClose: () => void;
   /** بعد از ثبت کامل */
   onSaved: (message: string) => void;
-  /** ثبت ناقص (چند دستگاه سفارشی)؛ فقط لیست را تازه می‌کند */
-  onChanged: () => void;
 }
 
 export const AddStationModal: React.FC<AddStationModalProps> = ({
@@ -92,20 +84,11 @@ export const AddStationModal: React.FC<AddStationModalProps> = ({
   catalogLoading,
   catalogError,
   onRetryCatalog,
-  initialMode,
   initialCatalogId,
-  initialStationType,
   onClose,
   onSaved,
-  onChanged,
 }) => {
-  const [mode, setMode] = useState<"catalog" | "custom">(initialMode);
   const [catalogId, setCatalogId] = useState(initialCatalogId ?? "");
-  const [type, setType] = useState<string>(
-    initialStationType && STATION_TYPE_OPTIONS.some((o) => o.value === initialStationType)
-      ? initialStationType
-      : "PC"
-  );
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -120,7 +103,7 @@ export const AddStationModal: React.FC<AddStationModalProps> = ({
   }>({});
 
   const effectiveCatalogId = catalogId || catalogDevices[0]?.id || "";
-  const maxQuantity = mode === "catalog" ? 100 : 50;
+  const maxQuantity = 100;
 
   const catalogOptions = catalogDevices.map((d) => ({
     value: d.id,
@@ -136,11 +119,8 @@ export const AddStationModal: React.FC<AddStationModalProps> = ({
     const count = parseAmount(quantity, toEnglishDigits);
     const trimmedName = name.trim();
 
-    if (mode === "catalog" && !effectiveCatalogId) {
+    if (!effectiveCatalogId) {
       errors.catalog = "یک دستگاه از کاتالوگ انتخاب کنید.";
-    }
-    if (mode === "custom" && trimmedName.length < 2) {
-      errors.name = "نام دستگاه را وارد کنید.";
     }
     if (hourlyPrice === null || hourlyPrice <= 0) {
       errors.price = "قیمت هر ساعت را به تومان و با عدد وارد کنید.";
@@ -156,49 +136,15 @@ export const AddStationModal: React.FC<AddStationModalProps> = ({
     setSaving(true);
     const hourlyPriceRial = tomanToRial(hourlyPrice);
     try {
-      if (mode === "catalog") {
-        const created = await ownerService.createStationsFromCatalog(centerId, {
-          catalogDeviceId: effectiveCatalogId,
-          quantity: count,
-          hourlyPrice: hourlyPriceRial,
-          customNamePrefix: trimmedName || undefined,
-          isVip,
-        });
-        const n = created.length > 0 ? created.length : count;
-        onSaved(`${toPersianDigits(n)} دستگاه به گیمنت اضافه شد.`);
-        return;
-      }
-
-      // حالت سفارشی: قرارداد API هر درخواست را برای یک دستگاه می‌پذیرد
-      let ok = 0;
-      let lastError: unknown = null;
-      for (let i = 1; i <= count; i++) {
-        try {
-          await ownerService.createStation(centerId, {
-            name: count > 1 ? `${trimmedName} ${toPersianDigits(i)}` : trimmedName,
-            stationType: type as StationType,
-            hourlyPrice: hourlyPriceRial,
-            isVip,
-          });
-          ok += 1;
-        } catch (err) {
-          lastError = err;
-          break;
-        }
-      }
-
-      if (ok === count) {
-        onSaved(`${toPersianDigits(ok)} دستگاه به گیمنت اضافه شد.`);
-      } else if (ok > 0) {
-        onChanged();
-        const remaining = count - ok;
-        setQuantity(String(remaining));
-        setError(
-          `${toPersianDigits(ok)} دستگاه ثبت شد، اما ثبت بقیه انجام نشد. ${getErrorMessage(lastError)} تعداد باقی‌مانده را دوباره ثبت کنید.`
-        );
-      } else {
-        setError(getErrorMessage(lastError));
-      }
+      const created = await ownerService.createStationsFromCatalog(centerId, {
+        catalogDeviceId: effectiveCatalogId,
+        quantity: count,
+        hourlyPrice: hourlyPriceRial,
+        customNamePrefix: trimmedName || undefined,
+        isVip,
+      });
+      const n = created.length > 0 ? created.length : count;
+      onSaved(`${toPersianDigits(n)} دستگاه به گیمنت اضافه شد.`);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -209,82 +155,40 @@ export const AddStationModal: React.FC<AddStationModalProps> = ({
   return (
     <Modal isOpen onClose={saving ? noop : onClose} title="افزودن دستگاه">
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-        <div role="group" aria-label="روش افزودن" className="grid grid-cols-2 gap-1 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/30 p-1">
-          {(
-            [
-              ["catalog", "از کاتالوگ"],
-              ["custom", "سفارشی"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={mode === value}
-              onClick={() => setMode(value)}
-              disabled={saving}
-              className={`h-10 rounded-card text-xs font-bold transition-colors ${
-                mode === value
-                  ? "bg-[var(--primary)] text-on-primary"
-                  : "text-[var(--text-muted)] hover:text-[var(--text-white)]"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="flex flex-col gap-1.5">
+          <FieldLabel>دستگاه کاتالوگ</FieldLabel>
+          {catalogLoading ? (
+            <div className="h-11 animate-pulse rounded-card bg-[var(--foreground)]/40" aria-busy="true" />
+          ) : catalogError ? (
+            <div className="flex items-center justify-between gap-3 rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-3 text-xs font-bold text-[var(--accent-red)]">
+              <span>کاتالوگ بارگذاری نشد.</span>
+              <button type="button" onClick={onRetryCatalog} className="h-11 px-2 text-[var(--text-white)] underline">
+                تلاش دوباره
+              </button>
+            </div>
+          ) : catalogOptions.length === 0 ? (
+            <p className="rounded-card border border-dashed border-[var(--border-color)] p-3 text-xs text-[var(--text-muted)]">
+              در کاتالوگ دستگاهی نیست.
+            </p>
+          ) : (
+            <SearchableSelect
+              options={catalogOptions}
+              value={effectiveCatalogId}
+              onChange={setCatalogId}
+              placeholder="انتخاب دستگاه"
+              searchPlaceholder="جستجوی دستگاه…"
+            />
+          )}
+          {fieldErrors.catalog && (
+            <span className="text-xs font-medium text-[var(--accent-red)]">{fieldErrors.catalog}</span>
+          )}
         </div>
 
-        {mode === "catalog" ? (
-          <div className="flex flex-col gap-1.5">
-            <FieldLabel>دستگاه کاتالوگ</FieldLabel>
-            {catalogLoading ? (
-              <div className="h-11 animate-pulse rounded-card bg-[var(--foreground)]/40" aria-busy="true" />
-            ) : catalogError ? (
-              <div className="flex items-center justify-between gap-3 rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-3 text-xs font-bold text-[var(--accent-red)]">
-                <span>کاتالوگ بارگذاری نشد.</span>
-                <button type="button" onClick={onRetryCatalog} className="h-11 px-2 text-[var(--text-white)] underline">
-                  تلاش دوباره
-                </button>
-              </div>
-            ) : catalogOptions.length === 0 ? (
-              <p className="rounded-card border border-dashed border-[var(--border-color)] p-3 text-xs text-[var(--text-muted)]">
-                در کاتالوگ دستگاهی نیست. از حالت سفارشی استفاده کنید.
-              </p>
-            ) : (
-              <SearchableSelect
-                options={catalogOptions}
-                value={effectiveCatalogId}
-                onChange={setCatalogId}
-                placeholder="انتخاب دستگاه"
-                searchPlaceholder="جستجوی دستگاه…"
-              />
-            )}
-            {fieldErrors.catalog && (
-              <span className="text-xs font-medium text-[var(--accent-red)]">{fieldErrors.catalog}</span>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-1.5">
-            <FieldLabel>نوع دستگاه</FieldLabel>
-            <SearchableSelect
-              options={STATION_TYPE_OPTIONS}
-              value={type}
-              onChange={setType}
-              placeholder="انتخاب نوع دستگاه"
-              searchPlaceholder="جستجوی نوع…"
-            />
-          </div>
-        )}
-
         <Input
-          label={mode === "custom" ? "نام دستگاه" : "پیشوند نام (اختیاری)"}
+          label="پیشوند نام (اختیاری)"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={mode === "custom" ? "مثلاً سیستم VIP" : "مثلاً PS5 VIP"}
-          helperText={
-            mode === "custom"
-              ? "اگر بیش از یک دستگاه ثبت کنید، شماره به انتهای نام اضافه می‌شود."
-              : undefined
-          }
+          placeholder="مثلاً PS5 VIP"
           error={fieldErrors.name}
           disabled={saving}
         />

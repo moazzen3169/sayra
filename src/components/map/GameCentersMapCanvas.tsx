@@ -91,21 +91,10 @@ export interface GameCentersMapCanvasProps {
   onSelectCenter: (center: ValidGameCenterLocation) => void;
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function createGameCenterPinIcon(name: string): L.DivIcon {
-  const safeName = escapeHtml(name);
+function createGameCenterPinIcon(): L.DivIcon {
   const html = `
     <div class="sayra-map-marker-root">
       <div class="sayra-map-marker">
-        <span class="sayra-map-marker-label" dir="rtl">${safeName}</span>
         <span class="sayra-map-marker-pin-wrap" aria-hidden="true">
           <span class="sayra-map-marker-pin">
             <svg width="26" height="32" viewBox="0 0 24 30" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -486,10 +475,7 @@ const GameCenterPinMarker: React.FC<GameCenterPinMarkerProps> = React.memo(
   ({ center, onSelect }) => {
     const markerRef = useRef<L.Marker | null>(null);
     const closeTimerRef = useRef<number | null>(null);
-    const icon = useMemo(
-      () => createGameCenterPinIcon(center.name),
-      [center.name]
-    );
+    const icon = useMemo(() => createGameCenterPinIcon(), []);
 
     const clearCloseTimer = useCallback(() => {
       if (closeTimerRef.current !== null) {
@@ -547,7 +533,6 @@ const GameCenterPinMarker: React.FC<GameCenterPinMarkerProps> = React.memo(
         ref={markerRef}
         position={[center.displayLat, center.displayLng]}
         icon={icon}
-        title={center.name}
         alt={`مشاهده گیمنت ${center.name}`}
         keyboard={true}
         riseOnHover={true}
@@ -556,7 +541,7 @@ const GameCenterPinMarker: React.FC<GameCenterPinMarkerProps> = React.memo(
         <Popup
           autoPan={true}
           autoPanPadding={[20, 20]}
-          offset={[0, -48]}
+          offset={[0, -34]}
           closeButton={false}
         >
           <div className="flex flex-col gap-2 p-2.5 text-right" dir="rtl">

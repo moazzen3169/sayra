@@ -17,7 +17,6 @@ import { isAbortError } from "@/lib/api/client";
 import { formatToman, toEnglishDigits, toPersianDigits, tomanToRial } from "@/lib/format";
 import { PLACEHOLDERS } from "@/lib/media";
 import {
-  STATION_TYPE_OPTIONS,
   parseAmount,
   stationTypeLabel,
 } from "@/lib/ownerStations";
@@ -30,9 +29,6 @@ import {
   type ExtraControllerDraftRow,
 } from "@/components/owner/stations/ExtraControllersEditor";
 import type { DeviceCatalogItem, DynamicDeviceType } from "@/types/catalog";
-import type { StationInput } from "@/types/owner";
-
-type StationType = StationInput["stationType"];
 
 function NewStationContent() {
   const router = useRouter();
@@ -40,12 +36,7 @@ function NewStationContent() {
   const { centerId, center, isCenterLoading } = useOwner();
   const canEdit = true;
 
-  const initialMode = searchParams.get("mode") === "custom" ? "custom" : "catalog";
   const initialCatalogId = searchParams.get("catalogId") ?? "";
-  const initialTypeParam = searchParams.get("stationType") ?? "";
-  const initialStationType = STATION_TYPE_OPTIONS.some((o) => o.value === initialTypeParam)
-    ? initialTypeParam
-    : "PC";
 
   const [catalogDevices, setCatalogDevices] = useState<DeviceCatalogItem[]>([]);
   const [deviceTypes, setDeviceTypes] = useState<DynamicDeviceType[]>([]);
@@ -53,10 +44,7 @@ function NewStationContent() {
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [catalogReload, setCatalogReload] = useState(0);
 
-  const [mode, setMode] = useState<"catalog" | "custom">(initialMode);
   const [catalogId, setCatalogId] = useState(initialCatalogId);
-  const [type, setType] = useState<string>(initialStationType);
-  const [selectedDeviceTypeId, setSelectedDeviceTypeId] = useState<string>("");
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -112,54 +100,24 @@ function NewStationContent() {
     [catalogDevices, effectiveCatalogId]
   );
 
-  const customDeviceTypeOptions = useMemo(() => {
-    if (deviceTypes.length > 0) {
-      return deviceTypes.map((dt) => ({
-        value: dt.id,
-        label: `${dt.name} (${stationTypeLabel(dt.category)})`,
-      }));
-    }
-    return STATION_TYPE_OPTIONS;
-  }, [deviceTypes]);
-
-  const effectiveCustomTypeValue = useMemo(() => {
-    if (deviceTypes.length > 0) {
-      if (selectedDeviceTypeId && deviceTypes.some((dt) => dt.id === selectedDeviceTypeId)) {
-        return selectedDeviceTypeId;
-      }
-      const matched =
-        deviceTypes.find((dt) => dt.category.toUpperCase() === type.toUpperCase()) ??
-        deviceTypes[0];
-      return matched?.id ?? "";
-    }
-    return type;
-  }, [deviceTypes, selectedDeviceTypeId, type]);
-
   const activeDynamicDeviceType = useMemo<DynamicDeviceType | null>(() => {
-    if (mode === "catalog") {
-      if (!selectedCatalogDevice) return null;
-      if (selectedCatalogDevice.deviceTypeRef) return selectedCatalogDevice.deviceTypeRef;
-      if (selectedCatalogDevice.deviceTypeId) {
-        const byId = deviceTypes.find((dt) => dt.id === selectedCatalogDevice.deviceTypeId);
-        if (byId) return byId;
-      }
-      const cat = String(selectedCatalogDevice.deviceType ?? "").toUpperCase();
-      return (
-        deviceTypes.find((dt) => dt.category.toUpperCase() === cat && dt.extraControllerEnabled) ??
-        deviceTypes.find((dt) => dt.category.toUpperCase() === cat) ??
-        null
-      );
+    if (!selectedCatalogDevice) return null;
+    if (selectedCatalogDevice.deviceTypeRef) return selectedCatalogDevice.deviceTypeRef;
+    if (selectedCatalogDevice.deviceTypeId) {
+      const byId = deviceTypes.find((dt) => dt.id === selectedCatalogDevice.deviceTypeId);
+      if (byId) return byId;
     }
-
-    if (deviceTypes.length > 0) {
-      return deviceTypes.find((dt) => dt.id === effectiveCustomTypeValue) ?? null;
-    }
-    return null;
-  }, [mode, selectedCatalogDevice, deviceTypes, effectiveCustomTypeValue]);
+    const cat = String(selectedCatalogDevice.deviceType ?? "").toUpperCase();
+    return (
+      deviceTypes.find((dt) => dt.category.toUpperCase() === cat && dt.extraControllerEnabled) ??
+      deviceTypes.find((dt) => dt.category.toUpperCase() === cat) ??
+      null
+    );
+  }, [selectedCatalogDevice, deviceTypes]);
 
   const supportsExtraControllers = Boolean(activeDynamicDeviceType?.extraControllerEnabled);
 
-  const maxQuantity = mode === "catalog" ? 100 : 50;
+  const maxQuantity = 100;
 
   const catalogOptions = useMemo(
     () =>
@@ -185,11 +143,8 @@ function NewStationContent() {
     const count = parseAmount(quantity, toEnglishDigits);
     const trimmedName = name.trim();
 
-    if (mode === "catalog" && !effectiveCatalogId) {
+    if (!effectiveCatalogId) {
       errors.catalog = "یک دستگاه از کاتالوگ انتخاب کنید.";
-    }
-    if (mode === "custom" && trimmedName.length < 2) {
-      errors.name = "نام دستگاه را وارد کنید (حداقل ۲ کاراکتر).";
     }
     if (hourlyPrice === null || hourlyPrice <= 0) {
       errors.price = "قیمت هر ساعت را به تومان و با عدد وارد کنید.";
@@ -212,71 +167,30 @@ function NewStationContent() {
     setSaving(true);
     const hourlyPriceRial = tomanToRial(hourlyPrice);
     try {
-      if (mode === "catalog") {
-        const created = await ownerService.createStationsFromCatalog(centerId, {
-          catalogDeviceId: effectiveCatalogId,
-          quantity: count,
-          hourlyPrice: hourlyPriceRial,
-          customNamePrefix: trimmedName || undefined,
-          isVip,
-        });
+      const created = await ownerService.createStationsFromCatalog(centerId, {
+        catalogDeviceId: effectiveCatalogId,
+        quantity: count,
+        hourlyPrice: hourlyPriceRial,
+        customNamePrefix: trimmedName || undefined,
+        isVip,
+      });
 
-        if (supportsExtraControllers && extraValidation.configs.length > 0 && created.length > 0) {
-          await Promise.all(
-            created.map((st) =>
-              ownerService.syncStationExtraControllers(
-                centerId,
-                st.id,
-                extraValidation.configs,
-                []
-              )
+      if (supportsExtraControllers && extraValidation.configs.length > 0 && created.length > 0) {
+        await Promise.all(
+          created.map((st) =>
+            ownerService.syncStationExtraControllers(
+              centerId,
+              st.id,
+              extraValidation.configs,
+              []
             )
-          );
-        }
-
-        const n = created.length > 0 ? created.length : count;
-        const msg = `${toPersianDigits(n)} دستگاه به گیمنت اضافه شد.`;
-        router.push(`/owner/stations?toast=${encodeURIComponent(msg)}`);
-        return;
-      }
-
-      const resolvedStationType = (activeDynamicDeviceType?.category ?? type) as StationType;
-      const resolvedDeviceTypeId = activeDynamicDeviceType?.id;
-
-      let ok = 0;
-      let lastError: unknown = null;
-      for (let i = 1; i <= count; i++) {
-        try {
-          await ownerService.createStation(centerId, {
-            name: count > 1 ? `${trimmedName} ${toPersianDigits(i)}` : trimmedName,
-            stationType: resolvedStationType,
-            deviceTypeId: resolvedDeviceTypeId,
-            extraControllers:
-              supportsExtraControllers && extraValidation.configs.length > 0
-                ? extraValidation.configs
-                : undefined,
-            hourlyPrice: hourlyPriceRial,
-            isVip,
-          });
-          ok += 1;
-        } catch (err) {
-          lastError = err;
-          break;
-        }
-      }
-
-      if (ok === count) {
-        const msg = `${toPersianDigits(ok)} دستگاه به گیمنت اضافه شد.`;
-        router.push(`/owner/stations?toast=${encodeURIComponent(msg)}`);
-      } else if (ok > 0) {
-        const remaining = count - ok;
-        setQuantity(String(remaining));
-        setError(
-          `${toPersianDigits(ok)} دستگاه ثبت شد، اما ثبت بقیه انجام نشد. ${getErrorMessage(lastError)} تعداد باقی‌مانده را دوباره ثبت کنید.`
+          )
         );
-      } else {
-        setError(getErrorMessage(lastError));
       }
+
+      const n = created.length > 0 ? created.length : count;
+      const msg = `${toPersianDigits(n)} دستگاه به گیمنت اضافه شد.`;
+      router.push(`/owner/stations?toast=${encodeURIComponent(msg)}`);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -309,8 +223,8 @@ function NewStationContent() {
           </h1>
           <p className="text-xs leading-6 text-[var(--text-muted)]">
             {center?.name
-              ? `ثبت دستگاه برای «${center.name}» از طریق کاتالوگ استاندارد یا به‌صورت سفارشی`
-              : "دستگاه جدید را از کاتالوگ انتخاب کنید یا به‌صورت سفارشی ثبت نمایید."}
+              ? `ثبت دستگاه برای «${center.name}» از طریق کاتالوگ استاندارد`
+              : "دستگاه جدید را از کاتالوگ انتخاب و ثبت نمایید."}
           </p>
         </div>
 
@@ -331,149 +245,83 @@ function NewStationContent() {
           noValidate
           className="flex flex-col gap-6 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 sm:p-6"
         >
-          {/* روش افزودن */}
-          <div className="flex flex-col gap-2">
-            <span className="text-xs font-bold text-[var(--text-muted)]">روش افزودن دستگاه</span>
-            <div
-              role="group"
-              aria-label="روش افزودن"
-              className="grid grid-cols-2 gap-1 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/30 p-1"
-            >
-              {(
-                [
-                  ["catalog", "از کاتالوگ"],
-                  ["custom", "سفارشی"],
-                ] as const
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={mode === value}
-                  onClick={() => {
-                    setMode(value);
-                    setFieldErrors({});
-                    setError(null);
-                  }}
-                  disabled={saving}
-                  className={`h-10 rounded-card text-xs font-bold transition-colors ${
-                    mode === value
-                      ? "bg-[var(--primary)] text-on-primary"
-                      : "text-[var(--text-muted)] hover:text-[var(--text-white)]"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {mode === "catalog" ? (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-bold text-[var(--text-muted)]">دستگاه کاتالوگ</span>
-                {catalogLoading ? (
-                  <Skeleton className="h-11" />
-                ) : catalogError ? (
-                  <div className="flex items-center justify-between gap-3 rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-3 text-xs font-bold text-[var(--accent-red)]">
-                    <span>کاتالوگ بارگذاری نشد.</span>
-                    <button
-                      type="button"
-                      onClick={retryCatalog}
-                      className="h-9 px-2 text-[var(--text-white)] underline"
-                    >
-                      تلاش دوباره
-                    </button>
-                  </div>
-                ) : catalogOptions.length === 0 ? (
-                  <p className="rounded-card border border-dashed border-[var(--border-color)] p-3 text-xs text-[var(--text-muted)]">
-                    در کاتالوگ دستگاهی نیست. از حالت سفارشی استفاده کنید.
-                  </p>
-                ) : (
-                  <SearchableSelect
-                    options={catalogOptions}
-                    value={effectiveCatalogId}
-                    onChange={setCatalogId}
-                    placeholder="انتخاب دستگاه"
-                    searchPlaceholder="جستجوی دستگاه…"
-                  />
-                )}
-                {fieldErrors.catalog && (
-                  <span className="text-xs font-medium text-[var(--accent-red)]">
-                    {fieldErrors.catalog}
-                  </span>
-                )}
-              </div>
-
-              {selectedCatalogDevice && (
-                <div className="flex items-center gap-4 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/20 p-3">
-                  <span className="h-16 w-20 shrink-0 overflow-hidden rounded-card bg-[var(--foreground)]/40">
-                    <SafeImage
-                      src={
-                        selectedCatalogDevice.coverImageUrl ||
-                        stationImageFor(String(selectedCatalogDevice.deviceType ?? ""))
-                      }
-                      alt=""
-                      fallbackSrc={PLACEHOLDERS.center}
-                      className="h-full w-full object-contain p-1.5"
-                    />
-                  </span>
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="truncate text-sm font-bold text-[var(--text-white)]">
-                        {selectedCatalogDevice.name}
-                      </span>
-                      <Badge variant="neutral">
-                        {stationTypeLabel(String(selectedCatalogDevice.deviceType ?? ""))}
-                      </Badge>
-                      {supportsExtraControllers && (
-                        <Badge variant="success">پشتیبانی از دسته اضافی</Badge>
-                      )}
-                    </div>
-                    {selectedCatalogDevice.description && (
-                      <p className="line-clamp-2 text-xs leading-5 text-[var(--text-muted)]">
-                        {selectedCatalogDevice.description}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
+          <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-bold text-[var(--text-muted)]">نوع دستگاه</span>
-              <SearchableSelect
-                options={customDeviceTypeOptions}
-                value={effectiveCustomTypeValue}
-                onChange={(val) => {
-                  if (deviceTypes.length > 0) {
-                    setSelectedDeviceTypeId(val);
-                    const matched = deviceTypes.find((dt) => dt.id === val);
-                    if (matched) setType(matched.category);
-                  } else {
-                    setType(val);
-                  }
-                }}
-                placeholder="انتخاب نوع دستگاه"
-                searchPlaceholder="جستجوی نوع…"
-              />
-              {activeDynamicDeviceType && supportsExtraControllers && (
-                <span className="text-[11px] font-bold text-[var(--accent-green)]">
-                  این نوع دستگاه از دسته اضافی پشتیبانی می‌کند.
+              <span className="text-xs font-bold text-[var(--text-muted)]">دستگاه کاتالوگ</span>
+              {catalogLoading ? (
+                <Skeleton className="h-11" />
+              ) : catalogError ? (
+                <div className="flex items-center justify-between gap-3 rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-3 text-xs font-bold text-[var(--accent-red)]">
+                  <span>کاتالوگ بارگذاری نشد.</span>
+                  <button
+                    type="button"
+                    onClick={retryCatalog}
+                    className="h-9 px-2 text-[var(--text-white)] underline"
+                  >
+                    تلاش دوباره
+                  </button>
+                </div>
+              ) : catalogOptions.length === 0 ? (
+                <p className="rounded-card border border-dashed border-[var(--border-color)] p-3 text-xs text-[var(--text-muted)]">
+                  در کاتالوگ دستگاهی موجود نیست.
+                </p>
+              ) : (
+                <SearchableSelect
+                  options={catalogOptions}
+                  value={effectiveCatalogId}
+                  onChange={setCatalogId}
+                  placeholder="انتخاب دستگاه"
+                  searchPlaceholder="جستجوی دستگاه…"
+                />
+              )}
+              {fieldErrors.catalog && (
+                <span className="text-xs font-medium text-[var(--accent-red)]">
+                  {fieldErrors.catalog}
                 </span>
               )}
             </div>
-          )}
+
+            {selectedCatalogDevice && (
+              <div className="flex items-center gap-4 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/20 p-3">
+                <span className="h-16 w-20 shrink-0 overflow-hidden rounded-card bg-[var(--foreground)]/40">
+                  <SafeImage
+                    src={
+                      selectedCatalogDevice.coverImageUrl ||
+                      stationImageFor(String(selectedCatalogDevice.deviceType ?? ""))
+                    }
+                    alt=""
+                    fallbackSrc={PLACEHOLDERS.center}
+                    className="h-full w-full object-contain p-1.5"
+                  />
+                </span>
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate text-sm font-bold text-[var(--text-white)]">
+                      {selectedCatalogDevice.name}
+                    </span>
+                    <Badge variant="neutral">
+                      {stationTypeLabel(String(selectedCatalogDevice.deviceType ?? ""))}
+                    </Badge>
+                    {supportsExtraControllers && (
+                      <Badge variant="success">پشتیبانی از دسته اضافی</Badge>
+                    )}
+                  </div>
+                  {selectedCatalogDevice.description && (
+                    <p className="line-clamp-2 text-xs leading-5 text-[var(--text-muted)]">
+                      {selectedCatalogDevice.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           <Input
-            label={mode === "custom" ? "نام دستگاه" : "پیشوند نام (اختیاری)"}
+            label="پیشوند نام (اختیاری)"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={mode === "custom" ? "مثلاً سیستم VIP" : "مثلاً PS5 VIP"}
-            helperText={
-              mode === "custom"
-                ? "اگر بیش از یک دستگاه ثبت کنید، شماره به انتهای نام اضافه می‌شود."
-                : "در صورت خالی گذاشتن، نام استاندارد کاتالوگ با شماره برای هر دستگاه انتخاب می‌شود."
-            }
+            placeholder="مثلاً PS5 VIP"
+            helperText="در صورت خالی گذاشتن، نام استاندارد کاتالوگ با شماره برای هر دستگاه انتخاب می‌شود."
             error={fieldErrors.name}
             disabled={saving || !canEdit}
           />
