@@ -365,7 +365,7 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
           {otpStep === "phone" && (
             <form onSubmit={handleRequestOtp} className="flex flex-col gap-4">
               <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                شماره موبایل خود را وارد کنید تا کد تأیید یک‌بار مصرف برای شما ارسال شود. در صورت نداشتن حساب، به‌صورت خودکار ثبت‌نام خواهید شد.
+                شماره موبایلت رو وارد کن تا کد تأیید برات ارسال بشه. اگر حساب نداری، ثبت‌نامت خودکار انجام می‌شه.
               </p>
 
               <div className="flex flex-col gap-1.5">
@@ -387,7 +387,7 @@ export const UnifiedAuthForm: React.FC<UnifiedAuthFormProps> = ({
                 disabled={loading}
                 className="h-12 mt-2 w-full rounded-card bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-on-primary font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] disabled:opacity-60 cursor-pointer"
               >
-                <span>{loading ? "در حال ارسال..." : "دریافت کد تأیید (ورود / ثبت‌نام)"}</span>
+                <span>{loading ? "در حال ارسال..." : "دریافت کد تأیید"}</span>
                 {!loading && (
                   <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />

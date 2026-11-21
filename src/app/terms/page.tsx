@@ -852,101 +852,6 @@ const ARTICLES: TermSection[] = [
   },
 ];
 
-function TermsSealArtwork() {
-  return (
-    <svg
-      viewBox="0 0 620 620"
-      role="img"
-      aria-label="سند رسمی قوانین و مقررات پلتفرم سایرا"
-      className="h-full w-full"
-      fill="none"
-    >
-      <defs>
-        <radialGradient id="terms-aura">
-          <stop offset="0" stopColor="#B8F34A" stopOpacity=".2" />
-          <stop offset=".55" stopColor="#B8F34A" stopOpacity=".05" />
-          <stop offset="1" stopColor="#B8F34A" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id="terms-ring" x1="120" y1="90" x2="500" y2="530">
-          <stop stopColor="#E8FFB8" />
-          <stop offset=".48" stopColor="#B8F34A" stopOpacity=".8" />
-          <stop offset="1" stopColor="#B8F34A" stopOpacity=".08" />
-        </linearGradient>
-        <linearGradient id="terms-core" x1="310" y1="150" x2="310" y2="490">
-          <stop stopColor="#B8F34A" stopOpacity=".16" />
-          <stop offset="1" stopColor="#B8F34A" stopOpacity="0" />
-        </linearGradient>
-        <filter id="terms-blur">
-          <feGaussianBlur stdDeviation="18" />
-        </filter>
-      </defs>
-
-      <circle cx="310" cy="310" r="285" fill="url(#terms-aura)" />
-      <ellipse
-        cx="310"
-        cy="505"
-        rx="155"
-        ry="18"
-        fill="#B8F34A"
-        opacity=".18"
-        filter="url(#terms-blur)"
-      />
-
-      <g stroke="url(#terms-ring)">
-        <circle cx="310" cy="310" r="228" opacity=".4" />
-        <circle cx="310" cy="310" r="186" strokeWidth="1.75" opacity=".75" />
-        <circle cx="310" cy="310" r="144" opacity=".28" />
-      </g>
-
-      {/* Minimalist Legal Shield / Document Seal */}
-      <path
-        d="M310 198l84 34v66c0 58-35 108-84 128-49-20-84-70-84-128v-66l84-34Z"
-        fill="url(#terms-core)"
-        stroke="url(#terms-ring)"
-        strokeWidth="2"
-      />
-      <path
-        d="M310 222l62 25v48c0 44-25 82-62 98-37-16-62-54-62-98v-48l62-25Z"
-        stroke="#B8F34A"
-        strokeOpacity=".4"
-      />
-      <path
-        d="M284 302l18 18 36-38"
-        stroke="#DFFFAD"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      <circle cx="310" cy="82" r="4" fill="#DFFFAD" />
-      <circle cx="538" cy="310" r="4" fill="#DFFFAD" />
-      <circle cx="82" cy="310" r="3" fill="#DFFFAD" />
-      <circle cx="310" cy="538" r="3" fill="#DFFFAD" />
-      <circle
-        cx="310"
-        cy="310"
-        r="265"
-        stroke="#B8F34A"
-        strokeOpacity=".18"
-        strokeDasharray="2 13"
-      />
-      <circle
-        cx="310"
-        cy="310"
-        r="290"
-        stroke="#B8F34A"
-        strokeOpacity=".12"
-        strokeDasharray="1 18"
-      />
-      <path
-        d="M310 82V42M538 310h40M82 310H42M310 538v40"
-        stroke="#B8F34A"
-        strokeOpacity=".45"
-      />
-    </svg>
-  );
-}
-
 export default function TermsAndRulesPage() {
   const [activeArticle, setActiveArticle] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -987,13 +892,13 @@ export default function TermsAndRulesPage() {
 
       <main>
         {/* ================= HERO ================= */}
-        <section className="relative isolate mx-auto grid min-h-[calc(100svh-76px)] max-w-[1440px] items-center gap-10 px-5 pt-[calc(var(--header-m-h)+20px)] pb-16 sm:px-8 lg:grid-cols-[1fr_1.05fr] lg:px-16 lg:pt-[calc(var(--header-h)+24px)] lg:pb-20">
+        <section className="relative isolate mx-auto grid min-h-[calc(100svh-76px)] max-w-[1440px] items-center justify-items-center gap-10 px-5 pt-[calc(var(--header-m-h)+20px)] pb-16 sm:px-8 lg:px-16 lg:pt-[calc(var(--header-h)+24px)] lg:pb-20">
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_72%_45%,rgba(184,243,74,0.09),transparent_38%),linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:auto,64px_64px,64px_64px]"
+            className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_50%_45%,rgba(184,243,74,0.09),transparent_45%),linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:auto,64px_64px,64px_64px]"
           />
 
-          <div className="relative z-10 order-2 max-w-2xl lg:order-1">
+          <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center text-center">
             <div
               className="mb-7 inline-flex items-center gap-3 rounded-full border border-[#B8F34A]/20 bg-[#B8F34A]/5 px-4 py-2 text-[10px] tracking-[.24em] text-[#C8F78A] sm:text-xs"
               dir="ltr"
@@ -1010,12 +915,10 @@ export default function TermsAndRulesPage() {
             </h1>
 
             <p className="mt-7 max-w-xl text-base leading-9 text-white/55 sm:text-lg sm:leading-10">
-              این سند شامل شرایط استفاده از وب‌سایت و خدمات پلتفرم سایرا است.
-              استفاده از سایت، ایجاد حساب کاربری، ثبت درخواست رزرو و پرداخت وجه
-              به معنای مطالعه و پذیرش کامل مفاد این سند و مقررات مرتبط با آن است.
+این سند قوانین استفاده از سایت و خدمات سایرا را توضیح می‌دهد. با استفاده از سایت، ساخت حساب کاربری، رزرو یا پرداخت، این قوانین را می‌پذیرید.
             </p>
 
-            <div className="mt-9 flex flex-wrap items-center gap-4">
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
               <a
                 href="#articles"
                 className="group inline-flex items-center gap-4 rounded-full bg-[#B8F34A] px-7 py-4 text-sm font-bold text-[#10130A] transition duration-300 hover:-translate-y-1 hover:bg-[#D1FF78]"
@@ -1024,7 +927,7 @@ export default function TermsAndRulesPage() {
                 <span
                   aria-hidden="true"
                   className="text-lg transition-transform group-hover:translate-y-0.5"
-                >ّ
+                >
                   ↓
                 </span>
               </a>
@@ -1037,7 +940,7 @@ export default function TermsAndRulesPage() {
               </Link>
             </div>
 
-            <div className="mt-14 flex items-center gap-5 border-t border-white/10 pt-6">
+            <div className="mt-14 flex flex-wrap items-center justify-center gap-5 border-t border-white/10 pt-6">
               <span
                 className="text-[10px] tracking-[.28em] text-white/30"
                 dir="ltr"
@@ -1048,32 +951,6 @@ export default function TermsAndRulesPage() {
               <span className="text-xs text-white/40">
                 سند قانونی و شرایط استفاده رسمی
               </span>
-            </div>
-          </div>
-
-          <div className="relative order-1 mx-auto aspect-square w-full max-w-[540px] lg:order-2">
-            <div className="absolute inset-[12%] rounded-full bg-[#B8F34A]/10 blur-[80px]" />
-            <div className="absolute inset-0 animate-[spin_90s_linear_infinite] rounded-full border border-dashed border-[#B8F34A]/15" />
-            <div className="absolute inset-[8%] rounded-full border border-white/[0.06]" />
-            <div className="relative h-full w-full">
-              <TermsSealArtwork />
-            </div>
-            <div className="absolute bottom-[13%] left-[2%] rounded-xl border border-white/10 bg-[#0D100A]/80 px-4 py-3 shadow-2xl backdrop-blur">
-              <div
-                className="text-[9px] tracking-[.22em] text-[#B8F34A]"
-                dir="ltr"
-              >
-                22 ARTICLES
-              </div>
-              <div className="mt-1 text-xs text-white/65">
-                شفافیت حقوق کاربران و گیم‌نت‌ها
-              </div>
-            </div>
-            <div
-              className="absolute right-[3%] top-[17%] rounded-full border border-[#B8F34A]/25 bg-[#0D100A]/80 px-4 py-2 text-[9px] tracking-[.2em] text-[#D7F8A6]"
-              dir="ltr"
-            >
-              LEGAL TRUST
             </div>
           </div>
         </section>

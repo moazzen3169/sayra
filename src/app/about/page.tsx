@@ -139,13 +139,7 @@ export default function AboutPage() {
             className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_72%_45%,rgba(184,243,74,0.09),transparent_38%),linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:auto,64px_64px,64px_64px]"
           />
           <div className="relative z-10 order-2 max-w-2xl lg:order-1">
-            <div
-              className="mb-7 inline-flex items-center gap-3 rounded-full border border-[#B8F34A]/20 bg-[#B8F34A]/5 px-4 py-2 text-[10px] tracking-[.24em] text-[#C8F78A] sm:text-xs"
-              dir="ltr"
-            >
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#B8F34A]" />
-              SAYRA / ABOUT THE UNIVERSE
-            </div>
+
             <h1 className="text-5xl font-black leading-[1.25] tracking-tight sm:text-6xl lg:text-7xl xl:text-[88px]">
               بازی،
               <br />
@@ -154,9 +148,8 @@ export default function AboutPage() {
               ماجراست<span className="text-[#B8F34A]">.</span>
             </h1>
             <p className="mt-8 max-w-xl text-base leading-9 text-white/55 sm:text-lg sm:leading-10">
-              سایرا در تلاش است فاصله میان گیمرها و جهان گیم‌نت‌ها را کمتر کند؛
-              تا پیدا کردن، انتخاب کردن و تجربه کردن دنیای بازی، ساده‌تر و
-              پیوسته‌تر باشد.
+              سایرا می‌خواهد گیمرها راحت‌تر گیم‌نت مورد علاقه‌شان را پیدا کنند و
+              دنیای بازی را ساده‌تر تجربه کنند.
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-4">
               <Link
@@ -252,24 +245,24 @@ export default function AboutPage() {
               </p>
               <div className="mt-12 grid grid-cols-2 gap-4 border-t border-white/10 pt-7 sm:grid-cols-3">
                 <div>
-                  <p className="text-3xl font-black text-[#B8F34A]" dir="ltr">
+                  <p className="text-3xl font-black text-[#B8F34A] text-center" dir="ltr">
                     01
                   </p>
-                  <p className="mt-2 text-xs text-white/45">یک نقطه شروع</p>
+                  <p className="mt-2 text-xs text-white/45 text-center">یک نقطه شروع</p>
                 </div>
                 <div>
-                  <p className="text-3xl font-black text-[#B8F34A]" dir="ltr">
+                  <p className="text-3xl font-black text-[#B8F34A] text-center" dir="ltr">
                     ∞
                   </p>
-                  <p className="mt-2 text-xs text-white/45">
+                  <p className="mt-2 text-xs text-white/45 text-center">
                     تجربه‌های بی‌پایان
                   </p>
                 </div>
                 <div className="col-span-2 sm:col-span-1">
-                  <p className="text-3xl font-black text-[#B8F34A]" dir="ltr">
+                  <p className="text-3xl font-black text-[#B8F34A] text-center " dir="ltr">
                     YOU
                   </p>
-                  <p className="mt-2 text-xs text-white/45">مرکز این جهان</p>
+                  <p className="mt-2 text-xs text-white/45 text-center">مرکز این جهان</p>
                 </div>
               </div>
             </div>

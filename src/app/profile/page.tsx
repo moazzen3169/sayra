@@ -27,10 +27,8 @@ import {
   tomanToRial,
 } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
-import {
-  UnifiedAuthForm,
-  UnifiedAuthSuccessData,
-} from "@/components/auth/UnifiedAuthForm";
+import type { UnifiedAuthSuccessData } from "@/components/auth/UnifiedAuthForm";
+import { UserLoginPanel } from "@/components/auth/UserLoginPanel";
 
 const WITHDRAW_STATUS_LABEL: Record<string, { label: string; color: string }> =
   {
@@ -673,13 +671,7 @@ export default function ProfilePage() {
 
         {/* Unauthenticated State: Unified Login Form */}
         {!isLoading && !isLoggedIn && (
-          <div className="w-full max-w-md lg:max-w-xl mx-auto  flex flex-col gap-5 shadow-xl">
-            <UnifiedAuthForm
-              onSuccess={handleAuthSuccess}
-              title="ورود یا ثبت‌نام در حساب کاربری"
-              description=""
-            />
-          </div>
+          <UserLoginPanel onSuccess={handleAuthSuccess} />
         )}
 
         {/* Authenticated State */}

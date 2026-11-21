@@ -13,10 +13,8 @@ import type {
 } from "@/types/wallet";
 import { formatPrice, formatToman, toEnglishDigits, tomanToRial } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
-import {
-  UnifiedAuthForm,
-  UnifiedAuthSuccessData,
-} from "@/components/auth/UnifiedAuthForm";
+import type { UnifiedAuthSuccessData } from "@/components/auth/UnifiedAuthForm";
+import { UserLoginPanel } from "@/components/auth/UserLoginPanel";
 
 type WalletTab = "charge" | "withdraw" | "history";
 
@@ -339,13 +337,7 @@ export default function WalletPage() {
         )}
 
         {!authLoading && !isLoggedIn && (
-          <div className="max-w-md mx-auto">
-            <UnifiedAuthForm
-              onSuccess={handleAuthSuccess}
-              title="ورود به حساب کاربری"
-              description="برای مشاهده و مدیریت کیف پول، ابتدا وارد حساب خود شوید."
-            />
-          </div>
+          <UserLoginPanel onSuccess={handleAuthSuccess} />
         )}
 
         {!authLoading && isLoggedIn && (

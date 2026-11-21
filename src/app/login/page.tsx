@@ -2,8 +2,10 @@
 
 import React, { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { UnifiedAuthForm, UnifiedAuthSuccessData } from "@/components/auth/UnifiedAuthForm";
+import { UnifiedAuthSuccessData } from "@/components/auth/UnifiedAuthForm";
+import { UserLoginPanel } from "@/components/auth/UserLoginPanel";
+import { ProfileHeader } from "@/components/profile/ProfileHeader";
+import { BottomBar } from "@/components/BottomBar";
 import { useAuth } from "@/context/AuthContext";
 
 function LoginContent() {
@@ -48,26 +50,15 @@ function LoginContent() {
   };
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg-body)] px-4 py-8">
-      <div className="w-full max-w-[460px] bg-[var(--bg-card)] border border-[var(--border-color)] rounded-card p-6 flex flex-col gap-5 shadow-2xl relative">
-        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-          <Link href="/" className="flex items-center gap-2 text-[var(--primary)] font-bold text-sm">
-            <span className="w-8 h-8 rounded-card bg-[var(--primary)]/10 flex items-center justify-center">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </span>
-            <span>بازگشت به صفحه اصلی</span>
-          </Link>
-        </div>
+    <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
+      <ProfileHeader title="ورود یا ثبت‌نام" isSubpage={false} backUrl="/" />
 
-        <UnifiedAuthForm
-          onSuccess={handleSuccess}
-          title="ورود و ثبت‌نام در سامانه سایرا"
-          description="ورود و ثبت‌نام سریع با پیامک یک‌بار مصرف (OTP) بدون نیاز به رمز عبور"
-        />
-      </div>
-    </main>
+      <main className="flex-1 px-4 pt-20 pb-4 flex flex-col gap-5 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0">
+        <UserLoginPanel onSuccess={handleSuccess} />
+      </main>
+
+      <BottomBar activeTab="profile" />
+    </div>
   );
 }
 
@@ -75,14 +66,18 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen flex items-center justify-center bg-[var(--bg-body)] px-4 py-8">
-          <div className="w-full max-w-[460px] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-6 animate-pulse">
-            <div className="h-6 bg-[var(--foreground)] rounded w-1/3 mb-4" />
-            <div className="h-4 bg-[var(--foreground)] rounded w-2/3 mb-6" />
-            <div className="h-10 bg-[var(--foreground)] rounded w-full mb-3" />
-            <div className="h-12 bg-[var(--foreground)] rounded w-full" />
-          </div>
-        </main>
+        <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
+          <ProfileHeader title="ورود یا ثبت‌نام" isSubpage={false} backUrl="/" />
+          <main className="flex-1 px-4 pt-20 pb-4 flex flex-col gap-5 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0">
+            <div className="w-full max-w-md lg:max-w-xl mx-auto flex flex-col gap-5 animate-pulse">
+              <div className="h-6 bg-[var(--foreground)] rounded w-1/3" />
+              <div className="h-4 bg-[var(--foreground)] rounded w-2/3" />
+              <div className="h-11 bg-[var(--foreground)] rounded-card w-full" />
+              <div className="h-12 bg-[var(--foreground)] rounded-card w-full" />
+            </div>
+          </main>
+          <BottomBar activeTab="profile" />
+        </div>
       }
     >
       <LoginContent />
