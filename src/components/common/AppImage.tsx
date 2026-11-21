@@ -218,6 +218,27 @@ export const AppImage: React.FC<AppImageProps> = ({
       !currentSrc.startsWith("blob:") &&
       !currentSrc.startsWith("data:"));
 
+  const isUnoptimizedSource = useMemo(() => {
+    if (currentSrc.toLowerCase().split("?")[0].endsWith(".svg")) {
+      return true;
+    }
+    if (currentSrc.startsWith("http:") || currentSrc.startsWith("https:")) {
+      try {
+        const hostname = new URL(currentSrc).hostname.toLowerCase();
+        const allowedHosts = [
+          "api.sayra-booking.ir",
+          "blog.sayra-booking.ir",
+          "www.sayra-booking.ir",
+          "sayra-booking.ir",
+        ];
+        return !allowedHosts.includes(hostname);
+      } catch {
+        return true;
+      }
+    }
+    return false;
+  }, [currentSrc]);
+
   if (shouldRenderNextImage && (width || height || fill)) {
     return (
       <Image
@@ -233,7 +254,7 @@ export const AppImage: React.FC<AppImageProps> = ({
         onLoad={handleLoad}
         className={className}
         style={combinedStyle}
-        unoptimized={currentSrc.startsWith("http:") || currentSrc.startsWith("https:")}
+        unoptimized={isUnoptimizedSource}
         {...(rest as any)}
       />
     );

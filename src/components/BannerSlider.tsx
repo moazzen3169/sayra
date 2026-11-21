@@ -302,6 +302,9 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
                 <SafeImage
                   src={item.imageUrl}
                   alt={item.alt || `تصویر ${toPersianDigits(index + 1)}`}
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 70vw"
+                  priority={index === 0}
                   draggable={false}
                   fallbackSrc={item.fallbackUrl || fallbackSrc}
                   loading={index === 0 ? "eager" : "lazy"}
@@ -312,7 +315,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
 
               let framed: React.ReactNode;
               if (!href) {
-                framed = <div className="block w-full h-full">{slideContent}</div>;
+                framed = <div className="relative block w-full h-full">{slideContent}</div>;
               } else if (isExternal) {
                 framed = (
                   <a
@@ -320,7 +323,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
                     target={item.openInNewTab !== false ? "_blank" : "_self"}
                     rel="noopener noreferrer"
                     aria-label={item.alt}
-                    className="block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                    className="relative block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                   >
                     {slideContent}
                   </a>
@@ -330,7 +333,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
                   <Link
                     href={href}
                     aria-label={item.alt}
-                    className="block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                    className="relative block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                   >
                     {slideContent}
                   </Link>
@@ -343,7 +346,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
                   aria-label={`${toPersianDigits(index + 1)} از ${toPersianDigits(slidesCount)}`}
                   className={`basis-[92%] sm:basis-[80%] ${desktopSlideBasisClass} pr-3 lg:pr-4`}
                 >
-                  <div className={`rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-card)] w-full ${aspectClassName}`}>
+                  <div className={`relative rounded-card overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-card)] w-full ${aspectClassName}`}>
                     {framed}
                   </div>
                 </CarouselItem>
@@ -389,7 +392,7 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
           </button>
 
           {/* Dots */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center">
             {validBanners.map((_, index) => {
               const isActive = index === selectedIndex;
               return (
@@ -399,12 +402,17 @@ export const BannerSlider: React.FC<BannerSliderProps> = ({
                   onClick={() => scrollTo(index)}
                   aria-label={`رفتن به بنر ${toPersianDigits(index + 1)}`}
                   aria-current={isActive ? "true" : "false"}
-                  className={`h-1.5 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
-                    isActive
-                      ? "w-5 bg-[var(--primary)]"
-                      : "w-1.5 bg-[var(--foreground)] hover:bg-[var(--text-subtle)]"
-                  }`}
-                />
+                  className="group flex min-h-6 min-w-6 cursor-pointer items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`h-1.5 w-5 rounded-full origin-center transition-transform duration-300 ${
+                      isActive
+                        ? "scale-x-100 bg-[var(--primary)]"
+                        : "scale-x-[0.3] bg-[var(--foreground)] group-hover:bg-[var(--text-subtle)]"
+                    }`}
+                  />
+                </button>
               );
             })}
           </div>

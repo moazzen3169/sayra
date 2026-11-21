@@ -17,6 +17,8 @@ export const BlogPostCard: React.FC<{ post: BlogPostSummary }> = ({ post }) => (
       <SafeImage
         src={post.coverUrl}
         alt={post.title || ""}
+        fill
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
         loading="lazy"
         fallbackSrc={PLACEHOLDERS.banner}
         draggable={false}

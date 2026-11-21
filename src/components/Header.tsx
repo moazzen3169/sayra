@@ -469,6 +469,8 @@ export const Header: React.FC<HeaderProps> = ({
                   <AppImage
                     src="/design/sayra.svg"
                     alt="سایرا"
+                    width={45}
+                    height={25}
                     className="h-7   w-auto"
                     loading="eager"
                     priority
@@ -585,6 +587,8 @@ export const Header: React.FC<HeaderProps> = ({
               <AppImage
                 src="/design/sayra.svg"
                 alt="سایرا"
+                width={45}
+                height={25}
                 className="h-8 w-auto"
                 loading="eager"
                 priority

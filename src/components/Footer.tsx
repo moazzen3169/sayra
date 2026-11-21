@@ -76,7 +76,7 @@ export function Footer() {
                     <li key={link.href}>
                       <Link
                         href={link.href}
-                        className="flex min-h-8 items-center text-xs text-gray-500 transition-colors duration-300 hover:text-[#B8F34A] sm:text-sm"
+                        className="flex min-h-8 items-center text-xs text-gray-400 transition-colors duration-300 hover:text-[#B8F34A] sm:text-sm"
                       >
                         {link.label}
                       </Link>
@@ -106,6 +106,9 @@ export function Footer() {
       alt="نماد اعتماد الکترونیکی سایرا"
       width={80}
       height={80}
+      loading="lazy"
+      decoding="async"
+      fetchPriority="low"
       referrerPolicy="origin"
       style={{
         width: "80px",
@@ -124,7 +127,7 @@ export function Footer() {
 
         {/* Bottom Footer */}
         <div className="mt-8 flex flex-col items-center justify-between gap-5 border-t border-white/10 pt-6 sm:mt-12 sm:flex-row sm:gap-6 sm:pt-7">
-          <div className="flex flex-col items-center gap-2 text-[10px] text-gray-500 sm:items-start sm:text-xs">
+          <div className="flex flex-col items-center gap-2 text-[10px] text-gray-400 sm:items-start sm:text-xs">
             <span dir="ltr">© 2026 SAYRA</span>
             <span>تمامی حقوق برای سایرا محفوظ است.</span>
           </div>

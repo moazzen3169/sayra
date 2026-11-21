@@ -39,6 +39,9 @@ const CategoryIcon: React.FC<{
       fallbackSrc={fallbackSrc}
       alt=""
       aria-hidden="true"
+      width={112}
+      height={112}
+      sizes="112px"
       className="h-full w-full object-contain drop-shadow-xl"
       objectFit="contain"
     />

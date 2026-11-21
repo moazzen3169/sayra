@@ -497,8 +497,24 @@ const GameCenterPinMarker: React.FC<GameCenterPinMarkerProps> = React.memo(
       };
     }, [clearCloseTimer]);
 
+    const markerAriaLabel = `مشاهده گیمنت ${center.name}`;
+
+    useEffect(() => {
+      const el = markerRef.current?.getElement();
+      if (el) {
+        el.setAttribute("aria-label", markerAriaLabel);
+      }
+    }, [markerAriaLabel]);
+
     const eventHandlers = useMemo(
       () => ({
+        add: (e: L.LeafletEvent) => {
+          const marker = e.target as L.Marker | undefined;
+          const el = marker?.getElement();
+          if (el) {
+            el.setAttribute("aria-label", markerAriaLabel);
+          }
+        },
         click: () => {
           clearCloseTimer();
           onSelect(center);
@@ -523,7 +539,7 @@ const GameCenterPinMarker: React.FC<GameCenterPinMarkerProps> = React.memo(
           popupEl.removeEventListener("mouseleave", scheduleClose);
         },
       }),
-      [center, clearCloseTimer, onSelect, scheduleClose]
+      [center, clearCloseTimer, markerAriaLabel, onSelect, scheduleClose]
     );
 
     const detailHref = `/gamecenter/${encodeURIComponent(center.id)}`;
@@ -533,7 +549,8 @@ const GameCenterPinMarker: React.FC<GameCenterPinMarkerProps> = React.memo(
         ref={markerRef}
         position={[center.displayLat, center.displayLng]}
         icon={icon}
-        alt={`مشاهده گیمنت ${center.name}`}
+        title={markerAriaLabel}
+        alt={markerAriaLabel}
         keyboard={true}
         riseOnHover={true}
         eventHandlers={eventHandlers}

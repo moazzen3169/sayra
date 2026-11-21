@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -77,9 +77,33 @@ export const GameCentersMap: React.FC<GameCentersMapProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isMock, setIsMock] = useState<boolean>(false);
   const [reloadToken, setReloadToken] = useState<number>(0);
+  const [isNearViewport, setIsNearViewport] = useState<boolean>(false);
+  const sectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (!isFetchEnabled) return;
+    if (isNearViewport) return;
+    const node = sectionRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      setIsNearViewport(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setIsNearViewport(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "350px 0px" }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isNearViewport]);
+
+  useEffect(() => {
+    if (!isFetchEnabled || !isNearViewport) return;
 
     const controller = new AbortController();
     let active = true;
@@ -116,7 +140,7 @@ export const GameCentersMap: React.FC<GameCentersMapProps> = ({
       active = false;
       controller.abort();
     };
-  }, [effectiveCity, isFetchEnabled, endpoint, baseUrl, reloadToken]);
+  }, [effectiveCity, isFetchEnabled, isNearViewport, endpoint, baseUrl, reloadToken]);
 
   const handleSelectCenter = useCallback(
     (center: ValidGameCenterLocation) => {
@@ -135,6 +159,7 @@ export const GameCentersMap: React.FC<GameCentersMapProps> = ({
 
   return (
     <section
+      ref={sectionRef}
       aria-labelledby="game-centers-map-heading"
       className={cn(
         "flex flex-col gap-3 scroll-mt-[var(--header-m-h)] lg:scroll-mt-[var(--header-h)]",
@@ -163,7 +188,7 @@ export const GameCentersMap: React.FC<GameCentersMapProps> = ({
         )}
       </div>
 
-      {isLoading ? (
+      {!isNearViewport || isLoading ? (
         <GameCentersMapSkeleton />
       ) : error ? (
         <ErrorState

@@ -76,6 +76,8 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
         <SafeImage
           src={imageUrl}
           alt={name}
+          fill
+          sizes="(max-width: 640px) 76vw, 260px"
           loading="lazy"
           fallbackSrc={PLACEHOLDERS.center}
           draggable={false}
@@ -90,9 +92,9 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
       </div>
 
       <div className="p-3 flex flex-col gap-1.5 flex-1">
-        <h4 className="text-card-title text-[var(--text-white)] line-clamp-1 group-hover:text-[var(--primary)] transition-colors">
+        <h3 className="text-card-title text-[var(--text-white)] line-clamp-1 group-hover:text-[var(--primary)] transition-colors">
           {name}
-        </h4>
+        </h3>
 
         <div className="flex min-h-5 items-center gap-2 text-secondary text-[var(--text-muted)] min-w-0">
           {rating > 0 && (

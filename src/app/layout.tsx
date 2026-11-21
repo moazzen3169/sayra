@@ -15,6 +15,20 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fa" dir="rtl">
+      <head>
+        <link
+          rel="preconnect"
+          href="https://api.sayra-booking.ir"
+          crossOrigin="anonymous"
+        />
+        <link rel="dns-prefetch" href="https://api.sayra-booking.ir" />
+        <link
+          rel="preconnect"
+          href="https://blog.sayra-booking.ir"
+          crossOrigin="anonymous"
+        />
+        <link rel="dns-prefetch" href="https://blog.sayra-booking.ir" />
+      </head>
       <body>
         <AuthProvider>
           <CityProvider>

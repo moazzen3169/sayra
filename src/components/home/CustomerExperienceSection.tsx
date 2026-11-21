@@ -88,6 +88,9 @@ export const CustomerExperienceSection: React.FC = () => {
             <SafeImage
               src="/img/sayra-game-center.webp"
               alt="فضای داخلی یک گیمنت حرفه‌ای"
+              width={380}
+              height={472}
+              sizes="(max-width: 640px) 300px, (max-width: 1024px) 340px, 380px"
               fallbackSrc={PLACEHOLDERS.center}
               className="h-full w-full object-contain object-center transition-transform duration-700"
             />
