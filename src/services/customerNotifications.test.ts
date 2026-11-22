@@ -345,4 +345,154 @@ describe("Phase 19: Customer Notifications and Messages", () => {
       expect(formatRelativeNotificationTime("invalid-date-string")).toBe("");
     });
   });
+
+  describe("7. Manager & Category Filtering + Latest Notifications Overview", () => {
+    it("passes category and type query params to GET /notifications", async () => {
+      setTokens({ accessToken: "manager-valid-jwt" });
+      setupMockFetch((url) => {
+        expect(url).toContain("category=MANAGER");
+        expect(url).toContain("type=GAME_CENTER_BOOKING_REQUESTED");
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: [
+              {
+                id: "notif-mgr-1",
+                userId: "manager-1",
+                category: "MANAGER",
+                type: "GAME_CENTER_BOOKING_REQUESTED",
+                title: "رزرو جدید",
+                message: "یک رزرو جدید ثبت شد.",
+                isRead: false,
+                createdAt: "2026-11-22T00:00:00.000Z",
+              },
+            ],
+          }),
+          { status: 200 }
+        );
+      });
+
+      const list = await customerNotificationService.listNotifications({
+        category: "MANAGER",
+        type: "GAME_CENTER_BOOKING_REQUESTED",
+        scope: "staff",
+      });
+      expect(list.length).toBe(1);
+      expect(list[0].category).toBe("MANAGER");
+    });
+
+    it("uses /customer/notifications and data.items + data.unreadCount for customer scope", async () => {
+      setTokens({ accessToken: "customer-valid-jwt" });
+      setupMockFetch((url) => {
+        expect(url).toContain("/customer/notifications");
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              items: [
+                {
+                  id: "cnotif-1",
+                  customerAccountId: "cust-1",
+                  type: "GENERAL",
+                  title: "کیف پول شارژ شد",
+                  message: "کیف پول شما شارژ شد.",
+                  isRead: false,
+                  createdAt: "2026-11-22T00:00:00.000Z",
+                },
+                {
+                  id: "cnotif-2",
+                  customerAccountId: "cust-1",
+                  type: "RESERVATION_CREATED",
+                  title: "رزرو ثبت شد",
+                  message: "رزرو شما ثبت شد.",
+                  isRead: true,
+                  createdAt: "2026-11-21T23:00:00.000Z",
+                },
+              ],
+              unreadCount: 1,
+            },
+          }),
+          { status: 200 }
+        );
+      });
+
+      const overview = await customerNotificationService.fetchLatestNotifications({
+        pageSize: 20,
+        scope: "customer",
+      });
+      expect(overview.unreadCount).toBe(1);
+      expect(overview.unread.length).toBe(1);
+      expect(overview.all.length).toBe(2);
+      expect(requests.length).toBe(1);
+    });
+
+    it("fetches latest all, unread, and unreadCount via fetchLatestNotifications for staff scope", async () => {
+      setTokens({ accessToken: "manager-valid-jwt" });
+      setupMockFetch((url) => {
+        if (url.includes("/notifications/unread-count")) {
+          return new Response(
+            JSON.stringify({ success: true, data: { unreadCount: 1 } }),
+            { status: 200 }
+          );
+        }
+        if (url.includes("isRead=false")) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: [
+                {
+                  id: "n-unread",
+                  userId: "u-1",
+                  category: "GAME_CENTER",
+                  type: "GAME_CENTER_BOOKING_REQUESTED",
+                  title: "رزرو جدید",
+                  message: "رزرو جدید ثبت شد.",
+                  isRead: false,
+                  createdAt: "2026-11-22T00:00:00.000Z",
+                },
+              ],
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: [
+              {
+                id: "n-unread",
+                userId: "u-1",
+                category: "GAME_CENTER",
+                type: "GAME_CENTER_BOOKING_REQUESTED",
+                title: "رزرو جدید",
+                message: "رزرو جدید ثبت شد.",
+                isRead: false,
+                createdAt: "2026-11-22T00:00:00.000Z",
+              },
+              {
+                id: "n-read",
+                userId: "u-1",
+                category: "MANAGER",
+                type: "PAYMENT_SUCCESS",
+                title: "پرداخت موفق",
+                message: "پرداخت انجام شد.",
+                isRead: true,
+                createdAt: "2026-11-21T23:00:00.000Z",
+              },
+            ],
+          }),
+          { status: 200 }
+        );
+      });
+
+      const overview = await customerNotificationService.fetchLatestNotifications({
+        pageSize: 20,
+        scope: "staff",
+      });
+      expect(overview.unreadCount).toBe(1);
+      expect(overview.unread.length).toBe(1);
+      expect(overview.all.length).toBe(2);
+      expect(requests.length).toBe(3);
+    });
+  });
 });

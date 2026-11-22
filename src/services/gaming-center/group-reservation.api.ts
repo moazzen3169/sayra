@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { cleanPhoneNumber, isValidIranPhone } from "@/lib/format";
+import { triggerNotificationsRefresh } from "@/services/customerNotificationService";
 import type {
   GroupReservation,
   GroupReservationPayload,
@@ -146,6 +147,7 @@ export const groupReservationApi = {
     );
 
     const resData = response.data;
+    triggerNotificationsRefresh();
     if (
       resData &&
       typeof resData === "object" &&
@@ -199,6 +201,7 @@ export const groupReservationApi = {
     );
 
     const resData = response.data;
+    triggerNotificationsRefresh();
     if (resData && typeof resData === "object" && "data" in resData && (resData as { data: GroupReservation }).data) {
       return (resData as { data: GroupReservation }).data;
     }

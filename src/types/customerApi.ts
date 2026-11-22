@@ -353,8 +353,10 @@ export interface CustomerFavoriteStatus {
 }
 
 // ---------------------------------------------------------------------------
-// Customer Notifications (/notifications/*)
+// Customer & Manager Notifications (/notifications/*)
 // ---------------------------------------------------------------------------
+
+export type NotificationCategory = "CUSTOMER" | "GAME_CENTER" | "MANAGER";
 
 export type NotificationType =
   | "RESERVATION_CREATED"
@@ -362,11 +364,38 @@ export type NotificationType =
   | "RESERVATION_REJECTED"
   | "RESERVATION_CANCELLED"
   | "RESERVATION_TIME_PROPOSED"
+  | "RESERVATION_REMINDER"
+  | "PAYMENT_SUCCESS"
+  | "PAYMENT_FAILED"
+  | "WAITLIST_OFFER_CREATED"
+  | "WAITLIST_OFFER_EXPIRED"
+  | "WAITLIST_ENTRY_CANCELLED"
+  | "TICKET_CREATED"
+  | "TICKET_REPLIED"
+  | "TICKET_CLOSED"
+  | "GAME_CENTER_BOOKING_REQUESTED"
+  | "GAME_CENTER_BOOKING_REMINDER_24H"
+  | "GAME_CENTER_BOOKING_REMINDER_2H"
+  | "GAME_CENTER_BOOKING_REMINDER_15M"
+  | "GAME_CENTER_BOOKING_CONFIRMED"
+  | "GAME_CENTER_BOOKING_CANCELLED"
+  | "GAME_CENTER_BOOKING_UPDATED"
+  | "GAME_CENTER_REVIEW_RECEIVED"
+  | "NEW_GAME_CENTER_REGISTRATION"
+  | "NEW_TICKET_CREATED"
+  | "NEW_USER_REPORT"
+  | "REFUND_REQUESTED"
+  | "SYSTEM_ERROR"
+  | "DAILY_BOOKING_SUMMARY"
   | string;
+
+export type NotificationScope = "customer" | "staff";
 
 export interface CustomerNotification {
   id: string;
-  userId: string;
+  userId?: string;
+  customerAccountId?: string;
+  category?: NotificationCategory;
   type: NotificationType;
   title: string;
   message: string;
@@ -377,7 +406,8 @@ export interface CustomerNotification {
 }
 
 export interface NotificationUnreadCountResponse {
-  count: number;
+  count?: number;
+  unreadCount?: number;
 }
 
 // ---------------------------------------------------------------------------

@@ -10,7 +10,10 @@ import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/context/AuthContext";
 import { authService } from "@/services/authService";
-import { customerNotificationService } from "@/services/customerNotificationService";
+import {
+  customerNotificationService,
+  NOTIFICATIONS_REFRESH_EVENT,
+} from "@/services/customerNotificationService";
 import { walletService } from "@/services/walletService";
 import type {
   CustomerWallet,
@@ -130,7 +133,9 @@ const PROFILE_MENU: ProfileMenuItem[] = [
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { isLoggedIn, isLoading, user, login, logout } = useAuth();
+  const { isLoggedIn, isLoading, user, role, login, logout } = useAuth();
+  const notificationScope =
+    role === "MANAGER" || role === "ADMIN" ? "staff" : "customer";
   
   
 
@@ -201,20 +206,26 @@ export default function ProfilePage() {
     let active = true;
     const controller = new AbortController();
 
-    customerNotificationService
-      .getUnreadCount(controller.signal)
-      .then((count) => {
-        if (active) setUnreadNotificationsCount(count);
-      })
-      .catch(() => {
-        // Best effort
-      });
+    const loadUnreadCount = () => {
+      customerNotificationService
+        .getUnreadCount(controller.signal, notificationScope)
+        .then((count) => {
+          if (active) setUnreadNotificationsCount(count);
+        })
+        .catch(() => {
+          // Best effort
+        });
+    };
+
+    loadUnreadCount();
+    window.addEventListener(NOTIFICATIONS_REFRESH_EVENT, loadUnreadCount);
 
     return () => {
       active = false;
+      window.removeEventListener(NOTIFICATIONS_REFRESH_EVENT, loadUnreadCount);
       controller.abort();
     };
-  }, [isLoggedIn]);
+  }, [isLoggedIn, notificationScope]);
 
   const effectiveUnreadNotificationsCount = isLoggedIn
     ? unreadNotificationsCount
@@ -1650,6 +1661,7 @@ export default function ProfilePage() {
       <NotificationModal
         isOpen={isNotificationModalOpen}
         onClose={() => setIsNotificationModalOpen(false)}
+        scope={notificationScope}
         onMarkAllAsRead={() => setUnreadNotificationsCount(0)}
         onUnreadCountChange={setUnreadNotificationsCount}
       />

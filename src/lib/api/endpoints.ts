@@ -91,6 +91,12 @@ export const ENDPOINTS = {
     list: "/notifications",
     unreadCount: "/notifications/unread-count",
     markRead: (id: string) => `/notifications/${enc(id)}/read`,
+    logs: "/notifications/logs",
+    retryLog: (id: string) => `/notifications/logs/${enc(id)}/retry`,
+  },
+  customerNotifications: {
+    list: "/customer/notifications",
+    markRead: (id: string) => `/customer/notifications/${enc(id)}/read`,
   },
   tickets: {
     list: "/tickets",

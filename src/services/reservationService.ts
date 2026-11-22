@@ -7,6 +7,7 @@ import {
   customerReviewService,
   type SubmitReviewOptions,
 } from "@/services/customerReviewService";
+import { triggerNotificationsRefresh } from "@/services/customerNotificationService";
 import type { Reservation, ReservationTimeProposal } from "@/types/reservation";
 import type { ExtraControllerSelectionInput } from "@/types/gaming-center/station.types";
 import { ContractGapError, PaymentInitResponse } from "@/types/customerApi";
@@ -95,6 +96,7 @@ export const reservationService = {
       },
       { headers: { "idempotency-key": input.idempotencyKey } }
     );
+    triggerNotificationsRefresh();
     return data;
   },
 

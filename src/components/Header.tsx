@@ -6,7 +6,10 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useCity } from "@/context/CityContext";
 import { toPersianDigits } from "@/lib/format";
-import { customerNotificationService } from "@/services/customerNotificationService";
+import {
+  customerNotificationService,
+  NOTIFICATIONS_REFRESH_EVENT,
+} from "@/services/customerNotificationService";
 import { AppImage } from "@/components/common/AppImage";
 import { Icon } from "@/components/ui/Icon";
 import { CityModal } from "./CityModal";
@@ -51,7 +54,10 @@ export const Header: React.FC<HeaderProps> = ({
   const desktopAccountMenuRef = useRef<HTMLDivElement>(null);
   const desktopAccountButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Fetch real unread notification count for authenticated customers
+  const notificationScope =
+    role === "MANAGER" || role === "ADMIN" ? "staff" : "customer";
+
+  // Fetch real unread notification count for authenticated users
   const fetchUnreadCount = useCallback(async () => {
     if (!isLoggedIn) {
       setUnreadCount(0);
@@ -59,19 +65,42 @@ export const Header: React.FC<HeaderProps> = ({
     }
 
     try {
-      const count = await customerNotificationService.getUnreadCount();
+      const count = await customerNotificationService.getUnreadCount(
+        undefined,
+        notificationScope
+      );
       setUnreadCount(count);
     } catch {
       // Retain existing count on network errors without fabricating values
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, notificationScope]);
 
   useEffect(() => {
     if (unreadNotificationsCount !== undefined) {
       setUnreadCount(unreadNotificationsCount);
-    } else {
-      fetchUnreadCount();
+      return;
     }
+
+    fetchUnreadCount();
+
+    const handleRefresh = () => {
+      fetchUnreadCount();
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchUnreadCount();
+      }
+    };
+
+    window.addEventListener(NOTIFICATIONS_REFRESH_EVENT, handleRefresh);
+    window.addEventListener("focus", handleRefresh);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.removeEventListener(NOTIFICATIONS_REFRESH_EVENT, handleRefresh);
+      window.removeEventListener("focus", handleRefresh);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [unreadNotificationsCount, fetchUnreadCount]);
 
   // Close account menu when clicking outside or pressing Escape
@@ -698,6 +727,7 @@ export const Header: React.FC<HeaderProps> = ({
       <NotificationModal
         isOpen={isNotificationModalOpen}
         onClose={() => setIsNotificationModalOpen(false)}
+        scope={notificationScope}
         onMarkAllAsRead={() => setUnreadCount(0)}
         onUnreadCountChange={(count) => setUnreadCount(count)}
       />

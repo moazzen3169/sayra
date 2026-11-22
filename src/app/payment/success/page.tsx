@@ -4,6 +4,11 @@ import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { reservationService } from "@/services/reservationService";
+import {
+  customerNotificationService,
+  triggerNotificationsRefresh,
+} from "@/services/customerNotificationService";
+import { getAccessToken } from "@/lib/token";
 import type { Reservation } from "@/types/reservation";
 import { APP_TIME_ZONE } from "@/lib/api/config";
 import { formatPrice, toEnglishDigits } from "@/lib/format";
@@ -271,6 +276,21 @@ function PaymentSuccessContent() {
   const isWalletPayment = purpose === "WALLET_TOPUP";
   const isReservationPayment =
     purpose === "RESERVATION" || Boolean(reservationId);
+
+  useEffect(() => {
+    if (!isReservationPayment || statusMeta.kind !== "SUCCESS") return;
+    triggerNotificationsRefresh();
+    if (!getAccessToken()) return;
+
+    const controller = new AbortController();
+    customerNotificationService
+      .fetchLatestNotifications({ pageSize: 20, signal: controller.signal })
+      .catch(() => {
+        // Best effort refresh after reservation completion
+      });
+
+    return () => controller.abort();
+  }, [isReservationPayment, statusMeta.kind]);
 
   const finalAmount =
     amount ?? (isReservationPayment ? reservation?.totalPrice : undefined);

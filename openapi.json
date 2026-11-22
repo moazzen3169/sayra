@@ -1590,11 +1590,16 @@
           }
         }
       },
+      "NotificationCategory": {
+        "type": "string",
+        "enum": ["CUSTOMER", "GAME_CENTER", "MANAGER"]
+      },
       "Notification": {
         "type": "object",
         "properties": {
           "id": { "type": "string" },
           "userId": { "type": "string" },
+          "category": { "$ref": "#/components/schemas/NotificationCategory" },
           "type": {
             "type": "string",
             "enum": [
@@ -1602,7 +1607,30 @@
               "RESERVATION_CONFIRMED",
               "RESERVATION_REJECTED",
               "RESERVATION_CANCELLED",
-              "RESERVATION_TIME_PROPOSED"
+              "RESERVATION_TIME_PROPOSED",
+              "RESERVATION_REMINDER",
+              "PAYMENT_SUCCESS",
+              "PAYMENT_FAILED",
+              "WAITLIST_OFFER_CREATED",
+              "WAITLIST_OFFER_EXPIRED",
+              "WAITLIST_ENTRY_CANCELLED",
+              "TICKET_CREATED",
+              "TICKET_REPLIED",
+              "TICKET_CLOSED",
+              "GAME_CENTER_BOOKING_REQUESTED",
+              "GAME_CENTER_BOOKING_REMINDER_24H",
+              "GAME_CENTER_BOOKING_REMINDER_2H",
+              "GAME_CENTER_BOOKING_REMINDER_15M",
+              "GAME_CENTER_BOOKING_CONFIRMED",
+              "GAME_CENTER_BOOKING_CANCELLED",
+              "GAME_CENTER_BOOKING_UPDATED",
+              "GAME_CENTER_REVIEW_RECEIVED",
+              "NEW_GAME_CENTER_REGISTRATION",
+              "NEW_TICKET_CREATED",
+              "NEW_USER_REPORT",
+              "REFUND_REQUESTED",
+              "SYSTEM_ERROR",
+              "DAILY_BOOKING_SUMMARY"
             ]
           },
           "title": { "type": "string" },
@@ -1817,6 +1845,9 @@
         "type": "object",
         "properties": {
           "id": { "type": "string" },
+          "category": { "$ref": "#/components/schemas/NotificationCategory" },
+          "channel": { "type": "string", "enum": ["IN_APP", "SMS", "EMAIL"] },
+          "type": { "type": "string" },
           "provider": { "type": "string", "example": "SMS_IR" },
           "recipient": { "type": "string", "example": "0912***1234" },
           "status": {
@@ -2810,7 +2841,7 @@
         "summary": "Initiate secure payment-first group reservation checkout",
         "description": "Validates availability, creates an active BookingHold and pending payment, and returns gateway payment URL.",
         "tags": ["Group Reservations"],
-        "security": [],
+        "security": [{}, { "bearerAuth": [] }],
         "parameters": [
           {
             "name": "gamingCenterSlug",
@@ -4621,7 +4652,13 @@
             "in": "query",
             "schema": { "type": "integer" }
           },
-          { "name": "isRead", "in": "query", "schema": { "type": "boolean" } }
+          { "name": "isRead", "in": "query", "schema": { "type": "boolean" } },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/NotificationCategory" }
+          },
+          { "name": "type", "in": "query", "schema": { "type": "string" } }
         ],
         "responses": {
           "200": {
@@ -12460,7 +12497,14 @@
               "type": "string",
               "enum": ["PENDING", "SENT", "FAILED", "DELIVERED"]
             }
-          }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/NotificationCategory" }
+          },
+          { "name": "type", "in": "query", "schema": { "type": "string" } },
+          { "name": "channel", "in": "query", "schema": { "type": "string" } }
         ],
         "responses": {
           "200": {

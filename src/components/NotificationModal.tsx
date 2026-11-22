@@ -2,7 +2,15 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { customerNotificationService } from "@/services/customerNotificationService";
+import {
+  customerNotificationService,
+  NOTIFICATIONS_REFRESH_EVENT,
+} from "@/services/customerNotificationService";
+import type {
+  CustomerNotification,
+  NotificationCategory,
+  NotificationScope,
+} from "@/types/customerApi";
 import { formatRelativeNotificationTime } from "@/lib/dates";
 import { toPersianDigits } from "@/lib/format";
 import { ModalShell } from "./ModalShell";
@@ -14,6 +22,7 @@ export interface NotificationItem {
   timestamp: string;
   isUnread: boolean;
   type?: "system" | "discount" | "reservation";
+  category?: NotificationCategory;
   linkUrl?: string;
 }
 
@@ -21,6 +30,8 @@ export interface NotificationModalProps {
   isOpen: boolean;
   onClose: () => void;
   notifications?: NotificationItem[];
+  category?: NotificationCategory;
+  scope?: NotificationScope;
   onMarkAllAsRead?: () => void;
   onNotificationClick?: (notification: NotificationItem) => void;
   onUnreadCountChange?: (count: number) => void;
@@ -28,15 +39,36 @@ export interface NotificationModalProps {
 
 function mapBackendType(type?: string): "system" | "discount" | "reservation" {
   if (!type) return "system";
-  if (type.startsWith("RESERVATION_")) return "reservation";
+  if (
+    type.startsWith("RESERVATION_") ||
+    type.startsWith("GAME_CENTER_BOOKING_") ||
+    type.startsWith("WAITLIST_") ||
+    type.startsWith("PAYMENT_")
+  ) {
+    return "reservation";
+  }
   if (type.includes("DISCOUNT") || type.includes("PROMO")) return "discount";
   return "system";
+}
+
+function mapNotificationItem(item: CustomerNotification): NotificationItem {
+  return {
+    id: item.id,
+    title: item.title,
+    message: item.message,
+    timestamp: formatRelativeNotificationTime(item.createdAt),
+    isUnread: !item.isRead,
+    type: mapBackendType(item.type),
+    category: item.category,
+  };
 }
 
 export const NotificationModal: React.FC<NotificationModalProps> = ({
   isOpen,
   onClose,
   notifications: propsNotifications,
+  category,
+  scope,
   onMarkAllAsRead,
   onNotificationClick,
   onUnreadCountChange,
@@ -44,6 +76,8 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
   const { isLoggedIn } = useAuth();
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState<NotificationItem[]>([]);
+  const [serverUnreadCount, setServerUnreadCount] = useState<number | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "unread">("all");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +85,8 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
   const fetchNotifications = useCallback(async () => {
     if (!isLoggedIn) {
       setNotifications([]);
+      setUnreadNotifications([]);
+      setServerUnreadCount(0);
       setIsLoading(false);
       return;
     }
@@ -58,31 +94,39 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
     setIsLoading(true);
     setError(null);
     try {
-      const data = await customerNotificationService.listNotifications();
-      const mapped: NotificationItem[] = data.map((item) => ({
-        id: item.id,
-        title: item.title,
-        message: item.message,
-        timestamp: formatRelativeNotificationTime(item.createdAt),
-        isUnread: !item.isRead,
-        type: mapBackendType(item.type),
-      }));
-      setNotifications(mapped);
+      const { all, unread, unreadCount } =
+        await customerNotificationService.fetchLatestNotifications({
+          pageSize: 50,
+          category,
+          scope,
+        });
 
-      const unread = mapped.filter((n) => n.isUnread).length;
-      onUnreadCountChange?.(unread);
-    } catch (err: any) {
-      setError(err?.message || "خطا در دریافت اعلانات.");
+      const mappedAll = all.map(mapNotificationItem);
+      const mappedUnread = unread.map(mapNotificationItem);
+
+      setNotifications(mappedAll);
+      setUnreadNotifications(mappedUnread);
+
+      const resolvedUnread =
+        typeof unreadCount === "number" ? unreadCount : mappedUnread.length;
+      setServerUnreadCount(resolvedUnread);
+      onUnreadCountChange?.(resolvedUnread);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "خطا در دریافت اعلانات.";
+      setError(message || "خطا در دریافت اعلانات.");
     } finally {
       setIsLoading(false);
     }
-  }, [isLoggedIn, onUnreadCountChange]);
+  }, [isLoggedIn, category, scope, onUnreadCountChange]);
 
   useEffect(() => {
     if (!isOpen) return;
 
     if (propsNotifications !== undefined) {
       setNotifications(propsNotifications);
+      setUnreadNotifications(propsNotifications.filter((n) => n.isUnread));
+      setServerUnreadCount(null);
       setIsLoading(false);
       setError(null);
     } else {
@@ -90,15 +134,34 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
     }
   }, [isOpen, propsNotifications, fetchNotifications]);
 
+  useEffect(() => {
+    if (!isOpen || propsNotifications !== undefined) return;
+    const handleRefresh = () => {
+      fetchNotifications();
+    };
+    window.addEventListener(NOTIFICATIONS_REFRESH_EVENT, handleRefresh);
+    return () => {
+      window.removeEventListener(NOTIFICATIONS_REFRESH_EVENT, handleRefresh);
+    };
+  }, [isOpen, propsNotifications, fetchNotifications]);
+
   const handleMarkAll = async () => {
-    const unreadItems = notifications.filter((n) => n.isUnread);
+    const unreadMap = new Map<string, NotificationItem>();
+    for (const item of unreadNotifications) unreadMap.set(item.id, item);
+    for (const item of notifications) {
+      if (item.isUnread) unreadMap.set(item.id, item);
+    }
+    const unreadItems = Array.from(unreadMap.values());
+
     setNotifications((prev) => prev.map((n) => ({ ...n, isUnread: false })));
+    setUnreadNotifications([]);
+    setServerUnreadCount(0);
     onUnreadCountChange?.(0);
     onMarkAllAsRead?.();
 
     try {
       await Promise.allSettled(
-        unreadItems.map((item) => customerNotificationService.markAsRead(item.id))
+        unreadItems.map((item) => customerNotificationService.markAsRead(item.id, scope))
       );
     } catch {
       // Best-effort sync
@@ -110,13 +173,20 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
       setNotifications((prev) =>
         prev.map((n) => (n.id === item.id ? { ...n, isUnread: false } : n))
       );
-      const remainingUnread = notifications.filter(
-        (n) => n.id !== item.id && n.isUnread
-      ).length;
-      onUnreadCountChange?.(remainingUnread);
+      setUnreadNotifications((prev) => prev.filter((n) => n.id !== item.id));
+
+      const nextUnreadCount =
+        serverUnreadCount !== null
+          ? Math.max(0, serverUnreadCount - 1)
+          : Math.max(
+              0,
+              unreadNotifications.filter((n) => n.id !== item.id).length
+            );
+      setServerUnreadCount(nextUnreadCount);
+      onUnreadCountChange?.(nextUnreadCount);
 
       try {
-        await customerNotificationService.markAsRead(item.id);
+        await customerNotificationService.markAsRead(item.id, scope);
       } catch {
         // silent
       }
@@ -124,12 +194,11 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
     if (onNotificationClick) onNotificationClick(item);
   };
 
-  const filteredNotifications = notifications.filter((n) => {
-    if (activeFilter === "unread") return n.isUnread;
-    return true;
-  });
+  const filteredNotifications =
+    activeFilter === "unread" ? unreadNotifications : notifications;
 
-  const unreadCount = notifications.filter((n) => n.isUnread).length;
+  const unreadCount =
+    serverUnreadCount !== null ? serverUnreadCount : unreadNotifications.length;
 
   const headerTitle = (
     <div className="flex min-w-0 items-center gap-2">

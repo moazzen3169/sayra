@@ -1,10 +1,17 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import { useOwner } from "@/context/OwnerContext";
 import { OwnerVerificationBadge } from "@/components/owner/OwnerVerificationBadge";
+import { NotificationModal } from "@/components/NotificationModal";
+import {
+  customerNotificationService,
+  NOTIFICATIONS_REFRESH_EVENT,
+} from "@/services/customerNotificationService";
+import { toPersianDigits } from "@/lib/format";
 
 interface OwnerHeaderProps {
   title?: string;
@@ -30,13 +37,55 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
   searchPlaceholder = "جستجوی کد رزرو یا مشتری...",
 }) => {
   const router = useRouter();
+  const { isLoggedIn } = useAuth();
   const { ownerName, center } = useOwner();
   const [internalSearchOpen, setInternalSearchOpen] = React.useState(false);
   const [localQuery, setLocalQuery] = React.useState(searchValue);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
 
   React.useEffect(() => {
     setLocalQuery(searchValue);
   }, [searchValue]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let active = true;
+
+    const refresh = () => {
+      customerNotificationService
+        .getUnreadCount(undefined, "staff")
+        .then((count) => {
+          if (active) setUnreadCount(count);
+        })
+        .catch(() => {
+          // Best-effort refresh without fabricating counts
+        });
+    };
+
+    refresh();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refresh();
+      }
+    };
+
+    window.addEventListener(NOTIFICATIONS_REFRESH_EVENT, refresh);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      active = false;
+      window.removeEventListener(NOTIFICATIONS_REFRESH_EVENT, refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [isLoggedIn]);
+
+  const effectiveUnreadCount = isLoggedIn ? unreadCount : 0;
+  const notificationBadge =
+    effectiveUnreadCount > 9 ? "+۹" : toPersianDigits(effectiveUnreadCount);
 
   const displayName = ownerName || "مدیر گیم‌نت";
 
@@ -61,6 +110,7 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
   };
 
   return (
+    <>
     <header className="fixed top-0 inset-x-0 z-40 max-w-[var(--max-app-width)] mx-auto bg-[var(--bg-card)]/90 backdrop-blur-md border-b border-[var(--border-subtle)] shadow-sm">
       <div className="mx-auto flex h-16 w-full max-w-[var(--max-mini-app-width)] items-center justify-between px-4 lg:px-0 gap-2">
         {/* Right Section: Back Button + Welcome & Owner Name */}
@@ -138,11 +188,40 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
           </div>
         )}
 
-        {/* Left Section: Search Toggle (Mobile) + Badge + Home */}
+        {/* Left Section: Notifications + Badge + Home */}
         <div className="flex items-center gap-2 shrink-0">
 
 
           {showBadge && <OwnerVerificationBadge size="sm" />}
+
+          <button
+            type="button"
+            onClick={() => setIsNotificationModalOpen(true)}
+            aria-label="اعلانات مدیریت"
+            title="اعلانات"
+            className="relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--foreground)]/40 hover:bg-[var(--foreground)] text-[var(--text-white)] transition-colors active:scale-95 cursor-pointer"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M15 17h5l-1.4-1.4a2 2 0 01-.6-1.4V11a6 6 0 00-4-5.66V5a2 2 0 10-4 0v.34C7.67 6.17 6 8.39 6 11v3.2c0 .54-.21 1.05-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            {effectiveUnreadCount > 0 && (
+              <span
+                aria-label={`${toPersianDigits(effectiveUnreadCount)} اعلان خوانده‌نشده`}
+                className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--primary)] px-1 text-[10px] font-bold text-on-primary shadow"
+              >
+                {notificationBadge}
+              </span>
+            )}
+          </button>
 
           <Link
             href="/"
@@ -166,5 +245,14 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
       </div>
 
     </header>
+
+    <NotificationModal
+      isOpen={isNotificationModalOpen}
+      onClose={() => setIsNotificationModalOpen(false)}
+      scope="staff"
+      onMarkAllAsRead={() => setUnreadCount(0)}
+      onUnreadCountChange={setUnreadCount}
+    />
+    </>
   );
 };
