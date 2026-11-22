@@ -406,9 +406,32 @@ export const ReservationRouteMap: React.FC<ReservationRouteMapProps> = ({
         />
         <div aria-hidden="true" className="sayra-map-vignette" />
 
-        {/* Top-right floating recenter button */}
+        {/* Top-right floating map action button (Route CTA or Recenter) */}
         <div className="absolute top-2.5 right-2.5 z-[400] flex items-center gap-1.5">
-          {userPos && (
+          {!userPos ? (
+            <button
+              type="button"
+              onClick={requestUserLocation}
+              disabled={locating}
+              title={`مسیریابی تا ${destLabel}`}
+              className="h-8 px-3 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-65 text-on-primary text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-[0.98] cursor-pointer"
+            >
+              {locating ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  <span>در حال دریافت...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                    <circle cx="12" cy="12" r="3" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 2v3m0 14v3m10-10h-3M5 12H2" />
+                  </svg>
+                  <span>{locationError ? "تلاش مجدد" : "مسیریابی"}</span>
+                </>
+              )}
+            </button>
+          ) : (
             <button
               type="button"
               onClick={fitMapBounds}
@@ -431,53 +454,10 @@ export const ReservationRouteMap: React.FC<ReservationRouteMapProps> = ({
           </div>
         )}
 
-        {/* Location permission CTA overlay when user location is not yet granted */}
-        {!userPos && (
-          <div
-            className={
-              fullHeight
-                ? "absolute inset-x-3 bottom-3 z-[400] max-w-xl mx-auto rounded-card bg-[#101014]/92 backdrop-blur-md border border-[var(--border-color)] p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xl"
-                : "absolute inset-x-2.5 bottom-2.5 z-[400] rounded-child bg-[#101014]/88 backdrop-blur-md border border-[var(--border-color)] p-2.5 sm:p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-xl"
-            }
-          >
-            <div className="flex items-start gap-2 min-w-0">
-              <span className="w-7 h-7 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center shrink-0 mt-0.5">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 2a7 7 0 00-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 00-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" />
-                </svg>
-              </span>
-              <div className="flex flex-col gap-0.5 min-w-0">
-                <span className="text-xs font-bold text-[var(--text-white)]">
-                  مسیریابی تا {destLabel}
-                </span>
-                <span className="text-[11px] text-[var(--text-muted)] leading-snug">
-                  {locationError ||
-                    "برای نمایش مسیر روی نقشه از موقعیت فعلی شما، دسترسی موقعیت مکانی را فعال کنید."}
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={requestUserLocation}
-              disabled={locating}
-              className="h-9 px-3.5 rounded-child bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-65 text-on-primary text-xs font-black flex items-center justify-center gap-1.5 shrink-0 transition-all active:scale-[0.98] shadow-md cursor-pointer"
-            >
-              {locating ? (
-                <>
-                  <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  <span>در حال دریافت موقعیت...</span>
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                    <circle cx="12" cy="12" r="3" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 2v3m0 14v3m10-10h-3M5 12H2" />
-                  </svg>
-                  <span>{locationError ? "تلاش مجدد" : "اجازه موقعیت و رسم مسیر"}</span>
-                </>
-              )}
-            </button>
+        {/* Compact non-intrusive error pill only when location request fails */}
+        {!userPos && locationError && (
+          <div className="absolute bottom-2.5 left-2.5 right-2.5 z-[400] rounded-lg bg-[#101014]/90 backdrop-blur-md border border-red-500/35 px-3 py-1.5 text-[11px] text-red-300 shadow-lg">
+            {locationError}
           </div>
         )}
       </div>

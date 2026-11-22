@@ -354,9 +354,9 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
                   </button>
 
                   {stationExtras.length > 0 && (
-                    <div className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-2.5">
-                      <span className="text-[11px] font-bold text-[var(--text-muted)]">
-                        دسته اضافی قابل انتخاب:
+                    <div className="flex flex-col gap-1.5 border-t border-[var(--border-subtle)] pt-2.5">
+                      <span className="text-[11px] font-medium text-[var(--text-muted)]">
+                        دسته اضافی
                       </span>
                       <div className="flex flex-col gap-1.5">
                         {stationExtras.map((ctrl) => {
@@ -366,48 +366,66 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
                             0,
                             ctrl.availableQuantity ?? ctrl.quantity ?? 0
                           );
+                          const isSelected = selectedQty > 0;
                           return (
                             <div
                               key={ctrl.id}
-                              className="flex items-center justify-between gap-2 rounded-child border border-[var(--border-subtle)] bg-[var(--bg-body)]/50 px-2 py-1.5"
+                              className={cn(
+                                "flex flex-col gap-1.5 rounded-child border p-2 transition-colors",
+                                isSelected
+                                  ? "border-[var(--primary)]/50 bg-[var(--primary)]/5"
+                                  : "border-[var(--border-subtle)] bg-[var(--bg-body)]/50"
+                              )}
                             >
-                              <div className="flex min-w-0 flex-col">
-                                <span className="truncate text-[11px] font-bold text-[var(--text-white)]">
+                              <div className="flex min-w-0 items-center justify-between gap-2">
+                                <span className="truncate text-xs font-bold text-[var(--text-white)]">
                                   {ctrl.controllerType}
                                 </span>
-                                <span className="text-[10px] text-[var(--text-muted)]">
-                                  {formatPrice(ctrl.hourlyPrice)} تومان/ساعت
-                                  {" · "}
-                                  موجود: {toPersianDigits(maxAvail)}
-                                </span>
+                                {maxAvail === 0 && (
+                                  <span className="shrink-0 text-[10px] font-medium text-[var(--text-muted)]">
+                                    ناموجود
+                                  </span>
+                                )}
                               </div>
-                              <div className="flex shrink-0 items-center gap-1">
-                                <button
-                                  type="button"
-                                  disabled={selectedQty <= 0}
-                                  aria-label={`کاهش ${ctrl.controllerType}`}
-                                  onClick={() =>
-                                    handleExtraQtyChange(st, ctrl, selectedQty - 1)
-                                  }
-                                  className="flex h-7 w-7 items-center justify-center rounded-child border border-[var(--border-subtle)] bg-[var(--foreground)]/40 text-xs font-bold text-[var(--text-white)] disabled:opacity-35 cursor-pointer disabled:cursor-not-allowed"
-                                >
-                                  <Icon name="minus" size={14} />
-                                </button>
-                                <span className="min-w-5 text-center text-xs font-bold text-[var(--primary)]">
-                                  {toPersianDigits(selectedQty)}
-                                </span>
-                                <button
-                                  type="button"
-                                  disabled={selectedQty >= maxAvail}
-                                  aria-label={`افزایش ${ctrl.controllerType}`}
-                                  onClick={() =>
-                                    handleExtraQtyChange(st, ctrl, selectedQty + 1)
-                                  }
-                                  className="flex h-7 w-7 items-center justify-center rounded-child border border-[var(--border-subtle)] bg-[var(--foreground)]/40 text-xs font-bold text-[var(--text-white)] disabled:opacity-35 cursor-pointer disabled:cursor-not-allowed"
-                                >
-                                  <Icon name="plus" size={14} />
-                                </button>
-                              </div>
+                              <span className="text-[11px] text-[var(--text-muted)]">
+                                {formatPrice(ctrl.hourlyPrice)} تومان/ساعت
+                              </span>
+                              {maxAvail > 0 && (
+                                <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)]/80 p-0.5">
+                                  <button
+                                    type="button"
+                                    disabled={selectedQty <= 0}
+                                    aria-label={`کاهش ${ctrl.controllerType}`}
+                                    onClick={() =>
+                                      handleExtraQtyChange(st, ctrl, selectedQty - 1)
+                                    }
+                                    className="flex h-7 w-8 items-center justify-center rounded-md bg-[var(--foreground)]/40 text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/70 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
+                                  >
+                                    <Icon name="minus" size={14} />
+                                  </button>
+                                  <span
+                                    className={cn(
+                                      "min-w-5 text-center text-xs font-bold",
+                                      isSelected
+                                        ? "text-[var(--primary)]"
+                                        : "text-[var(--text-muted)]"
+                                    )}
+                                  >
+                                    {toPersianDigits(selectedQty)}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    disabled={selectedQty >= maxAvail}
+                                    aria-label={`افزایش ${ctrl.controllerType}`}
+                                    onClick={() =>
+                                      handleExtraQtyChange(st, ctrl, selectedQty + 1)
+                                    }
+                                    className="flex h-7 w-8 items-center justify-center rounded-md bg-[var(--foreground)]/40 text-[var(--text-white)] transition-colors hover:bg-[var(--foreground)]/70 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
+                                  >
+                                    <Icon name="plus" size={14} />
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
