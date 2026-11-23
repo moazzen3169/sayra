@@ -17,6 +17,7 @@ import {
 import { toPersianDigits } from "@/lib/format";
 import { ownerService } from "@/services/ownerService";
 import { customerMediaService } from "@/services/customerMediaService";
+import { SUPPORT_WHATSAPP } from "@/lib/contact";
 import type { Ticket } from "@/types/owner";
 
 const CATEGORIES: {
@@ -547,7 +548,11 @@ export default function SupportPage() {
             مستقیم با کارشناسان پشتیبانی سایرا ارتباط برقرار کنید:
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div
+            className={`grid grid-cols-1 gap-3 ${
+              SUPPORT_WHATSAPP ? "sm:grid-cols-3" : "sm:grid-cols-2"
+            }`}
+          >
             {/* Telegram Channel */}
             <a
               href="https://t.me/SayraSupport"
@@ -585,42 +590,44 @@ export default function SupportPage() {
               </span>
             </a>
 
-            {/* WhatsApp Channel */}
-            <a
-              href="https://wa.me/09120000000"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary)] p-4 flex items-center justify-between gap-3 transition-all group shadow-sm"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[var(--accent-green)]/15 text-[var(--accent-green)] flex items-center justify-center shrink-0">
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={1.8}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                    />
-                  </svg>
+            {/* WhatsApp Channel (rendered only when official number is configured) */}
+            {SUPPORT_WHATSAPP && (
+              <a
+                href={`https://wa.me/${SUPPORT_WHATSAPP}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary)] p-4 flex items-center justify-between gap-3 transition-all group shadow-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[var(--accent-green)]/15 text-[var(--accent-green)] flex items-center justify-center shrink-0">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={1.8}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                      />
+                    </svg>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-[var(--text-white)]">
+                      واتساپ
+                    </span>
+                    <span className="text-xs text-[var(--text-muted)] font-mono dir-ltr text-right">
+                      {SUPPORT_WHATSAPP}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-[var(--text-white)]">
-                    واتساپ
-                  </span>
-                  <span className="text-xs text-[var(--text-muted)] font-mono dir-ltr text-right">
-                    ۰۹۱۲۰۰۰۰۰۰۰
-                  </span>
-                </div>
-              </div>
-              <span className="text-xs font-bold text-[var(--accent-green)] group-hover:underline">
-                ارتباط
-              </span>
-            </a>
+                <span className="text-xs font-bold text-[var(--accent-green)] group-hover:underline">
+                  ارتباط
+                </span>
+              </a>
+            )}
 
             {/* Rubika Channel */}
             <a

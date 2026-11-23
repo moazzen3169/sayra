@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/utils";
+import { SUPPORT_PHONE } from "@/lib/contact";
 
 interface TermSection {
   id: string;
@@ -23,7 +24,10 @@ const METADATA_INFO = [
   { label: "مالک و بهره‌بردار پلتفرم", value: "شرکت توسعه بازی و فناوری سایرا (پلتفرم سایرا)" },
   { label: "شناسه ملی / شماره ثبت", value: "۱۴۰۱۱۹۲۸۳۷۴" },
   { label: "نشانی قانونی", value: "ایران، تبریز، خیابان آزادی، برج تجاری سایرا، طبقه ۵" },
-  { label: "شماره تماس پشتیبانی", value: "۰۴۱-۳۳۳۳۲۲۱۱ (۰۹۱۲۰۰۰۰۰۰۰)" },
+  {
+    label: "شماره تماس پشتیبانی",
+    value: SUPPORT_PHONE || "از طریق سامانه پشتیبانی آنلاین سایرا (/support)",
+  },
   { label: "نشانی وب‌سایت", value: "sayra-booking.ir" },
 ];
 

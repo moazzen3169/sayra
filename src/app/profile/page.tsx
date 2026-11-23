@@ -9,6 +9,7 @@ import { NotificationModal } from "@/components/NotificationModal";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/context/AuthContext";
+import { SUPPORT_PHONE } from "@/lib/contact";
 import { authService } from "@/services/authService";
 import {
   customerNotificationService,
@@ -894,39 +895,76 @@ export default function ProfilePage() {
             </p>
 
             <div className="flex flex-col gap-3 my-1">
-              <a
-                href="tel:02191000000"
-                className="flex items-center justify-between p-3.5 rounded-card bg-[var(--foreground)]/50 border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                      />
-                    </svg>
+              {SUPPORT_PHONE ? (
+                <a
+                  href={`tel:${SUPPORT_PHONE}`}
+                  className="flex items-center justify-between p-3.5 rounded-card bg-[var(--foreground)]/50 border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-[var(--text-white)]">
+                        تماس تلفنی
+                      </span>
+                      <span className="text-xs text-[var(--text-muted)] font-mono">
+                        {SUPPORT_PHONE}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-[var(--text-white)]">
-                      تماس تلفنی
-                    </span>
-                    <span className="text-xs text-[var(--text-muted)] font-mono">
-                      ۰۲۱-۹۱۰۰۰۰۰۰
-                    </span>
+                  <span className="text-xs font-bold text-[var(--primary)]">
+                    تماس
+                  </span>
+                </a>
+              ) : (
+                <Link
+                  href="/support"
+                  onClick={() => setIsSupportModalOpen(false)}
+                  className="flex items-center justify-between p-3.5 rounded-card bg-[var(--foreground)]/50 border border-[var(--border-subtle)] hover:border-[var(--primary)] transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-[var(--text-white)]">
+                        سامانه پشتیبانی و تیکتینگ
+                      </span>
+                      <span className="text-xs text-[var(--text-muted)]">
+                        ارسال تیکت و پیگیری آنلاین
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <span className="text-xs font-bold text-[var(--primary)]">
-                  تماس
-                </span>
-              </a>
+                  <span className="text-xs font-bold text-[var(--primary)]">
+                    مشاهده
+                  </span>
+                </Link>
+              )}
 
               <a
                 href="https://t.me/SayraSupport"

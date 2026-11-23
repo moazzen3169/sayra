@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
+import { SUPPORT_PHONE } from "@/lib/contact";
 
 const linkGroups = [
   {
@@ -147,13 +148,22 @@ export function Footer() {
               حریم خصوصی
             </Link>
 
-            <a
-              href="tel:04133332211"
-              dir="ltr"
-              className="py-2 transition-colors hover:text-[#B8F34A]"
-            >
-              04133332211
-            </a>
+            {SUPPORT_PHONE ? (
+              <a
+                href={`tel:${SUPPORT_PHONE}`}
+                dir="ltr"
+                className="py-2 transition-colors hover:text-[#B8F34A]"
+              >
+                {SUPPORT_PHONE}
+              </a>
+            ) : (
+              <Link
+                href="/support"
+                className="py-2 transition-colors hover:text-[#B8F34A]"
+              >
+                پشتیبانی آنلاین
+              </Link>
+            )}
           </div>
         </div>
       </div>
