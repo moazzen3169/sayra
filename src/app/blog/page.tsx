@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "وبلاگ | سایرا",
   description:
     "راهنما، نکته و مقاله برای رزرو بهتر گیمنت و تجربه‌ی بازی بهتر.",
+  alternates: {
+    canonical: "/blog",
+  },
 };
 
 export default function BlogPage() {

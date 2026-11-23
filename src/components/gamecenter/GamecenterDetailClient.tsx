@@ -1,0 +1,527 @@
+"use client";
+
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useRouter } from "next/navigation";
+import { Header } from "@/components/Header";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionTitle } from "@/components/ui/SectionTitle";
+import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { StickyActionBar } from "@/components/ui/StickyActionBar";
+import {
+  BookingCardSkeleton,
+  GamesSectionSkeleton,
+  InfoCardSkeleton,
+  LocationSkeleton,
+  ReviewsListSkeleton,
+} from "@/components/gamecenter/GamecenterDetailSkeletons";
+import { BannerSlider } from "@/components/BannerSlider";
+import {
+  DevicePicker,
+  categoryKey,
+} from "@/components/gamecenter/DevicePicker";
+import { DeviceSelectModal } from "@/components/gamecenter/DeviceSelectModal";
+import { GroupBookingSheet } from "@/components/gamecenter/GroupBookingSheet";
+import { GamesMarquee } from "@/components/gamecenter/GamesMarquee";
+import { GamecenterInfoCard } from "@/components/gamecenter/GamecenterInfoCard";
+import { GamecenterLocationCard } from "@/components/gamecenter/GamecenterLocationCard";
+import { ReviewReplyThread } from "@/components/reviews/ReviewReplyThread";
+import { useAuth } from "@/context/AuthContext";
+import { useCity } from "@/context/CityContext";
+import { useDeviceCategories } from "@/hooks/gaming-center/use-device-categories";
+import { isAbortError } from "@/lib/api/client";
+import { formatPrice, toPersianDigits } from "@/lib/format";
+import { getEffectiveStationPricing } from "@/lib/stationPricing";
+import {
+  formatDayLabel,
+  getErrorMessage,
+  isCenterReservationDisabled,
+} from "@/lib/reservationUi";
+import {
+  clearExtraControllersForStations,
+  getExtraSelectionHourlyTotal,
+  getTotalSelectedExtraCount,
+  type ExtraControllerSelectionMap,
+} from "@/lib/extraControllers";
+import { loadGamecenterDetail } from "@/services/gamecenterDetailService";
+import { stationApi } from "@/services/gaming-center/station.api";
+import type { GamecenterDetail } from "@/types/gamecenter";
+import type { BannerItem } from "@/types/home";
+import type { DeviceCategory } from "@/types/gaming-center/device-category.types";
+import type { PhysicalStation } from "@/types/gaming-center/station.types";
+import { PLACEHOLDERS } from "@/lib/media";
+import { cn } from "@/lib/utils";
+
+const GALLERY_ASPECT = "aspect-[2/1]";
+
+const scrollToId = (id: string) =>
+  document
+    .getElementById(id)
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+export function GamecenterDetailClient({
+  gamingCenterSlug,
+}: {
+  gamingCenterSlug: string;
+}) {
+  const { selectedCity, setCity } = useCity();
+  const router = useRouter();
+  const { user } = useAuth();
+
+  const [detail, setDetail] = useState<GamecenterDetail | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  const {
+    categories,
+    isLoading: isCategoriesLoading,
+    error: categoriesError,
+    refetch: refetchCategories,
+  } = useDeviceCategories(gamingCenterSlug);
+
+  const [selection, setSelection] = useState<Record<string, PhysicalStation[]>>({});
+  const [extraSelection, setExtraSelection] = useState<ExtraControllerSelectionMap>({});
+  const [activeCategory, setActiveCategory] = useState<DeviceCategory | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
+
+  const reservationDisabled = useMemo(
+    () => isCenterReservationDisabled(detail?.center),
+    [detail]
+  );
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    loadGamecenterDetail(gamingCenterSlug, controller.signal)
+      .then((d) => {
+        if (active) {
+          setDetail(d);
+          setLoadError(null);
+        }
+      })
+      .catch((e) => {
+        if (!active || isAbortError(e)) return;
+        setLoadError(getErrorMessage(e));
+        setDetail(null);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [gamingCenterSlug, reloadToken]);
+
+  const selectedStations = useMemo(
+    () => Object.values(selection).flat(),
+    [selection]
+  );
+  const deviceCount = selectedStations.length;
+  const extraControllerCount = useMemo(
+    () => getTotalSelectedExtraCount(extraSelection, selectedStations),
+    [extraSelection, selectedStations]
+  );
+  const extraHourly = useMemo(
+    () => getExtraSelectionHourlyTotal(extraSelection, selectedStations),
+    [extraSelection, selectedStations]
+  );
+  const hourly =
+    selectedStations.reduce(
+      (a, s) => a + getEffectiveStationPricing(s).finalHourlyPrice,
+      0
+    ) + extraHourly;
+
+  const handleSelectionChange = useCallback(
+    (key: string, stations: PhysicalStation[]) => {
+      if (reservationDisabled) return;
+      setSelection((prev) => {
+        const previousForKey = prev[key] ?? [];
+        const nextIds = new Set(stations.map((s) => s.id));
+        const removedIds = previousForKey
+          .filter((s) => !nextIds.has(s.id))
+          .map((s) => s.id);
+        if (removedIds.length > 0) {
+          setExtraSelection((ex) => clearExtraControllersForStations(ex, removedIds));
+        }
+
+        const copy = { ...prev };
+        if (stations.length === 0) delete copy[key];
+        else copy[key] = stations;
+        return copy;
+      });
+    },
+    [reservationDisabled]
+  );
+
+  const handleOpenCategory = useCallback(
+    async (category: DeviceCategory) => {
+      if (reservationDisabled) return;
+      const key = categoryKey(category);
+
+      if (category.deviceCount === 1) {
+        const existing = selection[key] ?? [];
+        if (existing.length > 0) {
+          const existingHasExtras =
+            getTotalSelectedExtraCount(extraSelection, existing) > 0;
+          if (!existingHasExtras) {
+            handleSelectionChange(key, []);
+            return;
+          }
+        } else {
+          try {
+            const filter = category.catalogId
+              ? { catalogDeviceId: category.catalogId, limit: 1 }
+              : { stationType: category.deviceType, limit: 1 };
+            const res = await stationApi.getPhysicalStations(gamingCenterSlug, filter);
+            if (res.stations.length === 1) {
+              const onlyStation = res.stations[0];
+              const extras = await stationApi
+                .getStationExtraControllers(gamingCenterSlug, onlyStation.id)
+                .catch(() => []);
+              if (extras.length === 0) {
+                handleSelectionChange(key, [onlyStation]);
+                return;
+              }
+            }
+          } catch {
+            // Fallback to opening the modal
+          }
+        }
+      }
+
+      setActiveCategory(category);
+    },
+    [
+      reservationDisabled,
+      selection,
+      extraSelection,
+      gamingCenterSlug,
+      handleSelectionChange,
+    ]
+  );
+
+  const galleryItems: BannerItem[] = useMemo(() => {
+    const images = detail?.images ?? [];
+    if (images.length === 0) {
+      return [
+        {
+          id: "fallback-gallery",
+          imageUrl: PLACEHOLDERS.gallery,
+          alt: detail?.center.name || "تصویر گیمنت",
+        },
+      ];
+    }
+    return images.map((img) => ({
+      id: img.id,
+      imageUrl: img.url,
+      alt: img.alt || detail?.center.name || "تصویر گیمنت",
+    }));
+  }, [detail]);
+
+  const rating = useMemo(() => {
+    const list = detail?.reviews ?? [];
+    if (list.length === 0) return null;
+    return {
+      avg: list.reduce((a, r) => a + r.rating, 0) / list.length,
+      count: list.length,
+    };
+  }, [detail]);
+
+  const title = detail?.center.name ?? "گیمنت";
+  const address = detail?.address ?? "";
+  const reviews = detail?.reviews ?? [];
+  const visibleReviews = showAllReviews ? reviews : reviews.slice(0, 4);
+  const showMobileBar = Boolean(detail) && !reservationDisabled && deviceCount > 0;
+
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push("/gamecenters");
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] lg:pb-12",
+        showMobileBar ? "pb-32" : "pb-8"
+      )}
+    >
+      <Header
+        hideOnMobile
+        locationName={selectedCity}
+        onCityChange={(city) => setCity(city)}
+      />
+      <PageHeader title={title} onBack={handleBack} className="lg:hidden" />
+
+      <main className="flex-1 lg:pt-[var(--header-h)] flex flex-col gap-6 pt-3">
+        {loadError && (
+          <div className="px-4 py-8 max-w-lg mx-auto w-full">
+            <ErrorState
+              title="بارگذاری انجام نشد"
+              description={loadError}
+              onRetry={() => setReloadToken((v) => v + 1)}
+            />
+          </div>
+        )}
+
+        {!loadError && (
+          <div className="px-4 lg:p-6 relative flex flex-col lg:grid lg:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)] lg:gap-x-6 lg:items-start">
+            {/* موبایل: گالری + اطلاعات؛ دسکتاپ: ستون کناری */}
+            <aside className="flex flex-col gap-4 lg:gap-5 min-w-0 lg:order-2">
+              {galleryItems.length > 0 && (
+                <BannerSlider
+                  isLoading={!detail}
+                  banners={galleryItems}
+                  fallbackSrc={PLACEHOLDERS.gallery}
+                  aspectClassName={GALLERY_ASPECT}
+                  desktopSlideBasisClass="lg:basis-[92%]"
+                  ariaLabel="گالری تصاویر گیمنت"
+                />
+              )}
+
+              {detail ? (
+                <GamecenterInfoCard
+                  title={title}
+                  address={address}
+                  rating={rating}
+                  onScrollTo={scrollToId}
+                />
+              ) : (
+                <InfoCardSkeleton />
+              )}
+
+              {!detail ? (
+                <LocationSkeleton />
+              ) : (
+                detail.location && (
+                  <GamecenterLocationCard
+                    lat={detail.location.lat}
+                    lng={detail.location.lng}
+                    title={title}
+                    address={address}
+                  />
+                )
+              )}
+
+              {/* سایدبار دسکتاپ */}
+              {!detail ? (
+                <BookingCardSkeleton />
+              ) : (
+                <div className="hidden lg:flex sticky top-20 self-start flex-col gap-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 lg:p-6 lg:gap-6 w-full">
+                  {deviceCount > 0 ? (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-card-title text-[var(--text-white)]">
+                        {toPersianDigits(deviceCount)} دستگاه
+                        {extraControllerCount > 0
+                          ? ` · ${toPersianDigits(extraControllerCount)} دسته اضافی`
+                          : ""}
+                      </span>
+                      <span className="text-key-number text-[var(--primary)]">
+                        {formatPrice(hourly)}{" "}
+                        <span className="text-xs font-normal text-[var(--text-white)]">
+                          تومان / ساعت
+                        </span>
+                      </span>
+                      <span className="text-secondary text-[var(--text-muted)]">
+                        برآورد
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-secondary text-[var(--text-muted)]">
+                      دستگاهی انتخاب نشده
+                    </span>
+                  )}
+
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    disabled={reservationDisabled || deviceCount === 0}
+                    onClick={() => setIsSheetOpen(true)}
+                    className="w-full"
+                  >
+                    ادامه
+                  </Button>
+                </div>
+              )}
+            </aside>
+
+            {/* ستون اصلی: دستگاه‌ها ← بازی‌ها ← نظرات */}
+            <div className="flex flex-col gap-8 min-w-0 mt-4 lg:mt-0 lg:order-1">
+              <section id="stations" className="flex flex-col gap-3 scroll-mt-20">
+                <SectionTitle title="دستگاه" className="mb-0 lg:hidden" />
+
+                {detail && reservationDisabled && (
+                  <InlineAlert variant="error">
+                    رزرو آنلاین این گیمنت فعال نیست.
+                  </InlineAlert>
+                )}
+
+                {/* تا وضعیت رزرو گیمنت مشخص نشده، دستگاه‌ها قابل انتخاب نیستند */}
+                <DevicePicker
+                  categories={categories}
+                  isLoading={isCategoriesLoading || !detail}
+                  error={categoriesError}
+                  onRetry={refetchCategories}
+                  selection={selection}
+                  onOpen={handleOpenCategory}
+                  reservationDisabled={reservationDisabled}
+                />
+              </section>
+
+              {!detail ? (
+                <GamesSectionSkeleton />
+              ) : (
+                detail.games.length > 0 && (
+                  <section id="games" className="flex flex-col gap-3 scroll-mt-20">
+                    <SectionTitle title="بازی‌ها" className="mb-0" />
+                    <GamesMarquee games={detail.games} />
+                  </section>
+                )
+              )}
+            </div>
+
+            {/* نظرات: در دسکتاپ تمام عرض صفحه (هر دو ستون) */}
+            <section
+              id="reviews"
+              className="flex flex-col gap-3 scroll-mt-20 mt-8 lg:order-3 lg:col-span-2"
+            >
+              <SectionTitle title="نظرات" className="mb-0" />
+              {!detail ? (
+                <ReviewsListSkeleton />
+              ) : reviews.length === 0 ? (
+                <p className="rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6 text-center text-secondary text-[var(--text-muted)]">
+                  هنوز نظری ثبت نشده
+                </p>
+              ) : (
+                <>
+                  <div className="flex  flex-col gap-3 lg:block lg:columns-3 lg:gap-3">
+                    {visibleReviews.map((r) => (
+                      <article
+                        key={r.id}
+                        className="bg-[var(--bg-card)] rounded-card p-4 border border-[var(--border-subtle)] flex flex-col gap-2 lg:mb-3 lg:break-inside-avoid"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-6 h-6 shrink-0 rounded-child bg-[var(--foreground)] text-[var(--primary)] font-bold text-xs flex items-center justify-center leading-none">
+                              {r.author[0]}
+                            </span>
+                            <span className="text-card-title text-[var(--text-white)] truncate">
+                              {r.author}
+                            </span>
+                          </div>
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-[var(--text-white)] shrink-0">
+                            <Icon
+                              name="star"
+                              size={16}
+                              filled
+                              className="text-[var(--accent-star)]"
+                            />
+                            <span>{toPersianDigits(r.rating)}</span>
+                          </span>
+                        </div>
+                        {r.comment && (
+                          <p className="text-body text-[var(--text-muted)] leading-relaxed">
+                            {r.comment}
+                          </p>
+                        )}
+                        {r.createdAt && (
+                          <span className="text-secondary text-[var(--text-muted)]">
+                            {formatDayLabel(r.createdAt)}
+                          </span>
+                        )}
+                        {(r.replyComment || r.reply) && (
+                          <ReviewReplyThread
+                            replyText={(r.replyComment ?? r.reply)!}
+                            replyAt={r.replyAt ?? r.repliedAt}
+                            label="پاسخ مدیر گیم‌نت به این نظر"
+                          />
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                  {reviews.length > 4 && (
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={() => setShowAllReviews((v) => !v)}
+                      className="self-center"
+                    >
+                      {showAllReviews
+                        ? "دیدن کمتر"
+                        : `مشاهده همه ${toPersianDigits(reviews.length)} نظر`}
+                    </Button>
+                  )}
+                </>
+              )}
+            </section>
+          </div>
+        )}
+      </main>
+
+      {showMobileBar && (
+        <StickyActionBar
+          className="lg:hidden"
+          info={
+            <div className="flex flex-col gap-0.5">
+              <span className="text-card-title text-[var(--text-white)]">
+                {toPersianDigits(deviceCount)} دستگاه
+                {extraControllerCount > 0
+                  ? ` · ${toPersianDigits(extraControllerCount)} دسته اضافی`
+                  : ""}
+              </span>
+              <span className="text-secondary text-[var(--primary)]">
+                {formatPrice(hourly)} تومان / ساعت
+              </span>
+            </div>
+          }
+          actionLabel="ادامه"
+          onAction={() => setIsSheetOpen(true)}
+        />
+      )}
+
+      {activeCategory && !reservationDisabled && (
+        <DeviceSelectModal
+          gamingCenterSlug={gamingCenterSlug}
+          category={activeCategory}
+          selected={selection[categoryKey(activeCategory)] ?? []}
+          onChange={(stations) =>
+            handleSelectionChange(categoryKey(activeCategory), stations)
+          }
+          extraSelection={extraSelection}
+          onExtraSelectionChange={setExtraSelection}
+          onClose={() => setActiveCategory(null)}
+          onContinue={() => {
+            setActiveCategory(null);
+            setIsSheetOpen(true);
+          }}
+        />
+      )}
+
+      {isSheetOpen && detail && !reservationDisabled && selectedStations.length > 0 && (
+        <GroupBookingSheet
+          gamingCenterId={detail.center.id}
+          gamingCenterSlug={gamingCenterSlug}
+          gamingCenterName={detail.center.name}
+          gamingCenterAddress={detail.address}
+          stations={selectedStations}
+          initialExtraSelection={extraSelection}
+          onExtraSelectionChange={setExtraSelection}
+          initialCustomer={
+            user ? { fullName: user.fullName, phone: user.phone } : undefined
+          }
+          onClose={() => setIsSheetOpen(false)}
+        />
+      )}
+    </div>
+  );
+}

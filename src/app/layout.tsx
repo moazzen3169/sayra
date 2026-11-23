@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { CityProvider } from "@/context/CityContext";
+import { SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "سایرا | Sayra - پلتفرم جامع گیمینگ سنترها",
   description: "رزرو نوبت و گیمنت‌ها به صورت آنلاین",
 };

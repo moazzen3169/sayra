@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "درباره سایرا | SAYRA — Enter the Universe",
   description:
     "با جهان سایرا آشنا شوید؛ بستری برای نزدیک‌تر کردن گیمرها و گیم‌نت‌ها.",
+  alternates: {
+    canonical: "/about",
+  },
 };
 
 const pillars = [
