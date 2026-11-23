@@ -93,6 +93,10 @@ export interface RequestOptions {
   baseUrl?: string;
   skipAuth?: boolean;
   cache?: RequestCache;
+  next?: {
+    revalidate?: number | false;
+    tags?: string[];
+  };
 
   /**
    * Selects which independent token store is used.
@@ -263,6 +267,7 @@ function assertNotRateLimited(
   scope: AuthScope,
   bypassRateLimit?: boolean
 ): void {
+  if (typeof window === "undefined") return;
   if (bypassRateLimit) return;
 
   const key = buildRateLimitKey(method, url, scope);
@@ -374,6 +379,9 @@ async function executeFetch<T>(
               : JSON.stringify(options.body),
         signal: options.signal,
         ...(options.cache ? { cache: options.cache } : {}),
+        ...(typeof window === "undefined" && options.next
+          ? { next: options.next }
+          : {}),
       }
     );
   } catch (error) {

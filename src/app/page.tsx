@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import React from "react";
 import { HomePageClient } from "@/components/home/HomePageClient";
 import {
@@ -15,9 +16,15 @@ import { blogService } from "@/services/blogService";
 import type { BannerItem, DiscountedCenter } from "@/types/home";
 import type { BlogPostSummary } from "@/types/blog";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 180;
 
-const SSR_FETCH_TIMEOUT_MS = 2500;
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/",
+  },
+};
+
+const SSR_FETCH_TIMEOUT_MS = 5000;
 
 export default async function HomePage() {
   const controller = new AbortController();
