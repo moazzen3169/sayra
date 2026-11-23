@@ -1,4 +1,5 @@
 import React, { Suspense } from "react";
+import type { Metadata } from "next";
 import { GamecentersPageClient } from "@/components/gamecenters/GamecentersPageClient";
 import { DEFAULT_CITY } from "@/lib/cityConstants";
 import { catalogService } from "@/services/catalogService";
@@ -7,6 +8,27 @@ import type { DeviceCatalogItem } from "@/types/catalog";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 
 export const revalidate = 180;
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const hasFilter = Boolean(params.q || params.sort || params.stationType);
+
+  return {
+    alternates: {
+      canonical: "/gamecenters",
+    },
+    robots: hasFilter
+      ? {
+          index: false,
+          follow: true,
+        }
+      : undefined,
+  };
+}
 
 function GamecentersGridSkeleton() {
   return (

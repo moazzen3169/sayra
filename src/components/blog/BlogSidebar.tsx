@@ -270,12 +270,19 @@ export const BlogSidebar: React.FC<BlogSidebarProps> = ({
           >
             {categoryItems.map((cat) => {
               const active = cat.id === selectedCategory;
+              const href =
+                cat.id === "all"
+                  ? "/blog"
+                  : `/blog?category=${encodeURIComponent(cat.id)}`;
               return (
-                <button
+                <Link
                   key={cat.id}
-                  type="button"
+                  href={href}
                   aria-pressed={active}
-                  onClick={() => onCategoryChange(cat.id)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onCategoryChange(cat.id);
+                  }}
                   className={`flex h-10 w-full items-center justify-between rounded-card border px-3 text-xs font-bold transition-colors ${
                     active
                       ? "border-[var(--primary)] bg-[var(--primary-muted)] text-[var(--primary)]"
@@ -292,7 +299,7 @@ export const BlogSidebar: React.FC<BlogSidebarProps> = ({
                       className="rotate-90 text-[var(--text-muted)]"
                     />
                   )}
-                </button>
+                </Link>
               );
             })}
           </div>
@@ -334,14 +341,18 @@ export const BlogSidebar: React.FC<BlogSidebarProps> = ({
           <div className="flex flex-col gap-2">
             {seriesList.map((series, index) => {
               const active = selectedSeries === series.id;
+              const href = active
+                ? "/blog"
+                : `/blog?series=${encodeURIComponent(series.id)}`;
               return (
-                <button
+                <Link
                   key={series.id}
-                  type="button"
+                  href={href}
                   aria-pressed={active}
-                  onClick={() =>
-                    onSeriesChange(active ? "" : series.id)
-                  }
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onSeriesChange(active ? "" : series.id);
+                  }}
                   className={`flex w-full items-start gap-3 rounded-card border p-3 text-right transition-colors ${
                     active
                       ? "border-[var(--primary)] bg-[var(--primary-muted)]"
@@ -380,7 +391,7 @@ export const BlogSidebar: React.FC<BlogSidebarProps> = ({
                       className="mt-1 shrink-0 text-[var(--primary)]"
                     />
                   )}
-                </button>
+                </Link>
               );
             })}
           </div>
@@ -423,14 +434,18 @@ export const BlogSidebar: React.FC<BlogSidebarProps> = ({
             {tagsList.map((tag) => {
               const active =
                 selectedTag === tag.name || selectedTag === tag.slug;
+              const href = active
+                ? "/blog"
+                : `/blog?tag=${encodeURIComponent(tag.name)}`;
               return (
-                <button
+                <Link
                   key={tag.id}
-                  type="button"
+                  href={href}
                   aria-pressed={active}
-                  onClick={() =>
-                    onTagChange(active ? "" : tag.name)
-                  }
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onTagChange(active ? "" : tag.name);
+                  }}
                   className={`flex h-9 items-center gap-1 rounded-full border px-3 text-xs font-bold transition-colors ${
                     active
                       ? "border-[var(--primary)] bg-[var(--primary)] text-on-primary"
@@ -438,7 +453,7 @@ export const BlogSidebar: React.FC<BlogSidebarProps> = ({
                   }`}
                 >
                   <span>#{tag.name}</span>
-                </button>
+                </Link>
               );
             })}
           </div>

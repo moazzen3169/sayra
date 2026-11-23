@@ -2,6 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import { BottomBar } from "@/components/BottomBar";
 import { BlogHeroSlider } from "@/components/blog/BlogHeroSlider";
 import {
@@ -291,8 +293,9 @@ export const BlogListView: React.FC<BlogListViewProps> = ({
           : "هنوز مقاله‌ای منتشر نشده است";
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-28 text-[var(--text-white)] lg:pb-12">
-      <main className="mx-auto flex w-full max-w-[var(--max-app-width)] flex-1 flex-col gap-6 px-4 pb-4 pt-4 lg:gap-8 lg:px-8 lg:pt-8">
+    <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-28 text-[var(--text-white)] lg:pb-0">
+      <Header />
+      <main className="mx-auto flex w-full max-w-[var(--max-app-width)] flex-1 flex-col gap-6 px-4 pb-4 pt-[var(--header-m-h)] lg:pt-[var(--header-h)] lg:gap-8 lg:px-8">
         {/* اسلایدر مقاله‌های داغ (Hot) */}
         <BlogHeroSlider />
 
@@ -500,6 +503,7 @@ export const BlogListView: React.FC<BlogListViewProps> = ({
         />
       )}
 
+      <Footer />
       <BottomBar activeTab="news" />
     </div>
   );

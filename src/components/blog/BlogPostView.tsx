@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { BlogArticleContent } from "@/components/blog/BlogArticleContent";
 import { BlogPostCard } from "@/components/blog/BlogPostCard";
 import { BlogPromoBanner } from "@/components/blog/BlogPromoBanner";
+import { Footer } from "@/components/Footer";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -209,13 +210,33 @@ useEffect(() => {
 
             {post && (
               <article className="flex w-full flex-col gap-6">
-                <Link
-                  href="/blog"
-                  className="hidden h-11 items-center gap-1.5 self-start text-xs font-bold text-[var(--text-muted)] transition-colors hover:text-[var(--primary)] lg:flex"
+                <nav
+                  aria-label="مسیر صفحه"
+                  className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-muted)]"
                 >
-                  <Icon name="back" size={16} />
-                  <span>همه‌ی مقاله‌ها</span>
-                </Link>
+                  <Link href="/" className="transition-colors hover:text-[var(--primary)]">
+                    سایرا
+                  </Link>
+                  <span aria-hidden="true">/</span>
+                  <Link href="/blog" className="transition-colors hover:text-[var(--primary)]">
+                    وبلاگ
+                  </Link>
+                  {post.categoryLabel && (
+                    <>
+                      <span aria-hidden="true">/</span>
+                      <Link
+                        href={`/blog?category=${encodeURIComponent(post.category)}`}
+                        className="transition-colors hover:text-[var(--primary)]"
+                      >
+                        {post.categoryLabel}
+                      </Link>
+                    </>
+                  )}
+                  <span aria-hidden="true">/</span>
+                  <span className="max-w-[200px] truncate text-[var(--text-white)] sm:max-w-md">
+                    {post.title}
+                  </span>
+                </nav>
                 <header className="flex flex-col gap-3">
                   <Link
                     href={`/blog?category=${encodeURIComponent(post.category)}`}
@@ -263,7 +284,7 @@ useEffect(() => {
                       {post.tags.map((tag) => (
                         <Link
                           key={tag}
-                          href={`/blog?q=${encodeURIComponent(tag)}`}
+                          href={`/blog?tag=${encodeURIComponent(tag)}`}
                           className="flex h-10 items-center rounded-full border border-[var(--border-subtle)] bg-[var(--bg-card)] px-4 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/60 hover:text-[var(--primary)]"
                         >
                           {tag}
@@ -306,6 +327,7 @@ useEffect(() => {
           </section>
         )}
       </main>
+      <Footer />
     </div>
   );
 };
