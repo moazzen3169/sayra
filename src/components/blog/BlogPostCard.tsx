@@ -16,7 +16,7 @@ export const BlogPostCard: React.FC<{ post: BlogPostSummary }> = ({ post }) => (
     <div className="relative aspect-[16/10] shrink-0 overflow-hidden bg-[var(--foreground)]">
       <SafeImage
         src={post.coverUrl}
-        alt={post.title || ""}
+        alt={post.title || "مقاله آموزشی سایرا"}
         fill
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
         loading="lazy"

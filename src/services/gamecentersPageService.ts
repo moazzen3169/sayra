@@ -18,6 +18,7 @@ export const DEVICE_VERIFY_CONCURRENCY = 4;
 
 export interface GamecenterListItem {
   id: string;
+  slug?: string;
   name: string;
   imageUrl: string;
   location: string;
@@ -245,6 +246,7 @@ export function mapPublicGamingCenterToListItem(
 
   return {
     id,
+    slug: center.slug || overrides?.slug || undefined,
     name,
     imageUrl: overrides?.imageUrl || (resolvedImageUrl !== DEFAULT_CENTER_IMAGE ? resolvedImageUrl : DEFAULT_CENTER_IMAGE),
     location: overrides?.location !== undefined ? overrides.location : location,

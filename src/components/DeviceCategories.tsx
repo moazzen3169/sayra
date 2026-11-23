@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import {
   mapCatalogDeviceToCategory,
   type DeviceCategory,
@@ -94,12 +95,18 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
         <div className="grid grid-cols-3 gap-x-2 gap-y-4 sm:grid-cols-4 sm:gap-x-3 sm:gap-y-10 md:grid-cols-5 lg:grid-cols-7">
           {displayList.map((cat) => {
             const isSelected = selectedCategoryId === cat.id;
+            const href = `/gamecenters?category=${encodeURIComponent(cat.id)}`;
 
             return (
-              <button
+              <Link
                 key={cat.id}
-                type="button"
-                onClick={() => onSelectCategory?.(cat.id)}
+                href={href}
+                onClick={(e) => {
+                  if (onSelectCategory) {
+                    e.preventDefault();
+                    onSelectCategory(cat.id);
+                  }
+                }}
                 aria-pressed={isSelected}
                 className={[
                   "group relative mt-7 flex min-w-0 flex-col items-center",
@@ -144,7 +151,7 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
                 >
                   {cat.name}
                 </span>
-              </button>
+              </Link>
             );
           })}
         </div>

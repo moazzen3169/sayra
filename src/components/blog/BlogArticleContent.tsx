@@ -326,7 +326,9 @@ function ImageBlock({ block }: { block: UnknownRecord }) {
   const image = (
     <img
       src={src}
-      alt={alt}
+      alt={alt || "تصویر مقاله"}
+      width={800}
+      height={450}
       loading={block.lazy === false || block.loading === "eager" ? "eager" : "lazy"}
       decoding="async"
       fetchPriority={fetchPriority}
@@ -436,7 +438,9 @@ function GalleryBlock({ block }: { block: UnknownRecord }) {
           >
             <img
               src={item.src}
-              alt={item.alt}
+              alt={item.alt || "تصویر گالری مقاله"}
+              width={600}
+              height={400}
               loading="lazy"
               decoding="async"
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
@@ -811,7 +815,10 @@ function LocationBlock({ block }: { block: UnknownRecord }) {
         <img
           src={imageSrc}
           alt={asString(block.title, "تصویر موقعیت مکانی")}
+          width={800}
+          height={400}
           loading="lazy"
+          decoding="async"
           className="max-h-56 w-full rounded-card object-cover"
         />
       )}
@@ -979,7 +986,10 @@ function TimelineBlock({ block }: { block: UnknownRecord }) {
                 <img
                   src={imageSrc}
                   alt={asString(event.title, "تصویر رویداد")}
+                  width={600}
+                  height={300}
                   loading="lazy"
+                  decoding="async"
                   className="mt-2 max-h-52 w-full rounded-card object-cover"
                 />
               )}

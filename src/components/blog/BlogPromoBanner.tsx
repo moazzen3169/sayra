@@ -32,7 +32,7 @@ export interface BlogPromoBannerProps {
  */
 export const BlogPromoBanner: React.FC<BlogPromoBannerProps> = ({
   variant = "responsive",
-  href = "/?discount=true",
+  href = "/gamecenters?category=discounted",
   title = "گیم‌نت‌های تخفیف‌دار سایرا",
   description = "رزرو آنلاین سانس‌های بازی با تخفیف‌های استثنایی در برترین گیم‌نت‌ها",
   ctaText = "مشاهده و رزرو",

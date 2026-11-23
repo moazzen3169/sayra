@@ -8,35 +8,52 @@ import type { BlogPostSummary } from "@/types/blog";
 
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: "وبلاگ و اخبار گیمینگ | سایرا",
-  description:
-    "مقالات آموزشی، راهنمای بازی‌ها، نقد و بررسی کنسول‌ها و آخرین اخبار دنیای گیم و گیم‌نت‌ها در وبلاگ سایرا.",
-  alternates: {
-    canonical: "/blog",
-  },
-  openGraph: {
-    type: "website",
-    url: "/blog",
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const hasFilter = Boolean(
+    params.q || params.sort || params.tag || params.series || params.category
+  );
+
+  return {
     title: "وبلاگ و اخبار گیمینگ | سایرا",
     description:
       "مقالات آموزشی، راهنمای بازی‌ها، نقد و بررسی کنسول‌ها و آخرین اخبار دنیای گیم و گیم‌نت‌ها در وبلاگ سایرا.",
-    images: [
-      {
-        url: `${SITE_URL}/design/sayra.svg`,
-        width: 1200,
-        height: 630,
-        alt: "وبلاگ سایرا",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "وبلاگ و اخبار گیمینگ | سایرا",
-    description:
-      "مقالات آموزشی، راهنمای بازی‌ها، نقد و بررسی کنسول‌ها و آخرین اخبار دنیای گیم در سایرا.",
-  },
-};
+    alternates: {
+      canonical: "/blog",
+    },
+    robots: hasFilter
+      ? {
+          index: false,
+          follow: true,
+        }
+      : undefined,
+    openGraph: {
+      type: "website",
+      url: "/blog",
+      title: "وبلاگ و اخبار گیمینگ | سایرا",
+      description:
+        "مقالات آموزشی، راهنمای بازی‌ها، نقد و بررسی کنسول‌ها و آخرین اخبار دنیای گیم و گیم‌نت‌ها در وبلاگ سایرا.",
+      images: [
+        {
+          url: `${SITE_URL}/design/sayra.svg`,
+          width: 1200,
+          height: 630,
+          alt: "وبلاگ سایرا",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "وبلاگ و اخبار گیمینگ | سایرا",
+      description:
+        "مقالات آموزشی، راهنمای بازی‌ها، نقد و بررسی کنسول‌ها و آخرین اخبار دنیای گیم در سایرا.",
+    },
+  };
+}
 
 export default async function BlogPage() {
   const controller = new AbortController();

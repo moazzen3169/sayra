@@ -501,8 +501,6 @@ export const Header: React.FC<HeaderProps> = ({
                     width={45}
                     height={25}
                     className="h-7   w-auto"
-                    loading="eager"
-                    priority
                   />
                 </Link>
 
@@ -619,8 +617,6 @@ export const Header: React.FC<HeaderProps> = ({
                 width={45}
                 height={25}
                 className="h-8 w-auto"
-                loading="eager"
-                priority
               />
             </Link>
 

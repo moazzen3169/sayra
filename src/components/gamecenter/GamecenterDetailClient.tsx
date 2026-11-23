@@ -7,7 +7,9 @@ import React, {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Button } from "@/components/ui/Button";
@@ -275,6 +277,25 @@ export function GamecenterDetailClient({
       <PageHeader title={title} onBack={handleBack} className="lg:hidden" />
 
       <main className="flex-1 lg:pt-[var(--header-h)] flex flex-col gap-6 pt-3">
+        {!loadError && detail && (
+          <nav
+            aria-label="مسیر صفحه"
+            className="px-4 lg:px-6 flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-muted)]"
+          >
+            <Link href="/" className="transition-colors hover:text-[var(--primary)]">
+              سایرا
+            </Link>
+            <span aria-hidden="true">/</span>
+            <Link href="/gamecenters" className="transition-colors hover:text-[var(--primary)]">
+              گیم‌نت‌ها
+            </Link>
+            <span aria-hidden="true">/</span>
+            <span className="max-w-[200px] truncate text-[var(--text-white)] sm:max-w-md">
+              {detail.center.name}
+            </span>
+          </nav>
+        )}
+
         {loadError && (
           <div className="px-4 py-8 max-w-lg mx-auto w-full">
             <ErrorState
@@ -533,6 +554,8 @@ export function GamecenterDetailClient({
           onClose={() => setIsSheetOpen(false)}
         />
       )}
+
+      <Footer />
     </div>
   );
 }

@@ -1,6 +1,16 @@
 import React from "react";
 import Link from "next/link";
-import { SayraNetworkAnimation } from "./SayraNetworkAnimation";
+import dynamic from "next/dynamic";
+
+const SayraNetworkAnimation = dynamic(
+  () => import("./SayraNetworkAnimation").then((mod) => mod.SayraNetworkAnimation),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[280px] w-full animate-pulse rounded-card bg-[var(--bg-card)]/40" />
+    ),
+  }
+);
 
 export const OwnerGrowthSection: React.FC = () => {
   return (
