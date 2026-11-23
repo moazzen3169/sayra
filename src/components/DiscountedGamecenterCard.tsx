@@ -92,13 +92,12 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
       </div>
 
       <div className="p-3 flex flex-col gap-1.5 flex-1">
-        <h3 className="text-card-title text-[var(--text-white)] line-clamp-1 group-hover:text-[var(--primary)] transition-colors">
-          {name}
-        </h3>
-
-        <div className="flex min-h-5 items-center gap-2 text-secondary text-[var(--text-muted)] min-w-0">
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <h3 className="flex-1 min-w-0 text-card-title text-[var(--text-white)] line-clamp-1 group-hover:text-[var(--primary)] transition-colors">
+            {name}
+          </h3>
           {rating > 0 && (
-            <span className="inline-flex items-center gap-1 shrink-0 text-[var(--text-white)] font-bold">
+            <span className="inline-flex items-center gap-1 shrink-0 text-secondary text-[var(--text-white)] font-bold">
               <Icon
                 name="star"
                 size={16}
@@ -113,6 +112,9 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
               )}
             </span>
           )}
+        </div>
+
+        <div className="flex min-h-5 items-center text-secondary text-[var(--text-muted)] min-w-0">
           <span className="truncate">{location}</span>
         </div>
 
@@ -153,11 +155,11 @@ export const GamecenterCardSkeleton: React.FC<{ className?: string }> = ({
       className="w-full aspect-[16/11] rounded-none shrink-0"
     />
     <div className="p-3 flex flex-col gap-1.5 flex-1">
-      <div className="h-[22px] flex items-center">
-        <Skeleton aria-busy={undefined} className="h-4 w-3/4 rounded-child" />
-      </div>
-      <div className="h-5 flex items-center gap-2">
+      <div className="h-[22px] flex items-center justify-between gap-2">
+        <Skeleton aria-busy={undefined} className="h-4 w-3/5 rounded-child" />
         <Skeleton aria-busy={undefined} className="h-3.5 w-12 rounded-child shrink-0" />
+      </div>
+      <div className="h-5 flex items-center">
         <Skeleton aria-busy={undefined} className="h-3.5 w-24 rounded-child" />
       </div>
       <div className="mt-auto pt-1 flex items-center h-[26px]">
