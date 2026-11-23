@@ -31,6 +31,8 @@ export interface BlogPostSummary {
   categoryLabel: string;
   authorName: string;
   publishedAt: string;
+  publishedAtIso?: string;
+  updatedAtIso?: string;
   createdAt?: string;
   updatedAt?: string;
   readingMinutes: number;

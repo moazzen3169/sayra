@@ -1470,6 +1470,8 @@ const coverUrl = normalizeBlogCoverUrl(dto.cover_image);
     categoryLabel: categoryName || "عمومی",
     authorName,
     publishedAt: dto.published_at || "",
+    publishedAtIso: (dto as any).published_at_iso || undefined,
+    updatedAtIso: (dto as any).updated_at_iso || undefined,
     readingMinutes: secondsToMinutes(dto.reading_time_sec),
     tags: mapTagsToUi(dto.tags),
     featured: Boolean(dto.is_hot),
