@@ -414,7 +414,14 @@
           "icon": { "type": "string", "nullable": true },
           "category": {
             "type": "string",
-            "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+            "enum": [
+              "PC",
+              "PLAYSTATION 4",
+              "PLAYSTATION 5",
+              "XBOX",
+              "SWITCH",
+              "VR"
+            ]
           },
           "isActive": { "type": "boolean" },
           "extraControllerEnabled": { "type": "boolean", "default": false },
@@ -432,7 +439,14 @@
           "icon": { "type": "string" },
           "category": {
             "type": "string",
-            "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"],
+            "enum": [
+              "PC",
+              "PLAYSTATION 4",
+              "PLAYSTATION 5",
+              "XBOX",
+              "SWITCH",
+              "VR"
+            ],
             "default": "PC"
           },
           "isActive": { "type": "boolean", "default": true },
@@ -448,7 +462,14 @@
           "icon": { "type": "string" },
           "category": {
             "type": "string",
-            "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+            "enum": [
+              "PC",
+              "PLAYSTATION 4",
+              "PLAYSTATION 5",
+              "XBOX",
+              "SWITCH",
+              "VR"
+            ]
           },
           "isActive": { "type": "boolean" },
           "extraControllerEnabled": { "type": "boolean" }
@@ -461,7 +482,14 @@
           "name": { "type": "string" },
           "deviceType": {
             "type": "string",
-            "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+            "enum": [
+              "PC",
+              "PLAYSTATION 4",
+              "PLAYSTATION 5",
+              "XBOX",
+              "SWITCH",
+              "VR"
+            ]
           },
           "deviceTypeId": { "type": "string", "nullable": true },
           "deviceTypeRef": { "$ref": "#/components/schemas/DeviceType" },
@@ -482,7 +510,14 @@
             "type": "array",
             "items": {
               "type": "string",
-              "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+              "enum": [
+                "PC",
+                "PLAYSTATION 4",
+                "PLAYSTATION 5",
+                "XBOX",
+                "SWITCH",
+                "VR"
+              ]
             }
           },
           "genre": { "type": "string", "nullable": true },
@@ -499,7 +534,14 @@
           "name": { "type": "string" },
           "deviceType": {
             "type": "string",
-            "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"],
+            "enum": [
+              "PC",
+              "PLAYSTATION 4",
+              "PLAYSTATION 5",
+              "XBOX",
+              "SWITCH",
+              "VR"
+            ],
             "default": "PC"
           },
           "coverImageUrl": { "type": "string", "format": "uri" },
@@ -513,7 +555,14 @@
           "name": { "type": "string" },
           "deviceType": {
             "type": "string",
-            "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+            "enum": [
+              "PC",
+              "PLAYSTATION 4",
+              "PLAYSTATION 5",
+              "XBOX",
+              "SWITCH",
+              "VR"
+            ]
           },
           "coverImageUrl": { "type": "string", "format": "uri" },
           "description": { "type": "string", "nullable": true },
@@ -530,7 +579,14 @@
             "type": "array",
             "items": {
               "type": "string",
-              "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+              "enum": [
+                "PC",
+                "PLAYSTATION 4",
+                "PLAYSTATION 5",
+                "XBOX",
+                "SWITCH",
+                "VR"
+              ]
             },
             "default": ["PC"]
           },
@@ -548,7 +604,14 @@
             "type": "array",
             "items": {
               "type": "string",
-              "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+              "enum": [
+                "PC",
+                "PLAYSTATION 4",
+                "PLAYSTATION 5",
+                "XBOX",
+                "SWITCH",
+                "VR"
+              ]
             }
           },
           "genre": { "type": "string", "nullable": true },
@@ -1243,7 +1306,12 @@
           "cancellationHours": {
             "type": "integer",
             "example": 2,
-            "description": "Hours before reservation start time within which cancellation is permitted"
+            "description": "Legacy hours before reservation start time within which cancellation is permitted"
+          },
+          "cancellationWindowMinutes": {
+            "type": "integer",
+            "example": 15,
+            "description": "Minimum minutes before reservation start time within which customer cancellation is permitted (defaults to 15)"
           },
           "allowOnlineBooking": {
             "type": "boolean",
@@ -1300,7 +1368,8 @@
             "description": "Aggregated counts of stations by device type",
             "properties": {
               "PC": { "type": "integer" },
-              "PLAYSTATION": { "type": "integer" },
+              "PLAYSTATION 4": { "type": "integer" },
+              "PLAYSTATION 5": { "type": "integer" },
               "XBOX": { "type": "integer" },
               "SWITCH": { "type": "integer" },
               "VR": { "type": "integer" }
@@ -1317,7 +1386,14 @@
           "name": { "type": "string" },
           "stationType": {
             "type": "string",
-            "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+            "enum": [
+              "PC",
+              "PLAYSTATION 4",
+              "PLAYSTATION 5",
+              "XBOX",
+              "SWITCH",
+              "VR"
+            ]
           },
           "isVip": { "type": "boolean" },
           "hourlyPrice": { "type": "number" },
@@ -1521,6 +1597,11 @@
           "maxAdvanceBookingDays": { "type": "integer", "example": 7 },
           "minAdvanceBookingMinutes": { "type": "integer", "example": 30 },
           "cancellationHours": { "type": "integer", "example": 2 },
+          "cancellationWindowMinutes": {
+            "type": "integer",
+            "example": 15,
+            "description": "Minimum minutes before reservation start time within which customer cancellation is permitted (default 15)"
+          },
           "noShowPenaltyAmount": { "type": "number", "example": 0 },
           "autoReleaseUnpaidMinutes": { "type": "integer", "example": 15 },
           "createdAt": { "type": "string", "format": "date-time" },
@@ -2002,7 +2083,7 @@
             "maxLength": 100,
             "nullable": true,
             "description": "Required when adType is CATEGORY",
-            "example": "PS5"
+            "example": "PLAYSTATION 5"
           },
           "destinationUrl": {
             "type": "string",
@@ -2839,7 +2920,7 @@
       "post": {
         "operationId": "checkoutPublicGroupReservation",
         "summary": "Initiate secure payment-first group reservation checkout",
-        "description": "Validates availability, creates an active BookingHold and pending payment, and returns gateway payment URL.",
+        "description": "Validates availability, creates an active BookingHold and pending payment (or completes immediately via full wallet payment), and returns gateway payment URL. Setting provider to WALLET enforces wallet-only payment and releases the hold if wallet balance is insufficient or any payment failure occurs.",
         "tags": ["Group Reservations"],
         "security": [{}, { "bearerAuth": [] }],
         "parameters": [
@@ -2895,7 +2976,10 @@
                     }
                   },
                   "note": { "type": "string" },
-                  "provider": { "type": "string" },
+                  "provider": {
+                    "type": "string",
+                    "description": "Optional payment provider (e.g. ZIBAL, ZARINPAL, or WALLET to enforce wallet-only payment)"
+                  },
                   "useWallet": {
                     "type": "boolean",
                     "description": "Whether to deduct available wallet balance towards the reservation amount"
@@ -2936,7 +3020,9 @@
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
+          "400": {
+            "description": "Validation error or insufficient wallet balance (hold is released on payment failure)"
+          },
           "409": { "description": "Slot not available" },
           "500": { "$ref": "#/components/responses/InternalServerError" }
         }
@@ -3315,7 +3401,14 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+              "enum": [
+                "PC",
+                "PLAYSTATION 4",
+                "PLAYSTATION 5",
+                "XBOX",
+                "SWITCH",
+                "VR"
+              ]
             }
           },
           {
@@ -3402,7 +3495,14 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+              "enum": [
+                "PC",
+                "PLAYSTATION 4",
+                "PLAYSTATION 5",
+                "XBOX",
+                "SWITCH",
+                "VR"
+              ]
             }
           },
           {
@@ -3488,7 +3588,14 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+              "enum": [
+                "PC",
+                "PLAYSTATION 4",
+                "PLAYSTATION 5",
+                "XBOX",
+                "SWITCH",
+                "VR"
+              ]
             }
           },
           { "name": "genre", "in": "query", "schema": { "type": "string" } },
@@ -3610,7 +3717,14 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+              "enum": [
+                "PC",
+                "PLAYSTATION 4",
+                "PLAYSTATION 5",
+                "XBOX",
+                "SWITCH",
+                "VR"
+              ]
             }
           },
           {
@@ -3752,7 +3866,14 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+              "enum": [
+                "PC",
+                "PLAYSTATION 4",
+                "PLAYSTATION 5",
+                "XBOX",
+                "SWITCH",
+                "VR"
+              ]
             }
           },
           {
@@ -3898,7 +4019,14 @@
                   "name": { "type": "string" },
                   "deviceType": {
                     "type": "string",
-                    "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+                    "enum": [
+                      "PC",
+                      "PLAYSTATION 4",
+                      "PLAYSTATION 5",
+                      "XBOX",
+                      "SWITCH",
+                      "VR"
+                    ]
                   },
                   "coverImageUrl": { "type": "string" },
                   "file": { "type": "string", "format": "binary" },
@@ -3950,7 +4078,14 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+              "enum": [
+                "PC",
+                "PLAYSTATION 4",
+                "PLAYSTATION 5",
+                "XBOX",
+                "SWITCH",
+                "VR"
+              ]
             }
           },
           {
@@ -4123,7 +4258,14 @@
                     "type": "array",
                     "items": {
                       "type": "string",
-                      "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+                      "enum": [
+                        "PC",
+                        "PLAYSTATION 4",
+                        "PLAYSTATION 5",
+                        "XBOX",
+                        "SWITCH",
+                        "VR"
+                      ]
                     }
                   },
                   "genre": { "type": "string" },
@@ -4175,7 +4317,14 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+              "enum": [
+                "PC",
+                "PLAYSTATION 4",
+                "PLAYSTATION 5",
+                "XBOX",
+                "SWITCH",
+                "VR"
+              ]
             }
           },
           { "name": "genre", "in": "query", "schema": { "type": "string" } },
@@ -5763,7 +5912,17 @@
                     "type": "integer",
                     "example": 30
                   },
-                  "cancellationHours": { "type": "integer", "example": 2 },
+                  "cancellationHours": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 2
+                  },
+                  "cancellationWindowMinutes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 15,
+                    "description": "Minimum minutes before reservation start time within which customer cancellation is permitted (default 15)"
+                  },
                   "noShowPenaltyAmount": { "type": "number", "example": 0 },
                   "autoReleaseUnpaidMinutes": {
                     "type": "integer",
@@ -5832,9 +5991,16 @@
                     "type": "boolean",
                     "example": false
                   },
+                  "cancellationHours": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 2
+                  },
                   "cancellationWindowMinutes": {
                     "type": "integer",
-                    "example": 60
+                    "minimum": 0,
+                    "example": 15,
+                    "description": "Minimum minutes before reservation start time within which customer cancellation is permitted (default 15)"
                   },
                   "depositRequirementPercentage": {
                     "type": "number",
@@ -7107,11 +7273,11 @@
                   },
                   "useWallet": {
                     "type": "boolean",
-                    "description": "Whether to use customer wallet balance for payment"
+                    "description": "Whether to use customer wallet balance for atomic full wallet payment (rolls back reservation on insufficient balance)"
                   },
                   "provider": {
                     "type": "string",
-                    "description": "Optional payment gateway provider (e.g. ZIBAL, ZARINPAL)"
+                    "description": "Optional payment gateway provider (e.g. ZIBAL, ZARINPAL, or WALLET for atomic wallet-only payment)"
                   }
                 }
               }
@@ -7126,10 +7292,16 @@
                 "schema": { "$ref": "#/components/schemas/Success" }
               }
             }
+          },
+          "400": {
+            "description": "Validation error or insufficient wallet balance (INSUFFICIENT_WALLET_BALANCE; transaction rolled back without creating reservation)"
+          },
+          "403": {
+            "description": "Forbidden - Online booking disabled, center inactive, or unauthorized wallet access (UNAUTHORIZED_WALLET_ACCESS)"
           }
         },
         "operationId": "post_public_gamingCenters_gamingCenterSlug_reservation",
-        "description": "Create an online reservation"
+        "description": "Create an online reservation. Setting useWallet=true or provider=WALLET performs atomic wallet deduction and rolls back completely on failure. Unpaid payable online reservations start in PENDING status with expiry (never auto-confirmed)."
       }
     },
     "/gamingCenters/{gamingCenterId}/reservation": {
@@ -7237,11 +7409,11 @@
                   },
                   "useWallet": {
                     "type": "boolean",
-                    "description": "Whether to use customer wallet balance for payment"
+                    "description": "Whether to use customer wallet balance for atomic wallet payment (rolls back reservation on insufficient balance)"
                   },
                   "provider": {
                     "type": "string",
-                    "description": "Optional payment gateway provider (e.g. ZIBAL, ZARINPAL)"
+                    "description": "Optional payment gateway provider (e.g. ZIBAL, ZARINPAL, or WALLET for atomic wallet payment)"
                   }
                 }
               }
@@ -7256,10 +7428,14 @@
                 "schema": { "$ref": "#/components/schemas/Success" }
               }
             }
-          }
+          },
+          "400": {
+            "description": "Validation error or insufficient wallet balance (INSUFFICIENT_WALLET_BALANCE; transaction rolled back without creating reservation)"
+          },
+          "403": { "$ref": "#/components/responses/ForbiddenError" }
         },
         "operationId": "post_gamingCenters_gamingCenterId_reservation",
-        "description": "Create a reservation (Panel)"
+        "description": "Create a reservation (Panel). Setting useWallet=true or provider=WALLET performs atomic wallet deduction and rolls back on failure."
       }
     },
     "/gamingCenters/{gamingCenterId}/reservation/{reservationId}": {
@@ -7483,7 +7659,11 @@
                 "schema": { "$ref": "#/components/schemas/Success" }
               }
             }
-          }
+          },
+          "400": {
+            "description": "Insufficient wallet balance or failed payment initiation (unpaid reservation is automatically canceled with paymentState FAILED)"
+          },
+          "409": { "description": "Reservation is already paid" }
         },
         "operationId": "post_gamingCenters_gamingCenterId_reservation_reservationId_payments_init",
         "description": "Initiate payment for reservation"
@@ -7698,7 +7878,11 @@
                 "schema": { "$ref": "#/components/schemas/Success" }
               }
             }
-          }
+          },
+          "400": {
+            "description": "Insufficient wallet balance or failed payment initiation (unpaid reservation is automatically canceled with paymentState FAILED)"
+          },
+          "409": { "description": "Reservation is already paid" }
         },
         "operationId": "post_customer_reservation_reservationId_payments_init"
       }
@@ -7774,6 +7958,7 @@
     "/customer/reservation/{reservationId}/cancel": {
       "post": {
         "summary": "Cancel my reservation",
+        "description": "Cancel customer single reservation or group booking if current time is at least cancellationWindowMinutes before reservation start time (default 15 minutes). Returns 400 CANCELLATION_DEADLINE_EXCEEDED if fewer than cancellationWindowMinutes remain.",
         "tags": ["Customer Panel"],
         "security": [{ "bearerAuth": [] }],
         "parameters": [
@@ -7784,6 +7969,23 @@
             "schema": { "type": "string" }
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "Change of plans"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Reservation canceled",
@@ -7794,7 +7996,7 @@
             }
           },
           "400": {
-            "description": "Cancellation deadline exceeded or invalid request",
+            "description": "Cancellation deadline exceeded (CANCELLATION_DEADLINE_EXCEEDED when fewer than cancellationWindowMinutes remain before start time, default 15 minutes) or invalid request",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/Error" }
@@ -7802,8 +8004,7 @@
             }
           }
         },
-        "operationId": "post_customer_reservation_reservationId_cancel",
-        "description": "Cancel my reservation"
+        "operationId": "post_customer_reservation_reservationId_cancel"
       }
     },
     "/customer/reservation/{reservationId}/ratings": {
@@ -8039,7 +8240,14 @@
                   "name": { "type": "string" },
                   "stationType": {
                     "type": "string",
-                    "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+                    "enum": [
+                      "PC",
+                      "PLAYSTATION 4",
+                      "PLAYSTATION 5",
+                      "XBOX",
+                      "SWITCH",
+                      "VR"
+                    ]
                   },
                   "hourlyPrice": { "type": "number" },
                   "minRentHours": { "type": "integer" },
@@ -8378,7 +8586,14 @@
             "description": "Filter by station hardware type",
             "schema": {
               "type": "string",
-              "enum": ["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]
+              "enum": [
+                "PC",
+                "PLAYSTATION 4",
+                "PLAYSTATION 5",
+                "XBOX",
+                "SWITCH",
+                "VR"
+              ]
             }
           },
           {
@@ -11903,7 +12118,10 @@
             }
           },
           "400": { "$ref": "#/components/responses/ValidationError" },
-          "404": { "$ref": "#/components/responses/NotFoundError" }
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "409": {
+            "description": "Conflict - Reservation expired, invalid state transition, or payment required/failed (PAYMENT_REQUIRED, PAYMENT_FAILED)"
+          }
         }
       }
     },
@@ -12038,7 +12256,10 @@
             }
           },
           "400": { "$ref": "#/components/responses/ValidationError" },
-          "404": { "$ref": "#/components/responses/NotFoundError" }
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "409": {
+            "description": "Conflict - Invalid state transition or payment required/failed (PAYMENT_REQUIRED, PAYMENT_FAILED)"
+          }
         }
       }
     },
@@ -16410,7 +16631,7 @@
       },
       "post": {
         "summary": "Create a group reservation across multiple stations (Manager/Admin)",
-        "description": "Creates a multi-station group reservation directly from the manager panel.",
+        "description": "Creates a multi-station group reservation directly from the manager panel. Setting useWallet=true or provider=WALLET performs atomic wallet deduction and rolls back on failure.",
         "tags": ["Group Reservations"],
         "operationId": "post_gamingCenters_gamingCenterId_group_reservations",
         "security": [{ "bearerAuth": [] }],
@@ -16465,7 +16686,15 @@
                     }
                   },
                   "note": { "type": "string", "maxLength": 500 },
-                  "source": { "type": "string" }
+                  "source": { "type": "string" },
+                  "useWallet": {
+                    "type": "boolean",
+                    "description": "Whether to use customer wallet balance for atomic wallet payment (rolls back on insufficient balance)"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "description": "Optional payment provider (set to WALLET for atomic wallet payment)"
+                  }
                 }
               }
             }
@@ -16480,7 +16709,9 @@
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
+          "400": {
+            "description": "Validation error or insufficient wallet balance (INSUFFICIENT_WALLET_BALANCE; transaction rolled back)"
+          },
           "401": { "$ref": "#/components/responses/UnauthorizedError" },
           "403": { "$ref": "#/components/responses/ForbiddenError" }
         }
@@ -16574,7 +16805,7 @@
     "/public/gamingCenters/{gamingCenterSlug}/group-reservations": {
       "post": {
         "summary": "Create a public group reservation across multiple stations",
-        "description": "Creates a public multi-station group reservation for a customer.",
+        "description": "Creates a public multi-station group reservation for a customer. Setting useWallet=true or provider=WALLET performs atomic wallet deduction and rolls back on failure. Unpaid payable online group bookings stay in PENDING status with expiry until paid.",
         "tags": ["Group Reservations"],
         "operationId": "post_public_gamingCenters_gamingCenterSlug_group_reservations",
         "security": [],
@@ -16634,7 +16865,15 @@
                       "email": { "type": "string", "format": "email" }
                     }
                   },
-                  "note": { "type": "string", "maxLength": 500 }
+                  "note": { "type": "string", "maxLength": 500 },
+                  "useWallet": {
+                    "type": "boolean",
+                    "description": "Whether to use customer wallet balance for atomic full wallet payment (rolls back on insufficient balance)"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "description": "Optional payment provider (set to WALLET for atomic wallet-only payment)"
+                  }
                 }
               }
             }
@@ -16649,7 +16888,12 @@
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
+          "400": {
+            "description": "Validation error or insufficient wallet balance (INSUFFICIENT_WALLET_BALANCE; transaction rolled back)"
+          },
+          "403": {
+            "description": "Forbidden - Online booking disabled, center inactive, or unauthorized wallet access (UNAUTHORIZED_WALLET_ACCESS)"
+          },
           "404": { "$ref": "#/components/responses/NotFoundError" }
         }
       }

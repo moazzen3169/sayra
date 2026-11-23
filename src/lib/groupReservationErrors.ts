@@ -30,6 +30,8 @@ export function getGroupReservationErrorMessage(
       return "ثبت انجام نشد. دوباره تلاش کنید.";
     case "INVALID_TRANSITION":
       return "در وضعیت فعلی رزرو این کار ممکن نیست.";
+    case "CANCELLATION_DEADLINE_EXCEEDED":
+      return "امکان لغو رزرو وجود ندارد؛ کمتر از ۱۵ دقیقه تا زمان شروع رزرو باقی مانده است.";
     case "UNAUTHORIZED":
       return "برای ادامه وارد شوید.";
     case "FORBIDDEN":

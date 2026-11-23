@@ -12,6 +12,7 @@ import { ownerService } from "@/services/ownerService";
 import { BannerSlider } from "@/components/BannerSlider";
 import { Icon } from "@/components/ui/Icon";
 import { SafeImage } from "@/components/ui/SafeImage";
+import { QuickBookingPauseCard } from "@/components/owner/QuickBookingPauseCard";
 import { PLACEHOLDERS } from "@/lib/media";
 import type { MediaItem } from "@/types/owner";
 
@@ -401,6 +402,8 @@ export default function OwnerDashboardPage() {
             ویرایش گیم‌نت
           </Link>
         </div>
+
+        {centerId && <QuickBookingPauseCard key={centerId} centerId={centerId} />}
 
         {/* بنر غیرمسدودکننده وضعیت فعال‌سازی و احراز هویت */}
         {!isApproved && (

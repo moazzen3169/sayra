@@ -8,6 +8,7 @@ import { GamecenterDetailHeader } from "@/components/GamecenterDetailHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ReservationCodeStrip } from "@/components/ReservationCodeStrip";
 import { AuthModal } from "@/components/AuthModal";
+import { NotificationModal } from "@/components/NotificationModal";
 import { RatingModal } from "@/components/RatingModal";
 import { useAuth } from "@/context/AuthContext";
 import { isAbortError } from "@/lib/api/client";
@@ -25,6 +26,10 @@ import {
   buildReviewTargetFromReservation,
   isSingleReservationRated,
 } from "@/lib/reservationReview";
+import {
+  customerNotificationService,
+  NOTIFICATIONS_REFRESH_EVENT,
+} from "@/services/customerNotificationService";
 import { customerReviewService } from "@/services/customerReviewService";
 import {
   extractAuthoritativeLocation,
@@ -229,10 +234,13 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
   const [loading, setLoading] = useState(isLoggedIn);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [cancelSuccess, setCancelSuccess] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
 
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [busyProposalId, setBusyProposalId] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
@@ -320,13 +328,39 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
     };
   }, [id, reloadToken, isLoggedIn]);
 
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let active = true;
+
+    const loadUnreadCount = async () => {
+      try {
+        const count = await customerNotificationService.getUnreadCount(undefined, "customer");
+        if (active) setUnreadNotificationsCount(count);
+      } catch {
+        // ignore unread count fetch errors
+      }
+    };
+
+    loadUnreadCount();
+    const handleRefresh = () => {
+      loadUnreadCount();
+    };
+    window.addEventListener(NOTIFICATIONS_REFRESH_EVENT, handleRefresh);
+    return () => {
+      active = false;
+      window.removeEventListener(NOTIFICATIONS_REFRESH_EVENT, handleRefresh);
+    };
+  }, [isLoggedIn]);
+
   const handleCancel = async () => {
     if (isCancelling) return;
     setIsCancelling(true);
     setActionError(null);
+    setCancelSuccess(false);
     try {
       await reservationService.cancel(id);
       setIsCancelConfirmOpen(false);
+      setCancelSuccess(true);
       setReloadToken((v) => v + 1);
     } catch (e) {
       setActionError(getErrorMessage(e));
@@ -379,7 +413,8 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
         location={reservation?.gamingCenterName ?? ""}
         showDetails
         onBackClick={() => router.push("/reservations")}
-        onNotificationClick={() => {}}
+        onNotificationClick={() => setIsNotificationModalOpen(true)}
+        unreadNotificationsCount={unreadNotificationsCount}
       />
 
       <main className="flex-1 flex flex-col gap-4 mt-16 px-4 py-5 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0">
@@ -447,6 +482,12 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
         {/* Content */}
         {isLoggedIn && !loading && !error && reservation && (
           <>
+            {cancelSuccess && (
+              <div className="p-3.5 rounded-card bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold text-center">
+                رزرو شما با موفقیت لغو شد.
+              </div>
+            )}
+
             {actionError && (
               <div className="p-3.5 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold text-center">
                 {actionError}
@@ -756,10 +797,10 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                     </div>
                     <ul className="flex flex-col gap-1.5 text-xs text-[var(--text-muted)] leading-relaxed list-disc pr-4">
                       <li>
-                        در صورت لغو رزرو تا حداقل <strong className="text-[var(--text-white)]">۲۴ ساعت پیش از زمان دقیق شروع</strong>، کل مبلغ پرداختی به کیف پول شما بازگردانده می‌شود.
+                        امکان ارسال درخواست لغو رزرو تا پیش از مهلت مجاز (به‌صورت پیش‌فرض <strong className="text-[var(--text-white)]">۱۵ دقیقه پیش از زمان شروع رزرو</strong>) وجود دارد.
                       </li>
                       <li>
-                        درخواست لغو در فاصله <strong className="text-[var(--text-white)]">کمتر از ۲۴ ساعت</strong> مانده به شروع رزرو، مشمول بازپرداخت خودکار وجه نخواهد بود.
+                        در صورت باقی ماندن کمتر از مهلت مجاز تا شروع رزرو، امکان لغو توسط سیستم وجود نخواهد داشت.
                       </li>
                       <li>
                         امکان ویرایش مستقیم تاریخ، ساعت یا تعداد دستگاه‌های رزرو تأییدشده وجود ندارد؛ برای تغییر باید مطابق شرایط فوق رزرو را لغو و مجدداً ثبت کنید.
@@ -772,6 +813,12 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                       مشاهده قوانین و مقررات کامل ←
                     </Link>
                   </div>
+
+                  {actionError && (
+                    <div className="p-3.5 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold text-center">
+                      {actionError}
+                    </div>
+                  )}
 
                   <button
                     type="button"
@@ -826,6 +873,13 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
           setIsRatingModalOpen(false);
           setReloadToken((v) => v + 1);
         }}
+      />
+
+      <NotificationModal
+        isOpen={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
+        scope="customer"
+        onMarkAllAsRead={() => setUnreadNotificationsCount(0)}
       />
 
       {/* Cancel Confirmation Modal */}

@@ -260,6 +260,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   CONFLICT: "این درخواست با اطلاعات فعلی تداخل دارد.",
   RESERVATION_CANCEL_NOT_ALLOWED: "در وضعیت فعلی رزرو این کار ممکن نیست.",
   RESERVATION_ALREADY_CANCELLED: "این رزرو قبلاً لغو شده است.",
+  CANCELLATION_DEADLINE_EXCEEDED:
+    "امکان لغو رزرو وجود ندارد؛ کمتر از ۱۵ دقیقه تا زمان شروع رزرو باقی مانده است.",
   RESERVATION_EXPIRED: "این ساعت گذشته است.",
   PROPOSAL_NOT_PENDING: "این پیشنهاد زمان قبلاً پاسخ داده شده یا منقضی شده است.",
   SLOT_NOT_AVAILABLE: "این ساعت دیگر خالی نیست. ساعت دیگری انتخاب کنید.",
@@ -288,6 +290,26 @@ function withDevDetails(text: string, e: ApiError): string {
   return `${text} [${e.status} ${e.code}: ${e.message}]`;
 }
 
+function extractCancellationWindowMinutes(e: ApiError): number | null {
+  if (e.details && typeof e.details === "object") {
+    const d = e.details as Record<string, unknown>;
+    const candidate =
+      d.cancellationWindowMinutes ??
+      d.windowMinutes ??
+      d.requiredMinutes ??
+      d.minMinutes;
+    if (typeof candidate === "number" && Number.isFinite(candidate) && candidate > 0) {
+      return Math.round(candidate);
+    }
+  }
+  const msgMatch = e.message?.match(/(\d+)\s*(?:minute|min|دقیقه)/i);
+  if (msgMatch) {
+    const parsed = Number(msgMatch[1]);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return null;
+}
+
 export function getErrorMessage(e: unknown): string {
   if (e instanceof ApiError) {
     if (e.status === 502 || e.status === 503 || e.status === 504) {
@@ -296,6 +318,13 @@ export function getErrorMessage(e: unknown): string {
     // ردّ OTP توسط سرور باید قبل از نگاشت عمومی ۴۰۱ تشخیص داده شود
     if (/otp/i.test(e.message)) {
       return withDevDetails(OTP_REJECTED, e);
+    }
+    if (e.code === "CANCELLATION_DEADLINE_EXCEEDED") {
+      const minutes = extractCancellationWindowMinutes(e) ?? 15;
+      return withDevDetails(
+        `امکان لغو رزرو وجود ندارد؛ کمتر از ${toPersianDigits(minutes)} دقیقه تا زمان شروع رزرو باقی مانده است.`,
+        e
+      );
     }
     const mapped = ERROR_MESSAGES[e.code];
     if (mapped) return withDevDetails(mapped, e);
