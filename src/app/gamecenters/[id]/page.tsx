@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { permanentRedirect } from "next/navigation";
 
 export default async function GamecentersRedirectPage({
   params,
@@ -6,5 +6,5 @@ export default async function GamecentersRedirectPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  redirect(`/gamecenter/${encodeURIComponent(id)}`);
+  permanentRedirect(`/gamecenter/${encodeURIComponent(id)}`);
 }
