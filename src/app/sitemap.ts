@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { API_BASE_URL, BLOG_API_BASE_URL } from "@/lib/api/config";
 import { SITE_URL } from "@/lib/seo";
+import { POPULAR_CITIES } from "@/app/gamecenters/city/[city]/page";
 
 export const revalidate = 3600;
 
@@ -215,6 +216,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
+  const cityRoutes: MetadataRoute.Sitemap = POPULAR_CITIES.map((city) => ({
+    url: `${SITE_URL}/gamecenters/city/${encodeURIComponent(city)}`,
+    changeFrequency: "daily",
+    priority: 0.8,
+  }));
+
   const [centersResult, articlesResult] = await Promise.allSettled([
     fetchGamingCenterEntries(),
     fetchBlogArticleEntries(),
@@ -225,5 +232,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const articleEntries =
     articlesResult.status === "fulfilled" ? articlesResult.value : [];
 
-  return [...staticRoutes, ...centerEntries, ...articleEntries];
+  return [...staticRoutes, ...cityRoutes, ...centerEntries, ...articleEntries];
 }

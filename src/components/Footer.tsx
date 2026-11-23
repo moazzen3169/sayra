@@ -15,9 +15,20 @@ const linkGroups = [
     ],
   },
   {
+    title: "شهرهای محبوب",
+    links: [
+      { label: "گیم‌نت‌های تبریز", href: "/gamecenters/city/تبریز" },
+      { label: "گیم‌نت‌های تهران", href: "/gamecenters/city/تهران" },
+      { label: "گیم‌نت‌های مشهد", href: "/gamecenters/city/مشهد" },
+      { label: "گیم‌نت‌های اصفهان", href: "/gamecenters/city/اصفهان" },
+      { label: "گیم‌نت‌های شیراز", href: "/gamecenters/city/شیراز" },
+    ],
+  },
+  {
     title: "ارتباط با ما",
     links: [
       { label: "پشتیبانی", href: "/support" },
+      { label: "فید وبلاگ (RSS)", href: "/blog/feed.xml" },
     ],
   },
 ];
