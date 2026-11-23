@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOwner } from "@/context/OwnerContext";
@@ -9,7 +9,6 @@ import { BottomBar } from "@/components/BottomBar";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService } from "@/services/ownerService";
-import { BannerSlider } from "@/components/BannerSlider";
 import { Icon } from "@/components/ui/Icon";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { QuickBookingPauseCard } from "@/components/owner/QuickBookingPauseCard";
@@ -17,40 +16,117 @@ import { PLACEHOLDERS } from "@/lib/media";
 import type { MediaItem } from "@/types/owner";
 
 const TileIcon = ({ d }: { d: string }) => (
-  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg
+    className="w-5 h-5"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={1.75}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
     <path d={d} />
   </svg>
 );
 
 const ICONS = {
+  reservations:
+    "M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z",
+  stations: "M15 5M9 9h6M12 6v6M6 15h.01M18 15h.01M15 18h.01M9 18h.01",
+  reviews:
+    "M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
   edit: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 12h6M9 16h4",
   clock: "M12 7v5l3 2M21 12a9 9 0 11-3-6.7M21 4v5h-5",
-  megaphone: "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M11 5.882a3 3 0 00-3-3H5a2 2 0 00-2 2v6a2 2 0 002 2h3a3 3 0 003-3",
-  tag: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z",
-  support: "M4 14v-2a8 8 0 0116 0v2M4 14h3v5H5a1 1 0 01-1-1v-4zm16 0h-3v5h2a1 1 0 001-1v-4zM17 19c0 1.5-2 2-5 2",
   shield: "M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z M9 12l2 2 4-4",
+  tag: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z",
+  megaphone:
+    "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M11 5.882a3 3 0 00-3-3H5a2 2 0 00-2 2v6a2 2 0 002 2h3a3 3 0 003-3",
+  support:
+    "M4 14v-2a8 8 0 0116 0v2M4 14h3v5H5a1 1 0 01-1-1v-4zm16 0h-3v5h2a1 1 0 001-1v-4zM17 19c0 1.5-2 2-5 2",
 };
 
-const PRIMARY_MENU: { href: string; label: string; icon: string; badge?: "pending" }[] = [
-  { href: "/owner/reservations", label: "رزروها", icon: "M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z", badge: "pending" },
-  { href: "/owner/withdraw", label: "برداشت موجودی", icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" },
-  { href: "/owner/stations", label: "دستگاه‌ها", icon: "M15 5M9 9h6M12 6v6M6 15h.01M18 15h.01M15 18h.01M9 18h.01" },
-  { href: "/owner/reviews", label: "نظرات", icon: "M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" },
-];
-
-const MENU: {
+interface MenuItem {
   href?: string;
   label: string;
   icon: string;
-  comingSoon?: boolean;
+  badge?: "pending";
   isVerification?: boolean;
-}[] = [
-  { href: "/owner/verification", label: "احراز هویت", icon: ICONS.shield, isVerification: true },
-  { href: "/owner/edit", label: "ویرایش گیمنت", icon: ICONS.edit },
-  { href: "/owner/hours", label: "ساعات کاری و تعطیلات", icon: ICONS.clock },
-  { label: "ایجاد تبلیغات", icon: ICONS.megaphone, comingSoon: true },
-  { href: "/owner/discounts", label: "ایجاد تخفیف", icon: ICONS.tag },
-  { href: "/owner/support", label: "پشتیبانی", icon: ICONS.support },
+  comingSoon?: boolean;
+}
+
+interface MenuGroup {
+  id: string;
+  title: string;
+  items: MenuItem[];
+}
+
+const MENU_GROUPS: MenuGroup[] = [
+  {
+    id: "operations",
+    title: "مدیریت روزانه",
+    items: [
+      {
+        href: "/owner/reservations",
+        label: "رزروها",
+        icon: ICONS.reservations,
+        badge: "pending",
+      },
+      {
+        href: "/owner/stations",
+        label: "دستگاه‌ها و بازی‌ها",
+        icon: ICONS.stations,
+      },
+      {
+        href: "/owner/reviews",
+        label: "نظرات",
+        icon: ICONS.reviews,
+      },
+    ],
+  },
+  {
+    id: "configuration",
+    title: "تنظیمات",
+    items: [
+      {
+        href: "/owner/edit",
+        label: "اطلاعات و گالری",
+        icon: ICONS.edit,
+      },
+      {
+        href: "/owner/hours",
+        label: "ساعات کاری و رزرو",
+        icon: ICONS.clock,
+      },
+      {
+        href: "/owner/verification",
+        label: "احراز هویت",
+        icon: ICONS.shield,
+        isVerification: true,
+      },
+    ],
+  },
+  {
+    id: "growth",
+    title: "فروش و پشتیبانی",
+    items: [
+      {
+        href: "/owner/discounts",
+        label: "تخفیف‌ها",
+        icon: ICONS.tag,
+      },
+      {
+        label: "تبلیغات",
+        icon: ICONS.megaphone,
+        comingSoon: true,
+      },
+      {
+        href: "/owner/support",
+        label: "پشتیبانی",
+        icon: ICONS.support,
+      },
+    ],
+  },
 ];
 
 export default function OwnerDashboardPage() {
@@ -88,15 +164,7 @@ export default function OwnerDashboardPage() {
   const [withdrawable, setWithdrawable] = useState<number | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
-
-  // Gallery state
   const [media, setMedia] = useState<MediaItem[]>([]);
-  const [localFallbacks, setLocalFallbacks] = useState<Record<string, string>>({});
-  const [uploading, setUploading] = useState(false);
-  const [galleryMsg, setGalleryMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [deleteConfirmMedia, setDeleteConfirmMedia] = useState<MediaItem | null>(null);
-  const [deletingImage, setDeletingImage] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   // واکشی داده‌های زنده: درآمد و تعداد رزروهای در انتظار
   useEffect(() => {
@@ -144,7 +212,6 @@ export default function OwnerDashboardPage() {
     };
   }, [centerId]);
 
-  // واکشی لیست تصاویر گالری بدون کش تا بلافاصله به‌روز باشد
   const centerSlug = center?.slug;
 
   useEffect(() => {
@@ -174,147 +241,9 @@ export default function OwnerDashboardPage() {
     router.push(q ? `/owner/reservations?q=${encodeURIComponent(q)}` : "/owner/reservations");
   };
 
-  // آپلود عکس به همراه پیش‌نمایش آنی (Optimistic Preview) و همگام‌سازی بدون کش
-  const handleUpload = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = "";
-      if (!file || uploading || !centerId) return;
-
-      const localPreviewUrl = URL.createObjectURL(file);
-      const tempId = `temp-${Date.now()}`;
-      const tempItem: MediaItem = {
-        id: tempId,
-        url: localPreviewUrl,
-        altText: file.name,
-        purpose: "GALLERY",
-      };
-
-      setMedia((prev) => [tempItem, ...prev]);
-      setUploading(true);
-      setGalleryMsg(null);
-
-      try {
-        const uploaded = await ownerService.uploadGalleryImage(centerId, file, {
-          altText: file.name,
-          purpose: "GALLERY",
-        });
-
-        const uploadedItem: MediaItem = {
-          ...uploaded,
-          url: uploaded.url || localPreviewUrl,
-          purpose: uploaded.purpose === "LOGO" ? "GALLERY" : uploaded.purpose || "GALLERY",
-        };
-
-        if (uploaded.url) {
-          setLocalFallbacks((prev) => ({
-            ...prev,
-            [uploaded.url]: localPreviewUrl,
-          }));
-        }
-
-        setMedia((prev) =>
-          prev.map((m) => (m.id === tempId ? uploadedItem : m))
-        );
-        setGalleryMsg({ ok: true, text: "تصویر به گالری اضافه شد." });
-
-        const hasPublicSlug = Boolean(
-          isApproved && centerSlug && centerSlug !== centerId
-        );
-        if (hasPublicSlug) {
-          const freshList = await ownerService.listOwnerMedia(
-            centerId,
-            centerSlug,
-            undefined,
-            { noCache: true }
-          );
-          if (Array.isArray(freshList) && freshList.length > 0) {
-            const alreadyInServerList = freshList.some(
-              (item) =>
-                (Boolean(uploadedItem.id) && item.id === uploadedItem.id) ||
-                (Boolean(uploadedItem.url) && item.url === uploadedItem.url)
-            );
-            setMedia(
-              alreadyInServerList ? freshList : [uploadedItem, ...freshList]
-            );
-          }
-        }
-      } catch (err) {
-        setMedia((prev) => prev.filter((m) => m.id !== tempId));
-        URL.revokeObjectURL(localPreviewUrl);
-        setGalleryMsg({ ok: false, text: getErrorMessage(err) });
-      } finally {
-        setUploading(false);
-      }
-    },
-    [centerId, centerSlug, isApproved, uploading]
-  );
-
-  // حذف عکس پس از تأیید کاربر
-  const handleConfirmDeleteMedia = useCallback(async () => {
-    if (deletingImage || !deleteConfirmMedia || !centerId) return;
-
-    const target = deleteConfirmMedia;
-    const targetId = target.id || target.url;
-    const isSameMedia = (item: MediaItem) =>
-      item === target ||
-      (Boolean(item.id) && Boolean(target.id)
-        ? item.id === target.id
-        : item.url === target.url);
-    const remainingCount = media.filter((item) => !isSameMedia(item)).length;
-
-    setDeletingImage(true);
-    setGalleryMsg(null);
-
-    try {
-      await ownerService.deleteMedia(centerId, targetId);
-      setMedia((prev) => prev.filter((item) => !isSameMedia(item)));
-      setDeleteConfirmMedia(null);
-      setGalleryMsg({ ok: true, text: "تصویر از گالری حذف شد." });
-
-      if (isApproved && centerSlug && centerSlug !== centerId) {
-        const updated = await ownerService.listOwnerMedia(
-          centerId,
-          centerSlug,
-          undefined,
-          { noCache: true }
-        );
-        if (Array.isArray(updated) && (updated.length > 0 || remainingCount === 0)) {
-          setMedia(updated.filter((item) => !isSameMedia(item)));
-        }
-      }
-    } catch (err) {
-      setDeleteConfirmMedia(null);
-      setGalleryMsg({ ok: false, text: getErrorMessage(err) });
-    } finally {
-      setDeletingImage(false);
-    }
-  }, [centerId, centerSlug, deleteConfirmMedia, deletingImage, isApproved, media]);
-
-  const effectiveMedia = React.useMemo(
-    () => (centerId ? media : []),
-    [centerId, media]
-  );
-
-  const galleryItems = React.useMemo(
-    () => effectiveMedia.filter((m) => m.purpose !== "LOGO" && Boolean(m.url)),
-    [effectiveMedia]
-  );
-
-  const galleryBanners = React.useMemo(
-    () =>
-      galleryItems.map((m, idx) => ({
-        id: m.id || `owner-gallery-${idx}`,
-        imageUrl: m.url,
-        fallbackUrl: localFallbacks[m.url],
-        alt: m.altText || "تصویر گالری گیمنت",
-      })),
-    [galleryItems, localFallbacks]
-  );
-
   const logoMedia = React.useMemo(
-    () => effectiveMedia.find((m) => m.purpose === "LOGO" || m.purpose === "COVER"),
-    [effectiveMedia]
+    () => (centerId ? media.find((m) => m.purpose === "LOGO" || m.purpose === "COVER") : undefined),
+    [centerId, media]
   );
 
   if (isCenterLoading) {
@@ -322,30 +251,25 @@ export default function OwnerDashboardPage() {
       <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10">
         <OwnerHeader title="پنل مدیریت" isSubpage={false} showSearch={false} />
         <main className="flex-1 px-4 pt-20 flex flex-col gap-5 w-full max-w-[var(--max-mini-app-width)] mx-auto lg:px-0">
-          {/* کارت نام گیمنت */}
-          <div className="h-14 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse" />
-          {/* کارت درآمد */}
-          <div className="min-h-[178px] rounded-card bg-[var(--bg-card)] animate-pulse" />
-          {/* دسته اول لینک‌ها (رزروها، برداشت موجودی، دستگاه‌ها، نظرات) */}
-          <div className="rounded-card bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)] animate-pulse">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-3 px-5 h-16">
-                <div className="w-6 h-6 rounded bg-[var(--foreground)]/70 shrink-0" />
-                <div className="h-4 w-28 rounded bg-[var(--foreground)]/60" />
-              </div>
-            ))}
+          <div className="h-16 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse" />
+          <div className="min-h-[164px] rounded-card bg-[var(--bg-card)] animate-pulse" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="h-16 rounded-card bg-[var(--bg-card)] animate-pulse" />
+            <div className="h-16 rounded-card bg-[var(--bg-card)] animate-pulse" />
           </div>
-          {/* دسته دوم لینک‌ها */}
-          <div className="rounded-card bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)] animate-pulse">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center gap-3 px-5 h-16">
-                <div className="w-6 h-6 rounded bg-[var(--foreground)]/70 shrink-0" />
-                <div className="h-4 w-32 rounded bg-[var(--foreground)]/60" />
+          {[3, 3, 3].map((count, gIdx) => (
+            <div key={gIdx} className="flex flex-col gap-2">
+              <div className="h-4 w-24 rounded bg-[var(--bg-card)] animate-pulse" />
+              <div className="rounded-card bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)] animate-pulse">
+                {Array.from({ length: count }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 px-4 h-14">
+                    <div className="w-8 h-8 rounded-lg bg-[var(--foreground)]/70 shrink-0" />
+                    <div className="h-3.5 w-28 rounded bg-[var(--foreground)]/60" />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          {/* بخش گالری تصاویر */}
-          <div className="h-48 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] animate-pulse" />
+            </div>
+          ))}
         </main>
         <BottomBar />
       </div>
@@ -377,33 +301,58 @@ export default function OwnerDashboardPage() {
           </div>
         )}
 
-        {/* گیمنت کاربر (هر مدیر یک گیمنت دارد) */}
-        <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
+        {/* کارت هویت گیم‌نت */}
+        <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             {logoMedia?.url ? (
               <SafeImage
                 src={logoMedia.url}
                 alt={center?.name || "لوگو"}
                 fallbackSrc={PLACEHOLDERS.avatar}
-                className="w-8 h-8 rounded-full object-cover border border-[var(--border-subtle)] shrink-0"
+                className="w-10 h-10 rounded-full object-cover border border-[var(--border-subtle)] shrink-0"
               />
             ) : (
-              <span className="w-2 h-2 rounded-full bg-[var(--primary)] shrink-0" aria-hidden="true" />
+              <div className="w-10 h-10 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center shrink-0">
+                <Icon name="gamepad" size={20} />
+              </div>
             )}
-            <span className="text-sm font-bold text-[var(--text-white)] truncate">
-              {center?.name || "مرکز بازی"}
-            </span>
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-sm font-bold text-[var(--text-white)] truncate">
+                  {center?.name || "مرکز بازی"}
+                </span>
+                <Link
+                  href="/owner/edit"
+                  aria-label="ویرایش گیم‌نت"
+                  title="ویرایش گیم‌نت"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-muted)] hover:bg-[var(--foreground)]/60 hover:text-[var(--primary)] transition-colors shrink-0"
+                >
+                  <Icon name="edit" size={14} />
+                </Link>
+              </div>
+              <span className="text-[11px] text-[var(--text-muted)] truncate">
+                مدیریت: {ownerName || "مدیر گیم‌نت"}
+              </span>
+            </div>
           </div>
 
-          <Link
-            href="/owner/edit"
-            className="flex h-11 items-center px-3 rounded-card  text-xs font-bold text-[var(--primary)] hover:border-[var(--primary)] active:scale-95 transition-all shrink-0"
-          >
-            ویرایش گیم‌نت
-          </Link>
+          {isApproved && centerSlug ? (
+            <Link
+              href={`/gamecenter/${centerSlug}`}
+              className="flex h-9 items-center gap-1.5 px-3 rounded-card bg-[var(--foreground)]/50 border border-[var(--border-subtle)] hover:border-[var(--primary)] text-xs font-bold text-[var(--text-white)] transition-colors shrink-0"
+            >
+              <span>صفحه عمومی</span>
+              <Icon name="external-link" size={14} className="text-[var(--primary)]" />
+            </Link>
+          ) : (
+            <Link
+              href="/owner/edit"
+              className="flex h-9 items-center gap-1 px-3 rounded-card bg-[var(--foreground)]/50 border border-[var(--border-subtle)] hover:border-[var(--primary)] text-xs font-bold text-[var(--primary)] transition-colors shrink-0"
+            >
+              <span>تکمیل مشخصات</span>
+            </Link>
+          )}
         </div>
-
-        {centerId && <QuickBookingPauseCard key={centerId} centerId={centerId} />}
 
         {/* بنر غیرمسدودکننده وضعیت فعال‌سازی و احراز هویت */}
         {!isApproved && (
@@ -440,19 +389,19 @@ export default function OwnerDashboardPage() {
               <div className="flex flex-col gap-1 min-w-0">
                 <h2 className="text-xs sm:text-sm font-bold text-[var(--text-white)]">
                   {verificationStatus === "PENDING"
-                    ? "گیم‌نت غیرفعال است • درخواست احراز هویت در حال انتظار بررسی"
+                    ? "گیم‌نت غیرفعال است • درخواست احراز هویت در حال بررسی"
                     : verificationStatus === "REJECTED"
                       ? "گیم‌نت غیرفعال است • درخواست احراز هویت لغو شده است"
-                      : "گیم‌نت شما در حال حاضر غیرفعال و در انتظار احراز هویت است"}
+                      : "گیم‌نت شما در انتظار احراز هویت و فعال‌سازی است"}
                 </h2>
                 <p className="text-xs text-[var(--text-muted)] leading-relaxed">
                   {verificationStatus === "PENDING"
-                    ? "درخواست شما ثبت شده است. تا زمان تایید ادمین، گیم‌نت برای کاربران سایت قابل مشاهده نیست؛ اما می‌توانید دستگاه‌ها، بازی‌ها، آدرس و تخفیف‌ها را تکمیل کنید."
+                    ? "درخواست شما ثبت شده است. تا زمان تایید ادمین، می‌توانید دستگاه‌ها، ساعات کاری و تخفیف‌ها را تکمیل کنید."
                     : verificationStatus === "REJECTED"
                       ? verificationInfo?.rejectionReason
                         ? `دلیل لغو: ${verificationInfo.rejectionReason}`
                         : "درخواست احراز هویت شما تایید نشد. می‌توانید علت را مشاهده کرده و درخواست جدید ثبت کنید."
-                      : "تا پیش از تایید احراز هویت، گیم‌نت برای کاربران نمایش داده نمی‌شود؛ اما همین حالا می‌توانید دستگاه‌ها، بازی‌ها، آدرس و تخفیف‌های خود را تکمیل کنید."}
+                      : "تا پیش از تایید احراز هویت، گیم‌نت برای کاربران نمایش داده نمی‌شود؛ اما همین حالا می‌توانید اطلاعات مرکز را تکمیل کنید."}
                 </p>
               </div>
             </div>
@@ -462,310 +411,183 @@ export default function OwnerDashboardPage() {
               className="h-10 px-4 rounded-card bg-[var(--primary)] text-on-primary text-xs font-bold hover:bg-[var(--primary-hover)] transition-colors flex items-center justify-center shrink-0"
             >
               {verificationStatus === "PENDING"
-                ? "مشاهده وضعیت درخواست"
+                ? "وضعیت درخواست"
                 : verificationStatus === "REJECTED"
-                  ? "بررسی دلیل لغو و ارسال مجدد"
+                  ? "بررسی و ارسال مجدد"
                   : "احراز هویت و فعال‌سازی"}
             </Link>
           </div>
         )}
 
-        {/* محتوای پنل مدیریت (همیشه در دسترس مدیر برای تکمیل اطلاعات گیم‌نت) */}
-        <div className="flex flex-col gap-5">
-          {/* جستجو در هدر شناور بالا قرار گرفته است و در اینجا نیز به عنوان میانبر در دسترس است */}
-          <form onSubmit={handleSearch} className="relative md:hidden">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="جستجوی کد رزرو مشتری"
-              placeholder="جستجوی کد رزرو مشتری..."
-              className="w-full h-12 rounded-card bg-[var(--foreground)]/60 px-4 pl-12 text-sm text-[var(--text-white)] placeholder:text-[var(--text-muted)] outline-none focus:ring-1 focus:ring-[var(--primary)]"
-            />
-            <button type="submit" aria-label="جستجو" className="absolute left-0 top-0 flex h-12 w-12 items-center justify-center text-[var(--text-muted)]">
-              <Icon name="search" size={24} />
-            </button>
-          </form>
+        {/* جستجوی موبایل */}
+        <form onSubmit={handleSearch} className="relative md:hidden">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="جستجوی کد رزرو مشتری"
+            placeholder="جستجوی کد رزرو مشتری..."
+            className="w-full h-11 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] px-4 pl-11 text-sm text-[var(--text-white)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--primary)]"
+          />
+          <button
+            type="submit"
+            aria-label="جستجو"
+            className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center text-[var(--text-muted)]"
+          >
+            <Icon name="search" size={20} />
+          </button>
+        </form>
 
-          {/* درآمد */}
+        {/* کارت درآمد قابل برداشت + وضعیت‌های سریع */}
+        <div className="flex flex-col gap-3">
           <Link
             href="/owner/withdraw"
-            className="relative overflow-hidden rounded-card bg-[var(--primary)] text-on-primary p-4 min-h-[178px] flex flex-col justify-between"
+            className="relative overflow-hidden rounded-card bg-[var(--primary)] text-on-primary p-4 min-h-[156px] flex flex-col justify-between group"
           >
             <div className="relative flex items-center justify-between">
-              <SafeImage src="/design/sayra.svg" alt="سایرا" className="h-7 w-auto brightness-0" />
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z" />
-                <path d="M8.5 12l2.5 2.5 4.5-5" />
-              </svg>
+              <SafeImage src="/design/sayra.svg" alt="سایرا" className="h-6 w-auto brightness-0" />
+              <span className="inline-flex items-center gap-1 rounded-full bg-black/15 px-3 py-1 text-[11px] font-bold">
+                <span>تسویه و تاریخچه مالی</span>
+                <Icon name="arrow-left" size={14} />
+              </span>
             </div>
 
-            <div className="relative flex flex-col gap-1">
-              <span className="text-xs opacity-80">درآمد قابل برداشت</span>
+            <div className="relative flex flex-col gap-1 pt-4">
+              <span className="text-xs opacity-85">درآمد قابل برداشت</span>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-3xl font-black">
+                <span className="text-3xl font-black tracking-tight">
                   {withdrawable === null ? "—" : formatPrice(withdrawable)}
                 </span>
-                <span className="text-lg font-black">تومان</span>
+                <span className="text-base font-black">تومان</span>
               </div>
-              <span className="text-xs opacity-80 mt-1">
-                {ownerName} / {center?.name ?? "گیمنت"}
-              </span>
             </div>
           </Link>
 
-          {/* دسته اول لینک‌ها: رزروها، برداشت موجودی، دستگاه‌ها، نظرات */}
-          <div className="rounded-card bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)]">
-            {PRIMARY_MENU.map((m) => (
-              <Link
-                key={m.href}
-                href={m.href}
-                className="flex items-center justify-between gap-3 px-5 h-16 hover:bg-[var(--foreground)]/20 transition-colors"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-[var(--text-white)]">
-                    <TileIcon d={m.icon} />
-                  </span>
-                  <span className="text-sm font-bold text-[var(--text-white)]">{m.label}</span>
-                </div>
-                {m.badge === "pending" && pendingCount > 0 && (
-                  <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--primary)] px-2 text-xs font-bold text-on-primary shrink-0">
-                    {toPersianDigits(pendingCount)}
-                  </span>
-                )}
-              </Link>
-            ))}
-          </div>
-
-          {/* دسته دوم لینک‌ها: تنظیمات و پشتیبانی */}
-          <div className="mt-1 rounded-card bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)]">
-            {MENU.map((m) =>
-              m.comingSoon ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
+            {/* کارت وضعیت رزروهای در انتظار */}
+            <Link
+              href="/owner/reservations"
+              className={`h-full rounded-card border p-3 flex items-center justify-between gap-3 transition-colors ${
+                pendingCount > 0
+                  ? "bg-[var(--primary)]/10 border-[var(--primary)]/40 hover:border-[var(--primary)]"
+                  : "bg-[var(--bg-card)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
                 <div
-                  key={m.label}
-                  aria-disabled="true"
-                  className="flex items-center justify-between gap-3 px-5 h-16 opacity-65 cursor-not-allowed select-none"
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                    pendingCount > 0
+                      ? "bg-[var(--primary)] text-on-primary"
+                      : "bg-[var(--foreground)]/50 text-[var(--text-muted)]"
+                  }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-[var(--text-muted)]">
-                      <TileIcon d={m.icon} />
-                    </span>
-                    <span className="text-sm font-bold text-[var(--text-muted)]">{m.label}</span>
-                  </div>
-                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30 shrink-0">
-                    به‌زودی • Coming Soon
+                  <TileIcon d={ICONS.reservations} />
+                </div>
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-xs font-bold text-[var(--text-white)]">
+                    {pendingCount > 0
+                      ? `${toPersianDigits(pendingCount)} رزرو در انتظار تایید`
+                      : "رزرو در انتظاری نیست"}
+                  </span>
+                  <span className="text-[11px] text-[var(--text-muted)]">
+                    مشاهده و مدیریت رزروها
                   </span>
                 </div>
-              ) : (
-                <Link
-                  key={m.href}
-                  href={m.href!}
-                  className="flex items-center justify-between gap-3 px-5 h-16 hover:bg-[var(--foreground)]/20 transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className={m.isVerification ? "text-[var(--primary)]" : "text-[var(--text-white)]"}>
-                      <TileIcon d={m.icon} />
-                    </span>
-                    <span className="text-sm font-bold text-[var(--text-white)]">{m.label}</span>
-                  </div>
-                  {m.isVerification && (
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-[11px] font-bold border shrink-0 ${
-                        verificationStatus === "APPROVED"
-                          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                          : verificationStatus === "PENDING"
-                            ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                            : "bg-[var(--accent-red)]/15 text-[var(--accent-red)] border-[var(--accent-red)]/30"
-                      }`}
-                    >
-                      {verificationStatus === "APPROVED"
-                        ? "تایید شده"
-                        : verificationStatus === "PENDING"
-                          ? "در حال انتظار"
-                          : verificationStatus === "REJECTED"
-                            ? "لغو شده"
-                            : "احراز نشده"}
-                    </span>
-                  )}
-                </Link>
-              )
-            )}
+              </div>
+              <Icon name="arrow-left" size={16} className="text-[var(--text-muted)] shrink-0" />
+            </Link>
+
+            {/* کنترل سریع توقف موقت رزرو آنلاین */}
+            {centerId && <QuickBookingPauseCard key={centerId} centerId={centerId} />}
           </div>
+        </div>
 
-          {/* گالری */}
-          <section className="flex flex-col gap-3 mt-3 p-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)]">
-            <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-2.5">
-              <div className="min-w-0">
-                <h2 className="text-sm font-bold text-[var(--text-white)]">گالری تصاویر گیمنت</h2>
-                <span className="text-xs text-[var(--text-muted)] block mt-0.5">
-                  نمایش، افزودن یا حذف تصاویر گالری
-                </span>
-              </div>
-              <button
-                type="button"
-                disabled={uploading}
-                onClick={() => fileRef.current?.click()}
-                className="h-11 px-4 shrink-0 rounded-card bg-[var(--foreground)] border border-[var(--border-subtle)] text-[var(--text-white)] text-xs font-bold hover:bg-[var(--border-color)] active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50"
-              >
-                {uploading ? (
-                  <>
-                    <span className="w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                    <span>در حال آپلود...</span>
-                  </>
-                ) : (
-                  <>
-                    <Icon name="plus" size={16} />
-                    <span>افزودن عکس</span>
-                  </>
-                )}
-              </button>
-            </div>
+        {/* دسته‌بندی منوهای پنل مدیریت */}
+        <div className="flex flex-col gap-5">
+          {MENU_GROUPS.map((group) => (
+            <section key={group.id} className="flex flex-col gap-2">
+              <h2 className="text-xs font-bold text-[var(--text-muted)] px-1">
+                {group.title}
+              </h2>
 
-            {galleryMsg && (
-              <div
-                role="status"
-                className={`p-3 rounded-card text-xs font-bold ${
-                  galleryMsg.ok
-                    ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
-                    : "bg-[var(--accent-red)]/10 text-[var(--accent-red)] border border-[var(--accent-red)]/30"
-                }`}
-              >
-                {galleryMsg.text}
-              </div>
-            )}
-
-            {galleryBanners.length > 0 ? (
-              <div className="w-full flex flex-col gap-3">
-                <BannerSlider
-                  banners={galleryBanners}
-                  aspectClassName="aspect-[2/1] sm:aspect-[2.4/1] lg:aspect-[3/1]"
-                  ariaLabel="گالری تصاویر گیمنت"
-                />
-
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5 pt-1">
-                  {galleryItems.map((img, idx) => {
-                    const imgKey = img.id || `${img.url}-${idx}`;
-                    const isOptimistic = String(img.id).startsWith("temp-");
-                    return (
-                      <div
-                        key={imgKey}
-                        className="relative aspect-square rounded-card overflow-hidden bg-[var(--foreground)] border border-[var(--border-subtle)] group"
-                      >
-                        <SafeImage
-                          src={img.url}
-                          alt={img.altText ?? "تصویر گیمنت"}
-                          fallbackSrc={localFallbacks[img.url] || PLACEHOLDERS.gallery}
-                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                        />
-
-                        {isOptimistic && (
-                          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1">
-                            <span className="w-4 h-4 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" />
-                            <span className="text-xs font-bold text-white">در حال ثبت...</span>
-                          </div>
-                        )}
-
-                        {!isOptimistic && (
-                          <button
-                            type="button"
-                            onClick={() => setDeleteConfirmMedia(img)}
-                            aria-label="حذف عکس"
-                            className="absolute top-1.5 right-1.5 z-10 w-9 h-9 rounded-full bg-black/80 hover:bg-[var(--accent-red)] text-white flex items-center justify-center transition-colors shadow-md cursor-pointer"
-                          >
-                            <Icon name="close" size={16} />
-                          </button>
-                        )}
+              <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] overflow-hidden divide-y divide-[var(--border-subtle)]">
+                {group.items.map((m) =>
+                  m.comingSoon ? (
+                    <div
+                      key={m.label}
+                      aria-disabled="true"
+                      className="flex items-center justify-between gap-3 px-4 h-14 opacity-60 cursor-not-allowed select-none"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="w-8 h-8 rounded-lg bg-[var(--foreground)]/40 text-[var(--text-muted)] flex items-center justify-center shrink-0">
+                          <TileIcon d={m.icon} />
+                        </span>
+                        <span className="text-sm font-bold text-[var(--text-muted)] truncate">
+                          {m.label}
+                        </span>
                       </div>
-                    );
-                  })}
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30 shrink-0">
+                        به‌زودی
+                      </span>
+                    </div>
+                  ) : (
+                    <Link
+                      key={m.href}
+                      href={m.href!}
+                      className="flex items-center justify-between gap-3 px-4 h-14 hover:bg-[var(--foreground)]/20 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                            m.isVerification
+                              ? "bg-[var(--primary)]/15 text-[var(--primary)]"
+                              : "bg-[var(--foreground)]/50 text-[var(--text-white)]"
+                          }`}
+                        >
+                          <TileIcon d={m.icon} />
+                        </span>
+                        <span className="text-sm font-bold text-[var(--text-white)] truncate">
+                          {m.label}
+                        </span>
+                      </div>
 
-                  <button
-                    type="button"
-                    disabled={uploading}
-                    onClick={() => fileRef.current?.click()}
-                    aria-label="افزودن تصویر به گالری"
-                    className="aspect-square rounded-card bg-[var(--foreground)]/30 border border-dashed border-[var(--border-subtle)] hover:border-[var(--primary)] flex flex-col items-center justify-center gap-1 text-[var(--text-muted)] hover:text-white transition-all disabled:opacity-50"
-                  >
-                    <Icon name="plus" size={20} />
-                    <span className="text-xs font-bold">عکس جدید</span>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="p-8 rounded-card bg-[var(--foreground)]/10 border border-dashed border-[var(--border-subtle)] flex flex-col items-center justify-center gap-3 text-center">
-                <span className="text-xs text-[var(--text-muted)]">هنوز تصویری برای گالری آپلود نشده است.</span>
-                <button
-                  type="button"
-                  disabled={uploading}
-                  onClick={() => fileRef.current?.click()}
-                  className="h-11 px-4 rounded-card bg-[var(--primary)] text-on-primary text-xs font-bold hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-colors"
-                >
-                  {uploading ? "در حال آپلود..." : "آپلود اولین تصویر گالری"}
-                </button>
-              </div>
-            )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {m.badge === "pending" && pendingCount > 0 && (
+                          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--primary)] px-2 text-xs font-bold text-on-primary">
+                            {toPersianDigits(pendingCount)}
+                          </span>
+                        )}
 
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-          </section>
+                        {m.isVerification && (
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                              verificationStatus === "APPROVED"
+                                ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                                : verificationStatus === "PENDING"
+                                  ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                                  : "bg-[var(--accent-red)]/15 text-[var(--accent-red)] border-[var(--accent-red)]/30"
+                            }`}
+                          >
+                            {verificationStatus === "APPROVED"
+                              ? "تایید شده"
+                              : verificationStatus === "PENDING"
+                                ? "در حال انتظار"
+                                : verificationStatus === "REJECTED"
+                                  ? "لغو شده"
+                                  : "احراز نشده"}
+                          </span>
+                        )}
+
+                        <Icon name="arrow-left" size={16} className="text-[var(--text-muted)]" />
+                      </div>
+                    </Link>
+                  )
+                )}
+              </div>
+            </section>
+          ))}
         </div>
       </main>
 
-      {/* تأیید حذف تصویر */}
-      {deleteConfirmMedia && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fadeIn"
-          onClick={() => !deletingImage && setDeleteConfirmMedia(null)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-media-title"
-            className="w-full max-w-[380px] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-card p-5 flex flex-col gap-4 text-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="w-12 h-12 rounded-full bg-[var(--accent-red)]/10 text-[var(--accent-red)] mx-auto flex items-center justify-center">
-              <Icon name="trash" size={24} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <h3 id="delete-media-title" className="text-sm font-bold text-[var(--text-white)]">تایید حذف تصویر</h3>
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                آیا از حذف این تصویر اطمینان دارید؟
-              </p>
-            </div>
-
-            {deleteConfirmMedia.url && (
-              <div className="w-24 h-24 mx-auto rounded-card overflow-hidden border border-[var(--border-subtle)]">
-                <SafeImage
-                  src={deleteConfirmMedia.url}
-                  alt="پیش‌نمایش تصویر"
-                  fallbackSrc={PLACEHOLDERS.gallery}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            )}
-
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                disabled={deletingImage}
-                onClick={handleConfirmDeleteMedia}
-                className="flex-1 h-11 rounded-card bg-[var(--accent-red)] text-white font-bold text-xs disabled:opacity-60 cursor-pointer"
-              >
-                {deletingImage ? "در حال حذف..." : "حذف تصویر"}
-              </button>
-              <button
-                type="button"
-                disabled={deletingImage}
-                onClick={() => setDeleteConfirmMedia(null)}
-                className="h-11 px-4 rounded-card bg-[var(--foreground)] text-xs font-bold text-[var(--text-white)] cursor-pointer"
-              >
-                انصراف
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* App Shell BottomBar for Mobile Navigation */}
       <BottomBar />
     </div>
   );

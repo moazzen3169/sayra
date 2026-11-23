@@ -4,6 +4,7 @@ import React, { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
+import { OwnerToggleSwitch } from "@/components/owner/OwnerToggleSwitch";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -24,11 +25,20 @@ import { getErrorMessage, stationImageFor } from "@/lib/reservationUi";
 import { catalogService } from "@/services/catalogService";
 import { ownerService } from "@/services/ownerService";
 import {
-  ExtraControllersEditor,
+  createEmptyExtraControllerRow,
   validateExtraControllerRows,
   type ExtraControllerDraftRow,
 } from "@/components/owner/stations/ExtraControllersEditor";
 import type { DeviceCatalogItem, DynamicDeviceType } from "@/types/catalog";
+
+function inferControllerTypeForDevice(device: DeviceCatalogItem | null): string {
+  if (!device) return "دسته اضافی";
+  const text = `${device.name ?? ""} ${device.deviceType ?? ""}`;
+  if (/ps\s*5|playstation\s*5|پلی\s*استیشن\s*[5۵]/i.test(text)) return "دسته PS5";
+  if (/ps\s*4|playstation\s*4|پلی\s*استیشن\s*[4۴]/i.test(text)) return "دسته PS4";
+  if (/xbox|ایکس\s*باکس/i.test(text)) return "دسته Xbox";
+  return `دسته ${device.name || stationTypeLabel(String(device.deviceType ?? ""))}`;
+}
 
 function NewStationContent() {
   const router = useRouter();
@@ -116,6 +126,43 @@ function NewStationContent() {
   }, [selectedCatalogDevice, deviceTypes]);
 
   const supportsExtraControllers = Boolean(activeDynamicDeviceType?.extraControllerEnabled);
+  const inferredControllerType = useMemo(
+    () => inferControllerTypeForDevice(selectedCatalogDevice),
+    [selectedCatalogDevice]
+  );
+
+  // همگام‌سازی خودکار نوع دسته اضافی هنگام تغییر دستگاه کاتالوگ
+  useEffect(() => {
+    setExtraControllerRows((prev) => {
+      if (prev.length === 0) return prev;
+      if (prev[0].controllerType === inferredControllerType) return prev;
+      return [{ ...prev[0], controllerType: inferredControllerType }];
+    });
+  }, [inferredControllerType]);
+
+  const hasExtraController = extraControllerRows.length > 0;
+  const activeExtraRow = extraControllerRows[0] ?? null;
+
+  const toggleExtraController = (enabled: boolean) => {
+    if (fieldErrors.extraControllers) {
+      setFieldErrors((prev) => ({ ...prev, extraControllers: undefined }));
+    }
+    if (enabled) {
+      setExtraControllerRows([createEmptyExtraControllerRow(inferredControllerType)]);
+    } else {
+      setExtraControllerRows([]);
+    }
+  };
+
+  const updateExtraControllerField = (patch: Partial<ExtraControllerDraftRow>) => {
+    if (fieldErrors.extraControllers) {
+      setFieldErrors((prev) => ({ ...prev, extraControllers: undefined }));
+    }
+    setExtraControllerRows((prev) => {
+      const base = prev[0] ?? createEmptyExtraControllerRow(inferredControllerType);
+      return [{ ...base, controllerType: inferredControllerType, ...patch }];
+    });
+  };
 
   const maxQuantity = 100;
 
@@ -216,18 +263,7 @@ function NewStationContent() {
     <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-12 text-[var(--text-white)]">
       <OwnerPageHeader title="افزودن دستگاه" backUrl="/owner/stations" isSubpage />
 
-      <main className="mx-auto mt-16 flex w-full max-w-[var(--max-mini-app-width)] flex-1 flex-col gap-6 px-4 py-6 lg:px-0">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-lg font-extrabold text-[var(--text-white)]">
-            افزودن دستگاه جدید
-          </h1>
-          <p className="text-xs leading-6 text-[var(--text-muted)]">
-            {center?.name
-              ? `ثبت دستگاه برای «${center.name}» از طریق کاتالوگ استاندارد`
-              : "دستگاه جدید را از کاتالوگ انتخاب و ثبت نمایید."}
-          </p>
-        </div>
-
+      <main className="mx-auto mt-16 flex w-full max-w-[var(--max-mini-app-width)] flex-1 flex-col gap-5 px-4 py-5 lg:px-0">
         {!canEdit && (
           <div
             role="alert"
@@ -240,14 +276,17 @@ function NewStationContent() {
           </div>
         )}
 
-        <form
-          onSubmit={handleSubmit}
-          noValidate
-          className="flex flex-col gap-6 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 sm:p-6"
-        >
-          <div className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+          {/* مرحله ۱: انتخاب دستگاه */}
+          <section className="flex flex-col gap-4 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 sm:p-5">
+            <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary)]/15 text-xs font-black text-[var(--primary)]">
+                ۱
+              </span>
+              <h2 className="text-sm font-bold text-[var(--text-white)]">انتخاب دستگاه</h2>
+            </div>
+
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-bold text-[var(--text-muted)]">دستگاه کاتالوگ</span>
               {catalogLoading ? (
                 <Skeleton className="h-11" />
               ) : catalogError ? (
@@ -256,7 +295,7 @@ function NewStationContent() {
                   <button
                     type="button"
                     onClick={retryCatalog}
-                    className="h-9 px-2 text-[var(--text-white)] underline"
+                    className="h-9 px-2 text-[var(--text-white)] underline cursor-pointer"
                   >
                     تلاش دوباره
                   </button>
@@ -271,7 +310,7 @@ function NewStationContent() {
                   value={effectiveCatalogId}
                   onChange={setCatalogId}
                   placeholder="انتخاب دستگاه"
-                  searchPlaceholder="جستجوی دستگاه…"
+                  searchPlaceholder="جستجوی دستگاه..."
                 />
               )}
               {fieldErrors.catalog && (
@@ -282,104 +321,128 @@ function NewStationContent() {
             </div>
 
             {selectedCatalogDevice && (
-              <div className="flex items-center gap-4 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/20 p-3">
-                <span className="h-16 w-20 shrink-0 overflow-hidden rounded-card bg-[var(--foreground)]/40">
+              <div className="flex items-center gap-3.5 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/20 p-3">
+                <span className="h-14 w-16 shrink-0 overflow-hidden rounded-lg bg-[var(--foreground)]/40">
                   <SafeImage
                     src={
                       selectedCatalogDevice.coverImageUrl ||
                       stationImageFor(String(selectedCatalogDevice.deviceType ?? ""))
                     }
-                    alt=""
+                    alt={selectedCatalogDevice.name}
                     fallbackSrc={PLACEHOLDERS.center}
-                    className="h-full w-full object-contain p-1.5"
+                    className="h-full w-full object-contain p-1"
                   />
                 </span>
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate text-sm font-bold text-[var(--text-white)]">
-                      {selectedCatalogDevice.name}
-                    </span>
-                    <Badge variant="neutral">
-                      {stationTypeLabel(String(selectedCatalogDevice.deviceType ?? ""))}
-                    </Badge>
-                    {supportsExtraControllers && (
-                      <Badge variant="success">پشتیبانی از دسته اضافی</Badge>
-                    )}
-                  </div>
-                  {selectedCatalogDevice.description && (
-                    <p className="line-clamp-2 text-xs leading-5 text-[var(--text-muted)]">
-                      {selectedCatalogDevice.description}
-                    </p>
-                  )}
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                  <span className="truncate text-sm font-bold text-[var(--text-white)]">
+                    {selectedCatalogDevice.name}
+                  </span>
+                  <Badge variant="neutral">
+                    {stationTypeLabel(String(selectedCatalogDevice.deviceType ?? ""))}
+                  </Badge>
                 </div>
               </div>
             )}
-          </div>
+          </section>
 
-          <Input
-            label="پیشوند نام (اختیاری)"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="مثلاً PS5 VIP"
-            helperText="در صورت خالی گذاشتن، نام استاندارد کاتالوگ با شماره برای هر دستگاه انتخاب می‌شود."
-            error={fieldErrors.name}
-            disabled={saving || !canEdit}
-          />
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Input
-              label="قیمت هر ساعت (تومان)"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              inputMode="numeric"
-              placeholder="۱۵۰۰۰۰"
-              helperText={priceHelper}
-              error={fieldErrors.price}
-              disabled={saving || !canEdit}
-            />
-            <Input
-              label="تعداد دستگاه"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              inputMode="numeric"
-              helperText={`حداکثر ${toPersianDigits(maxQuantity)} دستگاه در هر ثبت`}
-              error={fieldErrors.quantity}
-              disabled={saving || !canEdit}
-            />
-          </div>
-
-          <label
-            htmlFor="new-station-vip"
-            className="flex min-h-11 cursor-pointer items-center gap-3 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/20 px-3.5 py-2 text-sm font-bold text-[var(--text-white)]"
-          >
-            <input
-              id="new-station-vip"
-              type="checkbox"
-              checked={isVip}
-              disabled={saving || !canEdit}
-              onChange={(e) => setIsVip(e.target.checked)}
-              className="h-5 w-5 cursor-pointer accent-[var(--primary)]"
-            />
-            <div className="flex flex-col gap-0.5">
-              <span>دستگاه VIP است</span>
-              <span className="text-[11px] font-normal text-[var(--text-muted)]">
-                نشان VIP در صفحه گیمنت و جدول دستگاه‌ها نمایش داده می‌شود.
+          {/* مرحله ۲: تعرفه و تعداد */}
+          <section className="flex flex-col gap-4 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 sm:p-5">
+            <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary)]/15 text-xs font-black text-[var(--primary)]">
+                ۲
               </span>
+              <h2 className="text-sm font-bold text-[var(--text-white)]">تعرفه و تعداد</h2>
             </div>
-          </label>
 
-          {supportsExtraControllers && (
-            <ExtraControllersEditor
-              rows={extraControllerRows}
-              onChange={(nextRows) => {
-                setExtraControllerRows(nextRows);
-                if (fieldErrors.extraControllers) {
-                  setFieldErrors((prev) => ({ ...prev, extraControllers: undefined }));
-                }
-              }}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input
+                label="قیمت هر ساعت (تومان)"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                inputMode="numeric"
+                placeholder="۱۵۰۰۰۰"
+                helperText={priceHelper}
+                error={fieldErrors.price}
+                disabled={saving || !canEdit}
+              />
+              <Input
+                label="تعداد دستگاه"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                inputMode="numeric"
+                error={fieldErrors.quantity}
+                disabled={saving || !canEdit}
+              />
+            </div>
+
+            <Input
+              label="نام دلخواه (اختیاری)"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="مثلاً PS5 VIP"
+              error={fieldErrors.name}
               disabled={saving || !canEdit}
-              error={fieldErrors.extraControllers}
             />
+
+            <OwnerToggleSwitch
+              label="دستگاه VIP است"
+              checked={isVip}
+              onChange={setIsVip}
+              disabled={saving || !canEdit}
+            />
+          </section>
+
+          {/* مرحله ۳: دسته اضافی (خودکار بر اساس دستگاه) */}
+          {supportsExtraControllers && (
+            <section className="flex flex-col gap-4 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary)]/15 text-xs font-black text-[var(--primary)]">
+                    ۳
+                  </span>
+                  <h2 className="text-sm font-bold text-[var(--text-white)]">دسته اضافی</h2>
+                </div>
+                <Badge variant="neutral">{inferredControllerType}</Badge>
+              </div>
+
+              <OwnerToggleSwitch
+                label={`افزودن ${inferredControllerType}`}
+                checked={hasExtraController}
+                onChange={toggleExtraController}
+                disabled={saving || !canEdit}
+              />
+
+              {hasExtraController && activeExtraRow && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Input
+                    label="تعداد دسته"
+                    value={activeExtraRow.quantity}
+                    onChange={(e) => updateExtraControllerField({ quantity: e.target.value })}
+                    inputMode="numeric"
+                    placeholder="۲"
+                    disabled={saving || !canEdit}
+                  />
+                  <Input
+                    label="قیمت هر ساعت (تومان)"
+                    value={activeExtraRow.hourlyPrice}
+                    onChange={(e) => updateExtraControllerField({ hourlyPrice: e.target.value })}
+                    inputMode="numeric"
+                    placeholder="۳۰۰۰۰"
+                    helperText={(() => {
+                      const p = parseAmount(activeExtraRow.hourlyPrice, toEnglishDigits);
+                      return p !== null && p > 0 ? `${formatToman(p)} تومان / ساعت` : undefined;
+                    })()}
+                    disabled={saving || !canEdit}
+                  />
+                </div>
+              )}
+
+              {fieldErrors.extraControllers && (
+                <span className="text-xs font-bold text-[var(--accent-red)]">
+                  {fieldErrors.extraControllers}
+                </span>
+              )}
+            </section>
           )}
 
           {error && (
@@ -392,17 +455,17 @@ function NewStationContent() {
             </div>
           )}
 
-          <div className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-4 sm:flex-row-reverse">
+          <div className="flex flex-col gap-2 sm:flex-row-reverse">
             <Button
               type="submit"
               size="lg"
               isLoading={saving}
               disabled={!canEdit || !centerId}
-              className="sm:flex-1"
+              className="w-full sm:flex-1"
             >
               ثبت دستگاه
             </Button>
-            <Link href="/owner/stations" className="sm:w-36">
+            <Link href="/owner/stations" className="w-full sm:w-36">
               <Button
                 type="button"
                 variant="secondary"

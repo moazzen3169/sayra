@@ -18,64 +18,94 @@ export const OwnerPanelSkeleton: React.FC<{ statusText?: string }> = ({
 }) => {
   return (
     <div
-      className="flex min-h-screen flex-col bg-[var(--bg-body)] text-[var(--text-white)] pb-24 lg:pb-8"
+      className="flex min-h-screen flex-col bg-[var(--bg-body)] text-[var(--text-white)] pb-28 lg:pb-10"
       aria-busy="true"
       aria-label={statusText}
     >
       {/* Header Skeleton */}
-      <div className="border-b border-[var(--border-subtle)] bg-[var(--bg-card)]/70 px-4 py-3.5">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-[var(--foreground)] animate-pulse" />
+      <div className="fixed top-0 inset-x-0 z-40 max-w-[var(--max-app-width)] mx-auto border-b border-[var(--border-subtle)] bg-[var(--bg-card)]/90 backdrop-blur-md">
+        <div className="mx-auto flex h-16 w-full max-w-[var(--max-mini-app-width)] items-center justify-between gap-3 px-4 lg:px-0">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-[var(--foreground)]/60 animate-pulse" />
             <div className="flex flex-col gap-1.5">
-              <div className="h-3.5 w-28 rounded bg-[var(--foreground)] animate-pulse" />
-              <div className="h-2.5 w-20 rounded bg-[var(--foreground)]/70 animate-pulse" />
+              <div className="h-3.5 w-24 rounded bg-[var(--foreground)]/70 animate-pulse" />
+              <div className="h-2.5 w-20 rounded bg-[var(--foreground)]/50 animate-pulse" />
             </div>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 py-1.5 text-[11px] text-[var(--text-muted)]">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--foreground)]/40 px-3 py-1.5 text-[11px] text-[var(--text-muted)]">
             <span className="h-2 w-2 rounded-full bg-[var(--primary)] animate-ping" />
-            <span>{statusText}</span>
+            <span className="hidden sm:inline">{statusText}</span>
+            <span className="sm:hidden">در حال بارگذاری...</span>
           </div>
         </div>
       </div>
 
       {/* Body Skeleton */}
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-5 p-4 animate-pulse">
-        {/* Hero Card */}
-        <div className="h-36 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-5 flex flex-col justify-between">
-          <div className="h-3.5 w-32 rounded bg-[var(--foreground)]" />
-          <div className="h-7 w-44 rounded bg-[var(--foreground)]" />
-          <div className="h-9 w-28 rounded-card bg-[var(--foreground)]/80" />
-        </div>
-
-        {/* 2x2 Quick Action Tiles */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-24 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 flex flex-col items-center justify-center gap-2"
-            >
-              <div className="h-7 w-7 rounded-lg bg-[var(--foreground)]" />
-              <div className="h-3 w-16 rounded bg-[var(--foreground)]" />
+      <div className="mx-auto flex w-full max-w-[var(--max-mini-app-width)] flex-1 flex-col gap-5 px-4 pt-20 lg:px-0 animate-pulse">
+        {/* کارت هویت گیم‌نت */}
+        <div className="rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-3.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-[var(--foreground)]/60 shrink-0" />
+            <div className="flex flex-col gap-1.5">
+              <div className="h-3.5 w-28 rounded bg-[var(--foreground)]/70" />
+              <div className="h-2.5 w-20 rounded bg-[var(--foreground)]/50" />
             </div>
-          ))}
+          </div>
+          <div className="h-9 w-24 rounded-card bg-[var(--foreground)]/50 shrink-0" />
         </div>
 
-        {/* Menu List Skeleton */}
-        <div className="flex flex-col gap-2.5">
-          {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-14 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] px-4 flex items-center justify-between"
-            >
-              <div className="flex items-center gap-3">
-                <div className="h-6 w-6 rounded bg-[var(--foreground)]" />
-                <div className="h-3.5 w-32 rounded bg-[var(--foreground)]" />
+        {/* جستجوی موبایل */}
+        <div className="h-11 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] md:hidden" />
+
+        {/* کارت درآمد + وضعیت‌های سریع */}
+        <div className="flex flex-col gap-3">
+          <div className="min-h-[156px] rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <div className="h-5 w-16 rounded bg-[var(--foreground)]/60" />
+              <div className="h-6 w-32 rounded-full bg-[var(--foreground)]/50" />
+            </div>
+            <div className="flex flex-col gap-2 pt-4">
+              <div className="h-3 w-24 rounded bg-[var(--foreground)]/50" />
+              <div className="h-8 w-44 rounded bg-[var(--foreground)]/70" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[0, 1].map((i) => (
+              <div
+                key={i}
+                className="h-[66px] rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-3 flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="h-10 w-10 rounded-lg bg-[var(--foreground)]/60 shrink-0" />
+                  <div className="flex flex-col gap-1.5">
+                    <div className="h-3 w-28 rounded bg-[var(--foreground)]/70" />
+                    <div className="h-2.5 w-20 rounded bg-[var(--foreground)]/50" />
+                  </div>
+                </div>
+                <div className="h-4 w-4 rounded bg-[var(--foreground)]/50 shrink-0" />
               </div>
-              <div className="h-4 w-4 rounded bg-[var(--foreground)]/70" />
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
+
+        {/* ۳ دسته منو */}
+        {[3, 3, 3].map((count, gIdx) => (
+          <div key={gIdx} className="flex flex-col gap-2">
+            <div className="h-3.5 w-24 rounded bg-[var(--bg-card)] mx-1" />
+            <div className="rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border-subtle)]">
+              {Array.from({ length: count }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between gap-3 px-4 h-14">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-[var(--foreground)]/60 shrink-0" />
+                    <div className="h-3.5 w-28 rounded bg-[var(--foreground)]/70" />
+                  </div>
+                  <div className="h-4 w-4 rounded bg-[var(--foreground)]/50 shrink-0" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
       <BottomBar />

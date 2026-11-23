@@ -14,16 +14,9 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { isAbortError } from "@/lib/api/client";
 import { toPersianDigits } from "@/lib/format";
 import { PLACEHOLDERS } from "@/lib/media";
-import { stationTypeLabel } from "@/lib/ownerStations";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { normalizeFilterText } from "@/services/gamecentersPageService";
 import { ownerGamesService, type CenterGameItem } from "@/services/ownerGamesService";
-import type { DeviceType } from "@/types/catalog";
-
-const platformsOf = (platforms?: DeviceType[]): string =>
-  platforms?.length
-    ? platforms.map((p) => stationTypeLabel(String(p))).join("، ")
-    : "—";
 
 /* ---------- جدول بازی‌های گیمنت ---------- */
 
@@ -38,7 +31,9 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, canEdit = 
   const [games, setGames] = useState<CenterGameItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [reload, setReload] = useState(0);
+  const PAGE_SIZE = 12;
   const [deletingGame, setDeletingGame] = useState<CenterGameItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -80,6 +75,13 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, canEdit = 
       return matchTitle || matchGenre || matchPlatforms;
     });
   }, [games, search]);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedRows = useMemo(() => {
+    const startIdx = (safePage - 1) * PAGE_SIZE;
+    return rows.slice(startIdx, startIdx + PAGE_SIZE);
+  }, [rows, safePage]);
 
   const retry = () => {
     setGames(null);
@@ -138,9 +140,12 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, canEdit = 
       {games && games.length > 5 && (
         <Input
           aria-label="جستجوی بازی"
-          placeholder="جستجوی نام بازی، ژانر یا پلتفرم..."
+          placeholder="جستجوی نام بازی..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
         />
       )}
 
@@ -166,65 +171,90 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ centerId, canEdit = 
       )}
 
       {games && !error && games.length > 0 && (
-        <div className="overflow-x-auto rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)]">
-          <table className="w-full text-right text-sm">
-            <thead className="bg-[var(--foreground)]/20 text-xs text-[var(--text-muted)]">
-              <tr>
-                <th scope="col" className="px-4 py-3 font-bold">بازی</th>
-                <th scope="col" className="hidden px-4 py-3 font-bold sm:table-cell">پلتفرم</th>
-                <th scope="col" className="hidden px-4 py-3 font-bold md:table-cell">ژانر</th>
-                <th scope="col" className="w-16 px-4 py-3 font-bold">
-                  <span className="sr-only">عملیات</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border-subtle)]">
-              {rows.map((game) => (
-                <tr key={game.id} className="hover:bg-[var(--foreground)]/10">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="h-14 w-11 shrink-0 overflow-hidden rounded-card bg-[var(--foreground)]/40">
-                        <SafeImage
-                          src={game.coverImageUrl || ""}
-                          alt=""
-                          fallbackSrc={PLACEHOLDERS.center}
-                          loading="lazy"
-                          className="h-full w-full object-cover"
-                        />
-                      </span>
-                      <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="truncate font-bold text-[var(--text-white)]">{game.title}</span>
-                        <span className="truncate text-xs text-[var(--text-muted)] sm:hidden">
-                          {platformsOf(game.supportedPlatforms)}
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="hidden px-4 py-3 text-xs text-[var(--text-muted)] sm:table-cell">
-                    {platformsOf(game.supportedPlatforms)}
-                  </td>
-                  <td className="hidden px-4 py-3 text-xs text-[var(--text-muted)] md:table-cell">
-                    {game.genre || "—"}
-                  </td>
-                  <td className="px-4 py-3 text-left">
-                    <button
-                      type="button"
-                      disabled={!canEdit}
-                      onClick={() => {
-                        setDeleteError(null);
-                        setDeletingGame(game);
-                      }}
-                      aria-label={`حذف ${game.title}`}
-                      className="flex h-9 w-9 items-center justify-center rounded-card text-[var(--text-muted)] hover:bg-[var(--foreground)] hover:text-[var(--accent-red)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <Icon name="trash" size={18} />
-                    </button>
-                  </td>
+        <>
+          <div className="overflow-hidden rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)]">
+            <table className="w-full table-fixed text-right text-sm">
+              <thead className="bg-[var(--foreground)]/20 text-xs text-[var(--text-muted)]">
+                <tr>
+                  <th scope="col" className="px-4 py-3 font-bold">بازی</th>
+                  <th scope="col" className="w-16 px-4 py-3 font-bold text-left">
+                    <span className="sr-only">حذف</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-[var(--border-subtle)]">
+                {pagedRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={2} className="px-4 py-8 text-center text-xs text-[var(--text-muted)]">
+                      بازی‌ای با این عنوان پیدا نشد.
+                    </td>
+                  </tr>
+                ) : (
+                  pagedRows.map((game) => (
+                    <tr key={game.id} className="hover:bg-[var(--foreground)]/10">
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="h-12 w-10 shrink-0 overflow-hidden rounded-lg bg-[var(--foreground)]/40 border border-[var(--border-subtle)]">
+                            <SafeImage
+                              src={game.coverImageUrl || ""}
+                              alt={game.title}
+                              fallbackSrc={PLACEHOLDERS.center}
+                              loading="lazy"
+                              className="h-full w-full object-cover"
+                            />
+                          </span>
+                          <span className="truncate font-bold text-[var(--text-white)] text-xs sm:text-sm">
+                            {game.title}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-left">
+                        <button
+                          type="button"
+                          disabled={!canEdit}
+                          onClick={() => {
+                            setDeleteError(null);
+                            setDeletingGame(game);
+                          }}
+                          aria-label={`حذف ${game.title}`}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-card text-[var(--text-muted)] hover:bg-[var(--foreground)] hover:text-[var(--accent-red)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          <Icon name="trash" size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <button
+                type="button"
+                disabled={safePage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="h-9 px-3.5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary)] text-xs font-bold text-[var(--text-white)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              >
+                صفحه قبل
+              </button>
+
+              <span className="text-xs font-bold text-[var(--text-muted)]">
+                صفحه {toPersianDigits(safePage)} از {toPersianDigits(totalPages)}
+              </span>
+
+              <button
+                type="button"
+                disabled={safePage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="h-9 px-3.5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary)] text-xs font-bold text-[var(--text-white)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              >
+                صفحه بعد
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {deletingGame && (

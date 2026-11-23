@@ -284,7 +284,7 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
                     onClick={() => toggle(st)}
                     className="flex flex-col gap-3 text-right focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-card cursor-pointer"
                   >
-                    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card bg-[var(--foreground)]/40">
+                    <div className="relative aspect-[4/3] w-full overflow-hidd">
                       <SafeImage
                         src={st.coverImageUrl || category.coverImageUrl || ""}
                         alt={st.name}

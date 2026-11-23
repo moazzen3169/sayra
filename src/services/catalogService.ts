@@ -130,6 +130,96 @@ export const catalogService = {
   },
 
   /**
+   * Browse game catalog with pagination metadata
+   * GET /catalog/games
+   */
+  async listGamesPaginated(
+    params?: GameCatalogQueryParams,
+    signal?: AbortSignal
+  ): Promise<{ items: GameCatalogItem[]; total: number; page: number; limit: number; totalPages: number }> {
+    const requestedPage = params?.page ?? 1;
+    const requestedLimit = params?.limit ?? 12;
+    const query: Record<string, string | number | boolean | undefined> = {};
+    if (params?.page !== undefined) query.page = params.page;
+    if (params?.limit !== undefined) query.limit = params.limit;
+    if (params?.platform) query.platform = params.platform;
+    if (params?.genre) query.genre = params.genre;
+    if (params?.isActive !== undefined) query.isActive = params.isActive;
+    if (params?.search) query.search = params.search;
+
+    const response = await apiClient.get<Record<string, unknown>>(
+      ENDPOINTS.catalog.games,
+      {
+        query,
+        signal,
+      }
+    );
+
+    const resData = response.data as Record<string, unknown> | undefined;
+    const rawItems = unwrapListResponse<GameCatalogItem>(resData);
+
+    type PaginationShape = {
+      total?: number;
+      totalItems?: number;
+      page?: number;
+      limit?: number;
+      pageSize?: number;
+      totalPages?: number;
+    };
+
+    const metaObj = response.meta as Record<string, unknown> | undefined;
+    const resMetaObj = resData?.meta as Record<string, unknown> | undefined;
+
+    const candidates: Array<PaginationShape | undefined> = [
+      resData?.pagination as PaginationShape | undefined,
+      resMetaObj?.pagination as PaginationShape | undefined,
+      resMetaObj as PaginationShape | undefined,
+      metaObj?.pagination as PaginationShape | undefined,
+      metaObj as PaginationShape | undefined,
+      resData as PaginationShape | undefined,
+    ];
+
+    const pickNum = (key: keyof PaginationShape): number | undefined => {
+      for (const c of candidates) {
+        const val = c?.[key];
+        if (typeof val === "number" && Number.isFinite(val)) return val;
+      }
+      return undefined;
+    };
+
+    const serverTotal = pickNum("total") ?? pickNum("totalItems");
+    const serverTotalPages = pickNum("totalPages");
+    const serverLimit = pickNum("limit") ?? pickNum("pageSize") ?? requestedLimit;
+    const serverPage = pickNum("page") ?? requestedPage;
+
+    // اگر سرور آرایه‌ای بزرگ‌تر از limit برگرداند و متادیتای صفحه‌بندی نفرستد، سمت کلاینت برش بزن
+    if (serverTotal === undefined && serverTotalPages === undefined && rawItems.length > requestedLimit) {
+      const total = rawItems.length;
+      const totalPages = Math.max(1, Math.ceil(total / requestedLimit));
+      const safePage = Math.min(Math.max(1, requestedPage), totalPages);
+      const start = (safePage - 1) * requestedLimit;
+      return {
+        items: rawItems.slice(start, start + requestedLimit),
+        total,
+        page: safePage,
+        limit: requestedLimit,
+        totalPages,
+      };
+    }
+
+    const total = serverTotal ?? rawItems.length;
+    const totalPages = serverTotalPages ?? (Math.ceil(total / (serverLimit || 1)) || 1);
+
+    return {
+      items: rawItems,
+      total,
+      page: serverPage,
+      limit: serverLimit,
+      totalPages,
+    };
+  },
+
+  /**
    * Get game from catalog by ID
    * GET /catalog/games/{id}
    */

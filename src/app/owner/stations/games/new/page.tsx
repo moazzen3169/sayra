@@ -48,6 +48,11 @@ export default function NewOwnerGamePage() {
   const [catalogRetry, setCatalogRetry] = useState(0);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
+  // صفحه‌بندی سمت سرور (۱۸ بازی در صفحه: ۶ ردیف ۳تایی در موبایل، ۳ ردیف ۶تایی در دسکتاپ)
+  const PAGE_SIZE = 18;
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   // ذخیره
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -79,6 +84,7 @@ export default function NewOwnerGamePage() {
     const timer = setTimeout(() => {
       setItems(null);
       setCatalogError(null);
+      setPage(1);
       setDebounced(search.trim());
     }, 300);
     return () => clearTimeout(timer);
@@ -89,9 +95,10 @@ export default function NewOwnerGamePage() {
     let active = true;
 
     catalogService
-      .listGames(
+      .listGamesPaginated(
         {
-          limit: 100,
+          page,
+          limit: PAGE_SIZE,
           isActive: true,
           search: debounced || undefined,
           platform:
@@ -101,7 +108,8 @@ export default function NewOwnerGamePage() {
       )
       .then((res) => {
         if (!active) return;
-        setItems(res);
+        setItems(res.items);
+        setTotalPages(Math.max(1, res.totalPages));
         setCatalogError(null);
       })
       .catch((e) => {
@@ -113,7 +121,7 @@ export default function NewOwnerGamePage() {
       active = false;
       controller.abort();
     };
-  }, [debounced, platform, catalogRetry]);
+  }, [debounced, platform, page, catalogRetry]);
 
   const addedIds = useMemo(
     () => new Set((centerGames ?? []).map((g) => g.id)),
@@ -124,6 +132,8 @@ export default function NewOwnerGamePage() {
     () => new Set((centerGames ?? []).map((g) => normalizeFilterText(g.title))),
     [centerGames]
   );
+
+  const safePage = Math.min(page, totalPages);
 
   const toggleCatalogGame = (id: string) => {
     setSaveError(null);
@@ -163,7 +173,7 @@ export default function NewOwnerGamePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-28 text-[var(--text-white)]">
+    <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-20 text-[var(--text-white)]">
       <OwnerPageHeader title="افزودن بازی" backUrl="/owner/stations" isSubpage />
 
       <main className="mx-auto mt-16 flex w-full max-w-[var(--max-mini-app-width)] flex-1 flex-col gap-6 px-4 py-6 lg:px-0">
@@ -223,6 +233,7 @@ export default function NewOwnerGamePage() {
                 onClick={() => {
                   setItems(null);
                   setCatalogError(null);
+                  setPage(1);
                   setPlatform(value);
                 }}
                 className={cn(
@@ -238,9 +249,9 @@ export default function NewOwnerGamePage() {
           </div>
 
           {items === null && !catalogError && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" aria-busy="true">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="h-56" />
+            <div className="grid grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4" aria-busy="true">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <Skeleton key={i} className="aspect-[3/4] rounded-card" />
               ))}
             </div>
           )}
@@ -265,114 +276,140 @@ export default function NewOwnerGamePage() {
           )}
 
           {items && items.length > 0 && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {items.map((game) => {
-                const added =
-                  addedIds.has(game.id) || addedTitles.has(normalizeFilterText(game.title));
-                const isSelected = selectedIds.includes(game.id);
-                return (
-                  <button
-                    key={game.id}
-                    type="button"
-                    disabled={added || !canEdit || saving}
-                    aria-pressed={isSelected}
-                    onClick={() => toggleCatalogGame(game.id)}
-                    className={cn(
-                      "flex flex-col gap-2 rounded-card border p-2.5 text-right transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
-                      added
-                        ? "cursor-not-allowed border-[var(--border-subtle)] bg-[var(--bg-card)]/60 opacity-60"
-                        : isSelected
-                          ? "border-[var(--primary)] bg-[var(--primary-muted)]"
-                          : "border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-color)]"
-                    )}
-                  >
-                    <span className="relative aspect-[3/4] w-full overflow-hidden rounded-card bg-[var(--foreground)]/40">
-                      <SafeImage
-                        src={game.coverImageUrl || ""}
-                        alt=""
-                        fallbackSrc={PLACEHOLDERS.center}
-                        loading="lazy"
-                        className="h-full w-full object-cover"
-                      />
-                      {isSelected && (
-                        <span
-                          aria-hidden="true"
-                          className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary)] text-on-primary"
-                        >
-                          <Icon name="check" size={16} />
-                        </span>
+            <>
+              <div className="grid grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+                {items.map((game) => {
+                  const added =
+                    addedIds.has(game.id) || addedTitles.has(normalizeFilterText(game.title));
+                  const isSelected = selectedIds.includes(game.id);
+                  return (
+                    <button
+                      key={game.id}
+                      type="button"
+                      disabled={added || !canEdit || saving}
+                      aria-pressed={isSelected}
+                      onClick={() => toggleCatalogGame(game.id)}
+                      className={cn(
+                        "group flex flex-col gap-2 text-right transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-card",
+                        added ? "cursor-not-allowed opacity-55" : "cursor-pointer"
                       )}
-                      {added && (
-                        <span className="absolute bottom-2 right-2">
-                          <Badge variant="neutral">اضافه شده</Badge>
-                        </span>
-                      )}
-                    </span>
-                    <span className="flex min-w-0 flex-col gap-0.5">
-                      <span className="truncate text-sm font-bold text-[var(--text-white)]">
-                        {game.title}
+                    >
+                      <span
+                        className={cn(
+                          "relative aspect-[3/4] w-full overflow-hidden rounded-card transition-all",
+                          isSelected
+                            ? "ring-2 ring-[var(--primary)] ring-offset-2 ring-offset-[var(--bg-body)]"
+                            : "border border-[var(--border-subtle)] group-hover:border-[var(--border-color)]"
+                        )}
+                      >
+                        <SafeImage
+                          src={game.coverImageUrl || ""}
+                          alt={game.title}
+                          fallbackSrc={PLACEHOLDERS.center}
+                          loading="lazy"
+                          className="h-full w-full object-cover"
+                        />
+                        {isSelected && (
+                          <span
+                            aria-hidden="true"
+                            className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary)] text-on-primary shadow"
+                          >
+                            <Icon name="check" size={16} />
+                          </span>
+                        )}
+                        {added && (
+                          <span className="absolute bottom-2 right-2">
+                            <Badge variant="neutral">اضافه شده</Badge>
+                          </span>
+                        )}
                       </span>
-                      <span className="truncate text-xs text-[var(--text-muted)]">
-                        {platformsOf(game)}
-                      </span>
-                      {game.genre && (
-                        <span className="truncate text-[11px] text-[var(--text-subtle)]">
-                          {game.genre}
+                      <span className="flex min-w-0 flex-col gap-0.5 px-0.5">
+                        <span className="truncate text-xs sm:text-sm font-bold text-[var(--text-white)]">
+                          {game.title}
                         </span>
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+                        <span className="truncate text-[11px] sm:text-xs text-[var(--text-muted)]">
+                          {platformsOf(game)}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={safePage <= 1}
+                  onClick={() => {
+                    setItems(null);
+                    setPage((p) => Math.max(1, p - 1));
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="h-10 px-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary)] text-xs font-bold text-[var(--text-white)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                >
+                  صفحه قبل
+                </button>
+
+                <span className="text-xs font-bold text-[var(--text-muted)]">
+                  صفحه {toPersianDigits(safePage)} از {toPersianDigits(totalPages)}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={safePage >= totalPages}
+                  onClick={() => {
+                    setItems(null);
+                    setPage((p) => Math.min(totalPages, p + 1));
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="h-10 px-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary)] text-xs font-bold text-[var(--text-white)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                >
+                  صفحه بعد
+                </button>
+              </div>
+            </>
           )}
 
           {/* نوار اقدام پایین صفحه */}
           <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border-subtle)] bg-[var(--bg-card)]/95 backdrop-blur-md">
-            <div className="mx-auto flex w-full max-w-[var(--max-mini-app-width)] flex-col gap-2 px-4 py-3 lg:px-0">
+            <div className="mx-auto flex w-full max-w-[var(--max-mini-app-width)] flex-col gap-2 px-4 py-2.5 lg:px-0">
               {saveError && (
                 <div
                   role="alert"
-                  className="flex items-start gap-2 rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-2.5 text-xs font-bold text-[var(--accent-red)]"
+                  className="flex items-start gap-2 rounded-card border border-[var(--accent-red)]/30 bg-[var(--accent-red)]/10 p-2 text-xs font-bold text-[var(--accent-red)]"
                 >
-                  <Icon name="alert" size={16} className="mt-0.5 shrink-0" />
+                  <Icon name="alert" size={15} className="mt-0.5 shrink-0" />
                   <span>{saveError}</span>
                 </div>
               )}
-              <div className="flex flex-col gap-2 sm:flex-row-reverse sm:items-center">
+              <div className="flex items-center gap-2">
                 <Button
                   type="button"
-                  size="lg"
+                  size="md"
                   isLoading={saving}
                   disabled={!canEdit || !centerId || selectedIds.length === 0}
                   onClick={handleSaveCatalog}
-                  className="sm:flex-1"
+                  className="flex-1 h-10 text-xs"
                 >
                   {selectedIds.length > 0
-                    ? `افزودن ${toPersianDigits(selectedIds.length)} بازی انتخاب‌شده`
-                    : "بازی‌ها را از لیست انتخاب کنید"}
+                    ? `افزودن ${toPersianDigits(selectedIds.length)} بازی`
+                    : "بازی‌ها را انتخاب کنید"}
                 </Button>
                 {selectedIds.length > 0 && (
-                  <Button
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="lg"
                     onClick={() => setSelectedIds([])}
                     disabled={saving}
+                    className="h-10 px-3 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/40 hover:bg-[var(--foreground)]/70 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-white)] transition-colors shrink-0 cursor-pointer disabled:opacity-50"
                   >
-                    پاک کردن انتخاب
-                  </Button>
+                    پاک کردن
+                  </button>
                 )}
-                <Link href="/owner/stations" className="sm:w-32">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="lg"
-                    disabled={saving}
-                    className="w-full"
-                  >
-                    انصراف
-                  </Button>
+                <Link
+                  href="/owner/stations"
+                  className="h-10 px-3.5 rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/40 hover:bg-[var(--foreground)]/70 text-xs font-bold text-[var(--text-white)] flex items-center justify-center transition-colors shrink-0"
+                >
+                  انصراف
                 </Link>
               </div>
             </div>

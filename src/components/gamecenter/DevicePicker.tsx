@@ -104,7 +104,7 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({
                       fallbackSrc={PLACEHOLDERS.center}
                       loading="lazy"
                       draggable={false}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+                      className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.04]"
                     />
                     {selected && (
                       <span className="absolute left-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--primary)] text-on-primary shadow-md">
@@ -177,7 +177,7 @@ export const DevicePicker: React.FC<DevicePickerProps> = ({
                 : "cursor-pointer border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-color)]"
             )}
           >
-            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-card bg-[var(--foreground)]/40">
+            <div className="relative aspect-[4/3] w-full overflow-hidden">
               <SafeImage
                 src={cat.coverImageUrl || ""}
                 alt={cat.name}

@@ -5,6 +5,7 @@ import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
 import { useOwner } from "@/context/OwnerContext";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService } from "@/services/ownerService";
+import { OwnerToggleSwitch } from "@/components/owner/OwnerToggleSwitch";
 import { TimePicker } from "@/components/owner/TimePicker";
 import { Icon } from "@/components/ui/Icon";
 import { toEnglishDigits, toPersianDigits } from "@/lib/format";
@@ -44,14 +45,9 @@ export default function OwnerHoursPage() {
   const [closures, setClosures] = useState<GamingCenterClosure[]>([]);
   const [isLoadingClosures, setIsLoadingClosures] = useState(false);
 
-  // فرم ایجاد تعطیلی جدید
+  // فرم ایجاد تعطیلی موقت
   const [showClosureModal, setShowClosureModal] = useState(false);
-  const [closureTitle, setClosureTitle] = useState("");
-  const [closureReason, setClosureReason] = useState("");
-  const [closureStartDate, setClosureStartDate] = useState("");
-  const [closureStartTime, setClosureStartTime] = useState("00:00");
-  const [closureEndDate, setClosureEndDate] = useState("");
-  const [closureEndTime, setClosureEndTime] = useState("23:59");
+  const [customHours, setCustomHours] = useState("");
   const [isSubmittingClosure, setIsSubmittingClosure] = useState(false);
   const [closureError, setClosureError] = useState<string | null>(null);
   const [deletingClosureId, setDeletingClosureId] = useState<string | null>(null);
@@ -153,17 +149,6 @@ export default function OwnerHoursPage() {
     };
   }, [start, end]);
 
-  // تاگل کردن روزهای تعطیل هفته
-  const toggleClosedDay = (dayOfWeek: number) => {
-    setClosedDays((prev) => {
-      if (prev.includes(dayOfWeek)) {
-        return prev.filter((d) => d !== dayOfWeek);
-      } else {
-        return [...prev, dayOfWeek].sort((a, b) => a - b);
-      }
-    });
-  };
-
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (saving) return;
@@ -222,7 +207,7 @@ export default function OwnerHoursPage() {
 
       setMsg({
         ok: true,
-        text: "ساعات کاری، روزهای تعطیل هفتگی و تنظیمات عملیاتی مرکز با موفقیت ذخیره شد.",
+        text: "ساعات کاری و قوانین رزرو با موفقیت ذخیره شد.",
       });
     } catch (err) {
       setMsg({ ok: false, text: getErrorMessage(err) });
@@ -231,25 +216,11 @@ export default function OwnerHoursPage() {
     }
   };
 
-  // ایجاد تعطیلی جدید (Closures)
-  const handleCreateClosure = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // ایجاد تعطیلی موقت بر اساس مدت ساعت
+  const handlePauseForHours = async (hours: number) => {
     if (!centerId || isSubmittingClosure) return;
-
-    if (!closureTitle.trim()) {
-      setClosureError("لطفاً عنوان تعطیلی را وارد کنید.");
-      return;
-    }
-    if (!closureStartDate || !closureEndDate) {
-      setClosureError("لطفاً تاریخ شروع و پایان تعطیلی را مشخص کنید.");
-      return;
-    }
-
-    const startIso = new Date(`${closureStartDate}T${closureStartTime}:00`).toISOString();
-    const endIso = new Date(`${closureEndDate}T${closureEndTime}:00`).toISOString();
-
-    if (new Date(startIso).getTime() >= new Date(endIso).getTime()) {
-      setClosureError("تاریخ و زمان شروع باید قبل از تاریخ و زمان پایان باشد.");
+    if (!Number.isFinite(hours) || hours <= 0 || hours > 720) {
+      setClosureError("لطفاً تعداد ساعت معتبر (بین ۰.۵ تا ۷۲۰ ساعت) وارد کنید.");
       return;
     }
 
@@ -257,28 +228,30 @@ export default function OwnerHoursPage() {
     setClosureError(null);
 
     try {
-      await ownerService.createClosure(centerId, {
-        title: closureTitle.trim(),
-        reason: closureReason.trim() || undefined,
-        startDate: startIso,
-        endDate: endIso,
+      const now = Date.now();
+      const end = now + hours * 60 * 60 * 1000;
+      const created = await ownerService.createClosure(centerId, {
+        title: "توقف موقت رزرو آنلاین",
+        reason: `بسته شدن موقت رزرو آنلاین به مدت ${toPersianDigits(hours)} ساعت توسط مدیر`,
+        startDate: new Date(now).toISOString(),
+        endDate: new Date(end).toISOString(),
       });
 
-      // تازه سازی لیست تعطیلات
-      const updated = await ownerService.getClosures(centerId);
-      setClosures(updated);
-
+      setClosures((prev) => [created, ...prev]);
       setShowClosureModal(false);
-      setClosureTitle("");
-      setClosureReason("");
-      setClosureStartDate("");
-      setClosureEndDate("");
-      setMsg({ ok: true, text: "تعطیلی موقت/مناسبتی با موفقیت ثبت شد." });
+      setCustomHours("");
+      setMsg({ ok: true, text: `رزرو آنلاین به مدت ${toPersianDigits(hours)} ساعت بسته شد.` });
     } catch (err) {
       setClosureError(getErrorMessage(err));
     } finally {
       setIsSubmittingClosure(false);
     }
+  };
+
+  const handleCustomClosureSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = Number(toEnglishDigits(customHours).trim());
+    handlePauseForHours(parsed);
   };
 
   // حذف تعطیلی
@@ -300,7 +273,7 @@ export default function OwnerHoursPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-12">
-      <OwnerPageHeader title="ساعات کاری و روزهای تعطیل" backUrl="/owner" />
+      <OwnerPageHeader title="ساعات کاری و رزرو" backUrl="/owner" />
 
       <main className="flex-1 mt-16 px-4 py-5 lg:max-w-[var(--max-mini-app-width)] lg:mx-auto lg:w-full lg:px-0">
         {!loaded || isCenterLoading ? (
@@ -335,77 +308,18 @@ export default function OwnerHoursPage() {
               </div>
             )}
 
-            {/* بخش ۱: تعطیلات هفتگی و ساعات کاری معمول */}
+            {/* بخش ۱: ساعات کاری و قوانین رزرو */}
             <form onSubmit={save} className="flex flex-col gap-5">
-              {/* بخش انتخاب روزهای تعطیل هفتگی */}
-              <div className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-4 shadow-sm">
-                <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-                  <div className="flex flex-col gap-0.5">
-                    <h2 className="text-sm font-bold text-[var(--text-white)] flex items-center gap-2">
-                      <Icon name="calendar" size={18} className="text-[var(--primary)]" />
-                      <span>تعیین روزهای تعطیل هفتگی (ثابت)</span>
-                    </h2>
-                    <p className="text-xs text-[var(--text-muted)]">
-                      روزهایی که در طول هفته گیم‌نت کاملاً تعطیل است و مشتریان نمی‌توانند سانسی رزرو کنند.
-                    </p>
-                  </div>
-                  {closedDays.length > 0 && (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-[var(--accent-red)]/15 text-[var(--accent-red)] font-bold border border-[var(--accent-red)]/30">
-                      {toPersianDigits(closedDays.length)} روز تعطیل در هفته
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-2.5 pt-1">
-                  {DAYS_OF_WEEK_OPTIONS.map((day) => {
-                    const isClosed = closedDays.includes(day.dayOfWeek);
-                    return (
-                      <button
-                        key={day.dayOfWeek}
-                        type="button"
-                        onClick={() => toggleClosedDay(day.dayOfWeek)}
-                        disabled={saving}
-                        className={`px-4 py-2.5 rounded-card text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                          isClosed
-                            ? "bg-[var(--accent-red)] text-white shadow-md ring-2 ring-[var(--accent-red)]/40"
-                            : "bg-[var(--foreground)]/50 text-[var(--text-white)] hover:bg-[var(--foreground)]/80 border border-[var(--border-subtle)]"
-                        }`}
-                      >
-                        <span className={`w-2 h-2 rounded-full ${isClosed ? "bg-white" : "bg-[var(--text-subtle)]"}`} />
-                        <span>{day.label}</span>
-                        {isClosed ? (
-                          <span className="text-[10px] bg-black/30 px-1.5 py-0.5 rounded">تعطیل</span>
-                        ) : (
-                          <span className="text-[10px] text-[var(--text-muted)]">دایر</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <p className="text-[11px] text-[var(--text-subtle)]">
-                  {closedDays.length === 0
-                    ? "مرکز در تمام ایام هفته (۷ روز هفته) فعال و دایر است."
-                    : `مرکز در روزهای «${closedDays
-                        .map((d) => DAYS_OF_WEEK_OPTIONS.find((opt) => opt.dayOfWeek === d)?.label)
-                        .filter(Boolean)
-                        .join("، ")}» پذیرش و رزرو نخواهد داشت.`}
-                </p>
-              </div>
-
-              {/* Time Pickers Section */}
+              {/* ساعات کاری */}
               <div className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-5 shadow-sm">
-                <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-                  <div className="flex flex-col gap-0.5">
-                    <h2 className="text-sm font-bold text-[var(--text-white)]">تنظیم ساعات کار مرکز</h2>
-                    <p className="text-xs text-[var(--text-muted)]">
-                      مرکز: {center?.name || "گیم‌نت شما"}
-                    </p>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-3">
+                  <div className="flex items-center gap-2">
+                    <Icon name="clock" size={18} className="text-[var(--primary)]" />
+                    <h2 className="text-sm font-bold text-[var(--text-white)]">ساعات کاری</h2>
                   </div>
 
                   {/* Duration Badge */}
-                  <div className="text-xs font-bold px-3 py-1.5 rounded-full bg-[var(--foreground)]/60 text-[var(--text-white)] border border-[var(--border-subtle)] flex items-center gap-1.5">
-                    <Icon name="clock" size={14} className="text-[var(--primary)]" />
+                  <div className="text-xs font-bold px-3 py-1 rounded-full bg-[var(--foreground)]/60 text-[var(--text-white)] border border-[var(--border-subtle)] flex items-center gap-1.5">
                     <span>
                       {toPersianDigits(durationHours)} ساعت
                       {durationMinutesRemainder > 0 ? ` و ${toPersianDigits(durationMinutesRemainder)} دقیقه` : ""}{" "}
@@ -416,19 +330,17 @@ export default function OwnerHoursPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <TimePicker
-                    label="ساعت شروع کار"
+                    label="ساعت شروع"
                     value={start}
                     onChange={setStart}
-                    helperText="آغاز پذیرش مشتریان"
                     presetTimes={["09:00", "10:00", "11:00", "12:00", "14:00"]}
                     disabled={saving}
                   />
 
                   <TimePicker
-                    label="ساعت پایان کار"
+                    label="ساعت پایان"
                     value={end}
                     onChange={setEnd}
-                    helperText="پایان سرویس‌دهی و رزروها"
                     presetTimes={["22:00", "23:00", "00:00", "02:00", "04:00"]}
                     disabled={saving}
                   />
@@ -438,134 +350,91 @@ export default function OwnerHoursPage() {
                 {isOvernight && (
                   <div className="p-3.5 rounded-card bg-[var(--primary)]/10 border border-[var(--primary)]/30 text-[var(--primary)] text-xs font-bold flex items-center gap-2.5">
                     <Icon name="clock" size={18} className="shrink-0" />
-                    <div>
-                      <span>شیفت شبانه فعال است: </span>
-                      <span className="font-normal text-[var(--text-white)]">
-                        ساعات کاری از نیمه‌شب عبور می‌کند و در بامداد روز بعد در ساعت {toPersianDigits(end)} به پایان می‌رسد.
-                      </span>
-                    </div>
+                    <span>
+                      شیفت شبانه تا ساعت {toPersianDigits(end)} بامداد روز بعد فعال است.
+                    </span>
                   </div>
                 )}
-
-                {/* Time Zone Input */}
-                <div className="pt-2 border-t border-[var(--border-subtle)] flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-[var(--text-white)] flex items-center justify-between">
-                    <span>منطقه زمانی سیستم نوبت‌دهی (Time Zone)</span>
-                    <span className="text-[11px] text-[var(--text-muted)] font-normal">استاندارد ایران: Asia/Tehran</span>
-                  </label>
-                  <div className="h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus-within:border-[var(--primary)] flex items-center gap-2">
-                    <span className="text-xs text-[var(--text-muted)] shrink-0">منطقه:</span>
-                    <input
-                      type="text"
-                      dir="ltr"
-                      value={tz}
-                      onChange={(e) => setTz(e.target.value)}
-                      placeholder="Asia/Tehran"
-                      disabled={saving}
-                      className="w-full bg-transparent text-xs font-mono font-bold text-[var(--text-white)] outline-none"
-                    />
-                  </div>
-                </div>
               </div>
 
-              {/* Booking & Operational Controls */}
+              {/* قوانین رزرو آنلاین */}
               <div className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-4 shadow-sm">
                 <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
                   <span className="w-2 h-2 rounded-full bg-[var(--primary)]" />
-                  <h3 className="text-xs font-bold text-[var(--text-white)]">تنظیمات پذیرش و رزرو آنلاین</h3>
+                  <h3 className="text-sm font-bold text-[var(--text-white)]">قوانین رزرو آنلاین</h3>
                 </div>
 
-                {/* Toggle 1: Allow Online Booking */}
-                <label className="flex items-center justify-between p-3 rounded-card bg-[var(--foreground)]/20 hover:bg-[var(--foreground)]/30 border border-[var(--border-subtle)] cursor-pointer transition-colors">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-bold text-[var(--text-white)]">امکان ثبت رزرو آنلاین توسط کاربران</span>
-                  </div>
-                  <input
-                    type="checkbox"
+                <div className="flex flex-col gap-3">
+                  <OwnerToggleSwitch
+                    label="فعال بودن رزرو آنلاین"
+                    description="مشتریان می‌توانند سانس‌های گیم‌نت را به‌صورت آنلاین رزرو کنند"
                     checked={allowOnline}
-                    onChange={(e) => setAllowOnline(e.target.checked)}
+                    onChange={setAllowOnline}
                     disabled={saving}
-                    className="w-5 h-5 accent-[var(--primary)] rounded cursor-pointer"
                   />
-                </label>
-
-                {/* Toggle 2: Auto Confirm */}
-                <label className="flex items-center justify-between p-3 rounded-card bg-[var(--foreground)]/20 hover:bg-[var(--foreground)]/30 border border-[var(--border-subtle)] cursor-pointer transition-colors">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-bold text-[var(--text-white)]">تأیید خودکار رزروها (Auto Confirm)</span>
-                  </div>
-                  <input
-                    type="checkbox"
+                  <OwnerToggleSwitch
+                    label="تایید خودکار رزروها"
+                    description="رزروها بدون نیاز به تایید دستی مستقیماً ثبت قطعی شوند"
                     checked={autoConfirm}
-                    onChange={(e) => setAutoConfirm(e.target.checked)}
+                    onChange={setAutoConfirm}
                     disabled={saving}
-                    className="w-5 h-5 accent-[var(--primary)] rounded cursor-pointer"
                   />
-                </label>
-
-                {/* Toggle 3: Prevent Overlaps */}
-                <label className="flex items-center justify-between p-3 rounded-card bg-[var(--foreground)]/20 hover:bg-[var(--foreground)]/30 border border-[var(--border-subtle)] cursor-pointer transition-colors">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-bold text-[var(--text-white)]">جلوگیری از هم‌پوشانی نوبت‌ها (Prevent Overlaps)</span>
-                  </div>
-                  <input
-                    type="checkbox"
+                  <OwnerToggleSwitch
+                    label="جلوگیری از تداخل زمانی"
+                    description="عدم اجازه ثبت دو رزرو همزمان روی یک دستگاه"
                     checked={preventOverlaps}
-                    onChange={(e) => setPreventOverlaps(e.target.checked)}
+                    onChange={setPreventOverlaps}
                     disabled={saving}
-                    className="w-5 h-5 accent-[var(--primary)] rounded cursor-pointer"
                   />
-                </label>
+                </div>
               </div>
 
-              {/* Submit Action Button */}
+              {/* دکمه ذخیره */}
               <button
                 type="submit"
                 disabled={saving}
-                className="h-12 rounded-card bg-[var(--primary)] hover:brightness-105 active:scale-[0.99] text-black font-bold text-sm disabled:opacity-60 transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+                className="h-12 w-full rounded-card bg-[var(--primary)] hover:brightness-105 active:scale-[0.99] text-on-primary font-bold text-sm disabled:opacity-60 transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer"
               >
                 {saving ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                    <span>در حال ذخیره در سرور...</span>
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    <span>در حال ذخیره...</span>
                   </>
                 ) : (
                   <>
                     <Icon name="check" size={18} />
-                    <span>ذخیره تغییرات ساعات کاری و روزهای تعطیل</span>
+                    <span>ذخیره تنظیمات</span>
                   </>
                 )}
               </button>
             </form>
 
-            {/* بخش ۲: تعطیلات مناسبتی، موقت یا خاص (Closures) */}
-            <div className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-5 shadow-sm">
-              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-                <div className="flex flex-col gap-0.5">
-                  <h2 className="text-sm font-bold text-[var(--text-white)] flex items-center gap-2">
-                    <Icon name="clock" size={18} className="text-[var(--accent-red)]" />
-                    <span>تعطیلات مناسبتی و موقت (Closures)</span>
-                  </h2>
-                  <p className="text-xs text-[var(--text-muted)]">
-                    ثبت تعطیلات تاریخ‌دار مانند «تعطیلات نوروز»، «تعمیرات سرور»، یا «عزاداری رسمی».
-                  </p>
+            {/* بخش ۲: تعطیلات موقت */}
+            <div className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
+                <div className="flex items-center gap-2">
+                  <Icon name="calendar" size={18} className="text-[var(--accent-red)]" />
+                  <h2 className="text-sm font-bold text-[var(--text-white)]">تعطیلات موقت</h2>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => setShowClosureModal(true)}
-                  className="px-3.5 py-1.5 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shadow"
+                  onClick={() => {
+                    setClosureError(null);
+                    setShowClosureModal(true);
+                  }}
+                  className="px-3.5 h-9 rounded-card bg-[var(--primary)] text-on-primary text-xs font-bold hover:brightness-105 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shadow shrink-0"
                 >
                   <Icon name="plus" size={14} />
-                  <span>ثبت تعطیلی جدید</span>
+                  <span>ثبت تعطیلی</span>
                 </button>
               </div>
 
               {/* لیست تعطیلات ثبت‌شده */}
               {closures.length === 0 ? (
-                <div className="py-8 text-center text-xs text-[var(--text-subtle)] flex flex-col items-center gap-2">
-                  <Icon name="calendar" size={28} className="opacity-40" />
-                  <span>هیچ تعطیلی مناسبتی یا موقتی برای این مرکز ثبت نشده است.</span>
+                <div className="py-6 text-center text-xs text-[var(--text-muted)] flex flex-col items-center gap-2">
+                  <Icon name="calendar" size={24} className="opacity-40" />
+                  <span>تعطیلی موقتی ثبت نشده است.</span>
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
@@ -582,24 +451,26 @@ export default function OwnerHoursPage() {
                     return (
                       <div
                         key={closure.id}
-                        className="p-3.5 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] flex items-center justify-between gap-3"
+                        className="p-4 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                       >
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-[var(--accent-red)]" />
-                            <span className="text-xs font-bold text-[var(--text-white)]">
+                        <div className="flex flex-col gap-1.5 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-2 h-2 rounded-full bg-[var(--accent-red)] shrink-0" />
+                            <span className="text-xs sm:text-sm font-bold text-[var(--text-white)] truncate">
                               {closure.title}
                             </span>
-                            {closure.reason && (
-                              <span className="text-[11px] text-[var(--text-muted)]">
-                                ({closure.reason})
-                              </span>
-                            )}
                           </div>
-                          <div className="text-[11px] text-[var(--text-subtle)] flex items-center gap-2">
-                            <span>از: {startStr}</span>
-                            <span>•</span>
-                            <span>تا: {endStr}</span>
+
+                          {closure.reason && (
+                            <p className="text-xs text-[var(--text-muted)] leading-relaxed pr-4">
+                              {closure.reason}
+                            </p>
+                          )}
+
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[var(--text-subtle)] pr-4">
+                            <span>از {startStr}</span>
+                            <span className="opacity-50">•</span>
+                            <span>تا {endStr}</span>
                           </div>
                         </div>
 
@@ -607,7 +478,7 @@ export default function OwnerHoursPage() {
                           type="button"
                           onClick={() => handleDeleteClosure(closure.id)}
                           disabled={deletingClosureId === closure.id}
-                          className="px-3 py-1.5 rounded-card bg-[var(--accent-red)]/15 text-[var(--accent-red)] hover:bg-[var(--accent-red)]/25 text-xs font-bold border border-[var(--accent-red)]/30 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                          className="w-full sm:w-auto h-9 px-3.5 rounded-card bg-[var(--accent-red)]/15 text-[var(--accent-red)] hover:bg-[var(--accent-red)]/25 text-xs font-bold border border-[var(--accent-red)]/30 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0 whitespace-nowrap"
                         >
                           {deletingClosureId === closure.id ? (
                             <div className="w-3.5 h-3.5 border-2 border-[var(--accent-red)] border-t-transparent rounded-full animate-spin" />
@@ -623,123 +494,83 @@ export default function OwnerHoursPage() {
               )}
             </div>
 
-            {/* مودال ثبت تعطیلی جدید */}
+            {/* مودال ثبت تعطیلی موقت */}
             {showClosureModal && (
               <div
-                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
-                dir="rtl"
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fadeIn"
+                onClick={() => !isSubmittingClosure && setShowClosureModal(false)}
               >
-                <div className="w-full max-w-md rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in-95">
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="hours-pause-booking-title"
+                  className="w-full max-w-[380px] rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 flex flex-col gap-4 shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-                    <h3 className="text-sm font-bold text-[var(--text-white)] flex items-center gap-2">
-                      <Icon name="alert" size={18} className="text-[var(--accent-red)]" />
-                      <span>ثبت بازه تعطیلی جدید</span>
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <Icon name="clock" size={18} className="text-[var(--primary)]" />
+                      <h3 id="hours-pause-booking-title" className="text-sm font-bold text-[var(--text-white)]">
+                        بستن موقت رزرو آنلاین
+                      </h3>
+                    </div>
                     <button
                       type="button"
+                      disabled={isSubmittingClosure}
                       onClick={() => setShowClosureModal(false)}
-                      className="p-1 text-[var(--text-muted)] hover:text-white transition-colors"
+                      aria-label="بستن"
+                      className="p-1 text-[var(--text-muted)] hover:text-white transition-colors cursor-pointer"
                     >
                       <Icon name="close" size={18} />
                     </button>
                   </div>
 
+                  <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                    در این بازه مشتریان امکان ثبت رزرو جدید نخواهند داشت. هر زمان بخواهید می‌توانید دوباره رزرو را باز کنید.
+                  </p>
+
                   {closureError && (
-                    <div className="p-3 rounded-card text-xs font-bold bg-[var(--accent-red)]/15 text-[var(--accent-red)] border border-[var(--accent-red)]/30">
+                    <div className="p-3 rounded-card bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] text-xs font-bold">
                       {closureError}
                     </div>
                   )}
 
-                  <form onSubmit={handleCreateClosure} className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-[var(--text-white)]">
-                        عنوان تعطیلی <span className="text-[var(--accent-red)]">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="مثلاً: تعطیلات نوروز، تعمیرات سرور، سوگواری رسمی"
-                        value={closureTitle}
-                        onChange={(e) => setClosureTitle(e.target.value)}
-                        required
-                        className="w-full h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-xs text-[var(--text-white)] outline-none"
-                      />
-                    </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      disabled={isSubmittingClosure}
+                      onClick={() => handlePauseForHours(1)}
+                      className="h-11 rounded-card bg-[var(--foreground)]/50 hover:border-[var(--primary)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-white)] active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                    >
+                      ۱ ساعت
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isSubmittingClosure}
+                      onClick={() => handlePauseForHours(3)}
+                      className="h-11 rounded-card bg-[var(--foreground)]/50 hover:border-[var(--primary)] border border-[var(--border-subtle)] text-xs font-bold text-[var(--text-white)] active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                    >
+                      ۳ ساعت
+                    </button>
+                  </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-[var(--text-white)]">علت یا توضیحات (اختیاری)</label>
-                      <textarea
-                        rows={2}
-                        placeholder="علت تعطیلی یا توضیح تکمیلی برای اطلاع کاربران"
-                        value={closureReason}
-                        onChange={(e) => setClosureReason(e.target.value)}
-                        className="w-full p-2.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-xs text-[var(--text-white)] outline-none resize-none"
-                      />
-                    </div>
-
-                    {/* تاریخ و ساعت شروع */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-[var(--text-white)]">تاریخ شروع</label>
-                        <input
-                          type="date"
-                          value={closureStartDate}
-                          onChange={(e) => setClosureStartDate(e.target.value)}
-                          required
-                          className="w-full h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-[var(--text-white)]">ساعت شروع</label>
-                        <input
-                          type="time"
-                          value={closureStartTime}
-                          onChange={(e) => setClosureStartTime(e.target.value)}
-                          required
-                          className="w-full h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    {/* تاریخ و ساعت پایان */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-[var(--text-white)]">تاریخ پایان</label>
-                        <input
-                          type="date"
-                          value={closureEndDate}
-                          onChange={(e) => setClosureEndDate(e.target.value)}
-                          required
-                          className="w-full h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-[var(--text-white)]">ساعت پایان</label>
-                        <input
-                          type="time"
-                          value={closureEndTime}
-                          onChange={(e) => setClosureEndTime(e.target.value)}
-                          required
-                          className="w-full h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[var(--border-subtle)]">
-                      <button
-                        type="button"
-                        onClick={() => setShowClosureModal(false)}
-                        className="px-4 h-10 rounded-card bg-[var(--foreground)]/40 text-[var(--text-subtle)] hover:text-white text-xs font-bold cursor-pointer"
-                      >
-                        انصراف
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isSubmittingClosure}
-                        className="px-5 h-10 rounded-card bg-[var(--primary)] text-black text-xs font-bold hover:brightness-105 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
-                      >
-                        {isSubmittingClosure ? "در حال ثبت..." : "ثبت تعطیلی"}
-                      </button>
-                    </div>
+                  <form onSubmit={handleCustomClosureSubmit} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={customHours}
+                      onChange={(e) => setCustomHours(e.target.value)}
+                      placeholder="ساعت دلخواه (مثلاً ۲)"
+                      disabled={isSubmittingClosure}
+                      className="flex-1 h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-xs text-[var(--text-white)] placeholder:text-[var(--text-muted)] outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSubmittingClosure || !customHours.trim()}
+                      className="h-11 px-5 rounded-card bg-[var(--primary)] text-on-primary text-xs font-bold hover:brightness-105 active:scale-95 transition-all disabled:opacity-50 shrink-0 cursor-pointer"
+                    >
+                      {isSubmittingClosure ? "..." : "تأیید"}
+                    </button>
                   </form>
                 </div>
               </div>

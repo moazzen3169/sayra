@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
+import { OwnerGallerySection } from "@/components/owner/OwnerGallerySection";
 import { useOwner } from "@/context/OwnerContext";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { ownerService } from "@/services/ownerService";
@@ -13,46 +15,8 @@ import { Icon } from "@/components/ui/Icon";
 const inputClass =
   "w-full h-11 px-3.5 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] focus:border-[var(--primary)] text-sm outline-none text-[var(--text-white)] placeholder:text-[var(--text-subtle)] transition-colors";
 
-function Toggle({
-  label,
-  description,
-  checked,
-  onChange,
-}: {
-  label: string;
-  description?: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className="flex items-center justify-between p-3.5 rounded-card bg-[var(--foreground)]/30 border border-[var(--border-subtle)] transition-colors hover:border-[var(--border-color)] cursor-pointer text-right w-full"
-      role="switch"
-      aria-checked={checked}
-    >
-      <div className="flex flex-col gap-0.5">
-        <span className="text-xs font-bold text-[var(--text-white)]">{label}</span>
-        {description && <span className="text-[11px] text-[var(--text-subtle)]">{description}</span>}
-      </div>
-      <span
-        className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 ${
-          checked ? "bg-[var(--primary)]" : "bg-[var(--foreground)]"
-        } inline-flex items-center`}
-      >
-        <span
-          className={`w-5 h-5 rounded-full bg-white transition-transform ${
-            checked ? "translate-x-0" : "-translate-x-5"
-          }`}
-        />
-      </span>
-    </button>
-  );
-}
-
 export default function OwnerEditPage() {
-  const { centerId, center, refreshCenters } = useOwner();
+  const { centerId, center, refreshCenters, verificationStatus } = useOwner();
   const [loaded, setLoaded] = useState(false);
 
   // ۱. ویرایش اطلاعات اولیه گیم‌نت (نام)
@@ -74,13 +38,6 @@ export default function OwnerEditPage() {
   const [geoLocating, setGeoLocating] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
   const [addressMsg, setAddressMsg] = useState<{ ok: boolean; text: string } | null>(null);
-
-  // ۳. تنظیمات رزرو گیم‌نت
-  const [allowOnline, setAllowOnline] = useState(true);
-  const [autoConfirm, setAutoConfirm] = useState(false);
-  const [preventOverlaps, setPreventOverlaps] = useState(true);
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [settingsMsg, setSettingsMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const centerRef = React.useRef(center);
   useEffect(() => {
@@ -109,8 +66,7 @@ export default function OwnerEditPage() {
     Promise.allSettled([
       ownerService.findCenter(centerId, controller.signal),
       ownerService.listAddresses(centerId, controller.signal),
-      ownerService.getSettings(centerId, controller.signal),
-    ]).then(([centerRes, addressesRes, settingsRes]) => {
+    ]).then(([centerRes, addressesRes]) => {
       if (!active) return;
 
       const fallbackCenter = centerRef.current;
@@ -170,18 +126,6 @@ export default function OwnerEditPage() {
         }
         if (parsedLng !== null) {
           setLng(parsedLng);
-        }
-      }
-
-      if (settingsRes.status === "fulfilled" && settingsRes.value) {
-        if (typeof settingsRes.value.allowOnlineBooking === "boolean") {
-          setAllowOnline(settingsRes.value.allowOnlineBooking);
-        }
-        if (typeof settingsRes.value.onlineBookingAutoConfirm === "boolean") {
-          setAutoConfirm(settingsRes.value.onlineBookingAutoConfirm);
-        }
-        if (typeof settingsRes.value.preventOverlaps === "boolean") {
-          setPreventOverlaps(settingsRes.value.preventOverlaps);
         }
       }
 
@@ -340,50 +284,13 @@ export default function OwnerEditPage() {
     }
   };
 
-  // ذخیره تنظیمات رزرو با درخواست API جداگانه
-  const handleSaveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (savingSettings || !centerId) return;
-
-    setSavingSettings(true);
-    setSettingsMsg(null);
-
-    try {
-      await ownerService.updateSettings(centerId, {
-        allowOnlineBooking: allowOnline,
-        onlineBookingAutoConfirm: autoConfirm,
-        preventOverlaps: preventOverlaps,
-      });
-
-      // بارگذاری مجدد تنظیمات از سرور جهت تایید
-      const freshSettings = await ownerService.getSettings(centerId).catch(() => null);
-      if (freshSettings) {
-        if (typeof freshSettings.allowOnlineBooking === "boolean") {
-          setAllowOnline(freshSettings.allowOnlineBooking);
-        }
-        if (typeof freshSettings.onlineBookingAutoConfirm === "boolean") {
-          setAutoConfirm(freshSettings.onlineBookingAutoConfirm);
-        }
-        if (typeof freshSettings.preventOverlaps === "boolean") {
-          setPreventOverlaps(freshSettings.preventOverlaps);
-        }
-      }
-
-      setSettingsMsg({ ok: true, text: "تنظیمات رزرو آنلاین با موفقیت ذخیره شد." });
-    } catch (err) {
-      setSettingsMsg({ ok: false, text: getErrorMessage(err) });
-    } finally {
-      setSavingSettings(false);
-    }
-  };
-
   const currentProvinceInfo = IRAN_PROVINCES.find((p) => p.name === province) || IRAN_PROVINCES[0];
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-12">
-      <OwnerPageHeader title="ویرایش گیمنت" backUrl="/owner" />
+      <OwnerPageHeader title="اطلاعات و گالری" backUrl="/owner" />
 
-      <main className="flex-1 mt-16 px-4 py-4 lg:max-w-[var(--max-mini-app-width)] lg:mx-auto lg:w-full lg:px-0 flex flex-col gap-6">
+      <main className="flex-1 mt-16 px-4 py-4 lg:max-w-[var(--max-mini-app-width)] lg:mx-auto lg:w-full lg:px-0 flex flex-col gap-5">
         {!loaded ? (
           <div className="flex flex-col gap-4">
             <div className="h-32 rounded-card bg-[var(--bg-card)] animate-pulse" />
@@ -391,17 +298,14 @@ export default function OwnerEditPage() {
           </div>
         ) : (
           <>
-            {/* ۱. بخش ویرایش اطلاعات اولیه گیم‌نت (نام) با درخواست جدا */}
+            {/* ۱. نام گیم‌نت */}
             <form
               onSubmit={handleSaveName}
               className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-4 shadow-sm"
             >
-              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[var(--primary)]"></span>
-                  <h2 className="text-sm font-bold text-[var(--text-white)]">اطلاعات اولیه گیمنت</h2>
-                </div>
-                <span className="text-xs text-[var(--text-subtle)]">ویرایش نام گیمنت</span>
+              <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
+                <span className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+                <h2 className="text-sm font-bold text-[var(--text-white)]">نام گیم‌نت</h2>
               </div>
 
               {nameMsg && (
@@ -416,42 +320,35 @@ export default function OwnerEditPage() {
                 </div>
               )}
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-[var(--text-white)]">
-                  نام گیمنت <span className="text-[var(--accent-red)]">*</span>
-                </label>
+              <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="text"
-                  className={inputClass}
-                  placeholder="نام گیمنت را وارد کنید"
+                  aria-label="نام گیم‌نت"
+                  className={`${inputClass} sm:flex-1`}
+                  placeholder="نام گیم‌نت را وارد کنید"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
                 />
-              </div>
 
-              <div className="flex justify-end pt-2">
                 <button
                   type="submit"
                   disabled={savingName}
-                  className="px-6 h-11 rounded-card bg-[var(--primary)] text-black font-bold text-xs hover:brightness-105 active:scale-95 transition-all disabled:opacity-60 cursor-pointer shadow"
+                  className="w-full sm:w-auto shrink-0 px-6 h-11 rounded-card bg-[var(--primary)] text-on-primary font-bold text-xs hover:brightness-105 active:scale-95 transition-all disabled:opacity-60 cursor-pointer shadow"
                 >
-                  {savingName ? "در حال ذخیره..." : "ذخیره نام گیمنت"}
+                  {savingName ? "در حال ذخیره..." : "ذخیره نام"}
                 </button>
               </div>
             </form>
 
-            {/* ۲. بخش ویرایش کامل آدرس با درخواست API جدا و دکمه ذخیره‌سازی جداگانه */}
+            {/* ۲. آدرس و موقعیت مکانی */}
             <form
               onSubmit={handleSaveAddress}
-              className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-5 shadow-sm"
+              className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-4 shadow-sm"
             >
-              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-                <div className="flex items-center gap-2">
-                  <Icon name="pin" size={18} className="text-[var(--primary)]" />
-                  <h2 className="text-sm font-bold text-[var(--text-white)]">ویرایش کامل آدرس و موقعیت مکانی</h2>
-                </div>
-                <span className="text-xs text-[var(--text-subtle)]">موقعیت و آدرس گیمنت</span>
+              <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
+                <Icon name="pin" size={18} className="text-[var(--primary)]" />
+                <h2 className="text-sm font-bold text-[var(--text-white)]">آدرس و موقعیت</h2>
               </div>
 
               {addressMsg && (
@@ -520,18 +417,17 @@ export default function OwnerEditPage() {
                 />
               </div>
 
-              {/* انتخاب و مشاهده از روی نقشه */}
-              <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border-subtle)]">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[var(--text-white)]">موقعیت گیمنت روی نقشه</span>
+              {/* انتخاب موقعیت از روی نقشه */}
+              <div className="flex flex-col gap-2.5 pt-2 border-t border-[var(--border-subtle)]">
+                <div className="flex justify-end">
                   <button
                     type="button"
                     onClick={handleGetCurrentLocation}
                     disabled={geoLocating}
-                    className="text-xs text-[var(--primary)] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
                   >
                     <Icon name="pin" size={14} />
-                    {geoLocating ? "در حال دریافت..." : "تنظیم روی موقعیت کنونی من"}
+                    {geoLocating ? "در حال دریافت..." : "موقعیت کنونی من"}
                   </button>
                 </div>
 
@@ -541,6 +437,7 @@ export default function OwnerEditPage() {
                   zoom={mapZoom}
                   cityName={city}
                   provinceName={province}
+                  showCoordinates={false}
                   onChange={(newLat, newLng) => {
                     setLat(newLat);
                     setLng(newLng);
@@ -548,74 +445,41 @@ export default function OwnerEditPage() {
                 />
               </div>
 
-              {/* دکمه اختصاصی ذخیره‌سازی آدرس */}
-              <div className="flex justify-end pt-3 border-t border-[var(--border-subtle)]">
+              <div className="flex justify-end pt-2">
                 <button
                   type="submit"
                   disabled={savingAddress}
-                  className="px-6 h-11 rounded-card bg-[var(--primary)] text-black font-bold text-xs hover:brightness-105 active:scale-95 transition-all disabled:opacity-60 cursor-pointer shadow"
+                  className="w-full sm:w-auto px-6 h-11 rounded-card bg-[var(--primary)] text-on-primary font-bold text-xs hover:brightness-105 active:scale-95 transition-all disabled:opacity-60 cursor-pointer shadow"
                 >
-                  {savingAddress ? "در حال ذخیره‌سازی آدرس..." : "ذخیره آدرس گیمنت"}
+                  {savingAddress ? "در حال ذخیره..." : "ذخیره آدرس"}
                 </button>
               </div>
             </form>
 
-            {/* ۳. بخش تنظیمات رزرو با درخواست API جداگانه */}
-            <form
-              onSubmit={handleSaveSettings}
-              className="p-5 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] flex flex-col gap-4 shadow-sm"
+            {/* ۳. گالری تصاویر گیم‌نت */}
+            {centerId && (
+              <OwnerGallerySection
+                centerId={centerId}
+                centerSlug={center?.slug}
+                isApproved={verificationStatus === "APPROVED"}
+              />
+            )}
+
+            {/* لینک به ساعات کاری و قوانین رزرو */}
+            <Link
+              href="/owner/hours"
+              className="p-4 rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary)]/50 transition-colors flex items-center justify-between gap-3"
             >
-              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-                <div className="flex items-center gap-2">
-                  <Icon name="calendar" size={18} className="text-[var(--primary)]" />
-                  <h2 className="text-sm font-bold text-[var(--text-white)]">تنظیمات رزرو</h2>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center shrink-0">
+                  <Icon name="clock" size={18} />
                 </div>
-                <span className="text-xs text-[var(--text-subtle)]">قوانین و رفتار رزرو آنلاین</span>
+                <span className="text-sm font-bold text-[var(--text-white)] truncate">
+                  ساعات کاری و رزرو
+                </span>
               </div>
-
-              {settingsMsg && (
-                <div
-                  className={`p-3 rounded-card text-xs font-bold ${
-                    settingsMsg.ok
-                      ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
-                      : "bg-[var(--accent-red)]/10 text-[var(--accent-red)] border border-[var(--accent-red)]/30"
-                  }`}
-                >
-                  {settingsMsg.text}
-                </div>
-              )}
-
-              <div className="flex flex-col gap-3">
-                <Toggle
-                  label="فعال بودن رزرو آنلاین"
-                  description="مشتریان می‌توانند سانس‌های گیم‌نت را به‌صورت آنلاین مشاهده و رزرو کنند"
-                  checked={allowOnline}
-                  onChange={setAllowOnline}
-                />
-                <Toggle
-                  label="تایید خودکار رزروهای آنلاین"
-                  description="رزروها بدون نیاز به تایید دستی شما مستقیماً ثبت قطعی شوند"
-                  checked={autoConfirm}
-                  onChange={setAutoConfirm}
-                />
-                <Toggle
-                  label="جلوگیری از تداخل زمانی رزروها"
-                  description="عدم اجازه ثبت دو رزرو همپوشان بر روی یک دستگاه"
-                  checked={preventOverlaps}
-                  onChange={setPreventOverlaps}
-                />
-              </div>
-
-              <div className="flex justify-end pt-2 border-t border-[var(--border-subtle)]">
-                <button
-                  type="submit"
-                  disabled={savingSettings}
-                  className="px-6 h-11 rounded-card bg-[var(--primary)] text-black font-bold text-xs hover:brightness-105 active:scale-95 transition-all disabled:opacity-60 cursor-pointer shadow"
-                >
-                  {savingSettings ? "در حال ذخیره‌سازی..." : "ذخیره تنظیمات رزرو"}
-                </button>
-              </div>
-            </form>
+              <Icon name="arrow-left" size={16} className="text-[var(--text-muted)] shrink-0" />
+            </Link>
           </>
         )}
       </main>

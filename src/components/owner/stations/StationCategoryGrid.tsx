@@ -37,7 +37,7 @@ export const StationCategoryGrid: React.FC<StationCategoryGridProps> = ({
               : "border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-color)]"
           )}
         >
-          <span className="relative aspect-[4/3] w-full overflow-hidden rounded-card bg-[var(--foreground)]/40">
+          <span className="relative aspect-[4/3] w-full overflow-hidd">
             <SafeImage
               src={g.coverImageUrl || stationImageFor(g.deviceType)}
               alt=""
