@@ -41,7 +41,15 @@ interface ListState {
   error?: string;
 }
 
-export const BlogListView: React.FC = () => {
+export interface BlogListViewProps {
+  initialItems?: BlogPostSummary[];
+  initialTotal?: number;
+}
+
+export const BlogListView: React.FC<BlogListViewProps> = ({
+  initialItems,
+  initialTotal,
+}) => {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -62,7 +70,18 @@ export const BlogListView: React.FC = () => {
   const [popularPosts, setPopularPosts] = useState<BlogPostSummary[] | null>(null);
   const [reload, setReload] = useState(0);
   const [more, setMore] = useState({ key: "", count: PAGE_SIZE });
-  const [result, setResult] = useState<ListState | null>(null);
+
+  const initialFilterKey = `${urlQuery}|${category}|${series}|${tag}|${onlyHot ? "1" : "0"}|${sort}|0`;
+  const [result, setResult] = useState<ListState | null>(
+    initialItems && initialItems.length > 0
+      ? {
+          filterKey: initialFilterKey,
+          limit: PAGE_SIZE,
+          items: initialItems,
+          total: initialTotal ?? initialItems.length,
+        }
+      : null
+  );
   const editedRef = useRef(false);
 
   // همگام‌سازی ورودی جستجو هنگام تغییر URL (مثلاً کلیک روی حذف فیلتر)
@@ -135,6 +154,21 @@ export const BlogListView: React.FC = () => {
   const limit = more.key === filterKey ? more.count : PAGE_SIZE;
 
   useEffect(() => {
+    if (
+      initialItems &&
+      initialItems.length > 0 &&
+      reload === 0 &&
+      !urlQuery &&
+      category === "all" &&
+      !series &&
+      !tag &&
+      !onlyHot &&
+      sort === DEFAULT_BLOG_SORT &&
+      limit === PAGE_SIZE
+    ) {
+      return;
+    }
+
     const controller = new AbortController();
     blogService
       .list(

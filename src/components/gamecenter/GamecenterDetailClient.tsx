@@ -68,14 +68,16 @@ const scrollToId = (id: string) =>
 
 export function GamecenterDetailClient({
   gamingCenterSlug,
+  initialDetail,
 }: {
   gamingCenterSlug: string;
+  initialDetail?: GamecenterDetail | null;
 }) {
   const { selectedCity, setCity } = useCity();
   const router = useRouter();
   const { user } = useAuth();
 
-  const [detail, setDetail] = useState<GamecenterDetail | null>(null);
+  const [detail, setDetail] = useState<GamecenterDetail | null>(initialDetail || null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -98,6 +100,15 @@ export function GamecenterDetailClient({
   );
 
   useEffect(() => {
+    if (
+      initialDetail &&
+      reloadToken === 0 &&
+      (initialDetail.center.slug === gamingCenterSlug ||
+        initialDetail.center.id === gamingCenterSlug)
+    ) {
+      return;
+    }
+
     let active = true;
     const controller = new AbortController();
 
