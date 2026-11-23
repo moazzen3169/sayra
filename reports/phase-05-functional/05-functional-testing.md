@@ -1,0 +1,32 @@
+# Phase 5 — Comprehensive Functional & Edge-Case Testing Report (`05-functional-testing.md`)
+
+- **Date & Time:** 2026-11-23 19:36–19:45 (+03:30)
+- **Tested Roles:** Guest, Customer (`09990001101`), Owner (`09990002202`)
+- **Frontend Target:** `http://localhost:3000`
+- **Backend APIs:** `https://api.sayra-booking.ir/api/v1` and `https://blog.sayra-booking.ir/api`
+- **Browser Host Verification (`BROWSER_HOST_FACTS`)**: `visited_origins: http://localhost:3000`, `blocked_origins: none`, `latest_screenshot: final_step_90.png` -> [phase05-discounts-cleaned.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase05-price-sync-verified.png) (final screen after deleting 100% test discount on `/owner/discounts`).
+
+---
+
+## 1. Functional Edge-Case & Integration Test Matrix
+
+| Test ID | Role | Page / Flow | Exact Scenario & Steps | Expected Result | Actual Result | Status | Severity | Root Cause | Fix Status |
+|---|---|---|---|---|---|---|---|---|---|
+| **P5-01** | Guest | `/gamecenter/nonexistent-slug-qa-999` | Navigate to unknown slug; click `"تلاش دوباره"` | Clean 404/ErrorState in Persian; retry works cleanly | Rendered `"بارگذاری انجام نشد"` and retry re-fired API (`404`) without crash ([phase05-nonexistent-gc-error.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase05-nonexistent-gc-error.png)). **UX Defect**: exposes raw English debug suffix `[404 APP_ERROR: GamingCenter not found]` split awkwardly across lines | **Partial Fail** | **Medium** | Confirmed Frontend Defect (`getErrorMessage` in `reservationUi.ts`) | Open |
+| **P5-02** | Guest | `/blog/nonexistent-blog-slug-qa` | Navigate to unknown blog slug | Clean 404 screen + link to `/blog` | HTTP 200, `<title>` `"مقاله پیدا نشد \| وبلاگ سایرا"`, clean Persian 404 + `"مشاهده همه‌ی مقاله‌ها"` | **Pass** | — | — | Verified |
+| **P5-03** | Guest | `/payment/callback?status=NOK&trackId=invalid-qa-123` | Navigate with failed/cancelled gateway params | Redirects or renders cancelled state safely without stray requests | Redirected to `/payment/failed?status=CANCELLED...` showing `"انصراف از پرداخت"` / `"پرداخت توسط کاربر لغو گردید."` with 0 extra API calls | **Pass** | — | — | Verified |
+| **P5-04** | Customer (`09990001101`) | `/reservations/invalid-reservation-id-qa` | Navigate to invalid reservation ID; navigate Back | Localized 404 error without raw HTML or server error leaks | Rendered `"موردی که دنبالش هستید پیدا نشد."` **followed by raw Express HTML**: `[404 NOT_FOUND: <!DOCTYPE html> ... <pre>Cannot GET /api/v1/customer/reservation/invalid-reservation-id-qa</pre> ...]`! Back button returned cleanly to `/reservations` | **Fail** | **High** | Confirmed Backend + Frontend Defect (Express lacks JSON 404 catch-all for unmatched route/method; `getErrorMessage`/`apiClient` renders raw HTML string) | Open |
+| **P5-05** | Customer (`09990001101`) | `/gamecenter/center-1795261874764-sam4` Rapid Double-Clicks | Rapidly double-click `"مشاهده بیشتر"` / `"بستن"` and `"کامپیوتر"` card | Single modal, no crashes | Toggled smoothly (`0` duplicate dialogs). Rapid double-click on `"کامپیوتر"` triggered `ERR_ABORTED` on first call and briefly flashed `"دستگاهی در این دسته نیست"` before rendering `pc #1..50` | **Partial Fail** | **Medium** | Confirmed Frontend Defect (transient empty flash during aborted fetch before retry resolves) | Open |
+| **P5-06** | Customer (`09990001101`) | Booking Step Back & Page Reload (`sam4`) | Select `pc #1` -> slot `21:00-22:00` -> Step 3 (`بررسی` / `۱۲۰,۰۰۰ تومان`) -> click `"بازگشت"` -> reload page | Step Back preserves slot; reload clears/resets cleanly without crash | Step 3 -> Step 2 `"بازگشت"` preserved selected day & slot (`۲۱:۰۰ تا ۲۲:۰۰`). Backing out closed modal (`dialogs=0`); `page.reload()` cleanly reset booking draft | **Pass** | — | — | Verified |
+| **P5-07** | Customer (`09990001101`) | Multi-Station / Group Booking UI | Check for separate `"رزرو گروهی"` button on `sam4` and `igt8` | Document actual group booking entry point | No separate `"رزرو گروهی"` trigger button exists on center detail page; multi-station group booking is integrated inside the device selection modal via `"انتخاب همه"` / multi-select | **Pass (Architecture Confirmed)** | — | — | Verified |
+| **P5-08** | Owner (`09990002202`) | `/login` Existing Owner Redirect | Log out Customer and log in as Owner `09990002202` via `/login` | Automatically redirects Owner to `/owner` | Logged in via `/login` (`09990002202` / `000000`) and automatically redirected to `/owner` (`گیم‌نت تست QA سایرا`) | **Pass** | — | — | Verified |
+| **P5-09** | Owner (`09990002202`) | `/owner/reservations/invalid-res-id-qa` | Navigate to invalid owner reservation ID | Clean localized 404 error without HTML leak | Rendered `"بارگذاری جزئیات رزرو ناموفق بود"` / `"رزرو مورد نظر یافت نشد."` cleanly ([phase05-owner-invalid-res.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase05-owner-invalid-res.png)) | **Pass** | — | — | Verified |
+| **P5-10** | Owner (`09990002202`) | `/owner/stations/new` & `/owner/discounts/new` Boundaries & Cancel | Test `0`, `-5000`, empty title on station; `0`, `100` on discount; click Cancel | Invalid values blocked; Cancel creates nothing; check `100%` discount rule | Station `0`, `-5000` blocked (`0` POSTs) and Cancel clean. Discount `0` blocked. **`100%` discount (`0 تومان` price) accepted and created (`POST .../discounts` -> `201`)**, then deleted cleanly ([phase05-discounts-cleaned](file:///home/amir/github-projects/sayra/reports/screenshots/phase05-price-sync-verified.png)) | **Partial Fail (Business Rule)** | **Low** | Backend/Frontend Business Logic (`100%` free discount permitted; verify if intended) | Open |
+| **P5-11** | Owner <-> Customer | Real-Time Price Sync (`qa-5e00`) | Edit `ایستگاه تست QA-1 #1` price `160000` -> `175000` -> inspect `/gamecenter/qa-5e00` -> restore `160000` -> re-inspect | Public/detail UI updates immediately with zero stale cache | Immediately showed `۱۷۵,۰۰۰ تومان / ساعت` and restored to `۱۶۰,۰۰۰ تومان / ساعت` | **Pass** | — | — | Verified |
+
+---
+
+## 2. Evidence Screenshots
+- [phase05-nonexistent-gc-error.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase05-nonexistent-gc-error.png)
+- [phase05-owner-invalid-res.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase05-owner-invalid-res.png)
+- [phase05-price-sync-verified.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase05-price-sync-verified.png) *(Host-verified via `final_step_90.png`)*

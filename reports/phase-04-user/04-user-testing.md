@@ -1,0 +1,48 @@
+# Phase 4 — Regular User / Customer Testing Report (`04-user-testing.md`)
+
+- **Date & Time:** 2026-11-23 19:23–19:36 (+03:30)
+- **Tested Role:** Regular User / Customer (Isolated synthetic account `09990001101`, OTP `000000`)
+- **Frontend Target:** `http://localhost:3000`
+- **Backend APIs:** `https://api.sayra-booking.ir/api/v1` and `https://blog.sayra-booking.ir/api`
+- **Browser Host Verification (`BROWSER_HOST_FACTS`)**: `visited_origins: http://localhost:3000`, `blocked_origins: none`, `latest_screenshot: final_step_104.png` -> [phase04-terms.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase04-terms.png).
+
+---
+
+## 1. Executive Summary
+
+All Customer-facing routes (`/`, `/gamecenters`, `/gamecenter/[id]`, `/reservations`, `/profile`, `/profile/wallet`, `/support`, `/blog`, `/blog/[slug]`, `/about`, `/terms`) were tested end-to-end. Core discovery, city selection, profile editing, wallet validations, and support ticket creation/reply persistence succeeded.
+
+However, live end-to-end testing uncovered **several high-impact Customer defects**:
+1. **50-Request Parallel Fan-Out & `503` CORS Storm on `/gamecenter/[id]`**: Selecting `"کامپیوتر"` on `اسپید گیم` (`center-1795261874764-sam4`, 50 PC stations) fires **50 simultaneous `GET .../extra-controllers` calls**, triggering **27× HTTP 503** responses without CORS headers, console CORS errors, and a transient `"دستگاهی در این دسته نیست"` UI flash.
+2. **Public vs Authenticated Endpoint Split on Unverified Centers (`/gamecenter/qa-5e00`)**: While `/public/gamingCenters/qa-5e00*` returns `404` (because verification is `NOT_SUBMITTED`), `/gamingCenters/qa-5e00*` returns `200`, partially rendering the page and failing only when fetching booking slots (`"ساعت‌ها بارگذاری نشد"`).
+3. **Blog Public Page Fires Authenticated Refresh & Breaks `category+is_hot` Filter + SSR `<title>`**: Visiting `/blog` triggers `403`s + `POST /token/refresh/` on stale client tokens; filtering `category=1&is_hot=true&ordering=-views_count` returns `0` articles despite matching items; `/blog/the-best-blog-post-of-year` keeps `<title>` as `"مقاله پیدا نشد | وبلاگ سایرا"`; and dates display corrupted Jalali years (`۴ شهریور ۷۸۴`).
+4. **Search ZWNJ Mismatch**: `SearchModal` normalizes Arabic `ي`/`ك` (`"گيمنت"` -> 5 matches) but fails to normalize Persian ZWNJ `\u200c` (`"گیم‌نت"` -> 0 matches).
+
+---
+
+## 2. Phase 4 Customer Test Matrix
+
+| Test ID | Page / Feature | Exact Scenario & Steps | Expected Result | Actual Result | Status | Severity | Root Cause | Fix Status |
+|---|---|---|---|---|---|---|---|---|
+| **P4-01** | `/login` -> `/profile` | Login via OTP (`09990001101` / `000000`) | Redirects to `/profile` logged in | `POST /auth/customer/otp/request` `200`, `verify` `200`, redirected to `/profile` | **Pass** | — | — | Verified |
+| **P4-02** | `/` CityModal | Switch city `تبریز` -> `تهران` -> `تبریز` | Centers update per selected city | Switching to `تهران` cleared Tabriz centers; switching back restored 4 Tabriz centers | **Pass** | — | — | Verified |
+| **P4-03** | `/` SearchModal | Search `"اسپید"`, `"گیم‌نت"` (ZWNJ), `"گيمنت"` (`ي`), `"nonexistentqa999"` | Normalizes Persian text including ZWNJ and returns matches or empty state | `"اسپید"` (1), `"گيمنت"` (5), `"nonexistentqa999"` (0 empty state) worked; **`"گیم‌نت"` (with ZWNJ `\u200c`) returned 0 matches** | **Partial Fail** | **Medium** | Frontend/Backend search string normalization omits ZWNJ (`\u200c`) | Open |
+| **P4-04** | `/` Notifications & Category CTA | Open `NotificationModal`; click `پلی استیشن ۵` category | Notifications load; category navigates to filtered `/gamecenters` | Modal loaded `۰` unread (`200`); category navigated to `/gamecenters?category=cmwqb6bra00e012fx7qj0udi9` | **Pass** | — | — | Verified |
+| **P4-05** | `/gamecenters` | Verify `qa-5e00` hidden; test category filter, sort (`ارزان‌ترین`), empty query `nonexistentqa999`, clear filters | Unverified center hidden; filters & clear work cleanly | All 7 verified Tabriz centers shown (`qa-5e00` hidden); filters, sort sheet, empty state, and `"حذف فیلتر"` worked | **Pass** | — | — | Verified |
+| **P4-06** | `/gamecenter/qa-5e00` | Visit unverified QA center page and try Step 1 booking | Either clean unavailable notice or working booking | Rendered partial details via `/gamingCenters/qa-5e00*` (`200`), while all `/public/gamingCenters/qa-5e00*` endpoints returned **`404`**, causing `"ساعت‌ها بارگذاری نشد"` ([phase04-qa-center-unverified.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase04-qa-center-unverified.png)) | **Fail** | **High** | Frontend/Backend integration (fallback to non-public `/gamingCenters/:slug` mixes states when `/public/...` rejects unverified center) | Open |
+| **P4-07** | `/gamecenter/center-1795261874764-sam4` (`اسپید گیم`, Read-Only) | Inspect gallery, reviews, map, games search (`pes`, `nonexistentgame999`); click `کامپیوتر`, select `pc #1` & slot `۲۰:۰۰–۲۱:۰۰`, inspect Review/Payment estimate (STOP before pay) | Category loads stations without rate-limit errors; price calculation matches 20% discount (`150k` -> `120k`) | Gallery, reviews (`5.0`), map, games search, and price summary (`150,000` -> `120,000 تومان`) worked. **CRITICAL BUG**: selecting `"کامپیوتر"` fired **50 parallel `/extra-controllers` requests**, causing **27× `HTTP 503`** lacking CORS headers & transient `"دستگاهی در این دسته نیست"` flash | **Fail** | **Critical** | Frontend N+1 request burst (`stationExtraControllers` per station) + Backend 503/CORS on rate-limit/overload | Open |
+| **P4-08** | `/reservations` & `/reservations/[id]` | Open `/reservations` | Renders list or clean empty state | `GET /customer/reservation` `200`; clean empty state `"هنوز رزروی ثبت نکرده‌اید"` ([phase04-reservations-empty.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase04-reservations-empty.png)). *(End-to-end reservation creation blocked on QA center due to unverified status in P4-06; tested via Backend API in Phase 13/15)* | **Pass (Empty) / Blocked (Live Booking on QA Center)** | — | Unverified QA center blocked live booking without modifying real centers | Documented |
+| **P4-09** | `/profile` | Test edit `fullName` `"ا"` (<2 chars); update to `"مشتری تست QA"` -> reload | Field-specific validation error; valid update persists after reload | Valid update (`PATCH /customer/me` `200`) persisted after reload ([phase04-profile.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase04-profile.png)). **UX bug**: `"ا"` displayed generic `"مشکلی پیش آمد. لطفاً دوباره تلاش کنید."` instead of min-length message | **Partial Fail** | **Medium** | Confirmed Frontend Defect (`profile/page.tsx` generic catch / missing field error message) | Open |
+| **P4-10** | `/profile/wallet` | Inspect balance/history; validate charge (`empty`, `100`, `abc`) & withdrawal (`-500`, Sheba `123`) | Validations block invalid amounts/IBAN without gateway calls | History APIs `200`, validations blocked invalid submissions (`100` showed `"حداقل مبلغ شارژ ۱٬۰۰۰ تومان است."`, `"123"` showed 24-digit error) ([phase04-wallet.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase04-wallet.png)). **Minor UX issues**: submit button remained enabled on `100` warning; placeholder mixes `150,000` English digits; bottom bar overlaps footer note | **Partial Fail** | **Low** | Confirmed Frontend UX/Responsive Defect (`profile/wallet/page.tsx`) | Open |
+| **P4-11** | `/support` | Create ticket `"تیکت تست QA مشتری"`, reply `"پاسخ تست QA مشتری"`, reload; inspect social links | Ticket & reply persist; valid support links | `POST /tickets` (`201`) & `POST .../messages` (`201`) persisted after reload. **Defect**: WhatsApp link points to placeholder `https://wa.me/09120000000` | **Partial Fail** | **Low** | Confirmed Frontend Placeholder Defect (`support/page.tsx`) | Open |
+| **P4-12** | `/blog` & `/blog/the-best-blog-post-of-year` | Search `"Next"`, filter `category=فنی` + `is_hot=true` + `ordering=-views_count`, inspect article detail & share button | Accurate filter results, valid SEO `<title>`, valid Jalali dates, no `403`s | Search & share worked. **Defects**: (a) initial `403` + `/token/refresh/` on public `/blog`; (b) `category=1&is_hot=true` returned `0` results; (c) `<title>` remained `"مقاله پیدا نشد \| وبلاگ سایرا"`; (d) corrupted Jalali dates (`۴ شهریور ۷۸۴`, `۱۲ خرداد ۱۶۳`) | **Fail** | **High** | Frontend (`blog/[slug]` metadata/date formatting + unnecessary auth header) & Blog Backend (`is_hot` query filter) | Open |
+| **P4-13** | `/about` & `/terms` | Visit `/about`, `/terms`, search `"لغو"` and `"nonexistentqa999"` | Clean render and search | Both loaded `200` and search worked ([phase04-terms.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase04-terms.png)). **Low defect**: `/terms` displays placeholder phone `۰۴۱-۳۳۳۳۲۲۱۱ (۰۹۱۲۰۰۰۰۰۰۰)` | **Pass (with Low copy defect)** | **Low** | Confirmed Frontend Copy Defect (`terms/page.tsx`) | Open |
+
+---
+
+## 3. Evidence Screenshots
+- [phase04-qa-center-unverified.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase04-qa-center-unverified.png)
+- [phase04-reservations-empty.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase04-reservations-empty.png)
+- [phase04-profile.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase04-profile.png)
+- [phase04-wallet.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase04-wallet.png)
+- [phase04-terms.png](file:///home/amir/github-projects/sayra/reports/screenshots/phase04-terms.png) *(Host-verified via `final_step_104.png`)*

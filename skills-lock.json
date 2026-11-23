@@ -1,0 +1,68 @@
+{
+  "version": 2,
+  "skills": {
+    "core-web-vitals": {
+      "source": "addyosmani/web-quality-skills",
+      "commit": "afa8da942115f2961fdbfa80807ea0b232ff6c00",
+      "sourceType": "github",
+      "skillPath": "skills/core-web-vitals/SKILL.md",
+      "computedHash": "de50c203aa9dafa8dee9dd8c06782e3fc610704b83c1c408e4c5ee2337c4cd2a"
+    },
+    "discoverability": {
+      "source": "k97/skills",
+      "commit": "1ab99a213344ee29ea4b24a0a12cc7f1ab78363e",
+      "sourceType": "github",
+      "skillPath": "skills/discoverability/SKILL.md",
+      "computedHash": "8218ffc9a6ec2cd6618634bd791d9e61fbe1f31fa700c28093575dfcfac9d883"
+    },
+    "nextjs-seo": {
+      "source": "laguagu/claude-code-nextjs-skills",
+      "commit": "7257019e2207e9415bdf809c8c95aedc694ddd9c",
+      "sourceType": "github",
+      "skillPath": "skills/nextjs-seo/SKILL.md",
+      "computedHash": "b69988f63a7a22d0fa1bcb461a366c035027fe0c4261a57ab27a33d00490d49d"
+    },
+    "performance": {
+      "source": "addyosmani/web-quality-skills",
+      "commit": "afa8da942115f2961fdbfa80807ea0b232ff6c00",
+      "sourceType": "github",
+      "skillPath": "skills/performance/SKILL.md",
+      "computedHash": "06902ebc4a8b91bfb8d1a99a03f186f0535b03d1a776ef751206104ef9b86c4c"
+    },
+    "seo-change-review": {
+      "source": "datacas/seo-agent-toolkit",
+      "commit": "a87471789f5480aa035aed29357bd561f832498c",
+      "sourceType": "github",
+      "skillPath": "skills/seo-change-review/SKILL.md",
+      "computedHash": "4596fc343f6c2d73bb568b49b6dee2d9057352d4fef43d69da419a2860bfa8a2"
+    },
+    "seo-internal-linking": {
+      "source": "datacas/seo-agent-toolkit",
+      "commit": "a87471789f5480aa035aed29357bd561f832498c",
+      "sourceType": "github",
+      "skillPath": "skills/seo-internal-linking/SKILL.md",
+      "computedHash": "019b6045fe6234408e6fd227a4f8a2fbeeef0ccf46450ea295c93515bc9481d9"
+    },
+    "seo-migration": {
+      "source": "datacas/seo-agent-toolkit",
+      "commit": "a87471789f5480aa035aed29357bd561f832498c",
+      "sourceType": "github",
+      "skillPath": "skills/seo-migration/SKILL.md",
+      "computedHash": "5a51348999fdbad1829d7a6a6dc84015be58414c8506057a1cb74593f91c4c3b"
+    },
+    "seo-schema": {
+      "source": "datacas/seo-agent-toolkit",
+      "commit": "a87471789f5480aa035aed29357bd561f832498c",
+      "sourceType": "github",
+      "skillPath": "skills/seo-schema/SKILL.md",
+      "computedHash": "b5b1d27d9c67b12c23d6b0f7868043ab33a63d0ece77c156ad713b040888ea79"
+    },
+    "seo-technical-audit": {
+      "source": "datacas/seo-agent-toolkit",
+      "commit": "a87471789f5480aa035aed29357bd561f832498c",
+      "sourceType": "github",
+      "skillPath": "skills/seo-technical-audit/SKILL.md",
+      "computedHash": "f2cabdf0f0aa50969d337c2933dc513e5e17daeee593933d25265351aab0e9fe"
+    }
+  }
+}
