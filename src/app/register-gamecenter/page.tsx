@@ -11,6 +11,9 @@ import {
   REGISTRATION_STEPS,
 } from "@/data/registerGamecenterContent";
 
+import { SITE_URL } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
+
 export const metadata: Metadata = {
   title: "ثبت گیمنت و اتصال به سایرا | راهنمای مراحل، مزایا و قوانین همکاری",
   description:
@@ -31,6 +34,21 @@ export const metadata: Metadata = {
       "رزرو آنلاین، پیش‌پرداخت مطمئن و پنل مدیریت یکپارچه برای گیم‌نت‌ها.",
     type: "website",
     locale: "fa_IR",
+    url: "/register-gamecenter",
+    images: [
+      {
+        url: `${SITE_URL}/design/sayra.svg`,
+        width: 1200,
+        height: 630,
+        alt: "ثبت گیمنت در سایرا",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ثبت گیمنت و اتصال به سایرا",
+    description:
+      "رزرو آنلاین، پیش‌پرداخت مطمئن و پنل مدیریت یکپارچه برای گیم‌نت‌ها.",
   },
   robots: {
     index: true,
@@ -46,28 +64,25 @@ const STRUCTURED_DATA = {
       name: "ثبت گیمنت و اتصال به سایرا",
       description:
         "راهنمای کوتاه مراحل ثبت، مزایا و قوانین همکاری گیم‌نت‌ها در پلتفرم سایرا.",
+      url: `${SITE_URL}/register-gamecenter`,
       inLanguage: "fa",
     },
     {
-      "@type": "HowTo",
-      name: "نحوه ثبت و اتصال گیمنت به پلتفرم سایرا",
-      step: REGISTRATION_STEPS.map((step, index) => ({
-        "@type": "HowToStep",
-        position: index + 1,
-        name: step.title,
-        text: step.summary,
-      })),
-    },
-    {
-      "@type": "FAQPage",
-      mainEntity: FAQ_ITEMS.map((item) => ({
-        "@type": "Question",
-        name: item.question,
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: item.answer,
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: "خانه",
+          item: SITE_URL,
         },
-      })),
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: "ثبت گیمنت",
+          item: `${SITE_URL}/register-gamecenter`,
+        },
+      ],
     },
   ],
 };
@@ -78,12 +93,7 @@ export default function RegisterGamecenterPage() {
       dir="rtl"
       className="min-h-screen overflow-x-clip bg-[#080A07] text-[#F4F5EF] selection:bg-[#B8F34A] selection:text-[#080A07]"
     >
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(STRUCTURED_DATA).replace(/</g, "\\u003c"),
-        }}
-      />
+      <JsonLd data={STRUCTURED_DATA} />
 
       <Header />
 

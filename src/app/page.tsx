@@ -13,14 +13,26 @@ import {
   type GamecenterListItem,
 } from "@/services/gamecentersPageService";
 import { blogService } from "@/services/blogService";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { SITE_URL } from "@/lib/seo";
 import type { BannerItem, DiscountedCenter } from "@/types/home";
 import type { BlogPostSummary } from "@/types/blog";
 
 export const revalidate = 180;
 
 export const metadata: Metadata = {
+  title: "سایرا | سامانه جامع رزرو آنلاین گیمنت و مراکز بازی",
+  description:
+    "مشاهده و رزرو آنلاین گیم‌نت‌ها و مراکز بازی سراسر کشور. رزرو آسان سیستم‌های گیمینگ PS5، PS4، PC، XBOX و واقعیت مجازی با تخفیف‌های ویژه در سایرا.",
   alternates: {
     canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    title: "سایرا | سامانه جامع رزرو آنلاین گیمنت و مراکز بازی",
+    description:
+      "مشاهده و رزرو آنلاین گیم‌نت‌ها و مراکز بازی سراسر کشور با تخفیف‌های ویژه در سایرا.",
   },
 };
 
@@ -89,18 +101,47 @@ export default async function HomePage() {
     clearTimeout(timeoutId);
   }
 
+  const homeStructuredData = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: "سایرا",
+      alternateName: "Sayra",
+      url: SITE_URL,
+      logo: `${SITE_URL}/design/sayra.svg`,
+      sameAs: [
+        "https://t.me/SayraSupport",
+        "https://rubika.ir/SayraSupport",
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: "سایرا",
+      url: SITE_URL,
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${SITE_URL}/gamecenters?q={search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ];
+
   return (
-    <HomePageClient
-      initialCity={DEFAULT_CITY}
-      initialBanners={initialBanners}
-      initialBannersLoaded={initialBannersLoaded}
-      initialCategories={initialCategories}
-      initialCategoriesLoaded={initialCategoriesLoaded}
-      initialCenters={initialCenters}
-      initialCentersLoaded={initialCentersLoaded}
-      initialDiscountedCenters={initialDiscountedCenters}
-      initialBlogPosts={initialBlogPosts}
-      initialBlogLoaded={initialBlogLoaded}
-    />
+    <>
+      <JsonLd data={homeStructuredData} />
+      <HomePageClient
+        initialCity={DEFAULT_CITY}
+        initialBanners={initialBanners}
+        initialBannersLoaded={initialBannersLoaded}
+        initialCategories={initialCategories}
+        initialCategoriesLoaded={initialCategoriesLoaded}
+        initialCenters={initialCenters}
+        initialCentersLoaded={initialCentersLoaded}
+        initialDiscountedCenters={initialDiscountedCenters}
+        initialBlogPosts={initialBlogPosts}
+        initialBlogLoaded={initialBlogLoaded}
+      />
+    </>
   );
 }

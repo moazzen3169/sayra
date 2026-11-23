@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { BlogPostView } from "@/components/blog/BlogPostView";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { ApiError } from "@/lib/api/client";
+import { SITE_URL } from "@/lib/seo";
 import { blogService } from "@/services/blogService";
 import type { BlogPostDetail } from "@/types/blog";
 
@@ -87,7 +89,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url: canonical,
       images,
       type: "article",
-      publishedTime: post.publishedAt || undefined,
+      publishedTime: post.publishedAtIso || post.publishedAt || undefined,
+      modifiedTime: post.updatedAtIso || post.publishedAtIso || undefined,
       authors: post.authorName ? [post.authorName] : undefined,
       tags: post.tags,
     },
@@ -113,5 +116,68 @@ export default async function BlogPostPage({ params }: Props) {
     throw result.error;
   }
 
-  return <BlogPostView slug={decodedSlug} />;
+  const post = result.post;
+  const canonicalSlug = post.slug || decodedSlug;
+  const articleUrl = `${SITE_URL}/blog/${encodeURIComponent(canonicalSlug)}`;
+
+  const articleStructuredData = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BlogPosting",
+      headline: post.title,
+      description: post.seoDescription || post.excerpt,
+      image: post.coverUrl ? [post.coverUrl] : undefined,
+      datePublished: post.publishedAtIso || post.publishedAt || undefined,
+      dateModified:
+        post.updatedAtIso || post.publishedAtIso || post.publishedAt || undefined,
+      author: {
+        "@type": "Person",
+        name: post.authorName || "تحریریه سایرا",
+      },
+      publisher: {
+        "@type": "Organization",
+        name: "سایرا",
+        url: SITE_URL,
+        logo: {
+          "@type": "ImageObject",
+          url: `${SITE_URL}/design/sayra.svg`,
+        },
+      },
+      mainEntityOfPage: {
+        "@type": "WebPage",
+        "@id": articleUrl,
+      },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: "خانه",
+          item: SITE_URL,
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: "وبلاگ",
+          item: `${SITE_URL}/blog`,
+        },
+        {
+          "@type": "ListItem",
+          position: 3,
+          name: post.title,
+          item: articleUrl,
+        },
+      ],
+    },
+  ];
+
+  return (
+    <>
+      <JsonLd data={articleStructuredData} />
+      <BlogPostView slug={decodedSlug} initialPost={result.post} />
+    </>
+  );
 }
