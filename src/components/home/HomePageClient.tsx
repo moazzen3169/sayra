@@ -231,6 +231,7 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
       />
 
       <main className="flex-1 px-4 pb-4 lg:px-8 lg:pb-8 flex flex-col gap-6 lg:gap-8 pt-[var(--header-m-h)] lg:pt-[var(--header-h)]">
+        <h1 className="sr-only">سایرا | سامانه جامع رزرو آنلاین گیم‌نت و مراکز بازی</h1>
         {/* ۱. بنر */}
         {(bannersLoading || banners.length > 0) && (
           <section>

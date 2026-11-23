@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 export interface PageHeaderProps {
   title: string;
   subtitle?: string;
+  titleAs?: "h1" | "h2" | "p" | "span";
   onBack?: () => void;
   action?: React.ReactNode;
   className?: string;
@@ -13,10 +14,12 @@ export interface PageHeaderProps {
 export const PageHeader: React.FC<PageHeaderProps> = ({
   title,
   subtitle,
+  titleAs = "p",
   onBack,
   action,
   className,
 }) => {
+  const TitleTag = titleAs;
   return (
     <header
       className={cn(
@@ -36,7 +39,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           </button>
         )}
         <div className="flex flex-col min-w-0">
-          <h1 className="text-sm font-bold text-[var(--text-white)] truncate">{title}</h1>
+          <TitleTag className="text-sm font-bold text-[var(--text-white)] truncate">{title}</TitleTag>
           {subtitle && (
             <p className="text-xs text-[var(--text-muted)] truncate">{subtitle}</p>
           )}
