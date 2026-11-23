@@ -277,14 +277,15 @@ export interface AdminListQueryParams {
 
 export type DiscountType = "PERCENTAGE" | "FIXED_AMOUNT";
 
-export type CampaignScopeType = "GLOBAL" | "SPECIFIC_GAMECENTERS" | "DEVICE_TYPES";
+export type CampaignScopeType =
+  | "GLOBAL"
+  | "SPECIFIC_GAMECENTERS"
+  | "SPECIFIC_DEVICE_TYPES";
 
 export type TargetAudienceType =
-  | "ALL"
   | "ALL_USERS"
   | "NEW_USERS"
-  | "FIRST_RESERVATION"
-  | "REGULAR_CUSTOMERS"
+  | "LOYAL_USERS"
   | "SPECIFIC_USERS";
 
 export type CampaignStatus = "ACTIVE" | "INACTIVE" | "SCHEDULED" | "EXPIRED";
@@ -307,6 +308,8 @@ export interface AdminCampaign {
   specificUserNames?: string[];
   startDate: string;
   endDate: string;
+  startDateRaw?: string;
+  endDateRaw?: string;
   status: CampaignStatus;
   totalUsageLimit?: number;
   usedCount: number;

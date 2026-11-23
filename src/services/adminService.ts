@@ -2838,6 +2838,8 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
         ? formatDayLabel(raw.startDate)
         : createdAtFormatted,
       endDate: raw.endDate ? formatDayLabel(raw.endDate) : createdAtFormatted,
+      startDateRaw: raw.startDate,
+      endDateRaw: raw.endDate,
       status: (raw.status || "ACTIVE") as AdminCampaign["status"],
       createdAt: createdAtFormatted,
       updatedAt: raw.updatedAt ? formatDayLabel(raw.updatedAt) : undefined,
@@ -2873,6 +2875,10 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     if (discountType && discountType !== "all")
       queryPayload.discountType = discountType;
     if (scopeType && scopeType !== "all") queryPayload.scopeType = scopeType;
+    if (sortBy === "createdAt" || sortBy === "startDate" || sortBy === "usedCount") {
+      queryPayload.sortBy = sortBy;
+      queryPayload.sortOrder = sortOrder;
+    }
 
     const response = await apiClient.get<any>(
       ENDPOINTS.platformAdmin.campaigns,
@@ -2934,19 +2940,6 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     signal?: AbortSignal,
   ): Promise<AdminCampaign | null> {
     try {
-      const response = await apiClient.get<any>(
-        ENDPOINTS.platformAdmin.campaignById(id),
-        { signal },
-      );
-      const resData = response.data?.data || response.data;
-      if (resData && typeof resData === "object") {
-        return adminService.mapRawCampaignToAdmin(resData);
-      }
-    } catch {
-      // Fallback to searching list
-    }
-
-    try {
       const listRes = await adminService.getCampaigns({ pageSize: 100 }, signal);
       return listRes.items.find((c) => c.id === id) || null;
     } catch {
@@ -2958,27 +2951,56 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
    * ایجاد کمپین طبق CreatePlatformCampaignInput در openapi.json
    */
   async createCampaign(input: AdminCampaignInput): Promise<AdminCampaign> {
-    const payload = {
+    const toIsoDateTime = (val: string | undefined, endOfDay: boolean, fallbackMs: number) => {
+      if (!val) return new Date(fallbackMs).toISOString();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(val.trim())) {
+        return new Date(`${val.trim()}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`).toISOString();
+      }
+      const parsed = new Date(val);
+      return Number.isNaN(parsed.getTime())
+        ? new Date(fallbackMs).toISOString()
+        : parsed.toISOString();
+    };
+
+    const payload: Record<string, unknown> = {
       title: input.title.trim(),
       code: input.code.trim().toUpperCase(),
-      description: input.description,
+      description: input.description?.trim() || undefined,
       discountType: input.discountType,
       discountValue: Number(input.discountValue),
-      maxDiscountAmount: input.maxDiscountAmount
-        ? Number(input.maxDiscountAmount)
-        : undefined,
+      maxDiscountAmount:
+        input.discountType === "PERCENTAGE" && input.maxDiscountAmount
+          ? Number(input.maxDiscountAmount)
+          : undefined,
       minOrderAmount: input.minOrderAmount
         ? Number(input.minOrderAmount)
         : undefined,
       scopeType: input.scopeType,
-      applicableGamecenterIds: input.applicableGamecenterIds,
-      applicableDeviceTypes: input.applicableDeviceTypes,
+      applicableGamecenterIds:
+        input.scopeType === "SPECIFIC_GAMECENTERS"
+          ? input.applicableGamecenterIds
+          : undefined,
+      applicableDeviceTypes:
+        input.scopeType === "SPECIFIC_DEVICE_TYPES"
+          ? input.applicableDeviceTypes
+          : undefined,
       targetAudience: input.targetAudience,
-      specificUserIds: input.specificUserIds,
-      totalUsageLimit: input.totalUsageLimit,
-      perUserUsageLimit: input.perUserUsageLimit,
-      startDate: new Date().toISOString(),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      specificUserIds:
+        input.targetAudience === "SPECIFIC_USERS"
+          ? input.specificUserIds
+          : undefined,
+      totalUsageLimit: input.totalUsageLimit
+        ? Number(input.totalUsageLimit)
+        : undefined,
+      perUserUsageLimit: input.perUserUsageLimit
+        ? Number(input.perUserUsageLimit)
+        : undefined,
+      startDate: toIsoDateTime(input.startDate, false, Date.now()),
+      endDate: toIsoDateTime(
+        input.endDate,
+        true,
+        Date.now() + 30 * 24 * 60 * 60 * 1000,
+      ),
       status: input.status || "ACTIVE",
     };
 
@@ -2990,7 +3012,7 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     if (!resData || typeof resData !== "object") {
       throw new Error("پاسخ معتبری از سرور برای ایجاد کمپین دریافت نشد.");
     }
-    return adminService.mapRawCampaignToAdmin({ ...resData, ...input });
+    return adminService.mapRawCampaignToAdmin(resData);
   },
 
   /**
@@ -3000,15 +3022,53 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     id: string,
     input: Partial<AdminCampaignInput>,
   ): Promise<AdminCampaign> {
+    const toIsoDateTime = (val: string, endOfDay: boolean) => {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(val.trim())) {
+        return new Date(`${val.trim()}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`).toISOString();
+      }
+      const parsed = new Date(val);
+      return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+    };
+
     const payload: Record<string, unknown> = {};
-    if (input.title) payload.title = input.title;
-    if (input.code) payload.code = input.code.trim().toUpperCase();
+    if (input.title !== undefined) payload.title = input.title.trim();
+    if (input.code !== undefined) payload.code = input.code.trim().toUpperCase();
     if (input.description !== undefined)
-      payload.description = input.description;
-    if (input.discountType) payload.discountType = input.discountType;
+      payload.description = input.description.trim() || undefined;
+    if (input.discountType !== undefined)
+      payload.discountType = input.discountType;
     if (input.discountValue !== undefined)
       payload.discountValue = Number(input.discountValue);
-    if (input.status) payload.status = input.status;
+    if (input.maxDiscountAmount !== undefined) {
+      payload.maxDiscountAmount =
+        input.discountType === "FIXED_AMOUNT"
+          ? undefined
+          : Number(input.maxDiscountAmount);
+    }
+    if (input.minOrderAmount !== undefined)
+      payload.minOrderAmount = Number(input.minOrderAmount);
+    if (input.scopeType !== undefined) payload.scopeType = input.scopeType;
+    if (input.applicableGamecenterIds !== undefined)
+      payload.applicableGamecenterIds = input.applicableGamecenterIds;
+    if (input.applicableDeviceTypes !== undefined)
+      payload.applicableDeviceTypes = input.applicableDeviceTypes;
+    if (input.targetAudience !== undefined)
+      payload.targetAudience = input.targetAudience;
+    if (input.specificUserIds !== undefined)
+      payload.specificUserIds = input.specificUserIds;
+    if (input.totalUsageLimit !== undefined)
+      payload.totalUsageLimit = Number(input.totalUsageLimit);
+    if (input.perUserUsageLimit !== undefined)
+      payload.perUserUsageLimit = Number(input.perUserUsageLimit);
+    if (input.startDate !== undefined) {
+      const isoStart = toIsoDateTime(input.startDate, false);
+      if (isoStart) payload.startDate = isoStart;
+    }
+    if (input.endDate !== undefined) {
+      const isoEnd = toIsoDateTime(input.endDate, true);
+      if (isoEnd) payload.endDate = isoEnd;
+    }
+    if (input.status !== undefined) payload.status = input.status;
 
     const response = await apiClient.patch<any>(
       ENDPOINTS.platformAdmin.campaignById(id),

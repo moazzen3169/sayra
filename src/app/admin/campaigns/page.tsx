@@ -138,14 +138,12 @@ export default function CampaignsAdminPage() {
 
   const getAudienceLabel = (aud: TargetAudienceType) => {
     switch (aud) {
-      case "ALL":
+      case "ALL_USERS":
         return "همه کاربران";
       case "NEW_USERS":
         return "کاربران جدید";
-      case "FIRST_RESERVATION":
-        return "اولین رزرو";
-      case "REGULAR_CUSTOMERS":
-        return "مشتریان دائمی";
+      case "LOYAL_USERS":
+        return "کاربران وفادار";
       case "SPECIFIC_USERS":
         return "کاربران خاص";
       default:
@@ -157,11 +155,12 @@ export default function CampaignsAdminPage() {
     switch (cmp.scopeType) {
       case "GLOBAL":
         return "سراسر پلتفرم";
-      case "SPECIFIC_GAMECENTERS":
-        return cmp.applicableGamecenterNames?.length
-          ? `${cmp.applicableGamecenterNames.length} گیمنت`
-          : "گیمنت‌های مشخص";
-      case "DEVICE_TYPES":
+      case "SPECIFIC_GAMECENTERS": {
+        const count =
+          cmp.applicableGamecenterNames?.length ?? cmp.applicableGamecenterIds?.length ?? 0;
+        return count > 0 ? `${count} گیمنت` : "گیمنت‌های مشخص";
+      }
+      case "SPECIFIC_DEVICE_TYPES":
         return cmp.applicableDeviceTypes?.length
           ? cmp.applicableDeviceTypes.join("، ")
           : "انواع دستگاه";
@@ -462,7 +461,7 @@ export default function CampaignsAdminPage() {
               <option value="all" className="bg-[var(--bg-card)]">همه دامنه‌ها</option>
               <option value="GLOBAL" className="bg-[var(--bg-card)]">سراسری</option>
               <option value="SPECIFIC_GAMECENTERS" className="bg-[var(--bg-card)]">گیمنت‌های مشخص</option>
-              <option value="DEVICE_TYPES" className="bg-[var(--bg-card)]">نوع دستگاه</option>
+              <option value="SPECIFIC_DEVICE_TYPES" className="bg-[var(--bg-card)]">نوع دستگاه</option>
             </select>
           </div>
 
@@ -478,10 +477,9 @@ export default function CampaignsAdminPage() {
               className="h-10 px-3 rounded-card bg-[var(--foreground)]/40 border border-[var(--border-subtle)] text-xs text-[var(--text-white)] outline-none focus:border-[var(--primary)] cursor-pointer"
             >
               <option value="all" className="bg-[var(--bg-card)]">همه گروه‌ها</option>
-              <option value="ALL" className="bg-[var(--bg-card)]">همه کاربران</option>
+              <option value="ALL_USERS" className="bg-[var(--bg-card)]">همه کاربران</option>
               <option value="NEW_USERS" className="bg-[var(--bg-card)]">کاربران جدید</option>
-              <option value="FIRST_RESERVATION" className="bg-[var(--bg-card)]">اولین رزرو</option>
-              <option value="REGULAR_CUSTOMERS" className="bg-[var(--bg-card)]">مشتریان دائمی</option>
+              <option value="LOYAL_USERS" className="bg-[var(--bg-card)]">کاربران وفادار</option>
               <option value="SPECIFIC_USERS" className="bg-[var(--bg-card)]">کاربران خاص</option>
             </select>
           </div>
@@ -500,9 +498,9 @@ export default function CampaignsAdminPage() {
             >
               <option value="createdAt-desc" className="bg-[var(--bg-card)]">جدیدترین تاریخ ثبت</option>
               <option value="createdAt-asc" className="bg-[var(--bg-card)]">قدیمی‌ترین تاریخ ثبت</option>
-              <option value="title-asc" className="bg-[var(--bg-card)]">عنوان (الف تا ی)</option>
+              <option value="startDate-desc" className="bg-[var(--bg-card)]">جدیدترین تاریخ شروع</option>
+              <option value="startDate-asc" className="bg-[var(--bg-card)]">قدیمی‌ترین تاریخ شروع</option>
               <option value="usedCount-desc" className="bg-[var(--bg-card)]">بیشترین میزان استفاده</option>
-              <option value="discountValue-desc" className="bg-[var(--bg-card)]">بیشترین مقدار تخفیف</option>
             </select>
           </div>
         </AdminFilterBar>

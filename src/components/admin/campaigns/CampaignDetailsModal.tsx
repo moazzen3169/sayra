@@ -48,16 +48,17 @@ export const CampaignDetailsModal: React.FC<CampaignDetailsModalProps> = ({
 
   const getAudienceLabel = () => {
     switch (campaign.targetAudience) {
-      case "ALL":
+      case "ALL_USERS":
         return "همه کاربران پلتفرم";
       case "NEW_USERS":
         return "کاربران جدید ثبت‌نامی";
-      case "FIRST_RESERVATION":
-        return "کاربران دارای اولین رزرو";
-      case "REGULAR_CUSTOMERS":
-        return "مشتریان دائمی و وفادار";
-      case "SPECIFIC_USERS":
-        return `کاربران خاص انتخاب‌شده (${campaign.specificUserNames?.length || 0} کاربر)`;
+      case "LOYAL_USERS":
+        return "کاربران وفادار";
+      case "SPECIFIC_USERS": {
+        const count =
+          campaign.specificUserNames?.length ?? campaign.specificUserIds?.length ?? 0;
+        return `کاربران خاص انتخاب‌شده (${count} کاربر)`;
+      }
       default:
         return campaign.targetAudience;
     }
@@ -67,9 +68,14 @@ export const CampaignDetailsModal: React.FC<CampaignDetailsModalProps> = ({
     switch (campaign.scopeType) {
       case "GLOBAL":
         return "همه گیمنت‌های سراسر پلتفرم";
-      case "SPECIFIC_GAMECENTERS":
-        return `گیمنت‌های انتخاب‌شده (${campaign.applicableGamecenterNames?.length || 0} مرکز)`;
-      case "DEVICE_TYPES":
+      case "SPECIFIC_GAMECENTERS": {
+        const count =
+          campaign.applicableGamecenterNames?.length ??
+          campaign.applicableGamecenterIds?.length ??
+          0;
+        return `گیمنت‌های انتخاب‌شده (${count} مرکز)`;
+      }
+      case "SPECIFIC_DEVICE_TYPES":
         return `انواع دستگاه (${campaign.applicableDeviceTypes?.join("، ") || "عمومی"})`;
       default:
         return campaign.scopeType;

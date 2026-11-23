@@ -18,6 +18,7 @@ import type {
 } from "@/types/admin";
 import { adminService } from "@/services/adminService";
 import { formatToman, rialToToman, tomanToRial } from "@/lib/format";
+import { formatDayLabel } from "@/lib/reservationUi";
 
 interface CampaignFormWizardModalProps {
   isOpen: boolean;
@@ -27,12 +28,28 @@ interface CampaignFormWizardModalProps {
 }
 
 const AVAILABLE_DEVICE_OPTIONS = [
-  { id: "PS5", label: "کنسول پلی‌استیشن ۵ (PS5)" },
-  { id: "PC_VIP", label: "سیستم گیمینگ VIP (PC VIP)" },
-  { id: "PC_STANDARD", label: "سیستم استاندارد (PC Standard)" },
-  { id: "XBOX", label: "کنسول ایکس‌باکس (Xbox Series X/S)" },
+  { id: "PC", label: "کامپیوتر گیمینگ (PC)" },
+  { id: "PLAYSTATION 5", label: "پلی‌استیشن ۵ (PS5)" },
+  { id: "PLAYSTATION 4", label: "پلی‌استیشن ۴ (PS4)" },
+  { id: "XBOX", label: "کنسول ایکس‌باکس (Xbox)" },
+  { id: "SWITCH", label: "نینتندو سوییچ (Switch)" },
   { id: "VR", label: "واقعیت مجازی (VR)" },
 ];
+
+function getTodayDateInput(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getPlusDaysDateInput(days: number): string {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function toDateInputValue(rawIso: string | undefined, fallback: string): string {
+  if (!rawIso) return fallback;
+  if (/^\d{4}-\d{2}-\d{2}/.test(rawIso)) return rawIso.slice(0, 10);
+  const parsed = new Date(rawIso);
+  return Number.isNaN(parsed.getTime()) ? fallback : parsed.toISOString().slice(0, 10);
+}
 
 export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = ({
   isOpen,
@@ -65,7 +82,7 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
 
   // Step 3: Target Audience
   const [targetAudience, setTargetAudience] = useState<TargetAudienceType>(
-    initialData?.targetAudience || "ALL"
+    initialData?.targetAudience || "ALL_USERS"
   );
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>(
     initialData?.specificUserIds || []
@@ -94,8 +111,12 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
   );
 
   // Step 5: Time Period & Usage Limits
-  const [startDate, setStartDate] = useState(initialData?.startDate || "۱۴۰۳/۰۷/۰۱");
-  const [endDate, setEndDate] = useState(initialData?.endDate || "۱۴۰۳/۰۷/۳۰");
+  const [startDate, setStartDate] = useState(() =>
+    toDateInputValue(initialData?.startDateRaw, getTodayDateInput())
+  );
+  const [endDate, setEndDate] = useState(() =>
+    toDateInputValue(initialData?.endDateRaw, getPlusDaysDateInput(30))
+  );
   const [totalUsageLimit, setTotalUsageLimit] = useState<number | undefined>(
     initialData?.totalUsageLimit
   );
@@ -118,7 +139,7 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
       setScopeType(initialData?.scopeType || "GLOBAL");
       setSelectedGamecenterIds(initialData?.applicableGamecenterIds || []);
       setSelectedDeviceTypes(initialData?.applicableDeviceTypes || []);
-      setTargetAudience(initialData?.targetAudience || "ALL");
+      setTargetAudience(initialData?.targetAudience || "ALL_USERS");
       setSelectedUserIds(initialData?.specificUserIds || []);
       setDiscountType(initialData?.discountType || "PERCENTAGE");
       setDiscountValue(
@@ -138,8 +159,8 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
           ? rialToToman(initialData.minOrderAmount)
           : undefined
       );
-      setStartDate(initialData?.startDate || "۱۴۰۳/۰۷/۰۱");
-      setEndDate(initialData?.endDate || "۱۴۰۳/۰۷/۳۰");
+      setStartDate(toDateInputValue(initialData?.startDateRaw, getTodayDateInput()));
+      setEndDate(toDateInputValue(initialData?.endDateRaw, getPlusDaysDateInput(30)));
       setTotalUsageLimit(initialData?.totalUsageLimit);
       setPerUserUsageLimit(initialData?.perUserUsageLimit || 1);
     }
@@ -175,7 +196,7 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
         setError("لطفاً حداقل یک گیمنت را برای اجرای کمپین انتخاب کنید.");
         return false;
       }
-      if (scopeType === "DEVICE_TYPES" && selectedDeviceTypes.length === 0) {
+      if (scopeType === "SPECIFIC_DEVICE_TYPES" && selectedDeviceTypes.length === 0) {
         setError("لطفاً حداقل یک نوع دستگاه را انتخاب کنید.");
         return false;
       }
@@ -204,7 +225,7 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
         setError("لطفاً بازه زمانی شروع و پایان کمپین را مشخص کنید.");
         return false;
       }
-      if (endDate.localeCompare(startDate, "fa") < 0) {
+      if (endDate < startDate) {
         setError("تاریخ پایان کمپین نمی‌تواند پیش از تاریخ شروع باشد.");
         return false;
       }
@@ -242,7 +263,7 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
       status,
       scopeType,
       applicableGamecenterIds: scopeType === "SPECIFIC_GAMECENTERS" ? selectedGamecenterIds : undefined,
-      applicableDeviceTypes: scopeType === "DEVICE_TYPES" ? selectedDeviceTypes : undefined,
+      applicableDeviceTypes: scopeType === "SPECIFIC_DEVICE_TYPES" ? selectedDeviceTypes : undefined,
       targetAudience,
       specificUserIds: targetAudience === "SPECIFIC_USERS" ? selectedUserIds : undefined,
       discountType,
@@ -250,7 +271,10 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
         discountType === "FIXED_AMOUNT"
           ? tomanToRial(Number(discountValue))
           : Number(discountValue),
-      maxDiscountAmount: maxDiscountAmount ? tomanToRial(Number(maxDiscountAmount)) : undefined,
+      maxDiscountAmount:
+        discountType === "PERCENTAGE" && maxDiscountAmount
+          ? tomanToRial(Number(maxDiscountAmount))
+          : undefined,
       minOrderAmount: minOrderAmount ? tomanToRial(Number(minOrderAmount)) : undefined,
       startDate: startDate.trim(),
       endDate: endDate.trim(),
@@ -403,6 +427,7 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
                 <option value="ACTIVE" className="bg-[var(--bg-card)]">فعال (ACTIVE)</option>
                 <option value="INACTIVE" className="bg-[var(--bg-card)]">غیرفعال (INACTIVE)</option>
                 <option value="SCHEDULED" className="bg-[var(--bg-card)]">زمان‌بندی‌شده (SCHEDULED)</option>
+                <option value="EXPIRED" className="bg-[var(--bg-card)]">منقضی‌شده (EXPIRED)</option>
               </select>
             </div>
           </div>
@@ -448,16 +473,16 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
 
               <button
                 type="button"
-                onClick={() => setScopeType("DEVICE_TYPES")}
+                onClick={() => setScopeType("SPECIFIC_DEVICE_TYPES")}
                 className={`p-3.5 rounded-card border text-right transition-all flex flex-col gap-1 cursor-pointer ${
-                  scopeType === "DEVICE_TYPES"
+                  scopeType === "SPECIFIC_DEVICE_TYPES"
                     ? "bg-[var(--primary)]/15 border-[var(--primary)] text-[var(--text-white)] font-bold"
                     : "bg-[var(--foreground)]/30 border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-white"
                 }`}
               >
                 <span className="text-xs">نوع دستگاه / سرویس</span>
                 <span className="text-[11px] font-normal text-[var(--text-subtle)]">
-                  مخصوص PS5، PC VIP و غیره
+                  مخصوص PS5، PC، VR و غیره
                 </span>
               </button>
             </div>
@@ -500,7 +525,7 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
             )}
 
             {/* Sub-selection for Device Types */}
-            {scopeType === "DEVICE_TYPES" && (
+            {scopeType === "SPECIFIC_DEVICE_TYPES" && (
               <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border-subtle)]">
                 <label className="block text-xs font-bold text-[var(--text-muted)]">
                   انواع دستگاه‌های مشمول:
@@ -546,10 +571,9 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
-                { type: "ALL", title: "همه کاربران", desc: "بدون محدودیت برای تمام مشتریان" },
+                { type: "ALL_USERS", title: "همه کاربران", desc: "بدون محدودیت برای تمام مشتریان" },
                 { type: "NEW_USERS", title: "کاربران جدید", desc: "کاربران تازه ثبت‌نام‌شده" },
-                { type: "FIRST_RESERVATION", title: "اولین رزرو", desc: "کاربرانی که رزرو قبلی ندارند" },
-                { type: "REGULAR_CUSTOMERS", title: "مشتریان دائمی", desc: "کاربران فعال با رزروهای متعدد" },
+                { type: "LOYAL_USERS", title: "کاربران وفادار", desc: "مشتریان دائمی و پررزرو" },
                 { type: "SPECIFIC_USERS", title: "کاربران خاص", desc: "انتخاب دستی کاربران هدف" },
               ].map((aud) => (
                 <button
@@ -701,10 +725,15 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
                   تاریخ شروع کمپین *
                 </label>
                 <Input
+                  type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  placeholder="۱۴۰۳/۰۷/۰۱"
                 />
+                {startDate && (
+                  <span className="block text-[11px] text-[var(--text-subtle)] mt-1">
+                    معادل شمسی: {formatDayLabel(startDate)}
+                  </span>
+                )}
               </div>
 
               <div>
@@ -712,10 +741,15 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
                   تاریخ پایان کمپین *
                 </label>
                 <Input
+                  type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  placeholder="۱۴۰۳/۰۷/۳۰"
                 />
+                {endDate && (
+                  <span className="block text-[11px] text-[var(--text-subtle)] mt-1">
+                    معادل شمسی: {formatDayLabel(endDate)}
+                  </span>
+                )}
               </div>
 
               <div>
@@ -804,14 +838,12 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
                   </button>
                 </div>
                 <span className="text-[var(--text-white)]">
-                  {targetAudience === "ALL"
+                  {targetAudience === "ALL_USERS"
                     ? "همه کاربران"
                     : targetAudience === "NEW_USERS"
                     ? "کاربران جدید"
-                    : targetAudience === "FIRST_RESERVATION"
-                    ? "اولین رزرو"
-                    : targetAudience === "REGULAR_CUSTOMERS"
-                    ? "مشتریان دائمی"
+                    : targetAudience === "LOYAL_USERS"
+                    ? "کاربران وفادار"
                     : `${selectedUserIds.length} کاربر خاص`}
                 </span>
               </div>
@@ -846,7 +878,10 @@ export const CampaignFormWizardModal: React.FC<CampaignFormWizardModalProps> = (
                   </button>
                 </div>
                 <span className="text-[var(--text-white)]">
-                  از {startDate} تا {endDate} • سقف کل: {totalUsageLimit ? totalUsageLimit : "نامحدود"} • سقف هر کاربر: {perUserUsageLimit ? perUserUsageLimit : "نامحدود"}
+                  از {startDate ? formatDayLabel(startDate) : "-"} تا{" "}
+                  {endDate ? formatDayLabel(endDate) : "-"} • سقف کل:{" "}
+                  {totalUsageLimit ? totalUsageLimit : "نامحدود"} • سقف هر کاربر:{" "}
+                  {perUserUsageLimit ? perUserUsageLimit : "نامحدود"}
                 </span>
               </div>
             </div>
