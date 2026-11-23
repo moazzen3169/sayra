@@ -5,22 +5,34 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BlogArticleContent } from "@/components/blog/BlogArticleContent";
 import { BlogPostCard } from "@/components/blog/BlogPostCard";
-import { BlogPromoBanner } from "@/components/blog/BlogPromoBanner";
+import { BlogSidebar } from "@/components/blog/BlogSidebar";
+import { BottomBar } from "@/components/BottomBar";
 import { Footer } from "@/components/Footer";
+import { Header } from "@/components/Header";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Icon } from "@/components/ui/Icon";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ApiError, isAbortError } from "@/lib/api/client";
-import { formatBlogDate, formatReadingMinutes } from "@/lib/blog";
+import {
+  DEFAULT_BLOG_SORT,
+  formatBlogDate,
+  formatReadingMinutes,
+} from "@/lib/blog";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { blogService } from "@/services/blogService";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { PLACEHOLDERS } from "@/lib/media";
-import type { BlogPostDetail, BlogPostSummary } from "@/types/blog";
+import type {
+  BlogCategory,
+  BlogPostDetail,
+  BlogPostSummary,
+  BlogSeries,
+  BlogSort,
+  BlogTag,
+} from "@/types/blog";
 
 interface DetailState {
   key: string;
@@ -84,6 +96,11 @@ export const BlogPostView: React.FC<{
   );
   const [related, setRelated] = useState<RelatedState | null>(null);
   const [shareState, setShareState] = useState<ShareState>("idle");
+  const [sidebarQuery, setSidebarQuery] = useState("");
+  const [categories, setCategories] = useState<BlogCategory[] | null>(null);
+  const [seriesList, setSeriesList] = useState<BlogSeries[] | null>(null);
+  const [tagsList, setTagsList] = useState<BlogTag[] | null>(null);
+  const [popularPosts, setPopularPosts] = useState<BlogPostSummary[] | null>(null);
 
 useEffect(() => {
   if (
@@ -129,19 +146,64 @@ useEffect(() => {
   return () => controller.abort();
 }, [decodedSlug]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+
+    blogService
+      .getCategories(signal)
+      .then(setCategories)
+      .catch((e) => {
+        if (!isAbortError(e)) setCategories([]);
+      });
+
+    blogService
+      .getSeries(signal)
+      .then(setSeriesList)
+      .catch((e) => {
+        if (!isAbortError(e)) setSeriesList([]);
+      });
+
+    blogService
+      .getTags(signal)
+      .then(setTagsList)
+      .catch((e) => {
+        if (!isAbortError(e)) setTagsList([]);
+      });
+
+    blogService
+      .getPopular(4, signal)
+      .then(setPopularPosts)
+      .catch((e) => {
+        if (!isAbortError(e)) setPopularPosts([]);
+      });
+
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const trimmed = sidebarQuery.trim();
+    if (!trimmed) return;
+    const timer = window.setTimeout(() => {
+      router.push(`/blog?q=${encodeURIComponent(trimmed)}`);
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [sidebarQuery, router]);
+
+  const navigateToBlog = (params: Record<string, string | null>) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v) qs.set(k, v);
+    });
+    const s = qs.toString();
+    router.push(s ? `/blog?${s}` : "/blog");
+  };
+
 
 
   const current = state && state.key === key ? state : null;
   const post = current?.post;
   const relatedItems = related && related.slug === decodedSlug ? related.items : [];
-
-  const goBack = () => {
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push("/blog");
-    }
-  };
 
   const handleShare = async () => {
     if (!post) return;
@@ -173,15 +235,12 @@ useEffect(() => {
         : "اشتراک‌گذاری";
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-12 text-[var(--text-white)]">
-      {/* موبایل: هدر صفحه‌ی داخلی */}
-      <PageHeader title="وبلاگ" onBack={goBack} className="lg:hidden" />
+    <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-28 text-[var(--text-white)] lg:pb-0">
+      <Header />
 
-      {/* بنر چسبان موبایل با ارتفاع دقیق ۸۰px و قابلیت مخفی‌سازی در زیر هدر */}
-      <BlogPromoBanner variant="mobile" />
-
-      <main className="mx-auto flex w-full max-w-[var(--max-app-width)] flex-1 flex-col gap-8 px-4 pt-4 lg:px-8 lg:pt-8">
-        {/* دو قسمت اصلی صفحه در دسکتاپ (قسمت اول: محتوای وبلاگ حدود ۸۰٪ ، قسمت دوم: کارت تبلیغ ۲۰٪) */}
+      <div className="flex flex-1 flex-col pt-[var(--header-m-h)] lg:pt-[var(--header-h)]">
+        <main className="mx-auto flex w-full max-w-[var(--max-app-width)] flex-1 flex-col gap-8 px-4 pt-4 lg:px-8 lg:pt-8">
+        {/* دو قسمت اصلی صفحه در دسکتاپ (قسمت اول: محتوای وبلاگ ، قسمت دوم: سایدبار وبلاگ) */}
         <div className="flex w-full flex-col items-start gap-8 lg:flex-row">
           {/* قسمت اول: جزییات و کل محتوای وبلاگ */}
           <div className="flex-1 min-w-0 w-full flex flex-col gap-6">
@@ -309,9 +368,41 @@ useEffect(() => {
             )}
           </div>
 
-          {/* قسمت دوم: کارت تبلیغ ۲۰٪ ثابت چسبان تا بخش پست‌های پیشنهادی در دسکتاپ */}
-          <div className="hidden lg:block lg:w-[280px] xl:w-[320px] shrink-0 sticky top-8 self-start z-10">
-            <BlogPromoBanner variant="desktop" />
+          {/* قسمت دوم: سایدبار صفحه اصلی وبلاگ */}
+          <div className="w-full shrink-0 lg:w-[330px] xl:w-[360px]">
+            <BlogSidebar
+              query={sidebarQuery}
+              onQueryChange={setSidebarQuery}
+              sort={DEFAULT_BLOG_SORT}
+              onSortChange={(next: BlogSort) =>
+                navigateToBlog({
+                  sort: next === DEFAULT_BLOG_SORT ? null : next,
+                })
+              }
+              onlyHot={false}
+              onOnlyHotChange={(nextHot) =>
+                navigateToBlog({ hot: nextHot ? "1" : null })
+              }
+              categories={categories}
+              selectedCategory={post?.category ?? "all"}
+              onCategoryChange={(id) =>
+                navigateToBlog({ category: id === "all" ? null : id })
+              }
+              seriesList={seriesList}
+              selectedSeries=""
+              onSeriesChange={(id) => navigateToBlog({ series: id || null })}
+              tagsList={tagsList}
+              selectedTag=""
+              onTagChange={(tagName) =>
+                navigateToBlog({ tag: tagName || null })
+              }
+              popularPosts={popularPosts}
+              hasActiveFilter={false}
+              onResetFilters={() => {
+                setSidebarQuery("");
+                router.push("/blog");
+              }}
+            />
           </div>
         </div>
 
@@ -326,8 +417,10 @@ useEffect(() => {
             </div>
           </section>
         )}
-      </main>
+        </main>
+      </div>
       <Footer />
+      <BottomBar activeTab="news" />
     </div>
   );
 };

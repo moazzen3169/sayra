@@ -492,7 +492,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="flex items-center justify-between gap-2">
                 <Link
                   href="/"
-                  className="flex h-11 shrink-0 items-center justify-center rounded-card px-1 transition-colors hover:bg-[var(--foreground)]/30 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+                  className="flex  shrink-0 items-center justify-center rounded-card px-1  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
                   aria-label="صفحه اصلی سایرا"
                 >
                   <AppImage
@@ -500,7 +500,7 @@ export const Header: React.FC<HeaderProps> = ({
                     alt="سایرا"
                     width={45}
                     height={25}
-                    className="h-7   w-auto"
+                    className="h-10   w-auto"
                   />
                 </Link>
 
@@ -616,7 +616,7 @@ export const Header: React.FC<HeaderProps> = ({
                 alt="سایرا"
                 width={45}
                 height={25}
-                className="h-8 w-auto"
+                className="h-14 w-auto"
               />
             </Link>
 

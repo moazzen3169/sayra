@@ -46,7 +46,7 @@ export const BlogPromoBanner: React.FC<BlogPromoBannerProps> = ({
       {/* ================= MOBILE PROMO BANNER ================= */}
       {/* نمایش در زیر هدر موبایل با ارتفاع دقیق ۸۰px و دکمه‌ی مخفی‌سازی */}
       {variant !== "desktop" && !isDismissed && (
-        <div className="sticky top-14 z-30 flex h-[80px] w-full items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-card)] px-4 py-2 shadow-md lg:hidden">
+        <div className="sticky top-[var(--header-m-h)] z-30 flex h-[80px] w-full items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-card)] px-4 py-2 shadow-md lg:hidden">
           <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
             <div className="flex items-center gap-1.5">
               <Badge variant="primary" className="shrink-0 px-2 py-0.5 text-[11px]">

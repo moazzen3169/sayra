@@ -6,6 +6,11 @@ import { SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  icons: {
+    icon: "/img/favicon.png",
+    shortcut: "/img/favicon.png",
+    apple: "/img/favicon.png",
+  },
   title: {
     default: "سایرا | پلتفرم جامع رزرو آنلاین گیمنت و مراکز بازی",
     template: "%s | سایرا",
