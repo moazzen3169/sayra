@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Footer } from "@/components/Footer";
 import { BlogListView } from "@/components/blog/BlogListView";
 import { SITE_URL } from "@/lib/seo";
 import { blogService } from "@/services/blogService";
@@ -80,7 +79,6 @@ export default async function BlogPage() {
   return (
     <Suspense fallback={null}>
       <BlogListView initialItems={initialItems} initialTotal={initialTotal} />
-      <Footer />
     </Suspense>
   );
 }

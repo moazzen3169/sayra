@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BlogArticleContent } from "@/components/blog/BlogArticleContent";
+import {
+  BlogArticleContent,
+  extractArticleHeadings,
+} from "@/components/blog/BlogArticleContent";
 import { ArticleGamingCentersSection } from "@/components/blog/ArticleGamingCentersSection";
 import type { ArticleGamingCentersSectionData } from "@/types/blog";
 import { BlogPostCard } from "@/components/blog/BlogPostCard";
@@ -23,6 +26,7 @@ import {
   formatBlogDate,
   formatReadingMinutes,
 } from "@/lib/blog";
+import { toPersianDigits } from "@/lib/format";
 import { getErrorMessage } from "@/lib/reservationUi";
 import { blogService } from "@/services/blogService";
 import { SafeImage } from "@/components/ui/SafeImage";
@@ -51,12 +55,21 @@ interface RelatedState {
 type ShareState = "idle" | "copied" | "failed";
 
 const MetaItem: React.FC<{
-  icon: "user" | "calendar" | "clock";
+  icon: "user" | "calendar" | "clock" | "star";
   text: string;
-}> = ({ icon, text }) => (
-  <span className="flex items-center gap-1.5">
-    <Icon name={icon} size={16} />
-    {text}
+  highlight?: boolean;
+}> = ({ icon, text, highlight = false }) => (
+  <span
+    className={`inline-flex items-center gap-1.5 ${
+      highlight ? "font-semibold text-[var(--text-white)]" : "text-[var(--text-muted)]"
+    }`}
+  >
+    <Icon
+      name={icon}
+      size={15}
+      className={highlight ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}
+    />
+    <span>{text}</span>
   </span>
 );
 
@@ -99,6 +112,7 @@ export const BlogPostView: React.FC<{
   );
   const [related, setRelated] = useState<RelatedState | null>(null);
   const [shareState, setShareState] = useState<ShareState>("idle");
+  const [readProgress, setReadProgress] = useState(0);
   const [sidebarQuery, setSidebarQuery] = useState("");
   const [categories, setCategories] = useState<BlogCategory[] | null>(null);
   const [seriesList, setSeriesList] = useState<BlogSeries[] | null>(null);
@@ -207,6 +221,32 @@ useEffect(() => {
   const current = state && state.key === key ? state : null;
   const post = current?.post;
   const relatedItems = related && related.slug === decodedSlug ? related.items : [];
+  const headings = useMemo(
+    () => (post ? extractArticleHeadings(post.content) : []),
+    [post]
+  );
+
+  useEffect(() => {
+    const updateProgress = () => {
+      const scrollTop = window.scrollY;
+      const docHeight =
+        document.documentElement.scrollHeight - window.innerHeight;
+      if (docHeight <= 0) {
+        setReadProgress(0);
+        return;
+      }
+      const ratio = Math.min(100, Math.max(0, (scrollTop / docHeight) * 100));
+      setReadProgress(ratio);
+    };
+
+    updateProgress();
+    window.addEventListener("scroll", updateProgress, { passive: true });
+    window.addEventListener("resize", updateProgress, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", updateProgress);
+      window.removeEventListener("resize", updateProgress);
+    };
+  }, [decodedSlug]);
 
   const handleShare = async () => {
     if (!post) return;
@@ -238,15 +278,31 @@ useEffect(() => {
         : "اشتراک‌گذاری";
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-28 text-[var(--text-white)] lg:pb-0">
+    <div
+      dir="rtl"
+      className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-28 text-[var(--text-white)] lg:pb-0"
+    >
       <Header />
 
+      {/* نوار ظریف پیشرفت مطالعه مقاله */}
+      {post && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-x-0 top-0 z-50 h-[2.5px] bg-transparent"
+        >
+          <div
+            className="h-full bg-[var(--primary)] transition-[width] duration-150 ease-out"
+            style={{ width: `${readProgress}%` }}
+          />
+        </div>
+      )}
+
       <div className="flex flex-1 flex-col pt-[var(--header-m-h)] lg:pt-[var(--header-h)]">
-        <main className="mx-auto flex w-full max-w-[var(--max-app-width)] flex-1 flex-col gap-8 px-4 pt-4 lg:px-8 lg:pt-8">
+        <main className="mx-auto flex w-full max-w-[var(--max-app-width)] flex-1 flex-col gap-10 px-4 pb-10 pt-5 lg:gap-12 lg:px-8 lg:pt-8">
         {/* دو قسمت اصلی صفحه در دسکتاپ (قسمت اول: محتوای وبلاگ ، قسمت دوم: سایدبار وبلاگ) */}
-        <div className="flex w-full flex-col items-start gap-8 lg:flex-row">
+        <div className="flex w-full flex-col items-start gap-6 lg:flex-row lg:gap-8">
           {/* قسمت اول: جزییات و کل محتوای وبلاگ */}
-          <div className="flex-1 min-w-0 w-full flex flex-col gap-6">
+          <div className="flex w-full min-w-0 flex-1 flex-col gap-6">
             {!current && (
               <div className="w-full">
                 <DetailSkeleton />
@@ -271,21 +327,39 @@ useEffect(() => {
             )}
 
             {post && (
-              <article className="flex w-full flex-col gap-6">
+              <article
+                dir="rtl"
+                className="flex w-full flex-col gap-6 text-right lg:gap-8 lg:rounded-2xl lg:border lg:border-[var(--border-subtle)]/80 lg:bg-[#16161B] lg:p-10"
+              >
+                {/* مسیر صفحه (Breadcrumb) */}
                 <nav
                   aria-label="مسیر صفحه"
-                  className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-muted)]"
+                  className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-muted)] lg:text-[13px]"
                 >
-                  <Link href="/" className="transition-colors hover:text-[var(--primary)]">
+                  <Link
+                    href="/"
+                    className="transition-colors hover:text-[var(--primary)]"
+                  >
                     سایرا
                   </Link>
-                  <span aria-hidden="true">/</span>
-                  <Link href="/blog" className="transition-colors hover:text-[var(--primary)]">
+                  <Icon
+                    name="chevron"
+                    size={14}
+                    className="rotate-90 text-[var(--text-muted)]/60"
+                  />
+                  <Link
+                    href="/blog"
+                    className="transition-colors hover:text-[var(--primary)]"
+                  >
                     وبلاگ
                   </Link>
                   {post.categoryLabel && (
                     <>
-                      <span aria-hidden="true">/</span>
+                      <Icon
+                        name="chevron"
+                        size={14}
+                        className="rotate-90 text-[var(--text-muted)]/60"
+                      />
                       <Link
                         href={`/blog?category=${encodeURIComponent(post.category)}`}
                         className="transition-colors hover:text-[var(--primary)]"
@@ -294,35 +368,92 @@ useEffect(() => {
                       </Link>
                     </>
                   )}
-                  <span aria-hidden="true">/</span>
-                  <span className="max-w-[200px] truncate text-[var(--text-white)] sm:max-w-md">
+                  <Icon
+                    name="chevron"
+                    size={14}
+                    className="rotate-90 text-[var(--text-muted)]/60"
+                  />
+                  <span className="max-w-[200px] truncate font-medium text-[var(--text-white)]/90 sm:max-w-md">
                     {post.title}
                   </span>
                 </nav>
-                <header className="flex flex-col gap-3">
-                  <Link
-                    href={`/blog?category=${encodeURIComponent(post.category)}`}
-                    className="self-start"
-                  >
-                    <Badge variant="neutral">{post.categoryLabel}</Badge>
-                  </Link>
-                  <h1 className="text-xl font-bold leading-9 text-[var(--text-white)] sm:text-2xl">
+
+                {/* هدر مقاله: دسته‌بندی، عنوان، چکیده و متادیتا */}
+                <header className="flex flex-col gap-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href={`/blog?category=${encodeURIComponent(post.category)}`}
+                    >
+                      <Badge
+                        variant="neutral"
+                        className="transition-colors hover:border-[var(--primary)]/50 hover:text-[var(--primary)]"
+                      >
+                        {post.categoryLabel}
+                      </Badge>
+                    </Link>
+                    {post.featured && (
+                      <Badge variant="primary" className="gap-1">
+                        <Icon name="star" size={14} filled />
+                        <span>مقاله ویژه</span>
+                      </Badge>
+                    )}
+                  </div>
+
+                  <h1 className="font-peyda text-[22px] font-extrabold leading-[1.55] tracking-tight text-[var(--text-white)] sm:text-[26px] sm:leading-[1.5] lg:text-[32px] lg:leading-[1.45]">
                     {post.title}
                   </h1>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[var(--text-muted)]">
-                    <MetaItem icon="user" text={post.authorName} />
-                    <MetaItem
-                      icon="calendar"
-                      text={formatBlogDate(post.publishedAt)}
-                    />
-                    <MetaItem
-                      icon="clock"
-                      text={`${formatReadingMinutes(post.readingMinutes)} مطالعه`}
-                    />
+
+                  {post.excerpt && (
+                    <p className="font-vazir text-[14.5px] leading-[1.9] text-[var(--text-muted)] sm:text-[15.5px] lg:text-[16.5px] lg:leading-[1.95]">
+                      {post.excerpt}
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-y border-[var(--border-subtle)] py-3.5 text-xs lg:text-[13px]">
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                      {post.authorName && (
+                        <MetaItem icon="user" text={post.authorName} highlight />
+                      )}
+                      {post.publishedAt && (
+                        <MetaItem
+                          icon="calendar"
+                          text={formatBlogDate(post.publishedAt)}
+                        />
+                      )}
+                      <MetaItem
+                        icon="clock"
+                        text={`${formatReadingMinutes(post.readingMinutes)} مطالعه`}
+                      />
+                      {typeof post.viewsCount === "number" && post.viewsCount > 0 && (
+                        <MetaItem
+                          icon="star"
+                          text={`${toPersianDigits(post.viewsCount)} بازدید`}
+                        />
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleShare}
+                      aria-label={shareLabel}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/50 hover:text-[var(--primary)]"
+                    >
+                      <Icon
+                        name={shareState === "copied" ? "check" : "share"}
+                        size={15}
+                        className={
+                          shareState === "copied"
+                            ? "text-[var(--primary)]"
+                            : undefined
+                        }
+                      />
+                      <span aria-live="polite">{shareLabel}</span>
+                    </button>
                   </div>
                 </header>
 
-                <div className="aspect-[16/9] w-full overflow-hidden rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]">
+                {/* تصویر شاخص مقاله */}
+                <div className="aspect-[16/9] w-full overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)]">
                   <SafeImage
                     src={post.coverUrl}
                     alt={post.title}
@@ -331,46 +462,114 @@ useEffect(() => {
                   />
                 </div>
 
-                <BlogArticleContent
-                  blocks={post.content}
-                  relatedArticles={
-                    post.relatedArticles?.length
-                      ? post.relatedArticles
-                      : relatedItems
-                  }
-                />
+                {/* فهرست مطالب خودکار (در صورت وجود ۲ سرتیتر یا بیشتر) */}
+                {headings.length >= 2 && (
+                  <details
+                    open
+                    className="group rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)]/60 p-4 md:p-5"
+                  >
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-2 font-peyda text-sm font-bold text-[var(--text-white)] md:text-[15px]">
+                      <span className="flex items-center gap-2">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--primary-muted)] text-[var(--primary)]">
+                          <Icon name="list" size={16} />
+                        </span>
+                        <span>فهرست مطالب</span>
+                      </span>
+                      <Icon
+                        name="chevron"
+                        size={16}
+                        className="text-[var(--text-muted)] transition-transform duration-200 group-open:rotate-180"
+                      />
+                    </summary>
+                    <ol className="mt-3.5 flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-3.5 font-vazir text-[13.5px] leading-7 md:text-[14.5px]">
+                      {headings.map((item, idx) => (
+                        <li
+                          key={item.id}
+                          className={item.level >= 3 ? "ps-5" : undefined}
+                        >
+                          <a
+                            href={`#${item.id}`}
+                            className="group/toc flex items-baseline gap-2 text-[var(--text-muted)] transition-colors hover:text-[var(--primary)]"
+                          >
+                            <span className="shrink-0 font-peyda text-xs font-bold text-[var(--primary)]/80">
+                              {toPersianDigits(idx + 1)}.
+                            </span>
+                            <span className="group-hover/toc:underline underline-offset-4">
+                              {item.text}
+                            </span>
+                          </a>
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
+                )}
 
+                {/* بدنه اصلی مقاله */}
+                <div className="w-full py-1">
+                  <BlogArticleContent
+                    blocks={post.content}
+                    relatedArticles={
+                      post.relatedArticles?.length
+                        ? post.relatedArticles
+                        : relatedItems
+                    }
+                  />
+                </div>
+
+                {/* گیم‌نت‌های مرتبط با مقاله */}
                 <ArticleGamingCentersSection
                   section={gamingCentersSection ?? post.gamingCentersSection}
                   fallbackCity={post.rankingCity}
                 />
 
-                <footer className="flex flex-col gap-4 border-t border-[var(--border-subtle)] pt-4">
+                {/* فوتر مقاله: برچسب‌ها، اشتراک‌گذاری و بازگشت */}
+                <footer className="flex flex-col gap-5 border-t border-[var(--border-subtle)] pt-6">
                   {post.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {post.tags.map((tag) => (
-                        <Link
-                          key={tag}
-                          href={`/blog?tag=${encodeURIComponent(tag)}`}
-                          className="flex h-10 items-center rounded-full border border-[var(--border-subtle)] bg-[var(--bg-card)] px-4 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/60 hover:text-[var(--primary)]"
-                        >
-                          {tag}
-                        </Link>
-                      ))}
+                    <div className="flex flex-col gap-2.5">
+                      <span className="flex items-center gap-1.5 font-peyda text-xs font-bold text-[var(--text-muted)]">
+                        <Icon name="tag" size={14} className="text-[var(--primary)]" />
+                        <span>برچسب‌های مقاله</span>
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {post.tags.map((tag) => (
+                          <Link
+                            key={tag}
+                            href={`/blog?tag=${encodeURIComponent(tag)}`}
+                            className="inline-flex h-9 items-center rounded-full border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3.5 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/60 hover:text-[var(--primary)]"
+                          >
+                            #{tag}
+                          </Link>
+                        ))}
+                      </div>
                     </div>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={handleShare}
-                    className="flex h-11 items-center gap-2 self-start rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)] px-4 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--border-color)]"
-                  >
-                    <Icon
-                      name={shareState === "copied" ? "check" : "share"}
-                      size={16}
-                    />
-                    <span aria-live="polite">{shareLabel}</span>
-                  </button>
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)]/60 p-4">
+                    <button
+                      type="button"
+                      onClick={handleShare}
+                      className="inline-flex h-10 items-center gap-2 rounded-card border border-[var(--border-color)] bg-[var(--foreground)]/50 px-4 text-xs font-bold text-[var(--text-white)] transition-colors hover:border-[var(--primary)]/60 hover:text-[var(--primary)] md:text-[13px]"
+                    >
+                      <Icon
+                        name={shareState === "copied" ? "check" : "share"}
+                        size={16}
+                        className={
+                          shareState === "copied"
+                            ? "text-[var(--primary)]"
+                            : undefined
+                        }
+                      />
+                      <span aria-live="polite">{shareLabel}</span>
+                    </button>
+
+                    <Link
+                      href="/blog"
+                      className="inline-flex h-10 items-center gap-1.5 text-xs font-bold text-[var(--primary)] transition-opacity hover:opacity-80 md:text-[13px]"
+                    >
+                      <span>مشاهده همه مقاله‌ها</span>
+                      <Icon name="arrow-left" size={16} />
+                    </Link>
+                  </div>
                 </footer>
               </article>
             )}

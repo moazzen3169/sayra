@@ -295,7 +295,8 @@ export const BlogListView: React.FC<BlogListViewProps> = ({
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg-body)] pb-28 text-[var(--text-white)] lg:pb-0">
       <Header />
-      <main className="mx-auto flex w-full max-w-[var(--max-app-width)] flex-1 flex-col gap-6 px-4 pb-4 pt-[var(--header-m-h)] lg:pt-[var(--header-h)] lg:gap-8 lg:px-8">
+      <div className="flex flex-1 flex-col pt-[var(--header-m-h)] lg:pt-[var(--header-h)]">
+        <main className="mx-auto flex w-full max-w-[var(--max-app-width)] flex-1 flex-col gap-6 px-4 pb-8 pt-5 lg:gap-8 lg:px-8 lg:pt-8">
         {/* اسلایدر مقاله‌های داغ (Hot) */}
         <BlogHeroSlider />
 
@@ -493,7 +494,8 @@ export const BlogListView: React.FC<BlogListViewProps> = ({
             />
           </div>
         </div>
-      </main>
+        </main>
+      </div>
 
       {sortOpen && (
         <BlogSortSheet

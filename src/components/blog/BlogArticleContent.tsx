@@ -3,10 +3,18 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { Icon } from "@/components/ui/Icon";
 import { BLOG_API_BASE_URL } from "@/lib/api/config";
+import { toPersianDigits } from "@/lib/format";
 import type { BlogPostSummary } from "@/types/blog";
 
 type UnknownRecord = Record<string, unknown>;
+
+export interface ArticleHeadingItem {
+  id: string;
+  text: string;
+  level: number;
+}
 
 interface BlogArticleContentProps {
   blocks: unknown[];
@@ -160,23 +168,40 @@ function RichTextNodes({ nodes }: { nodes: unknown[] }) {
 
         switch (type) {
           case "strong":
-            return <strong key={index}>{content}</strong>;
+            return (
+              <strong key={index} className="font-bold text-[var(--text-white)]">
+                {content}
+              </strong>
+            );
 
           case "italic":
-            return <em key={index}>{content}</em>;
+            return (
+              <em key={index} className="italic text-[var(--text-white)]/95">
+                {content}
+              </em>
+            );
 
           case "underline":
-            return <u key={index}>{content}</u>;
+            return (
+              <u key={index} className="underline underline-offset-4">
+                {content}
+              </u>
+            );
 
           case "strike":
-            return <s key={index}>{content}</s>;
+            return (
+              <s key={index} className="text-[var(--text-muted)] line-through">
+                {content}
+              </s>
+            );
 
           case "code":
           case "inline_code":
             return (
               <code
                 key={index}
-                className="rounded bg-[var(--foreground)] px-1.5 py-0.5 font-mono text-[0.9em]"
+                dir="ltr"
+                className="inline-block rounded-md border border-[var(--border-subtle)] bg-[var(--bg-card)] px-1.5 py-0.5 font-mono text-[0.85em] text-[var(--primary)]"
               >
                 {content}
               </code>
@@ -196,7 +221,7 @@ function RichTextNodes({ nodes }: { nodes: unknown[] }) {
                 target={target}
                 rel={target === "_blank" ? "noopener noreferrer" : undefined}
                 title={asString(rawNode.title) || undefined}
-                className="text-[var(--primary)] underline underline-offset-4 hover:opacity-80"
+                className="font-medium text-[var(--primary)] underline decoration-[var(--primary)]/40 underline-offset-4 transition-colors hover:decoration-[var(--primary)]"
               >
                 {content}
               </a>
@@ -218,7 +243,7 @@ function RichTextNodes({ nodes }: { nodes: unknown[] }) {
             return (
               <mark
                 key={index}
-                className="rounded bg-yellow-300/20 px-1 text-inherit"
+                className="rounded bg-[var(--primary)]/20 px-1.5 py-0.5 text-[var(--text-white)]"
               >
                 {content}
               </mark>
@@ -234,7 +259,8 @@ function RichTextNodes({ nodes }: { nodes: unknown[] }) {
             return (
               <kbd
                 key={index}
-                className="rounded border border-[var(--border-subtle)] bg-[var(--foreground)] px-1.5 py-0.5 font-mono text-xs"
+                dir="ltr"
+                className="inline-block rounded border border-[var(--border-color)] bg-[var(--bg-card)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-white)]"
               >
                 {content}
               </kbd>
@@ -242,7 +268,7 @@ function RichTextNodes({ nodes }: { nodes: unknown[] }) {
 
           case "small":
             return (
-              <small key={index} className="text-xs">
+              <small key={index} className="text-[0.85em] text-[var(--text-muted)]">
                 {content}
               </small>
             );
@@ -332,7 +358,7 @@ function ImageBlock({ block }: { block: UnknownRecord }) {
       loading={block.lazy === false || block.loading === "eager" ? "eager" : "lazy"}
       decoding="async"
       fetchPriority={fetchPriority}
-      className="max-h-[680px] w-full rounded-card"
+      className="max-h-[560px] w-full rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)]"
       style={{ objectFit, ...(objectPosition ? { objectPosition } : {}) }}
     />
   );
@@ -340,12 +366,13 @@ function ImageBlock({ block }: { block: UnknownRecord }) {
   const link = safeUrl(block.link);
 
   return (
-    <figure className="flex flex-col gap-2">
+    <figure className="my-2 flex flex-col gap-2.5">
       {link ? (
         <a
           href={link}
           target={block.target === "_blank" ? "_blank" : undefined}
           rel={block.target === "_blank" ? "noopener noreferrer" : undefined}
+          className="block overflow-hidden rounded-card"
         >
           {image}
         </a>
@@ -354,7 +381,7 @@ function ImageBlock({ block }: { block: UnknownRecord }) {
       )}
 
       {caption && (
-        <figcaption className="text-center text-xs leading-6 text-[var(--text-muted)]">
+        <figcaption className="text-center font-vazir text-xs leading-6 text-[var(--text-muted)] md:text-[13.5px]">
           {caption}
         </figcaption>
       )}
@@ -477,8 +504,8 @@ function GalleryBlock({ block }: { block: UnknownRecord }) {
               >
                 قبلی
               </button>
-              <span>
-                {lightboxIndex + 1} / {resolvedItems.length}
+              <span className="px-1 font-medium text-white/90">
+                {toPersianDigits(lightboxIndex + 1)} از {toPersianDigits(resolvedItems.length)}
               </span>
               <button
                 type="button"
@@ -571,16 +598,16 @@ function TableBlock({ block }: { block: UnknownRecord }) {
   if (headers.length === 0 && rows.length === 0) return null;
 
   return (
-    <div className="w-full overflow-x-auto rounded-card border border-[var(--border-subtle)]">
-      <table className="w-full min-w-[420px] border-collapse text-start text-sm">
+    <div className="my-2 w-full overflow-x-auto rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)]/50">
+      <table className="w-full min-w-[420px] border-collapse text-right font-vazir text-[13.5px] md:text-[15px]">
         {headers.length > 0 && (
-          <thead className="bg-[var(--foreground)]">
+          <thead className="bg-[var(--foreground)]/70">
             <tr>
               {headers.map((header, index) => (
                 <th
                   key={index}
                   scope="col"
-                  className="border-b border-[var(--border-subtle)] px-4 py-3 font-bold"
+                  className="border-b border-[var(--border-color)] px-4 py-3.5 font-peyda text-[13px] font-bold text-[var(--text-white)] md:text-[14px]"
                 >
                   {header}
                 </th>
@@ -591,11 +618,14 @@ function TableBlock({ block }: { block: UnknownRecord }) {
 
         <tbody>
           {rows.map((row, rowIndex) => (
-            <tr key={rowIndex} className="even:bg-[var(--foreground)]/40">
+            <tr
+              key={rowIndex}
+              className="transition-colors even:bg-[var(--foreground)]/25 hover:bg-[var(--foreground)]/40"
+            >
               {row.map((cell, cellIndex) => (
                 <td
                   key={cellIndex}
-                  className="border-b border-[var(--border-subtle)] px-4 py-3 leading-7"
+                  className="border-b border-[var(--border-subtle)] px-4 py-3.5 leading-7 text-[#E5E7EB]"
                 >
                   {cell}
                 </td>
@@ -628,18 +658,21 @@ function CodeBlock({ block }: { block: UnknownRecord }) {
   };
 
   return (
-    <div className="overflow-hidden rounded-card border border-[var(--border-subtle)] bg-[#111827] text-slate-100">
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-2 text-xs text-slate-300">
-        <span>{language || "code"}</span>
+    <div className="my-2 overflow-hidden rounded-card border border-[var(--border-subtle)] bg-[#0B0D12] text-slate-100">
+      <div className="flex items-center justify-between border-b border-white/10 bg-[var(--bg-card)]/70 px-4 py-2.5 text-xs text-slate-300">
+        <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
+          {language || "code"}
+        </span>
         <button
           type="button"
           onClick={handleCopy}
-          className="rounded px-2 py-0.5 text-[11px] text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+          className="inline-flex items-center gap-1.5 rounded-md border border-white/10 px-2.5 py-1 text-[11px] font-medium text-slate-200 transition-colors hover:border-[var(--primary)]/50 hover:text-[var(--primary)]"
         >
-          {copied ? "کپی شد ✓" : "کپی کد"}
+          <Icon name={copied ? "check" : "copy"} size={14} />
+          <span>{copied ? "کپی شد" : "کپی کد"}</span>
         </button>
       </div>
-      <pre className="overflow-x-auto p-4 text-left text-xs leading-7" dir="ltr">
+      <pre className="overflow-x-auto p-4 text-left font-mono text-xs leading-6 md:text-[13px] md:leading-7" dir="ltr">
         <code>
           {showLineNumbers
             ? lines.map((line, i) => (
@@ -694,16 +727,21 @@ function AccordionBlock({ block }: { block: UnknownRecord }) {
   if (items.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="my-2 flex flex-col gap-2.5">
       {items.map((item, index) => (
         <details
           key={String(item.id ?? index)}
-          className="rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/30 p-4"
+          className="group rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)]/70 p-4 transition-colors open:border-[var(--primary)]/40 md:p-5"
         >
-          <summary className="cursor-pointer font-semibold leading-7">
-            {asString(item.title, "بدون عنوان")}
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-peyda text-[14.5px] font-bold leading-7 text-[var(--text-white)] md:text-[16px]">
+            <span>{asString(item.title, "بدون عنوان")}</span>
+            <Icon
+              name="chevron"
+              size={18}
+              className="shrink-0 text-[var(--primary)] transition-transform duration-200 group-open:rotate-180"
+            />
           </summary>
-          <div className="pt-3 text-sm leading-8 text-[var(--text-muted)]">
+          <div className="mt-3 border-t border-[var(--border-subtle)] pt-3.5 font-vazir text-[14px] leading-[1.95] text-[#D1D5DB] md:text-[15.5px] md:leading-[2]">
             {asString(item.content)}
           </div>
         </details>
@@ -717,24 +755,30 @@ function FaqBlock({ block }: { block: UnknownRecord }) {
   if (questions.length === 0) return null;
 
   return (
-    <section className="flex flex-col gap-3">
-      <h3 className="text-base font-bold">سؤالات متداول</h3>
-      {questions.map((item, index) => (
-        <details
-          key={String(item.id ?? index)}
-          className="group rounded-card border border-[var(--border-subtle)] bg-[var(--foreground)]/20 p-4"
-        >
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 font-semibold leading-7">
-            <span>{asString(item.q, "سؤال")}</span>
-            <span className="text-xs text-[var(--primary)] transition-transform group-open:rotate-180">
-              ▼
-            </span>
-          </summary>
-          <p className="mt-2 border-t border-[var(--border-subtle)] pt-3 text-sm leading-8 text-[var(--text-muted)]">
-            {asString(item.a)}
-          </p>
-        </details>
-      ))}
+    <section className="my-2 flex flex-col gap-3">
+      <h3 className="border-s-[3px] border-[var(--primary)] ps-3 font-peyda text-[17px] font-extrabold text-[var(--text-white)] md:text-[20px]">
+        سؤالات متداول
+      </h3>
+      <div className="flex flex-col gap-2.5">
+        {questions.map((item, index) => (
+          <details
+            key={String(item.id ?? index)}
+            className="group rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)]/70 p-4 transition-colors open:border-[var(--primary)]/40 md:p-5"
+          >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-peyda text-[14.5px] font-bold leading-7 text-[var(--text-white)] md:text-[16px]">
+              <span>{asString(item.q, "سؤال")}</span>
+              <Icon
+                name="chevron"
+                size={18}
+                className="shrink-0 text-[var(--primary)] transition-transform duration-200 group-open:rotate-180"
+              />
+            </summary>
+            <p className="mt-3 border-t border-[var(--border-subtle)] pt-3.5 font-vazir text-[14px] leading-[1.95] text-[#D1D5DB] md:text-[15.5px] md:leading-[2]">
+              {asString(item.a)}
+            </p>
+          </details>
+        ))}
+      </div>
     </section>
   );
 }
@@ -810,7 +854,7 @@ function LocationBlock({ block }: { block: UnknownRecord }) {
   const imageSrc = resolveMediaUrl(getString(media, "url", "src"));
 
   return (
-    <section className="flex flex-col gap-3 rounded-card border border-[var(--border-subtle)] p-4">
+    <section className="my-2 flex flex-col gap-3.5 rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)]/70 p-4 md:p-6">
       {imageSrc && (
         <img
           src={imageSrc}
@@ -823,18 +867,18 @@ function LocationBlock({ block }: { block: UnknownRecord }) {
         />
       )}
 
-      <h3 className="text-base font-bold">
+      <h3 className="font-peyda text-base font-bold text-[var(--text-white)] md:text-lg">
         {asString(block.title, "موقعیت مکانی")}
       </h3>
 
       {description && (
-        <p className="text-sm leading-7 text-[var(--text-muted)]">
+        <p className="font-vazir text-[14px] leading-[1.9] text-[#D1D5DB] md:text-[15.5px]">
           {description}
         </p>
       )}
 
       {addressText && (
-        <p className="text-sm leading-7">
+        <p className="font-vazir text-[14px] leading-7 text-[var(--text-white)]/90 md:text-[15px]">
           {addressText}
           {postalCode ? ` (کد پستی: ${postalCode})` : ""}
         </p>
@@ -919,8 +963,8 @@ function TimelineBlock({ block }: { block: UnknownRecord }) {
   const horizontal = block.orientation === "horizontal";
 
   return (
-    <section className="flex flex-col gap-4">
-      <h3 className="text-base font-bold">
+    <section className="my-2 flex flex-col gap-4">
+      <h3 className="border-s-[3px] border-[var(--primary)] ps-3 font-peyda text-[17px] font-extrabold text-[var(--text-white)] md:text-[20px]">
         {asString(block.title, "خط زمانی")}
       </h3>
 
@@ -928,7 +972,7 @@ function TimelineBlock({ block }: { block: UnknownRecord }) {
         className={
           horizontal
             ? "flex snap-x gap-4 overflow-x-auto pb-3"
-            : "relative flex flex-col gap-5 border-s-2 border-[var(--border-subtle)] ps-5"
+            : "relative flex flex-col gap-6 border-s-2 border-[var(--border-color)] ps-5 md:ps-6"
         }
       >
         {events.map((event, index) => {
@@ -948,36 +992,36 @@ function TimelineBlock({ block }: { block: UnknownRecord }) {
               key={String(event.id ?? index)}
               className={
                 horizontal
-                  ? "w-[min(82vw,320px)] shrink-0 snap-start rounded-card border border-[var(--border-subtle)] p-4"
+                  ? "w-[min(82vw,320px)] shrink-0 snap-start rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)]/70 p-4 md:p-5"
                   : "relative flex flex-col gap-2"
               }
             >
               {!horizontal && (
-                <span className="absolute -start-[27px] top-2 h-3 w-3 rounded-full border-2 border-[var(--primary)] bg-[var(--bg-body)]" />
+                <span className="absolute -start-[27px] top-2 h-3 w-3 rounded-full border-2 border-[var(--primary)] bg-[var(--bg-body)] md:-start-[31px]" />
               )}
 
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-[var(--primary)]">
+                <span className="text-xs font-bold text-[var(--primary)] md:text-[13px]">
                   {asString(date.value)}
                 </span>
                 {eventCategory && (
-                  <span className="rounded-full bg-[var(--foreground)] px-2 py-0.5 text-[11px] text-[var(--text-muted)]">
+                  <span className="rounded-full bg-[var(--foreground)] px-2.5 py-0.5 text-[11px] text-[var(--text-muted)]">
                     {eventCategory}
                   </span>
                 )}
                 {eventLocation && (
-                  <span className="text-[11px] text-[var(--text-muted)]">
+                  <span className="text-xs text-[var(--text-muted)]">
                     • {eventLocation}
                   </span>
                 )}
               </div>
 
-              <h4 className="font-bold leading-7">
+              <h4 className="font-peyda text-[15px] font-bold leading-7 text-[var(--text-white)] md:text-[17px]">
                 {asString(event.title)}
               </h4>
 
               {eventDescription && (
-                <p className="text-sm leading-8 text-[var(--text-muted)]">
+                <p className="font-vazir text-[14px] leading-[1.95] text-[#D1D5DB] md:text-[15.5px] md:leading-[2]">
                   {eventDescription}
                 </p>
               )}
@@ -1001,8 +1045,43 @@ function TimelineBlock({ block }: { block: UnknownRecord }) {
   );
 }
 
+export function getHeadingAnchorId(
+  block: UnknownRecord,
+  index: number
+): string {
+  return getString(block, "anchor_id") || `article-heading-${index}`;
+}
+
+export function extractArticleHeadings(
+  blocks: unknown[]
+): ArticleHeadingItem[] {
+  if (!Array.isArray(blocks)) return [];
+  const headings: ArticleHeadingItem[] = [];
+
+  blocks.forEach((rawBlock, index) => {
+    if (!isRecord(rawBlock) || rawBlock.type !== "heading") return;
+    const settings = isRecord(rawBlock.settings) ? rawBlock.settings : {};
+    if (settings.visibility === "hidden") return;
+
+    const text = getString(rawBlock, "text").trim();
+    if (!text) return;
+
+    const level = Math.max(1, Math.min(6, getNumber(rawBlock, "level", 2)));
+    if (level <= 3) {
+      headings.push({
+        id: getHeadingAnchorId(rawBlock, index),
+        text,
+        level,
+      });
+    }
+  });
+
+  return headings;
+}
+
 function renderBlockContent(
   block: UnknownRecord,
+  blockIndex: number,
   relatedArticles?: BlogPostSummary[]
 ): React.ReactNode {
   switch (block.type) {
@@ -1011,19 +1090,18 @@ function renderBlockContent(
       if (!text) return null;
 
       const level = Math.max(1, Math.min(6, getNumber(block, "level", 2)));
-      const className =
-        "pt-3 font-bold leading-8 text-[var(--text-white)] " +
-        (level === 1
-          ? "text-2xl"
+      const headingClasses =
+        level === 1
+          ? "mt-6 lg:mt-8 font-peyda text-[20px] font-extrabold leading-[1.55] text-[var(--text-white)] md:text-[24px] lg:text-[26px] lg:leading-[1.5]"
           : level === 2
-            ? "text-xl"
+            ? "mt-6 lg:mt-8 border-s-[3px] border-[var(--primary)] ps-3.5 font-peyda text-[18.5px] font-extrabold leading-[1.6] text-[var(--text-white)] md:text-[21px] lg:text-[23px] lg:leading-[1.55]"
             : level === 3
-              ? "text-lg"
-              : "text-base");
+              ? "mt-4 lg:mt-6 font-peyda text-[16.5px] font-bold leading-[1.65] text-[var(--text-white)] md:text-[18.5px] lg:text-[20px] lg:leading-[1.6]"
+              : "mt-3 lg:mt-4 font-peyda text-[15px] font-bold leading-[1.7] text-[var(--text-white)]/95 md:text-[16.5px] lg:text-[17.5px] lg:leading-[1.65]";
 
       const commonProps = {
-        id: getString(block, "anchor_id") || undefined,
-        className,
+        id: getHeadingAnchorId(block, blockIndex),
+        className: `scroll-mt-[calc(var(--header-m-h)+1.5rem)] lg:scroll-mt-[calc(var(--header-h)+2rem)] text-right ${headingClasses}`,
       };
 
       switch (level) {
@@ -1044,7 +1122,7 @@ function renderBlockContent(
 
     case "paragraph":
       return (
-        <p className="whitespace-pre-wrap text-md leading text-[var(--text-white)]/90">
+        <p className="whitespace-pre-wrap text-right font-vazir text-[15px] font-normal leading-[2.05] text-[#E5E7EB] md:text-[16.5px] md:leading-[2.1] lg:text-[17px] lg:leading-[2.15]">
           <ParagraphContent block={block} />
         </p>
       );
@@ -1053,10 +1131,14 @@ function renderBlockContent(
       const citation = asString(block.citation);
 
       return (
-        <blockquote className="flex flex-col gap-2 border-s-2 border-[var(--primary)] py-1 ps-4 text-sm leading-8 text-[var(--text-muted)]">
-          <p>{asString(block.text)}</p>
+        <blockquote className="my-2 flex flex-col gap-3 rounded-card border border-[var(--border-subtle)] border-s-[3px] border-s-[var(--primary)] bg-[var(--bg-card)]/75 px-4 py-4 text-right md:px-6 md:py-5">
+          <p className="font-vazir text-[15px] leading-[2] text-[var(--text-white)]/90 md:text-[16.5px] lg:text-[17px] lg:leading-[2.05]">
+            {asString(block.text)}
+          </p>
           {citation && (
-            <cite className="text-xs not-italic">{citation}</cite>
+            <cite className="font-peyda text-xs font-semibold not-italic text-[var(--primary)]/90 md:text-[13px]">
+              — {citation}
+            </cite>
           )}
         </blockquote>
       );
@@ -1070,9 +1152,11 @@ function renderBlockContent(
       );
 
       return items.length > 0 ? (
-        <ul className="flex list-disc flex-col gap-2 ps-5 text-sm leading-7 marker:text-[var(--primary)]">
+        <ul className="flex list-disc flex-col gap-2.5 ps-6 text-right font-vazir text-[15px] leading-[2] text-[#E5E7EB] marker:text-[var(--primary)] md:text-[16.5px] lg:text-[17px] lg:leading-[2.05]">
           {items.map((item, index) => (
-            <li key={index}>{item}</li>
+            <li key={index} className="ps-1">
+              {item}
+            </li>
           ))}
         </ul>
       ) : null;
@@ -1121,7 +1205,7 @@ function renderBlockContent(
             href={href}
             target={block.target === "_blank" ? "_blank" : undefined}
             rel={block.target === "_blank" ? "noopener noreferrer" : undefined}
-            className="inline-flex min-h-11 items-center justify-center rounded-card bg-[var(--primary)] px-5 py-2 text-sm font-bold text-white transition-opacity hover:opacity-85"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-card bg-[var(--primary)] px-6 py-2.5 text-sm font-bold text-[var(--text-on-primary)] transition-colors hover:bg-[var(--primary-hover)] md:text-[15px]"
           >
             {asString(block.label, "مشاهده")}
           </a>
@@ -1270,9 +1354,11 @@ function getBlockWrapperClasses(settings: UnknownRecord): string {
 
 function BlockRenderer({
   block,
+  blockIndex,
   relatedArticles,
 }: {
   block: UnknownRecord;
+  blockIndex: number;
   relatedArticles?: BlogPostSummary[];
 }) {
   const settings = isRecord(block.settings) ? block.settings : {};
@@ -1280,7 +1366,7 @@ function BlockRenderer({
     return null;
   }
 
-  const content = renderBlockContent(block, relatedArticles);
+  const content = renderBlockContent(block, blockIndex, relatedArticles);
   if (!content) return null;
 
   const wrapperClass = getBlockWrapperClasses(settings);
@@ -1296,7 +1382,10 @@ export const BlogArticleContent: React.FC<BlogArticleContentProps> = ({
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div
+      dir="rtl"
+      className="flex flex-col gap-5 text-right md:gap-6"
+    >
       {blocks.map((rawBlock, index) => {
         if (!isRecord(rawBlock)) return null;
 
@@ -1309,6 +1398,7 @@ export const BlogArticleContent: React.FC<BlogArticleContentProps> = ({
           <BlockRenderer
             key={key}
             block={rawBlock}
+            blockIndex={index}
             relatedArticles={relatedArticles}
           />
         );
