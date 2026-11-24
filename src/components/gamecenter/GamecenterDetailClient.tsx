@@ -276,7 +276,7 @@ export function GamecenterDetailClient({
       />
       <PageHeader title={title} onBack={handleBack} className="lg:hidden" />
 
-      <main className="flex-1 lg:pt-[var(--header-h)] flex flex-col gap-6 pt-3">
+      <main className="flex-1 lg:pt-[var(--header-h)] flex flex-col pt-3">
         {!loadError && detail && (
           <nav
             aria-label="مسیر صفحه"
