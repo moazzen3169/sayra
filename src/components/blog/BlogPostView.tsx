@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BlogArticleContent } from "@/components/blog/BlogArticleContent";
+import { ArticleGamingCentersSection } from "@/components/blog/ArticleGamingCentersSection";
+import type { ArticleGamingCentersSectionData } from "@/types/blog";
 import { BlogPostCard } from "@/components/blog/BlogPostCard";
 import { BlogSidebar } from "@/components/blog/BlogSidebar";
 import { BottomBar } from "@/components/BottomBar";
@@ -80,7 +82,8 @@ const DetailSkeleton: React.FC = () => (
 export const BlogPostView: React.FC<{
   slug: string;
   initialPost?: BlogPostDetail;
-}> = ({ slug, initialPost }) => {
+  gamingCentersSection?: ArticleGamingCentersSectionData | null;
+}> = ({ slug, initialPost, gamingCentersSection }) => {
   const decodedSlug = decodeURIComponent(slug);
 
   const router = useRouter();
@@ -335,6 +338,11 @@ useEffect(() => {
                       ? post.relatedArticles
                       : relatedItems
                   }
+                />
+
+                <ArticleGamingCentersSection
+                  section={gamingCentersSection ?? post.gamingCentersSection}
+                  fallbackCity={post.rankingCity}
                 />
 
                 <footer className="flex flex-col gap-4 border-t border-[var(--border-subtle)] pt-4">

@@ -15,6 +15,12 @@ import type {
   BlogContentBlock,
   BlogRichTextNode,
   AdminBlogPostInput,
+  ArticleGamingCenterLink,
+  ArticleGamingCenterMode,
+  ArticleGamingCentersSectionData,
+  ArticleRankingSort,
+  PublicGameCenterCard,
+  PublicGameCenterRankingMethodology,
 } from "@/types/blog";
 
 import type {
@@ -27,6 +33,9 @@ import type {
   ArticleContentBlockDto,
   ArticleCreateUpdateRequestDto,
   PatchedArticleCreateUpdateRequestDto,
+  ArticleGamingCenterLinkDto,
+  ArticleGamingCentersSectionDto,
+  PublicGameCenterCardDto,
 } from "@/types/blogApi";
 import { BLOG_API_BASE_URL } from "@/lib/api/config";
 /* ==========================================================================
@@ -1508,6 +1517,130 @@ function sanitizePublishAtParam(value?: string | null): string | null | undefine
   return parsed.toISOString();
 }
 
+export function mapPublicGameCenterDtoToCard(
+  dto: PublicGameCenterCardDto & {
+    displayOrder?: number;
+    customDescription?: string;
+  }
+): PublicGameCenterCard {
+  const slug = dto.slug || dto.id;
+  const detailUrl = dto.detailUrl || `/gamecenter/${encodeURIComponent(slug)}`;
+
+  return {
+    id: String(dto.id),
+    name: dto.name || "",
+    slug,
+    description: dto.description ?? null,
+    city: dto.city ?? null,
+    province: dto.province ?? null,
+    neighborhood: dto.neighborhood ?? null,
+    address: dto.address ?? null,
+    coordinates: dto.coordinates ?? null,
+    images: {
+      coverUrl: dto.images?.coverUrl ?? null,
+      gallery: Array.isArray(dto.images?.gallery) ? dto.images.gallery : [],
+    },
+    devices: Array.isArray(dto.devices) ? dto.devices : [],
+    deviceCounts: dto.deviceCounts ?? {},
+    pcCount: typeof dto.pcCount === "number" ? dto.pcCount : 0,
+    consoleCount: typeof dto.consoleCount === "number" ? dto.consoleCount : 0,
+    amenities: Array.isArray(dto.amenities) ? dto.amenities : [],
+    games: Array.isArray(dto.games) ? dto.games : [],
+    pricing: {
+      startingHourlyRate: dto.pricing?.startingHourlyRate ?? 0,
+      originalPrice: dto.pricing?.originalPrice ?? 0,
+      finalPrice: dto.pricing?.finalPrice ?? 0,
+      hasDiscount: Boolean(dto.pricing?.hasDiscount),
+      discountPercentage: dto.pricing?.discountPercentage ?? 0,
+      discountAmount: dto.pricing?.discountAmount ?? 0,
+      currency: dto.pricing?.currency ?? "IRT",
+    },
+    activityStatus: {
+      isActive: dto.activityStatus?.isActive ?? true,
+      isOpenNow: Boolean(dto.activityStatus?.isOpenNow),
+      openingTime: dto.activityStatus?.openingTime ?? null,
+      closingTime: dto.activityStatus?.closingTime ?? null,
+      timezone: dto.activityStatus?.timezone ?? "Asia/Tehran",
+      isTemporarilyClosed: Boolean(dto.activityStatus?.isTemporarilyClosed),
+      closedUntil: dto.activityStatus?.closedUntil ?? null,
+    },
+    rating: {
+      average: typeof dto.rating?.average === "number" ? dto.rating.average : 0,
+      validReviewsCount:
+        typeof dto.rating?.validReviewsCount === "number"
+          ? dto.rating.validReviewsCount
+          : 0,
+      latestReviewAt: dto.rating?.latestReviewAt ?? null,
+    },
+    ranking: dto.ranking ?? null,
+    detailUrl,
+    absoluteDetailUrl: dto.absoluteDetailUrl || detailUrl,
+    updatedAt: dto.updatedAt,
+    displayOrder: dto.display_order ?? dto.displayOrder,
+    customDescription: dto.custom_description ?? dto.customDescription ?? "",
+  };
+}
+
+export function mapGamingCenterSectionToUi(
+  dto: ArticleGamingCentersSectionDto | null | undefined
+): ArticleGamingCentersSectionData | null {
+  if (!dto) return null;
+  const mode: ArticleGamingCenterMode =
+    dto.mode === "manual" || dto.mode === "auto_ranking" ? dto.mode : "none";
+
+  const methodology: PublicGameCenterRankingMethodology | null =
+    dto.methodology
+      ? {
+          algorithm: dto.methodology.algorithm,
+          formula: dto.methodology.formula,
+          m: dto.methodology.m,
+          minReviews: dto.methodology.minReviews,
+          globalAverageC: dto.methodology.globalAverageC,
+          scopeTotalValidReviews: dto.methodology.scopeTotalValidReviews,
+          scope: dto.methodology.scope ?? {
+            city: null,
+            neighborhood: null,
+            deviceType: null,
+            amenities: [],
+          },
+          sort: dto.methodology.sort as ArticleRankingSort,
+          rankedCount: dto.methodology.rankedCount,
+          newlyRegisteredCount: dto.methodology.newlyRegisteredCount,
+          calculatedAt: dto.methodology.calculatedAt,
+        }
+      : null;
+
+  return {
+    mode,
+    items: Array.isArray(dto.items)
+      ? dto.items.map(mapPublicGameCenterDtoToCard)
+      : [],
+    newlyRegistered: Array.isArray(dto.newly_registered)
+      ? dto.newly_registered.map(mapPublicGameCenterDtoToCard)
+      : [],
+    methodology,
+    source: dto.source || "live",
+    isStale: Boolean(dto.is_stale),
+    lastUpdatedAt: dto.last_updated_at ?? null,
+  };
+}
+
+function mapGamingCenterLinksToUi(
+  links: ArticleGamingCenterLinkDto[] | undefined
+): ArticleGamingCenterLink[] {
+  if (!Array.isArray(links)) return [];
+  return links
+    .filter((l) => Boolean(l?.gaming_center_id))
+    .map((l, idx) => ({
+      id: l.id,
+      gamingCenterId: String(l.gaming_center_id),
+      displayOrder:
+        typeof l.display_order === "number" ? l.display_order : idx,
+      customDescription: l.custom_description ?? "",
+    }))
+    .sort((a, b) => a.displayOrder - b.displayOrder);
+}
+
 export function mapArticleDetailToUi(
   dto: ArticleDetailDto
 ): BlogPostDetail {
@@ -1518,6 +1651,12 @@ export function mapArticleDetailToUi(
     dto.content_blocks,
     dto.content
   );
+
+  const gamingCenterMode: ArticleGamingCenterMode =
+    dto.gaming_center_mode === "manual" ||
+    dto.gaming_center_mode === "auto_ranking"
+      ? dto.gaming_center_mode
+      : "none";
 
   return {
     ...summary,
@@ -1536,6 +1675,17 @@ export function mapArticleDetailToUi(
     structuredData: Array.isArray(dto.structured_data)
       ? dto.structured_data
       : undefined,
+    gamingCenterMode,
+    rankingCity: dto.ranking_city ?? "",
+    rankingNeighborhood: dto.ranking_neighborhood ?? "",
+    rankingDeviceType: dto.ranking_device_type ?? "",
+    rankingLimit: dto.ranking_limit ?? 10,
+    rankingMinReviews: dto.ranking_min_reviews ?? null,
+    rankingBayesianM: dto.ranking_bayesian_m ?? null,
+    rankingSort: (dto.ranking_sort as ArticleRankingSort) ?? "bayesian",
+    includeNewlyRegistered: dto.include_newly_registered ?? true,
+    gamingCenterLinks: mapGamingCenterLinksToUi(dto.gaming_center_links),
+    gamingCentersSection: mapGamingCenterSectionToUi(dto.gaming_centers_section),
   };
 }
 
@@ -1585,6 +1735,41 @@ export function mapAdminInputToCreateRequest(
   if (input.seoDescription?.trim()) body.seo_description = input.seoDescription.trim();
   if (resolvedCanonical) body.canonical_url = resolvedCanonical;
   if (resolvedPublishAt !== undefined) body.publish_at = resolvedPublishAt;
+
+  if (input.gamingCenterMode !== undefined) {
+    body.gaming_center_mode = input.gamingCenterMode;
+  }
+  if (input.rankingCity !== undefined) {
+    body.ranking_city = input.rankingCity.trim();
+  }
+  if (input.rankingNeighborhood !== undefined) {
+    body.ranking_neighborhood = input.rankingNeighborhood.trim();
+  }
+  if (input.rankingDeviceType !== undefined) {
+    body.ranking_device_type = input.rankingDeviceType.trim();
+  }
+  if (input.rankingLimit !== undefined && input.rankingLimit !== null) {
+    body.ranking_limit = input.rankingLimit;
+  }
+  if (input.rankingMinReviews !== undefined) {
+    body.ranking_min_reviews = input.rankingMinReviews;
+  }
+  if (input.rankingBayesianM !== undefined) {
+    body.ranking_bayesian_m = input.rankingBayesianM;
+  }
+  if (input.rankingSort !== undefined) {
+    body.ranking_sort = input.rankingSort;
+  }
+  if (input.includeNewlyRegistered !== undefined) {
+    body.include_newly_registered = Boolean(input.includeNewlyRegistered);
+  }
+  if (Array.isArray(input.gamingCenterLinks)) {
+    body.gaming_center_links = input.gamingCenterLinks.map((link, idx) => ({
+      gaming_center_id: String(link.gamingCenterId).trim(),
+      display_order: typeof link.displayOrder === "number" ? link.displayOrder : idx,
+      custom_description: link.customDescription?.trim() || "",
+    }));
+  }
 
   return body;
 }
@@ -1687,6 +1872,41 @@ export function mapAdminInputToPatchRequest(
 
     patch.content = content;
     patch.content_blocks = content_blocks;
+  }
+
+  if (input.gamingCenterMode !== undefined) {
+    patch.gaming_center_mode = input.gamingCenterMode;
+  }
+  if (input.rankingCity !== undefined) {
+    patch.ranking_city = input.rankingCity.trim();
+  }
+  if (input.rankingNeighborhood !== undefined) {
+    patch.ranking_neighborhood = input.rankingNeighborhood.trim();
+  }
+  if (input.rankingDeviceType !== undefined) {
+    patch.ranking_device_type = input.rankingDeviceType.trim();
+  }
+  if (input.rankingLimit !== undefined && input.rankingLimit !== null) {
+    patch.ranking_limit = input.rankingLimit;
+  }
+  if (input.rankingMinReviews !== undefined) {
+    patch.ranking_min_reviews = input.rankingMinReviews;
+  }
+  if (input.rankingBayesianM !== undefined) {
+    patch.ranking_bayesian_m = input.rankingBayesianM;
+  }
+  if (input.rankingSort !== undefined) {
+    patch.ranking_sort = input.rankingSort;
+  }
+  if (input.includeNewlyRegistered !== undefined) {
+    patch.include_newly_registered = Boolean(input.includeNewlyRegistered);
+  }
+  if (Array.isArray(input.gamingCenterLinks)) {
+    patch.gaming_center_links = input.gamingCenterLinks.map((link, idx) => ({
+      gaming_center_id: String(link.gamingCenterId).trim(),
+      display_order: typeof link.displayOrder === "number" ? link.displayOrder : idx,
+      custom_description: link.customDescription?.trim() || "",
+    }));
   }
 
   return patch;

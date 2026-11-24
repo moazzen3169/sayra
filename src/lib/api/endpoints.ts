@@ -319,4 +319,9 @@ export const ENDPOINTS = {
     provinces: "/locations/provinces",
     cities: (provinceId: string) => `/locations/provinces/${enc(provinceId)}/cities`,
   },
+  publicGamecenters: {
+    list: "/public/gamecenters",
+    rankings: "/public/gamecenters/rankings",
+    detail: (id: string) => `/public/gamecenters/${enc(id)}`,
+  },
 } as const;

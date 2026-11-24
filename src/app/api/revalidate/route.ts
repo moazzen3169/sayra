@@ -1,8 +1,9 @@
 import { timingSafeEqual } from "crypto";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
 const MAX_PATHS_PER_REQUEST = 50;
+const MAX_TAGS_PER_REQUEST = 50;
 
 function isAuthorized(req: NextRequest, expectedSecret: string): boolean {
   const authHeader = req.headers.get("authorization") || "";
@@ -10,7 +11,9 @@ function isAuthorized(req: NextRequest, expectedSecret: string): boolean {
     ? authHeader.slice(7).trim()
     : "";
   const headerSecret = (
-    req.headers.get("x-revalidate-secret") || bearerToken
+    req.headers.get("x-revalidate-secret") ||
+    req.headers.get("x-revalidation-secret") ||
+    bearerToken
   ).trim();
 
   if (!headerSecret || headerSecret.length !== expectedSecret.length) {
@@ -24,7 +27,11 @@ function isAuthorized(req: NextRequest, expectedSecret: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  const secret = (process.env.REVALIDATION_SECRET || "").trim();
+  const secret = (
+    process.env.REVALIDATION_SECRET ||
+    process.env.NEXT_REVALIDATION_SECRET ||
+    ""
+  ).trim();
   if (!secret) {
     return NextResponse.json(
       { ok: false, error: "REVALIDATION_SECRET is not configured." },
@@ -39,9 +46,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { paths?: unknown };
+  let body: { paths?: unknown; tags?: unknown };
   try {
-    body = (await req.json()) as { paths?: unknown };
+    body = (await req.json()) as { paths?: unknown; tags?: unknown };
   } catch {
     return NextResponse.json(
       { ok: false, error: "Invalid JSON body." },
@@ -49,7 +56,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const rawPaths = Array.isArray(body?.paths) ? body.paths : ["/"];
+  const hasTagsField = Array.isArray(body?.tags);
+  const validTags = hasTagsField
+    ? (body.tags as unknown[])
+        .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+        .map((t) => t.trim())
+        .slice(0, MAX_TAGS_PER_REQUEST)
+    : [];
+
+  const rawPaths = Array.isArray(body?.paths)
+    ? body.paths
+    : validTags.length > 0
+      ? []
+      : ["/"];
+
   const validPaths = rawPaths
     .filter(
       (p): p is string =>
@@ -57,9 +77,9 @@ export async function POST(req: NextRequest) {
     )
     .slice(0, MAX_PATHS_PER_REQUEST);
 
-  if (validPaths.length === 0) {
+  if (validPaths.length === 0 && validTags.length === 0) {
     return NextResponse.json(
-      { ok: false, error: "No valid relative paths provided." },
+      { ok: false, error: "No valid relative paths or tags provided." },
       { status: 400 }
     );
   }
@@ -68,10 +88,15 @@ export async function POST(req: NextRequest) {
     revalidatePath(path);
   }
 
+  for (const tag of validTags) {
+    revalidateTag(tag, { expire: 0 });
+  }
+
   return NextResponse.json({
     ok: true,
     revalidated: true,
     paths: validPaths,
+    tags: validTags,
     timestamp: new Date().toISOString(),
   });
 }

@@ -575,6 +575,140 @@ export interface ArticleDetailDto {
   readonly related_articles: ArticleListDto[];
   readonly article_schema_version: string;
   readonly structured_data: Record<string, unknown>[];
+  readonly gaming_center_mode?: ArticleGamingCenterModeDto;
+  readonly ranking_city?: string;
+  readonly ranking_neighborhood?: string;
+  readonly ranking_device_type?: string;
+  readonly ranking_limit?: number;
+  readonly ranking_min_reviews?: number | null;
+  readonly ranking_bayesian_m?: number | null;
+  readonly ranking_sort?: ArticleRankingSortDto;
+  readonly include_newly_registered?: boolean;
+  readonly gaming_center_links?: ArticleGamingCenterLinkDto[];
+  readonly gaming_centers_section?: ArticleGamingCentersSectionDto | null;
+}
+
+export type ArticleGamingCenterModeDto = "none" | "manual" | "auto_ranking";
+export type ArticleRankingSortDto =
+  | "bayesian"
+  | "rating"
+  | "reviews"
+  | "newest"
+  | "price_asc"
+  | "price_desc";
+
+export interface ArticleGamingCenterLinkDto {
+  readonly id?: number;
+  readonly gaming_center_id: string;
+  readonly display_order: number;
+  readonly custom_description?: string;
+  readonly created_at?: string;
+  readonly updated_at?: string;
+}
+
+export interface ArticleGamingCenterLinkInputDto {
+  gaming_center_id: string;
+  display_order: number;
+  custom_description?: string;
+}
+
+export interface PublicGameCenterCardDto {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  city?: string | null;
+  province?: string | null;
+  neighborhood?: string | null;
+  address?: string | null;
+  coordinates?: { lat: number; lng: number } | null;
+  images?: {
+    coverUrl: string | null;
+    gallery?: Array<{
+      url: string;
+      thumbUrl: string | null;
+      altText: string | null;
+      purpose: string;
+    }>;
+  };
+  devices?: Array<{
+    type: string;
+    count: number;
+    minHourlyPrice: number | null;
+    hasVip: boolean;
+  }>;
+  deviceCounts?: Record<string, number>;
+  pcCount?: number;
+  consoleCount?: number;
+  amenities?: string[];
+  games?: string[];
+  pricing?: {
+    startingHourlyRate: number;
+    originalPrice: number;
+    finalPrice: number;
+    hasDiscount: boolean;
+    discountPercentage: number;
+    discountAmount: number;
+    currency: string;
+  };
+  activityStatus?: {
+    isActive: boolean;
+    isOpenNow: boolean;
+    openingTime: string | null;
+    closingTime: string | null;
+    timezone: string;
+    isTemporarilyClosed: boolean;
+    closedUntil: string | null;
+  };
+  rating?: {
+    average: number;
+    validReviewsCount: number;
+    latestReviewAt: string | null;
+  };
+  ranking?: {
+    bayesianScore: number;
+    rawAverageR: number;
+    validReviewsCountV: number;
+    globalAverageC: number;
+    m: number;
+    minReviews: number;
+    isEligibleForRanking: boolean;
+    rank: number | null;
+  } | null;
+  detailUrl: string;
+  absoluteDetailUrl?: string;
+  updatedAt?: string;
+  display_order?: number;
+  custom_description?: string;
+}
+
+export interface PublicGameCenterRankingMethodologyDto {
+  algorithm: string;
+  formula: string;
+  m: number;
+  minReviews: number;
+  globalAverageC: number;
+  scopeTotalValidReviews: number;
+  scope: {
+    city: string | null;
+    neighborhood: string | null;
+    deviceType: string | null;
+    amenities: string[];
+  };
+  sort: ArticleRankingSortDto;
+  rankedCount: number;
+  newlyRegisteredCount: number;
+  calculatedAt: string;
+}
+
+export interface ArticleGamingCentersSectionDto {
+  mode: ArticleGamingCenterModeDto;
+  items: PublicGameCenterCardDto[];
+  newly_registered?: PublicGameCenterCardDto[];
+  methodology?: PublicGameCenterRankingMethodologyDto | null;
+  source?: string;
+  is_stale?: boolean;
+  last_updated_at?: string | null;
 }
 
 /* ==========================================================================
@@ -602,6 +736,16 @@ export interface ArticleCreateUpdateRequestDto {
   og_image_id?: string | null;
   related_article_ids?: number[];
   publish_at?: string | null;
+  gaming_center_mode?: ArticleGamingCenterModeDto;
+  ranking_city?: string;
+  ranking_neighborhood?: string;
+  ranking_device_type?: string;
+  ranking_limit?: number;
+  ranking_min_reviews?: number | null;
+  ranking_bayesian_m?: number | null;
+  ranking_sort?: ArticleRankingSortDto;
+  include_newly_registered?: boolean;
+  gaming_center_links?: ArticleGamingCenterLinkInputDto[];
 }
 
 export interface PatchedArticleCreateUpdateRequestDto {
@@ -625,6 +769,16 @@ export interface PatchedArticleCreateUpdateRequestDto {
   og_image_id?: string | null;
   related_article_ids?: number[];
   publish_at?: string | null;
+  gaming_center_mode?: ArticleGamingCenterModeDto;
+  ranking_city?: string;
+  ranking_neighborhood?: string;
+  ranking_device_type?: string;
+  ranking_limit?: number;
+  ranking_min_reviews?: number | null;
+  ranking_bayesian_m?: number | null;
+  ranking_sort?: ArticleRankingSortDto;
+  include_newly_registered?: boolean;
+  gaming_center_links?: ArticleGamingCenterLinkInputDto[];
 }
 
 export interface ArticleCountsDto {

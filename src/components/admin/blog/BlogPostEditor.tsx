@@ -12,7 +12,11 @@ import { BlogPostPreviewModal } from "./BlogPostPreviewModal";
 import { BlockEditorFields, BlockSettingsEditor } from "./BlockEditorFields";
 import { adminService } from "@/services/adminService";
 import { BLOG_API_BASE_URL } from "@/lib/api/config";
+import { BlogGamingCentersFieldset } from "./BlogGamingCentersFieldset";
 import type {
+  ArticleGamingCenterLink,
+  ArticleGamingCenterMode,
+  ArticleRankingSort,
   AdminBlogPostInput,
   BlogBlockType,
   BlogCategory,
@@ -269,6 +273,39 @@ export const BlogPostEditor: React.FC<BlogPostEditorProps> = ({
   const [seoDescription, setSeoDescription] = useState(
     initialData?.seoDescription || ""
   );
+  const [gamingCenterMode, setGamingCenterMode] =
+    useState<ArticleGamingCenterMode>(initialData?.gamingCenterMode || "none");
+  const [rankingCity, setRankingCity] = useState(
+    initialData?.rankingCity || ""
+  );
+  const [rankingNeighborhood, setRankingNeighborhood] = useState(
+    initialData?.rankingNeighborhood || ""
+  );
+  const [rankingDeviceType, setRankingDeviceType] = useState(
+    initialData?.rankingDeviceType || ""
+  );
+  const [rankingLimit, setRankingLimit] = useState<number>(
+    initialData?.rankingLimit ?? 10
+  );
+  const [rankingMinReviews, setRankingMinReviews] = useState<string>(
+    initialData?.rankingMinReviews != null
+      ? String(initialData.rankingMinReviews)
+      : ""
+  );
+  const [rankingBayesianM, setRankingBayesianM] = useState<string>(
+    initialData?.rankingBayesianM != null
+      ? String(initialData.rankingBayesianM)
+      : ""
+  );
+  const [rankingSort, setRankingSort] = useState<ArticleRankingSort>(
+    initialData?.rankingSort || "bayesian"
+  );
+  const [includeNewlyRegistered, setIncludeNewlyRegistered] = useState<boolean>(
+    initialData?.includeNewlyRegistered ?? true
+  );
+  const [gamingCenterLinks, setGamingCenterLinks] = useState<
+    ArticleGamingCenterLink[]
+  >(initialData?.gamingCenterLinks || []);
   const [canonicalUrl, setCanonicalUrl] = useState(
     initialData?.canonicalUrl || ""
   );
@@ -469,6 +506,22 @@ export const BlogPostEditor: React.FC<BlogPostEditorProps> = ({
         seoTitle: seoTitle.trim() || undefined,
         seoDescription: seoDescription.trim() || undefined,
         canonicalUrl: canonicalUrl.trim() || null,
+        gamingCenterMode,
+        rankingCity: rankingCity.trim(),
+        rankingNeighborhood: rankingNeighborhood.trim(),
+        rankingDeviceType: rankingDeviceType.trim(),
+        rankingLimit,
+        rankingMinReviews:
+          rankingMinReviews.trim() !== ""
+            ? Math.max(0, Number(rankingMinReviews))
+            : null,
+        rankingBayesianM:
+          rankingBayesianM.trim() !== "" && Number(rankingBayesianM) > 0
+            ? Number(rankingBayesianM)
+            : null,
+        rankingSort,
+        includeNewlyRegistered,
+        gamingCenterLinks,
         publishedAt: publishedAt ? new Date(publishedAt).toISOString() : null,
         content: blocks,
       };
@@ -533,6 +586,20 @@ export const BlogPostEditor: React.FC<BlogPostEditorProps> = ({
     status,
     visibility,
     content: blocks,
+    gamingCenterMode,
+    rankingCity: rankingCity.trim(),
+    rankingNeighborhood: rankingNeighborhood.trim(),
+    rankingDeviceType: rankingDeviceType.trim(),
+    rankingLimit,
+    rankingMinReviews:
+      rankingMinReviews.trim() !== "" ? Number(rankingMinReviews) : null,
+    rankingBayesianM:
+      rankingBayesianM.trim() !== "" && Number(rankingBayesianM) > 0
+        ? Number(rankingBayesianM)
+        : null,
+    rankingSort,
+    includeNewlyRegistered,
+    gamingCenterLinks,
   };
 
   return (
@@ -882,6 +949,29 @@ export const BlogPostEditor: React.FC<BlogPostEditorProps> = ({
                 </div>
               </div>
             </section>
+
+            <BlogGamingCentersFieldset
+              mode={gamingCenterMode}
+              onModeChange={setGamingCenterMode}
+              rankingCity={rankingCity}
+              onRankingCityChange={setRankingCity}
+              rankingNeighborhood={rankingNeighborhood}
+              onRankingNeighborhoodChange={setRankingNeighborhood}
+              rankingDeviceType={rankingDeviceType}
+              onRankingDeviceTypeChange={setRankingDeviceType}
+              rankingLimit={rankingLimit}
+              onRankingLimitChange={setRankingLimit}
+              rankingMinReviews={rankingMinReviews}
+              onRankingMinReviewsChange={setRankingMinReviews}
+              rankingBayesianM={rankingBayesianM}
+              onRankingBayesianMChange={setRankingBayesianM}
+              rankingSort={rankingSort}
+              onRankingSortChange={setRankingSort}
+              includeNewlyRegistered={includeNewlyRegistered}
+              onIncludeNewlyRegisteredChange={setIncludeNewlyRegistered}
+              links={gamingCenterLinks}
+              onLinksChange={setGamingCenterLinks}
+            />
           </div>
 
           {/* Left / Sidebar Column: Publish, Taxonomy, Media, SEO */}

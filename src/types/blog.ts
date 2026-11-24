@@ -384,6 +384,125 @@ export type BlogContentBlock =
   | BlogUnsupportedBlock;
 
 /* ==========================================================================
+   GAMING CENTER INTEGRATION TYPES
+   ========================================================================== */
+
+export type ArticleGamingCenterMode = "none" | "manual" | "auto_ranking";
+export type ArticleRankingSort =
+  | "bayesian"
+  | "rating"
+  | "reviews"
+  | "newest"
+  | "price_asc"
+  | "price_desc";
+
+export interface ArticleGamingCenterLink {
+  id?: number;
+  gamingCenterId: string;
+  displayOrder: number;
+  customDescription?: string;
+}
+
+export interface PublicGameCenterCard {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  city: string | null;
+  province: string | null;
+  neighborhood: string | null;
+  address: string | null;
+  coordinates: { lat: number; lng: number } | null;
+  images: {
+    coverUrl: string | null;
+    gallery: Array<{
+      url: string;
+      thumbUrl: string | null;
+      altText: string | null;
+      purpose: string;
+    }>;
+  };
+  devices: Array<{
+    type: string;
+    count: number;
+    minHourlyPrice: number | null;
+    hasVip: boolean;
+  }>;
+  deviceCounts: Record<string, number>;
+  pcCount: number;
+  consoleCount: number;
+  amenities: string[];
+  games: string[];
+  pricing: {
+    startingHourlyRate: number;
+    originalPrice: number;
+    finalPrice: number;
+    hasDiscount: boolean;
+    discountPercentage: number;
+    discountAmount: number;
+    currency: string;
+  };
+  activityStatus: {
+    isActive: boolean;
+    isOpenNow: boolean;
+    openingTime: string | null;
+    closingTime: string | null;
+    timezone: string;
+    isTemporarilyClosed: boolean;
+    closedUntil: string | null;
+  };
+  rating: {
+    average: number;
+    validReviewsCount: number;
+    latestReviewAt: string | null;
+  };
+  ranking: {
+    bayesianScore: number;
+    rawAverageR: number;
+    validReviewsCountV: number;
+    globalAverageC: number;
+    m: number;
+    minReviews: number;
+    isEligibleForRanking: boolean;
+    rank: number | null;
+  } | null;
+  detailUrl: string;
+  absoluteDetailUrl: string;
+  updatedAt?: string;
+  displayOrder?: number;
+  customDescription?: string;
+}
+
+export interface PublicGameCenterRankingMethodology {
+  algorithm: string;
+  formula: string;
+  m: number;
+  minReviews: number;
+  globalAverageC: number;
+  scopeTotalValidReviews: number;
+  scope: {
+    city: string | null;
+    neighborhood: string | null;
+    deviceType: string | null;
+    amenities: string[];
+  };
+  sort: ArticleRankingSort;
+  rankedCount: number;
+  newlyRegisteredCount: number;
+  calculatedAt: string;
+}
+
+export interface ArticleGamingCentersSectionData {
+  mode: ArticleGamingCenterMode;
+  items: PublicGameCenterCard[];
+  newlyRegistered: PublicGameCenterCard[];
+  methodology: PublicGameCenterRankingMethodology | null;
+  source: string;
+  isStale: boolean;
+  lastUpdatedAt: string | null;
+}
+
+/* ==========================================================================
    ADMIN INPUT & ARTICLE DETAIL
    ========================================================================== */
 
@@ -412,6 +531,16 @@ export interface AdminBlogPostInput {
   canonicalUrl?: string | null;
   publishedAt?: string | null;
   content: BlogContentBlock[];
+  gamingCenterMode?: ArticleGamingCenterMode;
+  rankingCity?: string;
+  rankingNeighborhood?: string;
+  rankingDeviceType?: string;
+  rankingLimit?: number;
+  rankingMinReviews?: number | null;
+  rankingBayesianM?: number | null;
+  rankingSort?: ArticleRankingSort;
+  includeNewlyRegistered?: boolean;
+  gamingCenterLinks?: ArticleGamingCenterLink[];
 }
 
 export interface BlogPostDetail extends BlogPostSummary {
@@ -428,4 +557,15 @@ export interface BlogPostDetail extends BlogPostSummary {
   canonicalUrl?: string | null;
   relatedArticles?: BlogPostSummary[];
   structuredData?: Record<string, unknown>[];
+  gamingCenterMode?: ArticleGamingCenterMode;
+  rankingCity?: string;
+  rankingNeighborhood?: string;
+  rankingDeviceType?: string;
+  rankingLimit?: number;
+  rankingMinReviews?: number | null;
+  rankingBayesianM?: number | null;
+  rankingSort?: ArticleRankingSort;
+  includeNewlyRegistered?: boolean;
+  gamingCenterLinks?: ArticleGamingCenterLink[];
+  gamingCentersSection?: ArticleGamingCentersSectionData | null;
 }
