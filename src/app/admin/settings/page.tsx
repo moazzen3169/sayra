@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/Input";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { SiteSettings } from "@/types/admin";
 import { adminService } from "@/services/adminService";
+import { AdminSecurity2faPanel } from "@/components/admin/security/AdminSecurity2faPanel";
 
 type TabType = "general" | "reservation" | "notification" | "security";
 
@@ -678,9 +679,12 @@ export default function SettingsAdminPage() {
         </div>
       )}
 
-      {/* Tab Content 4: Security & Infrastructure (Read-only / Security) */}
+      {/* Tab Content 4: Security & Infrastructure (Read-only / Security + Platform Admin 2FA) */}
       {activeTab === "security" && (
-        <div className="bg-card-bg border border-border rounded-card p-6 space-y-6">
+        <div className="space-y-6">
+          <AdminSecurity2faPanel />
+
+          <div className="bg-card-bg border border-border rounded-card p-6 space-y-6">
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-text-white">اطلاعات زیرساخت و امنیت سیستم</h2>
@@ -761,6 +765,7 @@ export default function SettingsAdminPage() {
               <strong className="text-text-white">تذکر امنیتی:</strong> توکن‌های دسترسی API، کلیدهای ارتباطی درگاه و کلمه‌های عبور محرمانه در فایل‌های محیطی سرور (.env) به صورت انحصاری محافظت می‌شوند و به دلایل امنیتی از طریق این فرم قابل مشاهده یا تغییر مستقیم نیستند.
             </div>
           </div>
+        </div>
         </div>
       )}
     </AdminPageContainer>

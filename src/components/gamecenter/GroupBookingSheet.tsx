@@ -17,7 +17,17 @@ import {
 } from "@/lib/format";
 import { formatClock, formatSlotHourEnglish } from "@/lib/reservationUi";
 import { getGroupReservationErrorMessage } from "@/lib/groupReservationErrors";
+import {
+  computeSingleDiscountPricing,
+  getStationOriginalHourlyPrice,
+  isDiscountApplicableToStation,
+} from "@/lib/discountSelection";
 import { getEffectiveStationPricing } from "@/lib/stationPricing";
+import { discountSelectionApi } from "@/services/gaming-center/discount-selection.api";
+import type {
+  AvailableDiscountItem,
+  CalculateDiscountSelectionResponse,
+} from "@/types/gaming-center/discount-selection.types";
 import {
   getExtraSelectionHourlyTotal,
   getStationExtraSelectionsList,
@@ -58,6 +68,9 @@ interface GroupBookingSheetProps {
   stations: PhysicalStation[];
   initialExtraSelection?: ExtraControllerSelectionMap;
   onExtraSelectionChange?: (next: ExtraControllerSelectionMap) => void;
+  selectedDiscount?: AvailableDiscountItem | null;
+  hasManagedDiscounts?: boolean;
+  discountQueriedStationIds?: string[];
   initialCustomer?: { fullName: string; phone: string; email?: string };
   onClose: () => void;
   onSuccess?: (reservation: GroupReservation) => void;
@@ -97,6 +110,9 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
   stations,
   initialExtraSelection,
   onExtraSelectionChange,
+  selectedDiscount = null,
+  hasManagedDiscounts = false,
+  discountQueriedStationIds = [],
   initialCustomer,
   onClose,
 }) => {
@@ -264,6 +280,31 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
     [stations]
   );
 
+  const originalStationsHourly = useMemo(
+    () =>
+      stations.reduce((a, s) => a + getStationOriginalHourlyPrice(s), 0),
+    [stations]
+  );
+
+  const applicableStationsHourly = useMemo(() => {
+    if (!hasManagedDiscounts || !selectedDiscount) return 0;
+    return stations.reduce((a, s) => {
+      const orig = getStationOriginalHourlyPrice(s);
+      return isDiscountApplicableToStation(
+        selectedDiscount,
+        s.id,
+        discountQueriedStationIds
+      )
+        ? a + orig
+        : a;
+    }, 0);
+  }, [hasManagedDiscounts, selectedDiscount, stations, discountQueriedStationIds]);
+
+  const [discountCalcEntry, setDiscountCalcEntry] = useState<{
+    key: string;
+    data: CalculateDiscountSelectionResponse;
+  } | null>(null);
+
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
@@ -423,11 +464,106 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
     () => getExtraSelectionHourlyTotal(extraSelection, stations),
     [extraSelection, stations]
   );
-  const estimate = Math.round((totalHourly + extraHourly) * durationHours);
-  const has = selectedSlots.length > 0;
-  const tooShort = has && durationHours < minHours;
 
   const selectedWindowStart = selectedSlots[0]?.startTime;
+  const originalStationsTotal = Math.round(originalStationsHourly * durationHours);
+  const applicableStationsTotal = Math.round(applicableStationsHourly * durationHours);
+  const extraTotal = Math.round(extraHourly * durationHours);
+  const originalEstimate = originalStationsTotal + extraTotal;
+
+  const discountCalcKey =
+    hasManagedDiscounts &&
+    selectedDiscount &&
+    gamingCenterId &&
+    selectedWindowStart &&
+    applicableStationsTotal > 0 &&
+    stations.length > 0
+      ? `${gamingCenterId}:${stations[0].id}:${selectedDiscount.type}:${selectedDiscount.id}:${applicableStationsTotal}:${selectedWindowStart}:${user?.id ?? ""}`
+      : null;
+
+  useEffect(() => {
+    if (!discountCalcKey || !gamingCenterId || !selectedDiscount || !selectedWindowStart || stations.length === 0) {
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+
+    discountSelectionApi
+      .calculateDiscount(
+        gamingCenterId,
+        {
+          stationId: stations[0].id,
+          basePrice: applicableStationsTotal,
+          startTime: selectedWindowStart,
+          customerAccountId: user?.id,
+          selectedDiscountId: selectedDiscount.id,
+          selectedType: selectedDiscount.type,
+          code: selectedDiscount.code ?? undefined,
+        },
+        controller.signal
+      )
+      .then((res) => {
+        if (active) {
+          setDiscountCalcEntry({ key: discountCalcKey, data: res });
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setDiscountCalcEntry((prev) =>
+            prev?.key === discountCalcKey ? null : prev
+          );
+        }
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [
+    discountCalcKey,
+    gamingCenterId,
+    selectedDiscount,
+    selectedWindowStart,
+    applicableStationsTotal,
+    stations,
+    user?.id,
+  ]);
+
+  const discountCalculation =
+    discountCalcKey && discountCalcEntry?.key === discountCalcKey
+      ? discountCalcEntry.data
+      : null;
+
+  const appliedDiscountAmount = useMemo(() => {
+    if (!hasManagedDiscounts || !selectedDiscount || applicableStationsTotal <= 0) {
+      return 0;
+    }
+    if (discountCalculation && discountCalculation.isValid) {
+      return Math.max(
+        0,
+        Math.min(
+          applicableStationsTotal,
+          Math.round(discountCalculation.discountAmount || 0)
+        )
+      );
+    }
+    return computeSingleDiscountPricing(
+      applicableStationsTotal,
+      selectedDiscount
+    ).discountAmount;
+  }, [
+    hasManagedDiscounts,
+    selectedDiscount,
+    applicableStationsTotal,
+    discountCalculation,
+  ]);
+
+  const estimate = hasManagedDiscounts
+    ? Math.max(0, originalEstimate - appliedDiscountAmount)
+    : Math.round((totalHourly + extraHourly) * durationHours);
+  const has = selectedSlots.length > 0;
+  const tooShort = has && durationHours < minHours;
   const selectedWindowEnd = useMemo(() => {
     if (!selectedWindowStart || durationMinutes <= 0) return undefined;
     const last = selectedSlots[selectedSlots.length - 1];
@@ -734,6 +870,30 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
           useWallet: shouldUseWallet,
         });
 
+        if (
+          hasManagedDiscounts &&
+          selectedDiscount &&
+          appliedDiscountAmount > 0 &&
+          gamingCenterId &&
+          user?.id &&
+          stations.length > 0
+        ) {
+          await discountSelectionApi
+            .reserveDiscount(gamingCenterId, {
+              stationId: stations[0].id,
+              basePrice: applicableStationsTotal,
+              startTime: selectedSlots[0].startTime,
+              customerAccountId: user.id,
+              selectedDiscountId: selectedDiscount.id,
+              selectedType: selectedDiscount.type,
+              code: selectedDiscount.code ?? undefined,
+              bookingHoldId: checkoutRes.holdId ?? null,
+              reservationId: checkoutRes.reservationId ?? null,
+              idempotencyKey: createIdempotencyKey(),
+            })
+            .catch(() => undefined);
+        }
+
         bookingDraftStorage.update({
           holdId: checkoutRes.holdId,
           paymentId: checkoutRes.paymentId,
@@ -1039,6 +1199,14 @@ export const GroupBookingSheet: React.FC<GroupBookingSheetProps> = ({
             stations={stations}
             extraSelection={extraSelection}
             estimate={estimate}
+            originalEstimate={hasManagedDiscounts ? originalEstimate : undefined}
+            appliedDiscountAmount={hasManagedDiscounts ? appliedDiscountAmount : 0}
+            appliedDiscountTitle={
+              hasManagedDiscounts && appliedDiscountAmount > 0
+                ? selectedDiscount?.title
+                : undefined
+            }
+            hasManagedDiscounts={hasManagedDiscounts}
             note={note}
             onNoteChange={setNote}
             customerName={fullName || user?.fullName || ""}

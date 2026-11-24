@@ -23,6 +23,10 @@ interface ReviewStepProps {
   stations: PhysicalStation[];
   extraSelection: ExtraControllerSelectionMap;
   estimate: number;
+  originalEstimate?: number;
+  appliedDiscountAmount?: number;
+  appliedDiscountTitle?: string;
+  hasManagedDiscounts?: boolean;
   note: string;
   onNoteChange: (val: string) => void;
   customerName: string;
@@ -50,6 +54,10 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   stations,
   extraSelection,
   estimate,
+  originalEstimate,
+  appliedDiscountAmount = 0,
+  appliedDiscountTitle,
+  hasManagedDiscounts = false,
   note,
   onNoteChange,
   customerName,
@@ -123,8 +131,11 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
         <div className="flex flex-col gap-2">
           {stations.map((st) => {
             const pricing = getEffectiveStationPricing(st);
-            const stPrice = Math.round(pricing.finalHourlyPrice * durationHours);
             const originalTotal = Math.round(pricing.originalHourlyPrice * durationHours);
+            const stPrice = hasManagedDiscounts
+              ? originalTotal
+              : Math.round(pricing.finalHourlyPrice * durationHours);
+            const showInlineDiscount = !hasManagedDiscounts && pricing.hasDiscount;
             const stExtras = getStationExtraSelectionsList(extraSelection, st.id);
 
             return (
@@ -134,7 +145,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                     {st.name}
                   </span>
                   <div className="flex items-baseline gap-1.5 shrink-0">
-                    {pricing.hasDiscount && (
+                    {showInlineDiscount && (
                       <span className="text-secondary text-[var(--text-muted)] line-through">
                         {formatPrice(originalTotal)}
                       </span>
@@ -302,6 +313,24 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
 
       {/* کارت ۳: جزئیات مبلغ قابل پرداخت */}
       <div className="rounded-card border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 flex flex-col gap-2.5">
+        {appliedDiscountAmount > 0 && typeof originalEstimate === "number" && (
+          <>
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <span className="text-[var(--text-muted)]">مبلغ اولیه</span>
+              <span className="font-bold text-[var(--text-white)]">
+                {formatPrice(originalEstimate)} تومان
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <span className="text-[var(--text-muted)] truncate">
+                تخفیف{appliedDiscountTitle ? ` (${appliedDiscountTitle})` : ""}
+              </span>
+              <span className="font-bold text-[var(--accent-green)] shrink-0">
+                - {formatPrice(appliedDiscountAmount)} تومان
+              </span>
+            </div>
+          </>
+        )}
         {isWalletActive ? (
           <>
             <div className="flex items-center justify-between gap-3 text-xs">

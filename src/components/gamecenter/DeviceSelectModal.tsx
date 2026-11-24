@@ -11,8 +11,13 @@ import {
   type ExtraControllerSelectionMap,
 } from "@/lib/extraControllers";
 import { formatPrice, toPersianDigits } from "@/lib/format";
+import {
+  computeSingleDiscountPricing,
+  isDiscountApplicableToStation,
+} from "@/lib/discountSelection";
 import { getEffectiveStationPricing } from "@/lib/stationPricing";
 import { stationApi } from "@/services/gaming-center/station.api";
+import type { AvailableDiscountItem } from "@/types/gaming-center/discount-selection.types";
 import type { DeviceCategory } from "@/types/gaming-center/device-category.types";
 import type {
   PhysicalStation,
@@ -37,6 +42,9 @@ interface DeviceSelectModalProps {
   onChange: (stations: PhysicalStation[]) => void;
   extraSelection: ExtraControllerSelectionMap;
   onExtraSelectionChange: (next: ExtraControllerSelectionMap) => void;
+  selectedDiscount?: AvailableDiscountItem | null;
+  hasManagedDiscounts?: boolean;
+  discountQueriedStationIds?: string[];
   onClose: () => void;
   onContinue?: () => void;
 }
@@ -48,6 +56,9 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
   onChange,
   extraSelection,
   onExtraSelectionChange,
+  selectedDiscount = null,
+  hasManagedDiscounts = false,
+  discountQueriedStationIds = [],
   onClose,
   onContinue,
 }) => {
@@ -134,6 +145,36 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
     }
   }, [hasFetched, stations, selected.length, onChange]);
 
+  const getStationPricingView = (st: PhysicalStation) => {
+    const basePricing = getEffectiveStationPricing(st);
+    if (!hasManagedDiscounts) {
+      return basePricing;
+    }
+    const orig = basePricing.originalHourlyPrice;
+    if (
+      selectedDiscount &&
+      isDiscountApplicableToStation(
+        selectedDiscount,
+        st.id,
+        discountQueriedStationIds
+      )
+    ) {
+      const calc = computeSingleDiscountPricing(orig, selectedDiscount);
+      return {
+        originalHourlyPrice: orig,
+        finalHourlyPrice: calc.finalPrice,
+        discountPercentage: calc.discountPercentage,
+        discountAmount: calc.discountAmount,
+        hasDiscount: calc.hasDiscount,
+      };
+    }
+    return {
+      originalHourlyPrice: orig,
+      finalHourlyPrice: orig,
+      hasDiscount: false,
+    };
+  };
+
   const selectedIds = selected.map((s) => s.id);
   const count = selected.length;
   const has = count > 0;
@@ -141,7 +182,7 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
   const extraHourly = getExtraSelectionHourlyTotal(extraSelection, selected);
   const hourly =
     selected.reduce((sum, s) => {
-      const { finalHourlyPrice } = getEffectiveStationPricing(s);
+      const { finalHourlyPrice } = getStationPricingView(s);
       return sum + finalHourlyPrice;
     }, 0) + extraHourly;
   const allSelected =
@@ -265,7 +306,7 @@ export const DeviceSelectModal: React.FC<DeviceSelectModalProps> = ({
                 finalHourlyPrice,
                 discountPercentage,
                 hasDiscount,
-              } = getEffectiveStationPricing(st);
+              } = getStationPricingView(st);
               const stationExtras = extraByStation[st.id] ?? [];
 
               return (

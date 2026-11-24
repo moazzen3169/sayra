@@ -30,6 +30,7 @@ import {
   DevicePicker,
   categoryKey,
 } from "@/components/gamecenter/DevicePicker";
+import { CenterDiscountSelector } from "@/components/gamecenter/CenterDiscountSelector";
 import { DeviceSelectModal } from "@/components/gamecenter/DeviceSelectModal";
 import { GroupBookingSheet } from "@/components/gamecenter/GroupBookingSheet";
 import { GamesMarquee } from "@/components/gamecenter/GamesMarquee";
@@ -40,7 +41,13 @@ import { ReviewReplyThread } from "@/components/reviews/ReviewReplyThread";
 import { useAuth } from "@/context/AuthContext";
 import { useCity } from "@/context/CityContext";
 import { useDeviceCategories } from "@/hooks/gaming-center/use-device-categories";
+import { useCenterDiscounts } from "@/hooks/gaming-center/use-center-discounts";
 import { isAbortError } from "@/lib/api/client";
+import {
+  computeSingleDiscountPricing,
+  getStationOriginalHourlyPrice,
+  isDiscountApplicableToStation,
+} from "@/lib/discountSelection";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { getEffectiveStationPricing } from "@/lib/stationPricing";
 import {
@@ -140,6 +147,22 @@ export function GamecenterDetailClient({
     () => Object.values(selection).flat(),
     [selection]
   );
+
+  const {
+    discounts: availableDiscounts,
+    selectedDiscount,
+    selectedKey: selectedDiscountKey,
+    recommendedKey: recommendedDiscountKey,
+    queriedStationIds: discountQueriedStationIds,
+    selectDiscount,
+  } = useCenterDiscounts({
+    gamingCenterId: detail?.center.id,
+    stations: detail?.stations,
+    selectedStations,
+    customerAccountId: user?.id,
+  });
+
+  const hasManagedDiscounts = availableDiscounts.length > 0;
   const deviceCount = selectedStations.length;
   const extraControllerCount = useMemo(
     () => getTotalSelectedExtraCount(extraSelection, selectedStations),
@@ -149,11 +172,48 @@ export function GamecenterDetailClient({
     () => getExtraSelectionHourlyTotal(extraSelection, selectedStations),
     [extraSelection, selectedStations]
   );
-  const hourly =
-    selectedStations.reduce(
-      (a, s) => a + getEffectiveStationPricing(s).finalHourlyPrice,
-      0
-    ) + extraHourly;
+  const originalStationsHourly = useMemo(
+    () =>
+      selectedStations.reduce(
+        (a, s) => a + getStationOriginalHourlyPrice(s),
+        0
+      ),
+    [selectedStations]
+  );
+  const stationsHourly = useMemo(() => {
+    if (!hasManagedDiscounts) {
+      return selectedStations.reduce(
+        (a, s) => a + getEffectiveStationPricing(s).finalHourlyPrice,
+        0
+      );
+    }
+    if (!selectedDiscount) return originalStationsHourly;
+    const applicableBase = selectedStations.reduce((sum, s) => {
+      const orig = getStationOriginalHourlyPrice(s);
+      return isDiscountApplicableToStation(
+        selectedDiscount,
+        s.id,
+        discountQueriedStationIds
+      )
+        ? sum + orig
+        : sum;
+    }, 0);
+    if (applicableBase <= 0) return originalStationsHourly;
+    const { discountAmount } = computeSingleDiscountPricing(
+      applicableBase,
+      selectedDiscount
+    );
+    return Math.max(0, originalStationsHourly - discountAmount);
+  }, [
+    hasManagedDiscounts,
+    selectedStations,
+    selectedDiscount,
+    discountQueriedStationIds,
+    originalStationsHourly,
+  ]);
+  const hourly = stationsHourly + extraHourly;
+  const originalHourly = originalStationsHourly + extraHourly;
+  const hasActiveHourlyDiscount = hourly < originalHourly;
 
   const handleSelectionChange = useCallback(
     (key: string, stations: PhysicalStation[]) => {
@@ -372,14 +432,23 @@ export function GamecenterDetailClient({
                           ? ` · ${toPersianDigits(extraControllerCount)} دسته اضافی`
                           : ""}
                       </span>
-                      <span className="text-key-number text-[var(--primary)]">
-                        {formatPrice(hourly)}{" "}
-                        <span className="text-xs font-normal text-[var(--text-white)]">
-                          تومان / ساعت
+                      <div className="flex flex-wrap items-baseline gap-2">
+                        <span className="text-key-number text-[var(--primary)]">
+                          {formatPrice(hourly)}{" "}
+                          <span className="text-xs font-normal text-[var(--text-white)]">
+                            تومان / ساعت
+                          </span>
                         </span>
-                      </span>
+                        {hasActiveHourlyDiscount && (
+                          <span className="text-xs text-[var(--text-muted)] line-through">
+                            {formatPrice(originalHourly)}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-secondary text-[var(--text-muted)]">
-                        برآورد
+                        {hasActiveHourlyDiscount && selectedDiscount
+                          ? `برآورد با «${selectedDiscount.title}»`
+                          : "برآورد"}
                       </span>
                     </div>
                   ) : (
@@ -410,6 +479,16 @@ export function GamecenterDetailClient({
                   <InlineAlert variant="error">
                     رزرو آنلاین این گیمنت فعال نیست.
                   </InlineAlert>
+                )}
+
+                {detail && availableDiscounts.length > 0 && (
+                  <CenterDiscountSelector
+                    discounts={availableDiscounts}
+                    selectedKey={selectedDiscountKey}
+                    recommendedKey={recommendedDiscountKey}
+                    onSelect={selectDiscount}
+                    disabled={reservationDisabled}
+                  />
                 )}
 
                 {/* تا وضعیت رزرو گیمنت مشخص نشده، دستگاه‌ها قابل انتخاب نیستند */}
@@ -520,9 +599,16 @@ export function GamecenterDetailClient({
                   ? ` · ${toPersianDigits(extraControllerCount)} دسته اضافی`
                   : ""}
               </span>
-              <span className="text-secondary text-[var(--primary)]">
-                {formatPrice(hourly)} تومان / ساعت
-              </span>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-secondary text-[var(--primary)]">
+                  {formatPrice(hourly)} تومان / ساعت
+                </span>
+                {hasActiveHourlyDiscount && (
+                  <span className="text-[11px] text-[var(--text-muted)] line-through">
+                    {formatPrice(originalHourly)}
+                  </span>
+                )}
+              </div>
             </div>
           }
           actionLabel="ادامه"
@@ -540,6 +626,9 @@ export function GamecenterDetailClient({
           }
           extraSelection={extraSelection}
           onExtraSelectionChange={setExtraSelection}
+          selectedDiscount={selectedDiscount}
+          hasManagedDiscounts={hasManagedDiscounts}
+          discountQueriedStationIds={discountQueriedStationIds}
           onClose={() => setActiveCategory(null)}
           onContinue={() => {
             setActiveCategory(null);
@@ -557,6 +646,9 @@ export function GamecenterDetailClient({
           stations={selectedStations}
           initialExtraSelection={extraSelection}
           onExtraSelectionChange={setExtraSelection}
+          selectedDiscount={selectedDiscount}
+          hasManagedDiscounts={hasManagedDiscounts}
+          discountQueriedStationIds={discountQueriedStationIds}
           initialCustomer={
             user ? { fullName: user.fullName, phone: user.phone } : undefined
           }

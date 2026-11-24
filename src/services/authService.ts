@@ -1,7 +1,7 @@
 import { apiClient } from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { USE_MOCK_DATA } from "@/lib/api/config";
-import { cleanPhoneNumber, isValidIranPhone } from "@/lib/format";
+import { cleanPhoneNumber, isValidIranPhone, toEnglishDigits } from "@/lib/format";
 import { ContractGapError } from "@/types/customerApi";
 
 /**
@@ -51,6 +51,182 @@ export interface UserLoginResponse {
     gamingCenterId?: string;
     name?: string;
     fullName?: string;
+  };
+}
+
+export interface PlatformAdminProfile {
+  id: string;
+  username?: string | null;
+  fullName?: string;
+  phone?: string | null;
+  email?: string | null;
+  isActive?: boolean;
+  isSuperuser?: boolean;
+  totpEnabled?: boolean;
+  totpSetupCompleted?: boolean;
+  totpEnabledAt?: string | null;
+  totpLastUsedAt?: string | null;
+  lastLogin?: string | null;
+  role?: string;
+  actorType?: string;
+}
+
+export type PlatformAdminChallengeStatus =
+  | "TOTP_REQUIRED"
+  | "TOTP_SETUP_REQUIRED";
+
+export interface PlatformAdminChallengeResponse {
+  status: PlatformAdminChallengeStatus;
+  requiresTwoFactor: boolean;
+  requiresTwoFactorSetup: boolean;
+  challengeToken?: string;
+  setupToken?: string;
+  expiresIn?: number;
+  admin?: PlatformAdminProfile;
+}
+
+export interface PlatformAdminAuthTokensResponse {
+  accessToken: string;
+  refreshToken?: string;
+  sessionId?: string;
+  usedRecoveryCode?: boolean;
+  remainingRecoveryCodes?: number;
+  admin?: PlatformAdminProfile;
+}
+
+export interface PlatformAdminAuthenticatorDevice {
+  id: string;
+  label: string;
+  issuer?: string;
+  status: "PENDING" | "ACTIVE" | "REVOKED";
+  isPrimary?: boolean;
+  verifiedAt?: string | null;
+  lastUsedAt?: string | null;
+  createdAt?: string;
+}
+
+export interface PlatformAdmin2faSetupRequest {
+  setupToken?: string;
+  currentPassword?: string;
+  currentTotpCode?: string;
+  label?: string;
+  mode?: "INITIAL" | "ADD" | "REPLACE";
+}
+
+export interface PlatformAdmin2faSetupResponse {
+  deviceId: string;
+  label?: string;
+  mode?: "INITIAL" | "ADD" | "REPLACE";
+  secret: string;
+  manualEntryKey?: string;
+  otpauthUrl: string;
+  qrCodeDataUrl?: string;
+  qrCodeSvg?: string;
+  issuer?: string;
+  accountName?: string;
+  digits?: number;
+  period?: number;
+  algorithm?: string;
+  expiresIn?: number;
+}
+
+export interface PlatformAdmin2faConfirmRequest {
+  setupToken?: string;
+  deviceId?: string;
+  code: string;
+  mode?: "INITIAL" | "ADD" | "REPLACE";
+}
+
+export interface PlatformAdmin2faConfirmResponse {
+  accessToken?: string;
+  refreshToken?: string;
+  sessionId?: string;
+  admin?: PlatformAdminProfile;
+  recoveryCodes?: string[];
+  device?: PlatformAdminAuthenticatorDevice;
+  totpEnabled?: boolean;
+  replaced?: boolean;
+}
+
+export interface PlatformAdmin2faStatusResponse {
+  totpEnabled: boolean;
+  totpSetupCompleted: boolean;
+  totpEnabledAt?: string | null;
+  totpLastUsedAt?: string | null;
+  devices: PlatformAdminAuthenticatorDevice[];
+  recoveryCodesRemaining: number;
+  activeSessionsCount: number;
+}
+
+export interface PlatformAdminSessionItem {
+  id: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  mfaVerifiedAt?: string | null;
+  lastUsedAt?: string | null;
+  expiresAt: string;
+  createdAt: string;
+  isCurrent?: boolean;
+}
+
+export interface PlatformAdminRecoveryCodesResponse {
+  recoveryCodes: string[];
+  count: number;
+}
+
+function normalizePlatformAdminProfile(
+  raw: Record<string, unknown> | undefined,
+  fallbackIdentifier?: string
+): PlatformAdminProfile {
+  return {
+    id: String(raw?.id ?? "platform-admin"),
+    username: (raw?.username as string | null | undefined) ?? null,
+    fullName: String(raw?.fullName ?? raw?.name ?? "مدیر سامانه"),
+    phone:
+      (raw?.phone as string | null | undefined) ??
+      (fallbackIdentifier || null),
+    email: (raw?.email as string | null | undefined) ?? null,
+    isActive: typeof raw?.isActive === "boolean" ? raw.isActive : undefined,
+    isSuperuser:
+      typeof raw?.isSuperuser === "boolean" ? raw.isSuperuser : undefined,
+    totpEnabled:
+      typeof raw?.totpEnabled === "boolean" ? raw.totpEnabled : undefined,
+    totpSetupCompleted:
+      typeof raw?.totpSetupCompleted === "boolean"
+        ? raw.totpSetupCompleted
+        : undefined,
+    totpEnabledAt: (raw?.totpEnabledAt as string | null | undefined) ?? null,
+    totpLastUsedAt: (raw?.totpLastUsedAt as string | null | undefined) ?? null,
+    lastLogin: (raw?.lastLogin as string | null | undefined) ?? null,
+    role: String(raw?.role ?? "PLATFORM_ADMIN"),
+    actorType: String(raw?.actorType ?? "PLATFORM_ADMIN"),
+  };
+}
+
+function extractAdminTokensPayload(
+  resData: Record<string, unknown> | undefined
+): PlatformAdminAuthTokensResponse {
+  const tokens = (resData?.tokens as Record<string, unknown> | undefined) ?? resData;
+  const accessToken = String(
+    tokens?.accessToken ?? resData?.accessToken ?? ""
+  );
+  const refreshToken =
+    (tokens?.refreshToken as string | undefined) ??
+    (resData?.refreshToken as string | undefined);
+  const rawAdmin =
+    (resData?.admin as Record<string, unknown> | undefined) ??
+    (resData?.user as Record<string, unknown> | undefined);
+
+  return {
+    accessToken,
+    refreshToken,
+    sessionId: resData?.sessionId as string | undefined,
+    usedRecoveryCode: Boolean(resData?.usedRecoveryCode),
+    remainingRecoveryCodes:
+      typeof resData?.remainingRecoveryCodes === "number"
+        ? resData.remainingRecoveryCodes
+        : undefined,
+    admin: rawAdmin ? normalizePlatformAdminProfile(rawAdmin) : undefined,
   };
 }
 
@@ -426,50 +602,360 @@ export const authService = {
     };
   },
 
+  /* =========================================================================
+     بخش احراز هویت اختصاصی مدیر سامانه (Platform Admin + Mandatory 2FA)
+     ========================================================================= */
+
   /**
-   * ورود اختصاصی مدیر سامانه (Platform Admin) با ایمیل و رمز عبور
+   * مرحله ۱ ورود مدیر سامانه: اعتبارسنجی شناسه (نام کاربری / ایمیل / موبایل) و رمز عبور
    * POST /auth/platform-admin/login
+   * در این مرحله هیچ Access Token دائمی صادر نمی‌شود؛ فقط challengeToken یا setupToken برگردانده می‌شود.
    */
-  async loginPlatformAdminWithEmail(
-    emailOrPhone: string,
+  async loginPlatformAdmin(
+    identifier: string,
     password: string
-  ): Promise<UserLoginResponse> {
-    const trimmed = emailOrPhone.trim();
+  ): Promise<PlatformAdminChallengeResponse> {
+    const trimmed = toEnglishDigits(identifier).trim();
     const cleanPhone = cleanPhoneNumber(trimmed);
     const isPhone = isValidIranPhone(cleanPhone);
+    const normalizedIdentifier = isPhone ? cleanPhone : trimmed;
 
     const payload: Record<string, string> = {
+      identifier: normalizedIdentifier,
+      username: normalizedIdentifier,
       password,
     };
 
     if (isPhone) {
       payload.phone = cleanPhone;
-    } else {
+    } else if (trimmed.includes("@")) {
       payload.email = trimmed.toLowerCase();
-      payload.phone = trimmed.toLowerCase();
     }
 
-    const endpoint = ENDPOINTS.auth.userPasswordLogin || "/auth/platform-admin/login";
-    const response = await apiClient.post<any>(endpoint, payload, {
-      retryOnAuth: false,
-    });
+    const response = await apiClient.post<Record<string, unknown>>(
+      ENDPOINTS.auth.platformAdmin.login,
+      payload,
+      {
+        authScope: "admin",
+        skipAuth: true,
+        retryOnAuth: false,
+        credentials: "include",
+      }
+    );
 
-    const resData = response.data;
-    const tokens = resData?.tokens || resData;
-    const accessToken = tokens?.accessToken || resData?.accessToken || "";
-    const refreshToken = tokens?.refreshToken || resData?.refreshToken;
-    const user = resData?.user || resData?.admin || resData?.data?.user;
+    const resData = response.data ?? {};
+    const rawStatus = String(resData.status ?? "").toUpperCase();
+    const setupToken =
+      typeof resData.setupToken === "string" ? resData.setupToken : undefined;
+    const challengeToken =
+      typeof resData.challengeToken === "string"
+        ? resData.challengeToken
+        : undefined;
+
+    const requiresTwoFactorSetup =
+      rawStatus === "TOTP_SETUP_REQUIRED" ||
+      Boolean(resData.requiresTwoFactorSetup) ||
+      Boolean(setupToken && !challengeToken);
+
+    const status: PlatformAdminChallengeStatus = requiresTwoFactorSetup
+      ? "TOTP_SETUP_REQUIRED"
+      : "TOTP_REQUIRED";
+
+    const rawAdmin =
+      (resData.admin as Record<string, unknown> | undefined) ??
+      (resData.user as Record<string, unknown> | undefined);
 
     return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: user?.id || "admin-user",
-        phone: user?.phone || (isPhone ? cleanPhone : trimmed),
-        fullName: user?.fullName || user?.name || "مدیر سامانه",
-        role: user?.role || "ADMIN",
-        gamingCenterId: user?.gamingCenterId,
-      },
+      status,
+      requiresTwoFactor:
+        typeof resData.requiresTwoFactor === "boolean"
+          ? resData.requiresTwoFactor
+          : true,
+      requiresTwoFactorSetup,
+      challengeToken: challengeToken ?? (status === "TOTP_REQUIRED" ? setupToken : undefined),
+      setupToken: setupToken ?? (status === "TOTP_SETUP_REQUIRED" ? challengeToken : undefined),
+      expiresIn:
+        typeof resData.expiresIn === "number" ? resData.expiresIn : undefined,
+      admin: rawAdmin
+        ? normalizePlatformAdminProfile(rawAdmin, normalizedIdentifier)
+        : undefined,
     };
+  },
+
+  /**
+   * مرحله ۲ (حالت دوم): تأیید ورود با کد ۶ رقمی TOTP یا Recovery Code یکبارمصرف
+   * POST /auth/platform-admin/verify-2fa
+   */
+  async verifyPlatformAdmin2fa(payload: {
+    challengeToken: string;
+    code?: string;
+    recoveryCode?: string;
+  }): Promise<PlatformAdminAuthTokensResponse> {
+    const body: Record<string, string> = {
+      challengeToken: payload.challengeToken,
+    };
+
+    if (payload.code) {
+      body.code = toEnglishDigits(payload.code).replace(/\D/g, "");
+    } else if (payload.recoveryCode) {
+      body.recoveryCode = toEnglishDigits(payload.recoveryCode).trim();
+    }
+
+    const response = await apiClient.post<Record<string, unknown>>(
+      ENDPOINTS.auth.platformAdmin.verify2fa,
+      body,
+      {
+        authScope: "admin",
+        skipAuth: true,
+        retryOnAuth: false,
+        credentials: "include",
+      }
+    );
+
+    return extractAdminTokensPayload(response.data);
+  },
+
+  /**
+   * مرحله ۲a (راه‌اندازی اولیه اجباری یا افزودن/جایگزینی دستگاه جدید):
+   * POST /auth/platform-admin/2fa/setup
+   */
+  async setupPlatformAdmin2fa(
+    payload: PlatformAdmin2faSetupRequest
+  ): Promise<PlatformAdmin2faSetupResponse> {
+    const isInitialFlow = Boolean(payload.setupToken);
+    const body: Record<string, string> = {};
+
+    if (payload.setupToken) body.setupToken = payload.setupToken;
+    if (payload.currentPassword) body.currentPassword = payload.currentPassword;
+    if (payload.currentTotpCode) {
+      body.currentTotpCode = toEnglishDigits(payload.currentTotpCode).replace(
+        /\D/g,
+        ""
+      );
+    }
+    if (payload.label?.trim()) body.label = payload.label.trim();
+    if (payload.mode) body.mode = payload.mode;
+
+    const response = await apiClient.post<PlatformAdmin2faSetupResponse>(
+      ENDPOINTS.auth.platformAdmin.setup2fa,
+      body,
+      {
+        authScope: "admin",
+        skipAuth: isInitialFlow,
+        retryOnAuth: !isInitialFlow,
+        credentials: "include",
+      }
+    );
+
+    return response.data;
+  },
+
+  /**
+   * مرحله ۲b (تأیید راه‌اندازی 2FA با اولین کد ۶ رقمی):
+   * POST /auth/platform-admin/2fa/confirm
+   */
+  async confirmPlatformAdmin2fa(
+    payload: PlatformAdmin2faConfirmRequest
+  ): Promise<PlatformAdmin2faConfirmResponse> {
+    const isInitialFlow = Boolean(payload.setupToken);
+    const body: Record<string, string> = {
+      code: toEnglishDigits(payload.code).replace(/\D/g, ""),
+    };
+
+    if (payload.setupToken) body.setupToken = payload.setupToken;
+    if (payload.deviceId) body.deviceId = payload.deviceId;
+    if (payload.mode) body.mode = payload.mode;
+
+    const response = await apiClient.post<Record<string, unknown>>(
+      ENDPOINTS.auth.platformAdmin.confirm2fa,
+      body,
+      {
+        authScope: "admin",
+        skipAuth: isInitialFlow,
+        retryOnAuth: !isInitialFlow,
+        credentials: "include",
+      }
+    );
+
+    const resData = response.data ?? {};
+    const extracted = extractAdminTokensPayload(resData);
+    const recoveryCodes = Array.isArray(resData.recoveryCodes)
+      ? resData.recoveryCodes.map(String)
+      : undefined;
+
+    return {
+      accessToken: extracted.accessToken || undefined,
+      refreshToken: extracted.refreshToken,
+      sessionId: extracted.sessionId,
+      admin: extracted.admin,
+      recoveryCodes,
+      device: resData.device as PlatformAdminAuthenticatorDevice | undefined,
+      totpEnabled:
+        typeof resData.totpEnabled === "boolean"
+          ? resData.totpEnabled
+          : undefined,
+      replaced:
+        typeof resData.replaced === "boolean" ? resData.replaced : undefined,
+    };
+  },
+
+  /**
+   * تمدید نشست مدیر سامانه (Refresh Token Rotation)
+   * POST /auth/platform-admin/refresh
+   */
+  async refreshPlatformAdminSession(
+    refreshToken?: string
+  ): Promise<PlatformAdminAuthTokensResponse> {
+    const response = await apiClient.post<Record<string, unknown>>(
+      ENDPOINTS.auth.platformAdmin.refresh,
+      refreshToken ? { refreshToken } : {},
+      {
+        authScope: "admin",
+        skipAuth: true,
+        retryOnAuth: false,
+        credentials: "include",
+      }
+    );
+
+    return extractAdminTokensPayload(response.data);
+  },
+
+  /**
+   * خروج و ابطال نشست فعلی مدیر سامانه + پاک کردن کوکی playnest_admin_refresh
+   * POST /auth/platform-admin/logout
+   */
+  async logoutPlatformAdmin(): Promise<void> {
+    await apiClient.post(
+      ENDPOINTS.auth.platformAdmin.logout,
+      undefined,
+      {
+        authScope: "admin",
+        retryOnAuth: false,
+        credentials: "include",
+      }
+    );
+  },
+
+  /**
+   * دریافت لیست نشست‌های فعال مدیر سامانه
+   * GET /auth/platform-admin/sessions
+   */
+  async getPlatformAdminSessions(): Promise<PlatformAdminSessionItem[]> {
+    const response = await apiClient.get<{
+      sessions?: PlatformAdminSessionItem[];
+    }>(ENDPOINTS.auth.platformAdmin.sessions, {
+      authScope: "admin",
+      credentials: "include",
+    });
+
+    const data = response.data;
+    if (Array.isArray(data)) {
+      return data as unknown as PlatformAdminSessionItem[];
+    }
+    return Array.isArray(data?.sessions) ? data.sessions : [];
+  },
+
+  /**
+   * لغو تمام نشست‌های فعال مدیر سامانه
+   * POST /auth/platform-admin/sessions/revoke-all
+   */
+  async revokeAllPlatformAdminSessions(): Promise<void> {
+    await apiClient.post(
+      ENDPOINTS.auth.platformAdmin.revokeAllSessions,
+      undefined,
+      {
+        authScope: "admin",
+        credentials: "include",
+      }
+    );
+  },
+
+  /**
+   * دریافت وضعیت 2FA، دستگاه‌های متصل و تعداد کدهای بازیابی باقی‌مانده
+   * GET /auth/platform-admin/2fa/status
+   */
+  async getPlatformAdmin2faStatus(): Promise<PlatformAdmin2faStatusResponse> {
+    const response = await apiClient.get<PlatformAdmin2faStatusResponse>(
+      ENDPOINTS.auth.platformAdmin.status2fa,
+      {
+        authScope: "admin",
+        credentials: "include",
+      }
+    );
+
+    return response.data;
+  },
+
+  /**
+   * حذف دستگاه Authenticator ثانویه (نیازمند تأیید مجدد پسورد و کد TOTP)
+   * DELETE /auth/platform-admin/2fa/devices/:deviceId
+   */
+  async deletePlatformAdmin2faDevice(
+    deviceId: string,
+    payload: { currentPassword: string; code: string }
+  ): Promise<void> {
+    await apiClient.delete(
+      ENDPOINTS.auth.platformAdmin.delete2faDevice(deviceId),
+      {
+        authScope: "admin",
+        credentials: "include",
+        body: {
+          currentPassword: payload.currentPassword,
+          code: toEnglishDigits(payload.code).replace(/\D/g, ""),
+        },
+      }
+    );
+  },
+
+  /**
+   * تولید مجدد ۱۰ کد بازیابی یکبارمصرف (نیازمند تأیید مجدد پسورد و کد TOTP)
+   * POST /auth/platform-admin/2fa/recovery-codes/regenerate
+   */
+  async regeneratePlatformAdminRecoveryCodes(payload: {
+    currentPassword: string;
+    code: string;
+  }): Promise<PlatformAdminRecoveryCodesResponse> {
+    const response = await apiClient.post<PlatformAdminRecoveryCodesResponse>(
+      ENDPOINTS.auth.platformAdmin.regenerateRecoveryCodes,
+      {
+        currentPassword: payload.currentPassword,
+        code: toEnglishDigits(payload.code).replace(/\D/g, ""),
+      },
+      {
+        authScope: "admin",
+        credentials: "include",
+      }
+    );
+
+    return response.data;
+  },
+
+  /**
+   * غیرفعال‌سازی 2FA و لغو تمام نشست‌های فعال (نیازمند تأیید مجدد پسورد و کد TOTP یا Recovery Code)
+   * POST /auth/platform-admin/2fa/disable
+   */
+  async disablePlatformAdmin2fa(payload: {
+    currentPassword: string;
+    code?: string;
+    recoveryCode?: string;
+  }): Promise<void> {
+    const body: Record<string, string> = {
+      currentPassword: payload.currentPassword,
+    };
+
+    if (payload.code) {
+      body.code = toEnglishDigits(payload.code).replace(/\D/g, "");
+    } else if (payload.recoveryCode) {
+      body.recoveryCode = toEnglishDigits(payload.recoveryCode).trim();
+    }
+
+    await apiClient.post(
+      ENDPOINTS.auth.platformAdmin.disable2fa,
+      body,
+      {
+        authScope: "admin",
+        credentials: "include",
+      }
+    );
   },
 };

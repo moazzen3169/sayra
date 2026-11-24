@@ -20,6 +20,22 @@ export const ENDPOINTS = {
     userOtpLogin: "/auth/customer/login/otp",
     userPasswordLogin: "/auth/platform-admin/login",
     platformAdminLogin: "/auth/login",
+    platformAdmin: {
+      login: "/auth/platform-admin/login",
+      verify2fa: "/auth/platform-admin/verify-2fa",
+      setup2fa: "/auth/platform-admin/2fa/setup",
+      confirm2fa: "/auth/platform-admin/2fa/confirm",
+      status2fa: "/auth/platform-admin/2fa/status",
+      delete2faDevice: (deviceId: string) =>
+        `/auth/platform-admin/2fa/devices/${enc(deviceId)}`,
+      regenerateRecoveryCodes:
+        "/auth/platform-admin/2fa/recovery-codes/regenerate",
+      disable2fa: "/auth/platform-admin/2fa/disable",
+      refresh: "/auth/platform-admin/refresh",
+      logout: "/auth/platform-admin/logout",
+      sessions: "/auth/platform-admin/sessions",
+      revokeAllSessions: "/auth/platform-admin/sessions/revoke-all",
+    },
   },
   gamingCenter: {
     list: "/gamingCenters",
@@ -45,6 +61,14 @@ export const ENDPOINTS = {
       `/public/gamingCenters/${enc(slug)}/pages/${enc(pageSlug)}`,
     publicClosures: (slug: string) => `/public/gamingCenters/${enc(slug)}/closures`,
     publicSchedules: (slug: string) => `/public/gamingCenters/${enc(slug)}/schedules`,
+    availableDiscounts: (gamingCenterId: string) =>
+      `/gamingCenters/${enc(gamingCenterId)}/discounts/available`,
+    calculateDiscount: (gamingCenterId: string) =>
+      `/gamingCenters/${enc(gamingCenterId)}/discounts/calculate`,
+    selectDiscount: (gamingCenterId: string) =>
+      `/gamingCenters/${enc(gamingCenterId)}/discounts/select`,
+    reserveDiscount: (gamingCenterId: string) =>
+      `/gamingCenters/${enc(gamingCenterId)}/discounts/reserve`,
     /**
      * Public map markers endpoint filtered by required `city` query parameter.
      * Override via NEXT_PUBLIC_CONNECTED_GAME_CENTERS_ENDPOINT if needed.

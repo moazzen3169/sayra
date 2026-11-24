@@ -17,8 +17,8 @@ describe("Admin Authentication & Gamecenters API Suite", () => {
     clearTokens();
   });
 
-  describe("Admin Email/Password Login", () => {
-    it("successfully logs in platform admin with email and password via /auth/platform-admin/login", async () => {
+  describe("Platform Admin Two-Step 2FA Login", () => {
+    it("completes Step 1 (TOTP_REQUIRED) and Step 2 (verify-2fa) via platform-admin endpoints", async () => {
       globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
         const method = init?.method || "GET";
@@ -30,14 +30,39 @@ describe("Admin Authentication & Gamecenters API Suite", () => {
             JSON.stringify({
               success: true,
               data: {
-                accessToken: "admin-jwt-token-xyz",
-                refreshToken: "admin-refresh-token-xyz",
-                user: {
+                status: "TOTP_REQUIRED",
+                requiresTwoFactor: true,
+                requiresTwoFactorSetup: false,
+                challengeToken: "ephemeral-challenge-jwt",
+                expiresIn: 300,
+                admin: {
                   id: "admin-1",
+                  username: "superadmin",
                   fullName: "مدیر ارشد پلتفرم",
                   email: "admin@sayra.ir",
-                  phone: "admin@sayra.ir",
-                  role: "ADMIN",
+                  totpEnabled: true,
+                  totpSetupCompleted: true,
+                },
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        if (url.includes("/auth/platform-admin/verify-2fa")) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                accessToken: "admin-jwt-token-xyz",
+                refreshToken: "admin-refresh-token-xyz",
+                sessionId: "sess-1",
+                admin: {
+                  id: "admin-1",
+                  username: "superadmin",
+                  fullName: "مدیر ارشد پلتفرم",
+                  email: "admin@sayra.ir",
+                  isSuperuser: true,
                 },
               },
             }),
@@ -48,15 +73,107 @@ describe("Admin Authentication & Gamecenters API Suite", () => {
         return new Response(JSON.stringify({ success: false }), { status: 404 });
       }) as typeof fetch;
 
-      const res = await authService.loginPlatformAdminWithEmail("admin@sayra.ir", "SecretAdminPass123!");
+      const step1 = await authService.loginPlatformAdmin(
+        "admin@sayra.ir",
+        "SecretAdminPass123!"
+      );
 
-      expect(res.accessToken).toBe("admin-jwt-token-xyz");
-      expect(res.refreshToken).toBe("admin-refresh-token-xyz");
-      expect(res.user?.role).toBe("ADMIN");
-      expect(interceptedRequests.length).toBe(1);
+      expect(step1.status).toBe("TOTP_REQUIRED");
+      expect(step1.challengeToken).toBe("ephemeral-challenge-jwt");
+      expect(step1.requiresTwoFactor).toBe(true);
       expect(interceptedRequests[0].method).toBe("POST");
       expect(interceptedRequests[0].url).toContain("/auth/platform-admin/login");
+      expect(interceptedRequests[0].body.identifier).toBe("admin@sayra.ir");
       expect(interceptedRequests[0].body.email).toBe("admin@sayra.ir");
+
+      const step2 = await authService.verifyPlatformAdmin2fa({
+        challengeToken: step1.challengeToken!,
+        code: "۱۲۳۴۵۶",
+      });
+
+      expect(step2.accessToken).toBe("admin-jwt-token-xyz");
+      expect(step2.refreshToken).toBe("admin-refresh-token-xyz");
+      expect(interceptedRequests[1].url).toContain(
+        "/auth/platform-admin/verify-2fa"
+      );
+      expect(interceptedRequests[1].body.code).toBe("123456");
+    });
+
+    it("supports mandatory initial 2FA setup (TOTP_SETUP_REQUIRED -> setup -> confirm)", async () => {
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method || "GET";
+        const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+        interceptedRequests.push({ url, method, body });
+
+        if (url.includes("/auth/platform-admin/login")) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                status: "TOTP_SETUP_REQUIRED",
+                requiresTwoFactor: true,
+                requiresTwoFactorSetup: true,
+                setupToken: "ephemeral-setup-jwt",
+                expiresIn: 600,
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        if (url.includes("/auth/platform-admin/2fa/setup")) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                deviceId: "dev-1",
+                secret: "JBSWY3DPEHPK3PXP",
+                otpauthUrl: "otpauth://totp/PlayNest:superadmin?secret=JBSWY3DPEHPK3PXP",
+                expiresIn: 600,
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        if (url.includes("/auth/platform-admin/2fa/confirm")) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                accessToken: "admin-jwt-after-setup",
+                refreshToken: "admin-refresh-after-setup",
+                totpEnabled: true,
+                recoveryCodes: ["AAAA-BBBB-CCCC-1111", "DDDD-EEEE-FFFF-2222"],
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(JSON.stringify({ success: false }), { status: 404 });
+      }) as typeof fetch;
+
+      const step1 = await authService.loginPlatformAdmin("superadmin", "Pass123!");
+      expect(step1.status).toBe("TOTP_SETUP_REQUIRED");
+      expect(step1.setupToken).toBe("ephemeral-setup-jwt");
+
+      const setupRes = await authService.setupPlatformAdmin2fa({
+        setupToken: step1.setupToken!,
+        mode: "INITIAL",
+      });
+      expect(setupRes.deviceId).toBe("dev-1");
+      expect(setupRes.secret).toBe("JBSWY3DPEHPK3PXP");
+
+      const confirmRes = await authService.confirmPlatformAdmin2fa({
+        setupToken: step1.setupToken!,
+        deviceId: setupRes.deviceId,
+        code: "654321",
+        mode: "INITIAL",
+      });
+      expect(confirmRes.accessToken).toBe("admin-jwt-after-setup");
+      expect(confirmRes.recoveryCodes?.length).toBe(2);
     });
   });
 

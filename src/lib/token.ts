@@ -346,18 +346,10 @@ let adminRefreshPromise: Promise<string | null> | null = null;
 
 export async function refreshAdminAccessToken(
   refreshCall: (
-    refreshToken: string
+    refreshToken: string | null
   ) => Promise<{ accessToken: string; refreshToken?: string | null } | null>
 ): Promise<string | null> {
   const currentRefreshToken = getAdminRefreshToken();
-
-  if (!currentRefreshToken) {
-    clearAdminTokens();
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("sayra:admin-auth-expired"));
-    }
-    return null;
-  }
 
   if (adminRefreshPromise) {
     return adminRefreshPromise;

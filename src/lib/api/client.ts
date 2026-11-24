@@ -92,6 +92,7 @@ export interface RequestOptions {
   retryOnAuth?: boolean;
   baseUrl?: string;
   skipAuth?: boolean;
+  credentials?: RequestCredentials;
   cache?: RequestCache;
   next?: {
     revalidate?: number | false;
@@ -378,6 +379,7 @@ async function executeFetch<T>(
               ? (options.body as FormData)
               : JSON.stringify(options.body),
         signal: options.signal,
+        ...(options.credentials ? { credentials: options.credentials } : {}),
         ...(options.cache ? { cache: options.cache } : {}),
         ...(typeof window === "undefined" && options.next
           ? { next: options.next }
@@ -551,6 +553,52 @@ async function performTokenRefresh(
 }
 
 // ==================================================
+// Platform Admin Refresh (Refresh Token Rotation + HttpOnly Cookie)
+// POST /auth/platform-admin/refresh
+// ==================================================
+
+async function performAdminTokenRefresh(
+  refreshToken: string | null
+): Promise<{ accessToken: string; refreshToken?: string } | null> {
+  const base = API_BASE_URL.replace(/\/+$/, "");
+
+  const bodyPayload = refreshToken ? { refreshToken } : {};
+
+  const response = await fetch(`${base}/auth/platform-admin/refresh`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(bodyPayload),
+  });
+
+  if (!response.ok) return null;
+
+  const json = await response.json().catch(() => null);
+
+  const tokensObj = json?.data?.tokens || json?.tokens;
+  const accessToken =
+    tokensObj?.accessToken ||
+    json?.data?.accessToken ||
+    json?.accessToken;
+
+  const nextRefreshToken =
+    tokensObj?.refreshToken ||
+    json?.data?.refreshToken ||
+    json?.refreshToken;
+
+  if (json?.success === false || !accessToken) {
+    return null;
+  }
+
+  return nextRefreshToken
+    ? { accessToken, refreshToken: nextRefreshToken }
+    : { accessToken };
+}
+
+// ==================================================
 // Blog Refresh - Based on Blog-Platform-API.yaml
 // POST /api/token/refresh/
 // Body: { refresh: string }
@@ -662,12 +710,14 @@ async function request<T>(
 
   const isRefreshRequest =
     path.includes("/auth/refresh") ||
+    path.includes("/auth/platform-admin/refresh") ||
     path.includes("/token/refresh");
 
   const isLoginRequest =
     path.includes("/auth/login") ||
     path.includes("/auth/admin-login") ||
-    path.includes("/auth/platform-admin/login");
+    path.includes("/auth/platform-admin/login") ||
+    path.includes("/auth/platform-admin/verify-2fa");
 
   const shouldRetry =
     !options.skipAuth &&
@@ -698,7 +748,7 @@ async function request<T>(
           authScope === "blog"
             ? await refreshBlogAccessToken()
             : authScope === "admin"
-              ? await refreshAdminAccessToken(performTokenRefresh)
+              ? await refreshAdminAccessToken(performAdminTokenRefresh)
               : await refreshAccessToken(performTokenRefresh);
 
         if (newToken) {

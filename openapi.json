@@ -73,6 +73,14 @@
             "schema": { "$ref": "#/components/schemas/Error" }
           }
         }
+      },
+      "ServiceUnavailableError": {
+        "description": "Required security/TOTP service is temporarily unavailable",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
       }
     },
     "schemas": {
@@ -2000,12 +2008,86 @@
           }
         }
       },
+      "PlatformAdminLoginRequest": {
+        "type": "object",
+        "required": ["password"],
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "Platform administrator username (or legacy email/phone identifier)",
+            "example": "superadmin"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Legacy phone identifier (optional if username is provided)",
+            "example": "09121234567"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "SuperSecretAdmin123!"
+          }
+        }
+      },
+      "PlatformAdminChallengeResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "requiresTwoFactor",
+          "requiresTwoFactorSetup",
+          "expiresIn",
+          "admin"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["TOTP_REQUIRED", "TOTP_SETUP_REQUIRED"]
+          },
+          "requiresTwoFactor": { "type": "boolean", "example": true },
+          "requiresTwoFactorSetup": { "type": "boolean", "example": false },
+          "challengeToken": {
+            "type": "string",
+            "description": "Short-lived ephemeral token for TOTP verification or initial setup (never grants API access)"
+          },
+          "setupToken": {
+            "type": "string",
+            "description": "Short-lived setup token returned when mandatory initial 2FA setup is required"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "description": "Expiration window in seconds",
+            "example": 300
+          },
+          "admin": { "$ref": "#/components/schemas/PlatformAdmin" }
+        }
+      },
+      "PlatformAdminVerify2faRequest": {
+        "type": "object",
+        "required": ["challengeToken"],
+        "properties": {
+          "challengeToken": { "type": "string" },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "description": "6-digit TOTP code from Google or Microsoft Authenticator",
+            "example": "123456"
+          },
+          "recoveryCode": {
+            "type": "string",
+            "description": "Single-use emergency recovery code",
+            "example": "A1B2-C3D4-E5F6-0718"
+          }
+        }
+      },
       "PlatformAdminLoginResponse": {
         "type": "object",
         "properties": {
           "admin": { "$ref": "#/components/schemas/PlatformAdmin" },
           "accessToken": { "type": "string" },
           "refreshToken": { "type": "string" },
+          "sessionId": { "type": "string" },
+          "usedRecoveryCode": { "type": "boolean" },
+          "remainingRecoveryCodes": { "type": "integer" },
           "tokens": {
             "type": "object",
             "properties": {
@@ -2013,6 +2095,211 @@
               "refreshToken": { "type": "string" }
             }
           }
+        }
+      },
+      "PlatformAdminAuthTokensResponse": {
+        "$ref": "#/components/schemas/PlatformAdminLoginResponse"
+      },
+      "PlatformAdmin2faSetupRequest": {
+        "type": "object",
+        "properties": {
+          "setupToken": {
+            "type": "string",
+            "description": "Ephemeral setupToken from Step 1 when completing mandatory initial setup"
+          },
+          "currentPassword": {
+            "type": "string",
+            "format": "password",
+            "description": "Required when an already-authenticated admin adds or replaces a device"
+          },
+          "currentTotpCode": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "description": "Current valid TOTP code required when adding or replacing a device"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 60,
+            "example": "Google Authenticator - Pixel"
+          },
+          "mode": { "type": "string", "enum": ["INITIAL", "ADD", "REPLACE"] }
+        }
+      },
+      "PlatformAdmin2faSetupResponse": {
+        "type": "object",
+        "properties": {
+          "deviceId": { "type": "string" },
+          "label": { "type": "string" },
+          "mode": { "type": "string", "enum": ["INITIAL", "ADD", "REPLACE"] },
+          "secret": {
+            "type": "string",
+            "description": "Base32 secret shown once during pending enrollment"
+          },
+          "manualEntryKey": {
+            "type": "string",
+            "description": "Space-grouped Base32 key for manual entry in Google/Microsoft Authenticator"
+          },
+          "otpauthUrl": {
+            "type": "string",
+            "description": "RFC 6238 otpauth URI"
+          },
+          "qrCodeDataUrl": {
+            "type": "string",
+            "description": "Data URL for offline SVG QR code image"
+          },
+          "qrCodeSvg": {
+            "type": "string",
+            "description": "Inline SVG markup of QR code"
+          },
+          "issuer": { "type": "string", "example": "PlayNest" },
+          "accountName": { "type": "string" },
+          "digits": { "type": "integer", "example": 6 },
+          "period": { "type": "integer", "example": 30 },
+          "algorithm": { "type": "string", "example": "SHA1" },
+          "expiresIn": { "type": "integer", "example": 600 }
+        }
+      },
+      "PlatformAdmin2faConfirmRequest": {
+        "type": "object",
+        "required": ["code"],
+        "properties": {
+          "setupToken": { "type": "string" },
+          "deviceId": { "type": "string" },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "example": "654321"
+          },
+          "mode": { "type": "string", "enum": ["INITIAL", "ADD", "REPLACE"] }
+        }
+      },
+      "PlatformAdminAuthenticatorDevice": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "issuer": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["PENDING", "ACTIVE", "REVOKED"]
+          },
+          "isPrimary": { "type": "boolean" },
+          "verifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "lastUsedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PlatformAdmin2faConfirmResponse": {
+        "type": "object",
+        "properties": {
+          "admin": { "$ref": "#/components/schemas/PlatformAdmin" },
+          "accessToken": { "type": "string" },
+          "refreshToken": { "type": "string" },
+          "sessionId": { "type": "string" },
+          "tokens": {
+            "type": "object",
+            "properties": {
+              "accessToken": { "type": "string" },
+              "refreshToken": { "type": "string" }
+            }
+          },
+          "recoveryCodes": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "10 single-use recovery codes shown once on initial 2FA setup"
+          },
+          "device": {
+            "$ref": "#/components/schemas/PlatformAdminAuthenticatorDevice"
+          },
+          "totpEnabled": { "type": "boolean" },
+          "replaced": { "type": "boolean" }
+        }
+      },
+      "PlatformAdmin2faStatusResponse": {
+        "type": "object",
+        "properties": {
+          "totpEnabled": { "type": "boolean" },
+          "totpSetupCompleted": { "type": "boolean" },
+          "totpEnabledAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "totpLastUsedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "devices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlatformAdminAuthenticatorDevice"
+            }
+          },
+          "recoveryCodesRemaining": { "type": "integer" },
+          "activeSessionsCount": { "type": "integer" }
+        }
+      },
+      "PlatformAdmin2faReauthRequest": {
+        "type": "object",
+        "required": ["currentPassword", "code"],
+        "properties": {
+          "currentPassword": { "type": "string", "format": "password" },
+          "code": { "type": "string", "pattern": "^\\d{6}$" }
+        }
+      },
+      "PlatformAdminDisable2faRequest": {
+        "type": "object",
+        "required": ["currentPassword"],
+        "properties": {
+          "currentPassword": { "type": "string", "format": "password" },
+          "code": { "type": "string", "pattern": "^\\d{6}$" },
+          "recoveryCode": { "type": "string" }
+        }
+      },
+      "PlatformAdminRecoveryCodesResponse": {
+        "type": "object",
+        "properties": {
+          "recoveryCodes": { "type": "array", "items": { "type": "string" } },
+          "count": { "type": "integer" }
+        }
+      },
+      "PlatformAdminRefreshRequest": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "description": "Raw refresh token (optional if sent via HttpOnly cookie)"
+          }
+        }
+      },
+      "PlatformAdminSessionItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "ipAddress": { "type": "string", "nullable": true },
+          "userAgent": { "type": "string", "nullable": true },
+          "mfaVerifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "lastUsedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "expiresAt": { "type": "string", "format": "date-time" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "isCurrent": { "type": "boolean" }
         }
       },
       "User": {
@@ -2821,6 +3108,189 @@
           "updatedAt": { "type": "string", "format": "date-time" }
         }
       },
+      "DiscountUsageStatus": {
+        "type": "string",
+        "enum": ["AVAILABLE", "RESERVED", "REDEEMED", "RELEASED", "EXPIRED"]
+      },
+      "AvailableDiscountItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "title",
+          "discountType",
+          "value",
+          "discountAmount",
+          "finalPrice",
+          "fundingSource",
+          "conditions",
+          "isApplicable",
+          "isBest"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["CAMPAIGN", "DIRECT_DISCOUNT"] },
+          "title": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "code": { "type": "string", "nullable": true },
+          "discountType": {
+            "type": "string",
+            "enum": ["PERCENTAGE", "FIXED_AMOUNT"]
+          },
+          "value": { "type": "number" },
+          "discountAmount": { "type": "number" },
+          "finalPrice": { "type": "number" },
+          "fundingSource": {
+            "type": "string",
+            "enum": ["PLATFORM", "CAMPAIGN_BUDGET", "MERCHANT_FUNDED"]
+          },
+          "conditions": { "type": "string" },
+          "minOrderAmount": { "type": "number", "nullable": true },
+          "maxDiscountAmount": { "type": "number", "nullable": true },
+          "expiresAt": { "type": "string", "format": "date-time" },
+          "isApplicable": { "type": "boolean" },
+          "ineligibilityReason": { "type": "string", "nullable": true },
+          "isBest": { "type": "boolean" },
+          "badge": { "type": "string", "nullable": true }
+        }
+      },
+      "GetAvailableDiscountsInput": {
+        "type": "object",
+        "required": ["stationId"],
+        "properties": {
+          "stationId": { "type": "string" },
+          "startTime": { "type": "string", "format": "date-time" },
+          "durationHours": { "type": "number" },
+          "durationMinutes": { "type": "integer" },
+          "basePrice": { "type": "number" },
+          "customerAccountId": { "type": "string" },
+          "manualCode": { "type": "string", "nullable": true }
+        }
+      },
+      "GetAvailableDiscountsResponse": {
+        "type": "object",
+        "properties": {
+          "basePrice": { "type": "number" },
+          "recommendedDiscountId": { "type": "string", "nullable": true },
+          "recommendedDiscountType": {
+            "type": "string",
+            "nullable": true,
+            "enum": ["CAMPAIGN", "DIRECT_DISCOUNT"]
+          },
+          "discounts": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AvailableDiscountItem" }
+          }
+        }
+      },
+      "CalculateDiscountSelectionInput": {
+        "type": "object",
+        "required": ["stationId", "basePrice"],
+        "properties": {
+          "stationId": { "type": "string" },
+          "basePrice": { "type": "number" },
+          "startTime": { "type": "string", "format": "date-time" },
+          "customerAccountId": { "type": "string" },
+          "selectedDiscountId": { "type": "string", "nullable": true },
+          "selectedType": {
+            "type": "string",
+            "enum": ["CAMPAIGN", "DIRECT_DISCOUNT", "NONE"]
+          },
+          "code": { "type": "string", "nullable": true }
+        }
+      },
+      "CalculateDiscountSelectionResponse": {
+        "type": "object",
+        "properties": {
+          "isValid": { "type": "boolean" },
+          "originalAmount": { "type": "number" },
+          "discountAmount": { "type": "number" },
+          "customerPayableAmount": { "type": "number" },
+          "merchantPayoutAmount": { "type": "number" },
+          "platformCommission": { "type": "number" },
+          "platformFundedDiscount": { "type": "number" },
+          "merchantFundedDiscount": { "type": "number" },
+          "discountFundingSource": { "type": "string", "nullable": true },
+          "campaignId": { "type": "string", "nullable": true },
+          "discountId": { "type": "string", "nullable": true },
+          "voucherCode": { "type": "string", "nullable": true },
+          "appliedDiscount": { "type": "object", "nullable": true },
+          "betterDiscountAvailable": { "type": "boolean" },
+          "betterDiscount": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string" },
+              "title": { "type": "string" },
+              "discountAmount": { "type": "number" },
+              "savingsDifference": { "type": "number" }
+            }
+          }
+        }
+      },
+      "ReserveDiscountInput": {
+        "type": "object",
+        "required": ["stationId", "basePrice", "customerAccountId"],
+        "properties": {
+          "stationId": { "type": "string" },
+          "basePrice": { "type": "number" },
+          "startTime": { "type": "string", "format": "date-time" },
+          "customerAccountId": { "type": "string" },
+          "selectedDiscountId": { "type": "string", "nullable": true },
+          "selectedType": {
+            "type": "string",
+            "enum": ["CAMPAIGN", "DIRECT_DISCOUNT", "NONE"]
+          },
+          "code": { "type": "string", "nullable": true },
+          "bookingHoldId": { "type": "string", "nullable": true },
+          "reservationId": { "type": "string", "nullable": true },
+          "idempotencyKey": { "type": "string", "nullable": true },
+          "ttlMinutes": { "type": "integer", "default": 15 }
+        }
+      },
+      "ReserveDiscountResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "campaignId": { "type": "string", "nullable": true },
+          "discountId": { "type": "string", "nullable": true },
+          "reservationId": { "type": "string", "nullable": true },
+          "bookingHoldId": { "type": "string", "nullable": true },
+          "customerAccountId": { "type": "string" },
+          "discountAmount": { "type": "number" },
+          "originalPrice": { "type": "number", "nullable": true },
+          "finalPrice": { "type": "number", "nullable": true },
+          "fundingSource": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/DiscountUsageStatus" },
+          "reservedAt": { "type": "string", "format": "date-time" },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "idempotencyKey": { "type": "string", "nullable": true },
+          "voucherCode": { "type": "string", "nullable": true }
+        }
+      },
+      "ReleaseDiscountInput": {
+        "type": "object",
+        "properties": {
+          "usageId": { "type": "string", "nullable": true },
+          "reservationId": { "type": "string", "nullable": true },
+          "bookingHoldId": { "type": "string", "nullable": true },
+          "reason": { "type": "string", "nullable": true }
+        }
+      },
+      "RedeemDiscountInput": {
+        "type": "object",
+        "required": ["reservationId"],
+        "properties": {
+          "usageId": { "type": "string", "nullable": true },
+          "reservationId": { "type": "string" },
+          "bookingHoldId": { "type": "string", "nullable": true }
+        }
+      },
       "WaitlistEntry": {
         "type": "object",
         "properties": {
@@ -2876,8 +3346,17 @@
         "type": "object",
         "properties": {
           "id": { "type": "string", "example": "clh1234560000yy0811111111" },
+          "username": {
+            "type": "string",
+            "nullable": true,
+            "example": "superadmin"
+          },
           "fullName": { "type": "string", "example": "Super Administrator" },
-          "phone": { "type": "string", "example": "09121234567" },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "example": "09121234567"
+          },
           "email": {
             "type": "string",
             "nullable": true,
@@ -2885,6 +3364,18 @@
           },
           "isActive": { "type": "boolean", "example": true },
           "isSuperuser": { "type": "boolean", "example": true },
+          "totpEnabled": { "type": "boolean", "example": true },
+          "totpSetupCompleted": { "type": "boolean", "example": true },
+          "totpEnabledAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "totpLastUsedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
           "lastLogin": {
             "type": "string",
             "format": "date-time",
@@ -13630,8 +14121,8 @@
     },
     "/auth/platform-admin/login": {
       "post": {
-        "summary": "Platform Admin Login",
-        "description": "Authenticate a PlatformAdmin user with phone and password",
+        "summary": "Platform Admin Login (Step 1 - Username & Password)",
+        "description": "Verifies PlatformAdmin credentials and returns a short-lived challengeToken (for TOTP verification) or setupToken (when mandatory initial 2FA setup is required). Never issues full access tokens without 2FA.",
         "tags": ["Auth", "PlatformAdmin"],
         "operationId": "post_auth_platform_admin_login",
         "security": [],
@@ -13640,23 +14131,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": ["phone", "password"],
-                "properties": {
-                  "phone": { "type": "string", "example": "09121234567" },
-                  "password": {
-                    "type": "string",
-                    "format": "password",
-                    "example": "SuperSecretAdmin123!"
-                  }
-                }
+                "$ref": "#/components/schemas/PlatformAdminLoginRequest"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Successful platform admin login",
+            "description": "Password verified; 2FA challenge or mandatory setup session issued",
             "content": {
               "application/json": {
                 "schema": {
@@ -13666,7 +14148,7 @@
                       "type": "object",
                       "properties": {
                         "data": {
-                          "$ref": "#/components/schemas/PlatformAdminLoginResponse"
+                          "$ref": "#/components/schemas/PlatformAdminChallengeResponse"
                         }
                       }
                     }
@@ -13675,7 +14157,412 @@
               }
             }
           },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "429": { "$ref": "#/components/responses/TooManyRequestsError" },
+          "503": { "$ref": "#/components/responses/ServiceUnavailableError" }
+        }
+      }
+    },
+    "/auth/platform-admin/verify-2fa": {
+      "post": {
+        "summary": "Platform Admin Two-Factor Verification (Step 2)",
+        "description": "Verifies a 6-digit RFC 6238 TOTP code or single-use recovery code against a challengeToken and issues full PlatformAdmin access and refresh tokens.",
+        "tags": ["Auth", "PlatformAdmin"],
+        "operationId": "post_auth_platform_admin_verify_2fa",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformAdminVerify2faRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Two-factor authentication verified and full session issued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Success" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/PlatformAdminAuthTokensResponse"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "429": { "$ref": "#/components/responses/TooManyRequestsError" },
+          "503": { "$ref": "#/components/responses/ServiceUnavailableError" }
+        }
+      }
+    },
+    "/auth/platform-admin/2fa/setup": {
+      "post": {
+        "summary": "Initialize Platform Admin TOTP 2FA Enrollment",
+        "description": "Generates a pending TOTP secret, otpauth URI, and offline QR code either for mandatory initial setup (setupToken) or adding/replacing an authenticator (authenticated + password + TOTP re-auth).",
+        "tags": ["Auth", "PlatformAdmin"],
+        "operationId": "post_auth_platform_admin_2fa_setup",
+        "security": [{}, { "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformAdmin2faSetupRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pending TOTP enrollment created with QR code and manual key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Success" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/PlatformAdmin2faSetupResponse"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "409": { "$ref": "#/components/responses/ConflictError" },
+          "429": { "$ref": "#/components/responses/TooManyRequestsError" },
+          "503": { "$ref": "#/components/responses/ServiceUnavailableError" }
+        }
+      }
+    },
+    "/auth/platform-admin/2fa/confirm": {
+      "post": {
+        "summary": "Confirm Platform Admin TOTP 2FA Enrollment",
+        "description": "Verifies a 6-digit code from Google or Microsoft Authenticator against a pending enrollment. Activates 2FA, issues 10 single-use recovery codes (INITIAL mode), and issues full session tokens.",
+        "tags": ["Auth", "PlatformAdmin"],
+        "operationId": "post_auth_platform_admin_2fa_confirm",
+        "security": [{}, { "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformAdmin2faConfirmRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticator verified and activated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Success" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/PlatformAdmin2faConfirmResponse"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "429": { "$ref": "#/components/responses/TooManyRequestsError" },
+          "503": { "$ref": "#/components/responses/ServiceUnavailableError" }
+        }
+      }
+    },
+    "/auth/platform-admin/2fa/status": {
+      "get": {
+        "summary": "Get Platform Admin 2FA Security Settings Status",
+        "description": "Returns 2FA status, activation timestamp, connected authenticator devices, remaining recovery codes count, and active sessions count.",
+        "tags": ["Auth", "PlatformAdmin"],
+        "operationId": "get_auth_platform_admin_2fa_status",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Security status retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Success" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/PlatformAdmin2faStatusResponse"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" }
+        }
+      }
+    },
+    "/auth/platform-admin/2fa/devices/{deviceId}": {
+      "delete": {
+        "summary": "Remove Secondary Authenticator Device",
+        "description": "Revokes a secondary enrolled authenticator device after password and TOTP re-authentication. Refuses to delete the last active device.",
+        "tags": ["Auth", "PlatformAdmin"],
+        "operationId": "delete_auth_platform_admin_2fa_device",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformAdmin2faReauthRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticator device removed",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "404": { "$ref": "#/components/responses/NotFoundError" },
+          "429": { "$ref": "#/components/responses/TooManyRequestsError" }
+        }
+      }
+    },
+    "/auth/platform-admin/2fa/recovery-codes/regenerate": {
+      "post": {
+        "summary": "Regenerate Platform Admin Recovery Codes",
+        "description": "Revokes all previous recovery codes and generates 10 fresh single-use recovery codes after password and TOTP re-authentication.",
+        "tags": ["Auth", "PlatformAdmin"],
+        "operationId": "post_auth_platform_admin_2fa_recovery_codes_regenerate",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformAdmin2faReauthRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New recovery codes generated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Success" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/PlatformAdminRecoveryCodesResponse"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "429": { "$ref": "#/components/responses/TooManyRequestsError" }
+        }
+      }
+    },
+    "/auth/platform-admin/2fa/disable": {
+      "post": {
+        "summary": "Disable Platform Admin 2FA",
+        "description": "Disables 2FA after password and TOTP/recovery code re-authentication and revokes all active PlatformAdmin sessions. Mandatory 2FA setup is enforced on the next login.",
+        "tags": ["Auth", "PlatformAdmin"],
+        "operationId": "post_auth_platform_admin_2fa_disable",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformAdminDisable2faRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "2FA disabled and all active sessions revoked",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "429": { "$ref": "#/components/responses/TooManyRequestsError" }
+        }
+      }
+    },
+    "/auth/platform-admin/refresh": {
+      "post": {
+        "summary": "Rotate and Refresh Platform Admin Session",
+        "description": "Rotates the PlatformAdmin refresh token (body or HttpOnly cookie) and issues a new short-lived access token.",
+        "tags": ["Auth", "PlatformAdmin"],
+        "operationId": "post_auth_platform_admin_refresh",
+        "security": [],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformAdminRefreshRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Session refreshed and refresh token rotated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" },
+          "429": { "$ref": "#/components/responses/TooManyRequestsError" }
+        }
+      }
+    },
+    "/auth/platform-admin/logout": {
+      "post": {
+        "summary": "Logout Current Platform Admin Session",
+        "description": "Revokes the current MFA-verified PlatformAdmin session and clears the refresh cookie.",
+        "tags": ["Auth", "PlatformAdmin"],
+        "operationId": "post_auth_platform_admin_logout",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Logged out successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
           "401": { "$ref": "#/components/responses/UnauthorizedError" }
+        }
+      }
+    },
+    "/auth/platform-admin/sessions": {
+      "get": {
+        "summary": "List Active Platform Admin Sessions",
+        "description": "Lists all active MFA-verified sessions for the authenticated PlatformAdmin.",
+        "tags": ["Auth", "PlatformAdmin"],
+        "operationId": "get_auth_platform_admin_sessions",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Active sessions listed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Success" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "sessions": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/PlatformAdminSessionItem"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" }
+        }
+      }
+    },
+    "/auth/platform-admin/sessions/revoke-all": {
+      "post": {
+        "summary": "Revoke All Platform Admin Sessions",
+        "description": "Revokes all active PlatformAdmin API and AdminJS console sessions for the authenticated admin.",
+        "tags": ["Auth", "PlatformAdmin"],
+        "operationId": "post_auth_platform_admin_sessions_revoke_all",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "All sessions revoked",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/UnauthorizedError" },
+          "403": { "$ref": "#/components/responses/ForbiddenError" }
         }
       }
     },
@@ -16076,6 +16963,258 @@
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/Success" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/discounts/available": {
+      "get": {
+        "summary": "Get all applicable and available discounts for a draft reservation",
+        "description": "Returns all available and recommended discounts for a draft reservation based on user, station, price, and time",
+        "tags": ["Discounts"],
+        "operationId": "get_gamingCenters_gamingCenterId_discounts_available",
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "stationId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "startTime",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "durationMinutes",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer" }
+          },
+          {
+            "name": "basePrice",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "number" }
+          },
+          {
+            "name": "customerAccountId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "manualCode",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of available discounts and recommendation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAvailableDiscountsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/discounts/calculate": {
+      "post": {
+        "summary": "Calculate price breakdown for a selected discount or voucher code",
+        "description": "Returns exact financial breakdown, savings, and better discount notification",
+        "tags": ["Discounts"],
+        "operationId": "post_gamingCenters_gamingCenterId_discounts_calculate",
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculateDiscountSelectionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Calculation breakdown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculateDiscountSelectionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/discounts/select": {
+      "post": {
+        "summary": "Select or preview a discount (alias to calculate)",
+        "description": "Selects a discount, validates eligibility, and returns financial breakdown",
+        "tags": ["Discounts"],
+        "operationId": "post_gamingCenters_gamingCenterId_discounts_select",
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculateDiscountSelectionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Calculation breakdown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculateDiscountSelectionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/discounts/reserve": {
+      "post": {
+        "summary": "Temporarily hold/reserve a discount or voucher for checkout",
+        "description": "Creates or attaches an idempotent RESERVED discount usage record with expiration",
+        "tags": ["Discounts"],
+        "operationId": "post_gamingCenters_gamingCenterId_discounts_reserve",
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReserveDiscountInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Discount successfully reserved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReserveDiscountResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/discounts/release": {
+      "post": {
+        "summary": "Release a reserved discount hold",
+        "description": "Releases a RESERVED discount usage so the voucher can be reused",
+        "tags": ["Discounts"],
+        "operationId": "post_gamingCenters_gamingCenterId_discounts_release",
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReleaseDiscountInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Discount released successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "releasedCount": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gamingCenters/{gamingCenterId}/discounts/redeem": {
+      "post": {
+        "summary": "Finalize and redeem a reserved discount upon completed booking",
+        "description": "Marks a RESERVED discount usage as REDEEMED",
+        "tags": ["Discounts"],
+        "operationId": "post_gamingCenters_gamingCenterId_discounts_redeem",
+        "parameters": [
+          {
+            "name": "gamingCenterId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RedeemDiscountInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Discount redeemed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReserveDiscountResponse"
+                }
               }
             }
           }
