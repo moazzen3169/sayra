@@ -13,7 +13,7 @@ import {
 } from "@/lib/reservationUi";
 import type { OwnerReservation } from "@/types/owner";
 
-export type OwnerSessionAction = "start" | "stop" | "pause" | "resume";
+export type OwnerSessionAction = "start" | "stop";
 
 interface OwnerSingleReservationCardProps {
   reservation: OwnerReservation;
@@ -21,7 +21,6 @@ interface OwnerSingleReservationCardProps {
   detailsHref: string;
   onConfirm: () => void;
   onCancel: () => void;
-  onProposeTime: () => void;
   onSessionAction: (action: OwnerSessionAction) => void;
 }
 
@@ -33,7 +32,6 @@ export const OwnerSingleReservationCard: React.FC<
   detailsHref,
   onConfirm,
   onCancel,
-  onProposeTime,
   onSessionAction,
 }) => {
   const customerName =
@@ -154,60 +152,29 @@ export const OwnerSingleReservationCard: React.FC<
           )}
 
           {canManageStatus && (
-            <>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={busy}
-                onClick={onProposeTime}
-              >
-                <Icon name="calendar" size={16} />
-                <span>پیشنهاد تاریخ جدید</span>
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                size="sm"
-                disabled={busy}
-                onClick={onCancel}
-              >
-                <Icon name="close" size={16} />
-                <span>لغو رزرو</span>
-              </Button>
-            </>
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              disabled={busy}
+              onClick={onCancel}
+            >
+              <Icon name="close" size={16} />
+              <span>لغو رزرو</span>
+            </Button>
           )}
 
           {reservation.status === "IN_PROGRESS" && (
-            <>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={busy}
-                onClick={() => onSessionAction("pause")}
-              >
-                توقف موقت
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={busy}
-                onClick={() => onSessionAction("resume")}
-              >
-                ادامه سانس
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                size="sm"
-                disabled={busy}
-                onClick={() => onSessionAction("stop")}
-              >
-                پایان سانس
-              </Button>
-            </>
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              isLoading={busy}
+              disabled={busy}
+              onClick={() => onSessionAction("stop")}
+            >
+              پایان سانس
+            </Button>
           )}
         </div>
 

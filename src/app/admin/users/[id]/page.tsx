@@ -6,6 +6,7 @@ import { AdminPageContainer } from "@/components/admin/layout/AdminPageContainer
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
+import { RatingHeartIcon } from "@/components/ui/RatingHeartIcon";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { UserFormModal } from "@/components/admin/users/UserFormModal";
@@ -374,7 +375,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-card p-6 flex flex-col gap-4">
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
             <div className="flex items-center gap-2">
-              <Icon name="star" size={20} className="text-[var(--accent-star)]" />
+              <RatingHeartIcon size={18} />
               <h2 className="text-section-title text-[var(--text-white)]">
                 نظرات ثبت‌شده برای گیمنت‌ها ({reviews.length})
               </h2>
@@ -400,8 +401,8 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                     >
                       {r.gamecenterName}
                     </Link>
-                    <div className="flex items-center gap-1 text-xs font-bold text-[var(--accent-star)]">
-                      <Icon name="star" size={14} />
+                    <div className="flex items-center gap-1 text-xs font-bold text-[var(--text-white)]">
+                      <RatingHeartIcon size={14} />
                       <span>{r.rating}</span>
                     </div>
                   </div>

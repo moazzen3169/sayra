@@ -5,6 +5,7 @@ import {
 } from "@/types/customerApi";
 import type { DeviceCatalogItem } from "@/types/catalog";
 import type { DeviceCategory as CenterDeviceCategory } from "@/types/gaming-center/device-category.types";
+import type { MatchedCenterGameDto, PublicAmenityKey } from "@/types/search";
 import { isAbortError } from "@/lib/api/client";
 import { mapWithConcurrency } from "@/lib/api/requestLimiter";
 import { gamingCenterService, type ListGamingCentersParams } from "./gamingCenterService";
@@ -23,6 +24,7 @@ export interface GamecenterListItem {
   imageUrl: string;
   location: string;
   city: string;
+  neighborhood?: string;
   rating: number;
   reviewsCount?: number;
   hourlyPrice: number;
@@ -50,6 +52,9 @@ export interface GamecenterListItem {
   pcCount?: number;
   consoleCount?: number;
   coverImages?: string[];
+  matchedGames?: MatchedCenterGameDto[];
+  amenities?: PublicAmenityKey[];
+  detailUrl?: string;
   createdAt: string;
 }
 
@@ -105,7 +110,15 @@ const LEGACY_CATEGORY_META: Record<
   steering: { aliases: ["فرمان", "wheel", "steering"] },
 };
 
-const KNOWN_STATION_TYPES = new Set(["PC", "PLAYSTATION", "XBOX", "SWITCH", "VR"]);
+const KNOWN_STATION_TYPES = new Set([
+  "PC",
+  "PLAYSTATION",
+  "PLAYSTATION 4",
+  "PLAYSTATION 5",
+  "XBOX",
+  "SWITCH",
+  "VR",
+]);
 
 const DEFAULT_CENTER_IMAGE = "/img/gamnet-1.webp";
 
@@ -131,6 +144,8 @@ function deriveCategories(center: PublicGamingCenter): string[] {
   const counts = center.deviceCounts;
   if (counts && typeof counts === "object") {
     if ((counts.PC ?? 0) > 0) set.add("pc");
+    if ((counts["PLAYSTATION 5"] ?? 0) > 0) set.add("ps5");
+    if ((counts["PLAYSTATION 4"] ?? 0) > 0) set.add("ps4");
     if ((counts.PLAYSTATION ?? 0) > 0) set.add("playstation");
     if ((counts.XBOX ?? 0) > 0) set.add("xbox");
     if ((counts.SWITCH ?? 0) > 0) set.add("switch");

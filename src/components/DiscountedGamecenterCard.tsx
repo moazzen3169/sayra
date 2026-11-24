@@ -3,6 +3,7 @@ import Link from "next/link";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatDiscountBadge } from "@/lib/discount";
 import { Icon } from "@/components/ui/Icon";
+import { RatingHeartIcon } from "@/components/ui/RatingHeartIcon";
 import { Badge } from "@/components/ui/Badge";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -24,6 +25,11 @@ export interface GamecenterCardData {
     value: number;
     endAt?: string;
   };
+  matchedGames?: Array<{
+    id: string;
+    title: string;
+    titleFa?: string | null;
+  }>;
 }
 
 export interface DiscountedGamecenterCardProps {
@@ -47,6 +53,7 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
     discountPercent,
     discountAmount,
     discount,
+    matchedGames,
   } = center;
 
   // قیمت تخفیف‌دار فقط از Backend پذیرفته می‌شود (بدون محاسبه در کلاینت)
@@ -98,12 +105,7 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
           </h3>
           {rating > 0 && (
             <span className="inline-flex items-center gap-1 shrink-0 text-secondary text-[var(--text-white)] font-bold">
-              <Icon
-                name="star"
-                size={16}
-                filled
-                className="text-[var(--accent-star)]"
-              />
+              <RatingHeartIcon size={15} />
               <span>{toPersianDigits(rating.toFixed(1))}</span>
               {reviewsCount > 0 && (
                 <span className="text-[var(--text-muted)] font-normal">
@@ -117,6 +119,25 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
         <div className="flex min-h-5 items-center text-secondary text-[var(--text-muted)] min-w-0">
           <span className="truncate">{location}</span>
         </div>
+
+        {matchedGames && matchedGames.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1 pt-0.5">
+            {matchedGames.slice(0, 2).map((g) => (
+              <span
+                key={g.id}
+                className="inline-flex items-center gap-1 rounded-md bg-[var(--primary-muted)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--primary)] max-w-full truncate"
+              >
+                <Icon name="gamepad" size={12} />
+                <span className="truncate">{g.titleFa || g.title}</span>
+              </span>
+            ))}
+            {matchedGames.length > 2 && (
+              <span className="text-[11px] text-[var(--text-muted)]">
+                +{toPersianDigits(matchedGames.length - 2)}
+              </span>
+            )}
+          </div>
+        )}
 
         <div
           className="mt-auto pt-1 flex items-baseline gap-1.5 text-xs"

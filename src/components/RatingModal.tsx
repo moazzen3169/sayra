@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { RatingHeartIcon } from "@/components/ui/RatingHeartIcon";
 import { toPersianDigits } from "@/lib/format";
 import { formatReservationWhen, getErrorMessage } from "@/lib/reservationUi";
 import {
@@ -41,73 +42,6 @@ const QUICK_VIBE_CHIPS = [
   "بد نبود ولی دسته‌ها و تجهیزات جای بهتر شدن داشت",
   "کمی شلوغ بود و کیفیت سیستم‌ها انتظارمو برآورده نکرد",
 ];
-
-function ConsoleControllerIcon({
-  highlighted,
-}: {
-  highlighted: boolean;
-}) {
-  return (
-    <svg
-      viewBox="0 0 64 46"
-      className={`w-10 h-7 sm:w-12 sm:h-9 transition-all duration-200 ${
-        highlighted
-          ? "drop-shadow-[0_0_5px_rgba(184,243,74,0.18)] scale-105"
-          : "opacity-45 hover:opacity-80"
-      }`}
-      fill="none"
-      aria-hidden="true"
-    >
-      {/* Controller Outer Shell */}
-      <path
-        d="M18.5 7.5h27c6.4 0 11.4 4.5 12.7 10.8l2.5 12.2c1.1 5.2-2.6 10-7.6 10-2.6 0-5-1.3-6.4-3.5l-2.7-4.3a4 4 0 0 0-3.4-1.9H23.4a4 4 0 0 0-3.4 1.9l-2.7 4.3c-1.4 2.2-3.8 3.5-6.4 3.5-5 0-8.7-4.8-7.6-10L5.8 18.3C7.1 12 12.1 7.5 18.5 7.5Z"
-        fill={highlighted ? "#B8F34A" : "transparent"}
-        fillOpacity={highlighted ? 0.14 : 0}
-        stroke={highlighted ? "#B8F34A" : "#D4D4D8"}
-        strokeWidth="2.4"
-        strokeLinejoin="round"
-      />
-      {/* Lightbar */}
-      <rect
-        x="25"
-        y="10.5"
-        width="14"
-        height="3.5"
-        rx="1.75"
-        fill={highlighted ? "#B8F34A" : "#71717A"}
-      />
-      {/* D-pad */}
-      <path
-        d="M17.5 15.5v8M13.5 19.5h8"
-        stroke={highlighted ? "#E8FFB8" : "#D4D4D8"}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      {/* Action Buttons */}
-      <circle cx="46.5" cy="16" r="1.7" fill={highlighted ? "#B8F34A" : "#D4D4D8"} />
-      <circle cx="50.5" cy="19.5" r="1.7" fill={highlighted ? "#E8FFB8" : "#D4D4D8"} />
-      <circle cx="46.5" cy="23" r="1.7" fill={highlighted ? "#B8F34A" : "#D4D4D8"} />
-      <circle cx="42.5" cy="19.5" r="1.7" fill={highlighted ? "#E8FFB8" : "#D4D4D8"} />
-      {/* Dual Analog Sticks */}
-      <circle
-        cx="25"
-        cy="25"
-        r="3"
-        fill={highlighted ? "#10130A" : "transparent"}
-        stroke={highlighted ? "#B8F34A" : "#D4D4D8"}
-        strokeWidth="1.8"
-      />
-      <circle
-        cx="39"
-        cy="25"
-        r="3"
-        fill={highlighted ? "#10130A" : "transparent"}
-        stroke={highlighted ? "#B8F34A" : "#D4D4D8"}
-        strokeWidth="1.8"
-      />
-    </svg>
-  );
-}
 
 interface RatingModalPanelProps
   extends Omit<RatingModalProps, "isOpen" | "reservationId"> {
@@ -334,7 +268,10 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
           {submitted ? (
             <div className="flex flex-col items-center text-center py-9 px-2 bg-transparent border-0">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[#B8F34A]/25 bg-white/[0.03] shadow-[0_0_12px_rgba(184,243,74,0.1)]">
-                <ConsoleControllerIcon highlighted={true} />
+                <RatingHeartIcon
+                  size={34}
+                  className="drop-shadow-[0_0_6px_rgba(199,247,75,0.28)]"
+                />
               </div>
               <span
                 className="text-[10px] tracking-[.26em] text-[#B8F34A]/85"
@@ -348,7 +285,7 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
               <p className="mt-2 text-xs sm:text-sm text-white/65">
                 امتیاز{" "}
                 <span className="font-bold text-[#B8F34A]">
-                  {toPersianDigits(rating)} کنترلر
+                  {toPersianDigits(rating)} از ۵
                 </span>{" "}
                 برای <span className="font-bold text-white">{centerTitle}</span>{" "}
                 ثبت شد.
@@ -388,10 +325,10 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
                 </h1>
               </div>
 
-              {/* 01 — Console Controller Rating */}
+              {/* 01 — Heart Rating */}
               <div className="flex flex-col items-center gap-2 py-1">
                 <div
-                  className="flex items-center justify-center gap-1.5 sm:gap-2.5"
+                  className="flex items-center justify-center gap-2 sm:gap-3"
                   dir="ltr"
                   onMouseLeave={() => setHoveredRating(null)}
                 >
@@ -408,11 +345,19 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
                           if (error) setError("");
                         }}
                         onMouseEnter={() => setHoveredRating(value)}
-                        aria-label={`امتیاز ${toPersianDigits(value)} از ۵ کنترلر`}
+                        aria-label={`امتیاز ${toPersianDigits(value)} از ۵`}
                         aria-pressed={isSelected}
-                        className="group relative flex flex-col items-center justify-center gap-0.5 bg-transparent border-0 p-1 focus:outline-none cursor-pointer transition-transform active:scale-90"
+                        className="group relative flex flex-col items-center justify-center gap-1 bg-transparent border-0 p-1 focus:outline-none cursor-pointer transition-transform active:scale-90"
                       >
-                        <ConsoleControllerIcon highlighted={isHighlighted} />
+                        <RatingHeartIcon
+                          size={34}
+                          active={isHighlighted}
+                          className={
+                            isHighlighted
+                              ? "scale-105 drop-shadow-[0_0_6px_rgba(199,247,75,0.28)]"
+                              : "hover:opacity-75"
+                          }
+                        />
                         <span
                           className={`text-[11px] font-black transition-colors ${
                             isHighlighted ? "text-[#B8F34A]/90" : "text-white/35"
@@ -441,7 +386,7 @@ const RatingModalPanel: React.FC<RatingModalPanelProps> = ({
                     </>
                   ) : (
                     <span className="text-xs text-white/45">
-                      با انتخاب کنترلرها از ۱ تا ۵ امتیاز بده
+                      از ۱ تا ۵ امتیاز بده
                     </span>
                   )}
                 </div>

@@ -95,7 +95,11 @@ export const DeviceCategories: React.FC<DeviceCategoriesProps> = ({
         <div className="grid grid-cols-3 gap-x-2 gap-y-4 sm:grid-cols-4 sm:gap-x-3 sm:gap-y-10 md:grid-cols-5 lg:grid-cols-7">
           {displayList.map((cat) => {
             const isSelected = selectedCategoryId === cat.id;
-            const href = `/gamecenters?category=${encodeURIComponent(cat.id)}`;
+            const params = new URLSearchParams({ category: cat.id });
+            if (cat.deviceType) {
+              params.set("deviceType", cat.deviceType);
+            }
+            const href = `/gamecenters?${params.toString()}`;
 
             return (
               <Link

@@ -227,12 +227,20 @@ function buildUserProfile(
       ? undefined
       : previousUser?.actorType);
 
+  const apiFullName =
+    (typeof data.fullName === "string" && data.fullName.trim()) ||
+    [data.firstName, data.lastName]
+      .filter((v): v is string => typeof v === "string" && Boolean(v.trim()))
+      .map((v) => v.trim())
+      .join(" ") ||
+    "";
+
   const updatedUser: UserProfile = {
     id: data.id ?? previousUser?.id,
 
     fullName:
-      data.fullName ??
-      previousUser?.fullName ??
+      apiFullName ||
+      previousUser?.fullName ||
       "",
 
     phone: cleanPhoneNumber(

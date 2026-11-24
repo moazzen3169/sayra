@@ -25,6 +25,7 @@ interface GamecenterLocationCardProps {
   lng: number;
   title?: string;
   address?: string;
+  onShare?: () => void;
 }
 
 export const GamecenterLocationCard: React.FC<GamecenterLocationCardProps> = ({
@@ -32,6 +33,7 @@ export const GamecenterLocationCard: React.FC<GamecenterLocationCardProps> = ({
   lng,
   title,
   address,
+  onShare,
 }) => {
   const [modalMode, setModalMode] = useState<"view" | "route" | null>(null);
 
@@ -67,6 +69,18 @@ export const GamecenterLocationCard: React.FC<GamecenterLocationCardProps> = ({
           </svg>
           <span>مسیریابی</span>
         </button>
+
+        {onShare && (
+          <button
+            type="button"
+            onClick={onShare}
+            aria-label="اشتراک‌گذاری گیمنت"
+            title="اشتراک‌گذاری"
+            className="h-8 w-8 lg:h-11 lg:w-11 shrink-0 inline-flex items-center justify-center rounded-card bg-[var(--foreground)]/50 border border-[var(--border-subtle)] text-[var(--text-white)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
+          >
+            <Icon name="share" size={16} className="lg:w-[18px] lg:h-[18px]" />
+          </button>
+        )}
       </div>
 
       {modalMode && (

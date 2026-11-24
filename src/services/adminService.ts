@@ -2819,21 +2819,25 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
       discountType: (raw.discountType ||
         "PERCENTAGE") as AdminCampaign["discountType"],
       discountValue: Number(raw.discountValue) || 0,
-      maxDiscountAmount: raw.maxDiscountAmount
-        ? Number(raw.maxDiscountAmount)
-        : undefined,
-      minOrderAmount: raw.minOrderAmount
-        ? Number(raw.minOrderAmount)
-        : undefined,
+      maxDiscountAmount:
+        raw.maxDiscountAmount != null
+          ? Number(raw.maxDiscountAmount)
+          : undefined,
+      minOrderAmount:
+        raw.minOrderAmount != null ? Number(raw.minOrderAmount) : undefined,
       scopeType: (raw.scopeType || "GLOBAL") as AdminCampaign["scopeType"],
       applicableGamecenterIds: raw.applicableGamecenterIds,
       applicableDeviceTypes: raw.applicableDeviceTypes,
       targetAudience: (raw.targetAudience ||
         "ALL_USERS") as AdminCampaign["targetAudience"],
       specificUserIds: raw.specificUserIds,
-      totalUsageLimit: raw.totalUsageLimit,
-      perUserUsageLimit: raw.perUserUsageLimit,
-      usedCount: raw.usedCount || 0,
+      totalUsageLimit:
+        raw.totalUsageLimit != null ? Number(raw.totalUsageLimit) : undefined,
+      perUserUsageLimit:
+        raw.perUserUsageLimit != null
+          ? Number(raw.perUserUsageLimit)
+          : undefined,
+      usedCount: Number(raw.usedCount) || 0,
       startDate: raw.startDate
         ? formatDayLabel(raw.startDate)
         : createdAtFormatted,
@@ -2842,7 +2846,9 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
       endDateRaw: raw.endDate,
       status: (raw.status || "ACTIVE") as AdminCampaign["status"],
       createdAt: createdAtFormatted,
+      createdAtRaw: raw.createdAt,
       updatedAt: raw.updatedAt ? formatDayLabel(raw.updatedAt) : undefined,
+      createdBy: raw.createdBy ?? null,
     };
   },
 
@@ -2902,24 +2908,29 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
       items = items.filter((c) => c.targetAudience === targetAudience);
     }
 
-    items.sort((a, b) => {
-      const valA =
-        (a as unknown as Record<string, string | number>)[sortBy] ?? "";
-      const valB =
-        (b as unknown as Record<string, string | number>)[sortBy] ?? "";
+    const isServerSorted =
+      sortBy === "createdAt" || sortBy === "startDate" || sortBy === "usedCount";
 
-      if (typeof valA === "string" && typeof valB === "string") {
-        return sortOrder === "asc"
-          ? valA.localeCompare(valB, "fa")
-          : valB.localeCompare(valA, "fa");
-      }
+    if (!isServerSorted) {
+      items.sort((a, b) => {
+        const valA =
+          (a as unknown as Record<string, string | number>)[sortBy] ?? "";
+        const valB =
+          (b as unknown as Record<string, string | number>)[sortBy] ?? "";
 
-      if (typeof valA === "number" && typeof valB === "number") {
-        return sortOrder === "asc" ? valA - valB : valB - valA;
-      }
+        if (typeof valA === "string" && typeof valB === "string") {
+          return sortOrder === "asc"
+            ? valA.localeCompare(valB, "fa")
+            : valB.localeCompare(valA, "fa");
+        }
 
-      return 0;
-    });
+        if (typeof valA === "number" && typeof valB === "number") {
+          return sortOrder === "asc" ? valA - valB : valB - valA;
+        }
+
+        return 0;
+      });
+    }
 
     const total = response.meta?.pagination?.total ?? items.length;
     const totalPages =
@@ -3040,13 +3051,17 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     if (input.discountValue !== undefined)
       payload.discountValue = Number(input.discountValue);
     if (input.maxDiscountAmount !== undefined) {
-      payload.maxDiscountAmount =
-        input.discountType === "FIXED_AMOUNT"
-          ? undefined
-          : Number(input.maxDiscountAmount);
+      const parsedMax = Number(input.maxDiscountAmount);
+      if (input.discountType !== "FIXED_AMOUNT" && Number.isFinite(parsedMax) && parsedMax > 0) {
+        payload.maxDiscountAmount = parsedMax;
+      }
     }
-    if (input.minOrderAmount !== undefined)
-      payload.minOrderAmount = Number(input.minOrderAmount);
+    if (input.minOrderAmount !== undefined) {
+      const parsedMin = Number(input.minOrderAmount);
+      if (Number.isFinite(parsedMin) && parsedMin > 0) {
+        payload.minOrderAmount = parsedMin;
+      }
+    }
     if (input.scopeType !== undefined) payload.scopeType = input.scopeType;
     if (input.applicableGamecenterIds !== undefined)
       payload.applicableGamecenterIds = input.applicableGamecenterIds;
@@ -3056,10 +3071,18 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
       payload.targetAudience = input.targetAudience;
     if (input.specificUserIds !== undefined)
       payload.specificUserIds = input.specificUserIds;
-    if (input.totalUsageLimit !== undefined)
-      payload.totalUsageLimit = Number(input.totalUsageLimit);
-    if (input.perUserUsageLimit !== undefined)
-      payload.perUserUsageLimit = Number(input.perUserUsageLimit);
+    if (input.totalUsageLimit !== undefined) {
+      const parsedTotal = Number(input.totalUsageLimit);
+      if (Number.isFinite(parsedTotal) && parsedTotal > 0) {
+        payload.totalUsageLimit = parsedTotal;
+      }
+    }
+    if (input.perUserUsageLimit !== undefined) {
+      const parsedPerUser = Number(input.perUserUsageLimit);
+      if (Number.isFinite(parsedPerUser) && parsedPerUser > 0) {
+        payload.perUserUsageLimit = parsedPerUser;
+      }
+    }
     if (input.startDate !== undefined) {
       const isoStart = toIsoDateTime(input.startDate, false);
       if (isoStart) payload.startDate = isoStart;

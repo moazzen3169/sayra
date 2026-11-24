@@ -17,6 +17,8 @@ import {
 import "leaflet/dist/leaflet.css";
 import "./game-centers-map.css";
 import { Icon } from "@/components/ui/Icon";
+import { RatingHeartIcon } from "@/components/ui/RatingHeartIcon";
+import { toPersianDigits } from "@/lib/format";
 import {
   DEFAULT_MAP_ZOOM,
   GAME_CENTERS_MAP_HEIGHT_CLASS,
@@ -561,13 +563,30 @@ const GameCenterPinMarker: React.FC<GameCenterPinMarkerProps> = React.memo(
           offset={[0, -34]}
           closeButton={false}
         >
-          <div className="flex flex-col gap-2 p-2.5 text-right" dir="rtl">
-            <p className="text-xs font-bold leading-5 text-[var(--text-white)] line-clamp-2">
-              {center.name}
-            </p>
+          <div className="flex flex-col gap-2.5 p-2.5 text-right" dir="rtl">
+            <div className="flex items-center justify-between gap-2">
+              <p className="!m-0 text-xs font-bold leading-5 text-[var(--text-white)] line-clamp-2 min-w-0 flex-1">
+                {center.name}
+              </p>
+              <span
+                className="shrink-0 inline-flex items-center gap-1 text-xs font-bold leading-5 text-[var(--text-white)]"
+                title={
+                  center.ratingCount > 0
+                    ? `${toPersianDigits(center.rating.toFixed(1))} از ۵ (${toPersianDigits(center.ratingCount)} نظر)`
+                    : "بدون امتیاز ثبت‌شده"
+                }
+              >
+                <RatingHeartIcon size={14} />
+                <span>
+                  {center.rating > 0
+                    ? toPersianDigits(center.rating.toFixed(1))
+                    : toPersianDigits("0")}
+                </span>
+              </span>
+            </div>
             <Link
               href={detailHref}
-              className="inline-flex h-8 w-full items-center justify-center rounded-card bg-[var(--primary)] px-3 text-xs font-bold text-on-primary transition-colors hover:bg-[var(--primary-hover)]"
+              className="inline-flex h-8 w-full items-center justify-center rounded-card bg-[var(--primary)] px-3 text-xs font-bold !text-black transition-colors hover:bg-[var(--primary-hover)]"
             >
               مشاهده گیمنت
             </Link>

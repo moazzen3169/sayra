@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RatingHeartIcon } from "@/components/ui/RatingHeartIcon";
 import type {
   ArticleGamingCentersSectionData,
   PublicGameCenterCard,
@@ -136,8 +137,9 @@ function GamingCenterCardItem({
           {/* Rating & Bayesian Score */}
           <div className="flex flex-wrap items-center gap-3 text-xs">
             {center.rating.validReviewsCount > 0 ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2.5 py-1 font-bold text-amber-300">
-                <span>★ {center.rating.average.toFixed(1)}</span>
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-[var(--primary)]/10 border border-[var(--primary)]/25 px-2.5 py-1 font-bold text-[var(--text-white)]">
+                <RatingHeartIcon size={14} />
+                <span>{center.rating.average.toFixed(1)}</span>
                 <span className="text-[11px] font-normal text-[var(--text-muted)]">
                   ({center.rating.validReviewsCount.toLocaleString("fa-IR")} نظر معتبر)
                 </span>

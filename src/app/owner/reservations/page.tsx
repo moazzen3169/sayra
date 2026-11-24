@@ -10,7 +10,6 @@ import {
 } from "@/components/owner/OwnerSingleReservationCard";
 import { GroupConfirmModal } from "@/components/owner/GroupConfirmModal";
 import { GroupCancelModal } from "@/components/owner/GroupCancelModal";
-import { GroupProposeTimeModal } from "@/components/owner/GroupProposeTimeModal";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -45,7 +44,7 @@ const PAGE_SIZE = 50;
 
 function Content() {
   const params = useSearchParams();
-  const { centerId, center } = useOwner();
+  const { centerId } = useOwner();
 
   const [items, setItems] = useState<OwnerReservation[] | null>(null);
   const [page, setPage] = useState(1);
@@ -63,7 +62,6 @@ function Content() {
   // Action Modals State (Details moved to dedicated /owner/reservations/[id] page)
   const [confirmTarget, setConfirmTarget] = useState<OwnerBookingEntry | null>(null);
   const [cancelTarget, setCancelTarget] = useState<OwnerBookingEntry | null>(null);
-  const [proposeTarget, setProposeTarget] = useState<OwnerBookingEntry | null>(null);
   const [modalBusy, setModalBusy] = useState(false);
 
   const actionLockRef = useRef(false);
@@ -252,48 +250,7 @@ function Content() {
     [cancelTarget, modalBusy, centerId]
   );
 
-  // Propose new date & time
-  const handleProposeTimeAction = useCallback(
-    async (startTime: string, endTime: string, note?: string) => {
-      if (!proposeTarget || modalBusy || actionLockRef.current) return;
-      actionLockRef.current = true;
-      setModalBusy(true);
-      setActionError(null);
-      setActionSuccess(null);
-      try {
-        if (proposeTarget.isGroup) {
-          const eligibleChildren = proposeTarget.reservations.filter(
-            (res) => res.status === "PENDING" || res.status === "CONFIRMED"
-          );
-          await mapWithConcurrency(eligibleChildren, 3, async (res) => {
-            await ownerService.proposeTime(centerId, res.id, {
-              startTime,
-              endTime,
-              note,
-            });
-          });
-        } else {
-          await ownerService.proposeTime(centerId, proposeTarget.reservation.id, {
-            startTime,
-            endTime,
-            note,
-          });
-        }
-        setProposeTarget(null);
-        setActionSuccess("پیشنهاد تاریخ و زمان جدید برای مشتری ارسال شد.");
-        setReloadToken((v) => v + 1);
-      } catch (e) {
-        setActionError(getErrorMessage(e));
-        throw e;
-      } finally {
-        setModalBusy(false);
-        actionLockRef.current = false;
-      }
-    },
-    [proposeTarget, modalBusy, centerId]
-  );
-
-  // Session actions (start / pause / resume / stop)
+  // Session actions (start / stop)
   const runSession = useCallback(
     async (r: OwnerReservation, action: OwnerSessionAction) => {
       if (busyId || actionLockRef.current) return;
@@ -462,9 +419,7 @@ function Content() {
               if (entry.isGroup) {
                 const isBusy =
                   modalBusy &&
-                  (confirmTarget === entry ||
-                    cancelTarget === entry ||
-                    proposeTarget === entry);
+                  (confirmTarget === entry || cancelTarget === entry);
 
                 return (
                   <OwnerGroupReservationCard
@@ -474,7 +429,6 @@ function Content() {
                     detailsHref={detailsHref}
                     onConfirm={() => setConfirmTarget(entry)}
                     onCancel={() => setCancelTarget(entry)}
-                    onProposeTime={() => setProposeTarget(entry)}
                   />
                 );
               }
@@ -483,9 +437,7 @@ function Content() {
               const isBusy =
                 busyId === r.id ||
                 (modalBusy &&
-                  (confirmTarget === entry ||
-                    cancelTarget === entry ||
-                    proposeTarget === entry));
+                  (confirmTarget === entry || cancelTarget === entry));
 
               return (
                 <OwnerSingleReservationCard
@@ -495,7 +447,6 @@ function Content() {
                   detailsHref={detailsHref}
                   onConfirm={() => setConfirmTarget(entry)}
                   onCancel={() => setCancelTarget(entry)}
-                  onProposeTime={() => setProposeTarget(entry)}
                   onSessionAction={(action) => runSession(r, action)}
                 />
               );
@@ -550,18 +501,6 @@ function Content() {
           onCancel={handleCancelAction}
           group={cancelTarget.isGroup ? cancelTarget : null}
           single={!cancelTarget.isGroup ? cancelTarget.reservation : null}
-          busy={modalBusy}
-        />
-      )}
-
-      {proposeTarget && (
-        <GroupProposeTimeModal
-          isOpen={true}
-          onClose={() => setProposeTarget(null)}
-          onSubmit={handleProposeTimeAction}
-          group={proposeTarget.isGroup ? proposeTarget : null}
-          single={!proposeTarget.isGroup ? proposeTarget.reservation : null}
-          gamingCenterSlug={center?.slug || centerId}
           busy={modalBusy}
         />
       )}

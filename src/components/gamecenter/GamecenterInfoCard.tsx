@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { toPersianDigits } from "@/lib/format";
 import { Icon } from "@/components/ui/Icon";
+import { RatingHeartIcon } from "@/components/ui/RatingHeartIcon";
 
 interface GamecenterInfoCardProps {
   title: string;
@@ -33,7 +34,7 @@ export const GamecenterInfoCard: React.FC<GamecenterInfoCardProps> = ({
             aria-label={`امتیاز ${toPersianDigits(rating.avg.toFixed(1))} از ${toPersianDigits(rating.count)} نظر`}
             className="shrink-0 min-h-[44px] inline-flex items-center gap-1.5 px-2 rounded-card hover:bg-[var(--foreground)]/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
           >
-            <Icon name="star" size={16} filled className="text-[var(--accent-star)]" />
+            <RatingHeartIcon size={16} />
             <span className="text-card-title text-[var(--text-white)]">
               {toPersianDigits(rating.avg.toFixed(1))}
             </span>

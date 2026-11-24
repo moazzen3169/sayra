@@ -5,6 +5,7 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ReservationCodeStrip } from "@/components/ReservationCodeStrip";
 import { Icon } from "@/components/ui/Icon";
+import { RatingHeartIcon } from "@/components/ui/RatingHeartIcon";
 import { formatPrice } from "@/lib/format";
 import { formatReservationWhen, stationImageFor } from "@/lib/reservationUi";
 import { AppImage } from "@/components/common/AppImage";
@@ -81,7 +82,7 @@ export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({
 
         {status === "COMPLETED" && alreadyRated && (
           <span className="inline-flex items-center gap-1.5 shrink-0 rounded-full border border-[var(--primary)]/25 bg-[var(--primary)]/10 px-2.5 py-1 text-[11px] font-bold text-[var(--primary)]">
-            <Icon name="gamepad" size={13} />
+            <RatingHeartIcon size={14} />
             <span>امتیاز ثبت شد</span>
           </span>
         )}
@@ -96,7 +97,7 @@ export const ReservationHistoryCard: React.FC<ReservationHistoryCardProps> = ({
             }}
             className="inline-flex items-center gap-1.5 shrink-0 rounded-full bg-[var(--primary)] hover:bg-[#D1FF78] px-3 py-1.5 text-[11px] font-extrabold text-[var(--text-on-primary)] transition-transform active:scale-95"
           >
-            <Icon name="gamepad" size={14} />
+            <RatingHeartIcon size={14} />
             <span>ثبت امتیاز</span>
           </button>
         )}

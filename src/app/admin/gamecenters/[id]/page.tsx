@@ -6,6 +6,7 @@ import { AdminPageContainer } from "@/components/admin/layout/AdminPageContainer
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
+import { RatingHeartIcon } from "@/components/ui/RatingHeartIcon";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { GamecenterFormModal } from "@/components/admin/gamecenters/GamecenterFormModal";
@@ -213,8 +214,8 @@ export default function GamecenterDetailPage({ params }: { params: Promise<{ id:
 
             <div className="flex flex-col gap-1">
               <span className="text-xs text-[var(--text-muted)] font-medium">امتیاز کاربران:</span>
-              <div className="flex items-center gap-1.5 font-bold text-warning">
-                <Icon name="star" size={16} />
+              <div className="flex items-center gap-1.5 font-bold text-[var(--text-white)]">
+                <RatingHeartIcon size={16} />
                 <span>
                   {typeof gc.rating === "number" ? `${gc.rating.toFixed(1)} از ۵` : "بدون امتیاز"}
                 </span>
@@ -299,7 +300,7 @@ export default function GamecenterDetailPage({ params }: { params: Promise<{ id:
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-card p-6 flex flex-col gap-4">
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
             <div className="flex items-center gap-2">
-              <Icon name="star" size={20} className="text-[var(--accent-star)]" />
+              <RatingHeartIcon size={18} />
               <h2 className="text-section-title text-[var(--text-white)]">
                 نظرات ثبت‌شده کاربران ({reviews.length})
               </h2>
@@ -320,8 +321,8 @@ export default function GamecenterDetailPage({ params }: { params: Promise<{ id:
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-bold text-xs text-[var(--text-white)]">{r.userName}</span>
-                    <div className="flex items-center gap-1 text-xs font-bold text-[var(--accent-star)]">
-                      <Icon name="star" size={14} />
+                    <div className="flex items-center gap-1 text-xs font-bold text-[var(--text-white)]">
+                      <RatingHeartIcon size={14} />
                       <span>{r.rating}</span>
                     </div>
                   </div>

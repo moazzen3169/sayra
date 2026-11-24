@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { RatingHeartIcon } from "@/components/ui/RatingHeartIcon";
 import { InlineAlert } from "@/components/ui/InlineAlert";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
@@ -34,6 +35,7 @@ import { GroupBookingSheet } from "@/components/gamecenter/GroupBookingSheet";
 import { GamesMarquee } from "@/components/gamecenter/GamesMarquee";
 import { GamecenterInfoCard } from "@/components/gamecenter/GamecenterInfoCard";
 import { GamecenterLocationCard } from "@/components/gamecenter/GamecenterLocationCard";
+import { GamecenterShareModal } from "@/components/gamecenter/GamecenterShareModal";
 import { ReviewReplyThread } from "@/components/reviews/ReviewReplyThread";
 import { useAuth } from "@/context/AuthContext";
 import { useCity } from "@/context/CityContext";
@@ -94,6 +96,7 @@ export function GamecenterDetailClient({
   const [extraSelection, setExtraSelection] = useState<ExtraControllerSelectionMap>({});
   const [activeCategory, setActiveCategory] = useState<DeviceCategory | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
 
   const reservationDisabled = useMemo(
@@ -334,15 +337,26 @@ export function GamecenterDetailClient({
 
               {!detail ? (
                 <LocationSkeleton />
+              ) : detail.location ? (
+                <GamecenterLocationCard
+                  lat={detail.location.lat}
+                  lng={detail.location.lng}
+                  title={title}
+                  address={address}
+                  onShare={() => setIsShareOpen(true)}
+                />
               ) : (
-                detail.location && (
-                  <GamecenterLocationCard
-                    lat={detail.location.lat}
-                    lng={detail.location.lng}
-                    title={title}
-                    address={address}
-                  />
-                )
+                <div className="flex items-center gap-2 lg:gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsShareOpen(true)}
+                    aria-label="اشتراک‌گذاری گیمنت"
+                    title="اشتراک‌گذاری"
+                    className="h-8 w-8 lg:h-11 lg:w-11 shrink-0 inline-flex items-center justify-center rounded-card bg-[var(--foreground)]/50 border border-[var(--border-subtle)] text-[var(--text-white)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
+                  >
+                    <Icon name="share" size={16} className="lg:w-[18px] lg:h-[18px]" />
+                  </button>
+                </div>
               )}
 
               {/* سایدبار دسکتاپ */}
@@ -452,12 +466,7 @@ export function GamecenterDetailClient({
                             </span>
                           </div>
                           <span className="inline-flex items-center gap-1 text-xs font-bold text-[var(--text-white)] shrink-0">
-                            <Icon
-                              name="star"
-                              size={16}
-                              filled
-                              className="text-[var(--accent-star)]"
-                            />
+                            <RatingHeartIcon size={15} />
                             <span>{toPersianDigits(r.rating)}</span>
                           </span>
                         </div>
@@ -552,6 +561,20 @@ export function GamecenterDetailClient({
             user ? { fullName: user.fullName, phone: user.phone } : undefined
           }
           onClose={() => setIsSheetOpen(false)}
+        />
+      )}
+
+      {detail && (
+        <GamecenterShareModal
+          isOpen={isShareOpen}
+          onClose={() => setIsShareOpen(false)}
+          gamingCenterId={detail.center.id}
+          gamingCenterSlug={detail.center.slug || gamingCenterSlug}
+          gamingCenterName={detail.center.name}
+          existingShortUrl={
+            (detail.center as { shortUrl?: string | null }).shortUrl ?? null
+          }
+          isAuthenticated={Boolean(user)}
         />
       )}
 

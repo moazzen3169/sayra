@@ -83,6 +83,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function parseRating(value: unknown): number {
+  const parsed = parseCoordinate(value);
+  if (parsed === null) return 0;
+  return Math.max(0, Math.min(5, parsed));
+}
+
+function parseRatingCount(value: unknown): number {
+  const parsed = parseCoordinate(value);
+  if (parsed === null || parsed < 0) return 0;
+  return Math.floor(parsed);
+}
+
 /**
  * Validates raw game center records, converts string coordinates to finite numbers,
  * discards malformed items safely, and offsets identical coordinates gracefully.
@@ -90,7 +102,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function normalizeGameCenters(rawItems: unknown): ValidGameCenterLocation[] {
   if (!Array.isArray(rawItems)) return [];
 
-  const validRaw: Array<{ id: string; name: string; lat: number; lng: number }> = [];
+  const validRaw: Array<{
+    id: string;
+    name: string;
+    lat: number;
+    lng: number;
+    rating: number;
+    ratingCount: number;
+  }> = [];
   const seenIds = new Set<string>();
 
   for (const item of rawItems) {
@@ -115,8 +134,11 @@ export function normalizeGameCenters(rawItems: unknown): ValidGameCenterLocation
     if (lat === null || lng === null) continue;
     if (!isValidLatitude(lat) || !isValidLongitude(lng)) continue;
 
+    const rating = parseRating(typed.rating);
+    const ratingCount = parseRatingCount(typed.ratingCount);
+
     seenIds.add(id);
-    validRaw.push({ id, name, lat, lng });
+    validRaw.push({ id, name, lat, lng, rating, ratingCount });
   }
 
   return applyDuplicateCoordinateOffsets(validRaw);
@@ -127,7 +149,14 @@ export function normalizeGameCenters(rawItems: unknown): ValidGameCenterLocation
  * duplicates in a tiny circle around the true coordinate so none are hidden underneath another.
  */
 export function applyDuplicateCoordinateOffsets(
-  items: ReadonlyArray<{ id: string; name: string; lat: number; lng: number }>
+  items: ReadonlyArray<{
+    id: string;
+    name: string;
+    lat: number;
+    lng: number;
+    rating?: number;
+    ratingCount?: number;
+  }>
 ): ValidGameCenterLocation[] {
   const buckets = new Map<string, number[]>();
 
@@ -150,6 +179,8 @@ export function applyDuplicateCoordinateOffsets(
       const item = items[idx];
       result[idx] = {
         ...item,
+        rating: item.rating ?? 0,
+        ratingCount: item.ratingCount ?? 0,
         displayLat: item.lat,
         displayLng: item.lng,
       };
@@ -168,6 +199,8 @@ export function applyDuplicateCoordinateOffsets(
 
       result[idx] = {
         ...item,
+        rating: item.rating ?? 0,
+        ratingCount: item.ratingCount ?? 0,
         displayLat: Math.max(-90, Math.min(90, item.lat + latOffset)),
         displayLng: Math.max(-180, Math.min(180, item.lng + lngOffset)),
       };

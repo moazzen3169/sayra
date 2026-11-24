@@ -22,6 +22,7 @@ import {
 } from "@/lib/reservationUi";
 import { AppImage } from "@/components/common/AppImage";
 import { Icon } from "@/components/ui/Icon";
+import { RatingHeartIcon } from "@/components/ui/RatingHeartIcon";
 import {
   buildReviewTargetFromReservation,
   isSingleReservationRated,
@@ -764,14 +765,14 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                   onClick={() => setIsRatingModalOpen(true)}
                   className="h-12 w-full rounded-full bg-[var(--primary)] hover:bg-[#D1FF78] text-on-primary text-sm font-black flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-md"
                 >
-                  <Icon name="gamepad" size={18} />
+                  <RatingHeartIcon size={18} />
                   <span>ثبت امتیاز و تجربه من</span>
                 </button>
               )}
 
               {reservation.status === "COMPLETED" && alreadyRated && (
                 <div className="h-12 w-full rounded-card border border-[var(--primary)]/30 bg-[var(--primary)]/10 text-[var(--primary)] text-xs font-bold flex items-center justify-center gap-2">
-                  <Icon name="gamepad" size={16} />
+                  <RatingHeartIcon size={16} />
                   <span>امتیاز و نظر شما برای این رزرو ثبت شده است</span>
                 </div>
               )}

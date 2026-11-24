@@ -264,10 +264,6 @@ export const ENDPOINTS = {
       `/gamingCenters/${enc(c)}/reservation/${enc(r)}/complete`,
     noShowReservation: (c: string, r: string) =>
       `/gamingCenters/${enc(c)}/reservation/${enc(r)}/no-show`,
-    proposeTime: (c: string, r: string) =>
-      `/gamingCenters/${enc(c)}/reservation/${enc(r)}/propose-time`,
-    proposals: (c: string, r: string) =>
-      `/gamingCenters/${enc(c)}/reservation/${enc(r)}/proposals`,
     /** مطابق OpenAPI: تمامی مسیرهای سشن با ساختار مفرد /reservation/{r}/sessions/{action} هستند */
     session: (c: string, r: string, action: "start" | "stop" | "pause" | "resume") =>
       `/gamingCenters/${enc(c)}/reservation/${enc(r)}/sessions/${action}`,
@@ -323,5 +319,16 @@ export const ENDPOINTS = {
     list: "/public/gamecenters",
     rankings: "/public/gamecenters/rankings",
     detail: (id: string) => `/public/gamecenters/${enc(id)}`,
+  },
+  search: {
+    gamecenters: "/public/search/gamecenters",
+    suggest: "/public/search/suggest",
+    games: "/public/search/games",
+  },
+  shortLinks: {
+    list: "/short-links",
+    create: "/short-links",
+    byId: (linkId: string) => `/short-links/${enc(linkId)}`,
+    qr: (linkId: string) => `/short-links/${enc(linkId)}/qr`,
   },
 } as const;

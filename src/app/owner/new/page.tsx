@@ -250,10 +250,6 @@ export default function NewGamingCenterPage() {
         if (!targetCenterId) {
           const me = await ownerService.getMe().catch(() => null);
           targetCenterId = me?.gamingCenterId;
-          if (!targetCenterId) {
-            const centers = await ownerService.listCenters().catch(() => []);
-            targetCenterId = centers[0]?.id;
-          }
           if (targetCenterId) {
             try {
               localStorage.setItem("sayra_owner_center_id", targetCenterId);

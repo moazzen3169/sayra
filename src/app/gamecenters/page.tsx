@@ -3,7 +3,11 @@ import type { Metadata } from "next";
 import { GamecentersPageClient } from "@/components/gamecenters/GamecentersPageClient";
 import { DEFAULT_CITY } from "@/lib/cityConstants";
 import { catalogService } from "@/services/catalogService";
-import { gamecentersPageService, type GamecenterListItem } from "@/services/gamecentersPageService";
+import type { GamecenterListItem } from "@/services/gamecentersPageService";
+import {
+  searchService,
+  mapSearchGameCenterToListItem,
+} from "@/services/searchService";
 import type { DeviceCatalogItem } from "@/types/catalog";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 
@@ -15,7 +19,19 @@ export async function generateMetadata({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<Metadata> {
   const params = await searchParams;
-  const hasFilter = Boolean(params.q || params.sort || params.stationType);
+  const hasFilter = Boolean(
+    params.q ||
+      params.sort ||
+      params.stationType ||
+      params.deviceType ||
+      params.category ||
+      params.game ||
+      params.gameId ||
+      params.gameSlug ||
+      params.neighborhood ||
+      params.isOpen ||
+      params.hasDiscount
+  );
 
   return {
     alternates: {
@@ -45,12 +61,17 @@ export default async function GamecentersPage() {
   const timeoutId = setTimeout(() => controller.abort(), 5000);
 
   let initialCenters: GamecenterListItem[] = [];
+  let initialTotal = 0;
+  let initialTotalPages = 1;
   let initialCatalog: DeviceCatalogItem[] = [];
 
   try {
-    const [centersRes, catalogRes] = await Promise.allSettled([
-      gamecentersPageService.loadAllCenters({
+    const [searchRes, catalogRes] = await Promise.allSettled([
+      searchService.searchGameCenters({
         city: DEFAULT_CITY,
+        page: 1,
+        limit: 12,
+        includeFacets: true,
         signal: controller.signal,
       }),
       catalogService.listDevices(
@@ -59,8 +80,10 @@ export default async function GamecentersPage() {
       ),
     ]);
 
-    if (centersRes.status === "fulfilled" && Array.isArray(centersRes.value)) {
-      initialCenters = centersRes.value;
+    if (searchRes.status === "fulfilled" && Array.isArray(searchRes.value.data)) {
+      initialCenters = searchRes.value.data.map(mapSearchGameCenterToListItem);
+      initialTotal = searchRes.value.meta.total;
+      initialTotalPages = searchRes.value.meta.totalPages;
     }
     if (catalogRes.status === "fulfilled" && Array.isArray(catalogRes.value)) {
       initialCatalog = catalogRes.value;
@@ -79,6 +102,8 @@ export default async function GamecentersPage() {
     >
       <GamecentersPageClient
         initialCenters={initialCenters}
+        initialTotal={initialTotal}
+        initialTotalPages={initialTotalPages}
         initialCatalog={initialCatalog}
       />
     </Suspense>

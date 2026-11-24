@@ -1,5 +1,5 @@
 
-import type { Reservation, ReservationTimeProposal } from "@/types/reservation";
+import type { Reservation } from "@/types/reservation";
 import type { ExtraControllerConfigInput } from "@/types/gaming-center/station.types";
 
 export type VerificationStatus =
@@ -162,7 +162,6 @@ export interface OwnerReservation extends Reservation {
   startedAt?: string | null;
   completedAt?: string | null;
   canceledAt?: string | null;
-  proposals?: ReservationTimeProposal[];
   session?: {
     id?: string;
     status?: string;

@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
 import { ReviewReplyThread } from "@/components/reviews/ReviewReplyThread";
 import { Icon } from "@/components/ui/Icon";
+import { RatingHeartIcon } from "@/components/ui/RatingHeartIcon";
 import { useOwner } from "@/context/OwnerContext";
 import { ApiError, isAbortError } from "@/lib/api/client";
 import { toPersianDigits } from "@/lib/format";
@@ -219,7 +220,7 @@ export default function OwnerReviewsPage() {
               میانگین امتیاز
             </span>
             <span className="inline-flex items-center gap-1.5 font-black text-[var(--primary)]">
-              <Icon name="gamepad" size={16} />
+              <RatingHeartIcon size={16} />
               <span>{toPersianDigits(avg.toFixed(1))}</span>
               <span className="text-xs text-[var(--text-muted)] font-normal">
                 ({toPersianDigits(items!.length)} نظر)
@@ -267,7 +268,7 @@ export default function OwnerReviewsPage() {
                       )}
                     </div>
                     <span className="inline-flex items-center gap-1 text-xs font-black text-[var(--primary)] shrink-0">
-                      <Icon name="gamepad" size={14} />
+                      <RatingHeartIcon size={14} />
                       <span>{toPersianDigits(r.rating)} از ۵</span>
                     </span>
                   </div>

@@ -6,6 +6,8 @@ export interface GamingCenterMapItem {
   name: string;
   latitude: number;
   longitude: number;
+  rating: number;
+  ratingCount: number;
 }
 
 /**
@@ -19,6 +21,8 @@ export interface GameCenter {
   longitude?: number | string;
   lat?: string | number;
   lng?: string | number;
+  rating?: number | string | null;
+  ratingCount?: number | string | null;
 }
 
 /**
@@ -46,4 +50,6 @@ export interface ValidGameCenterLocation {
   lng: number;
   displayLat: number;
   displayLng: number;
+  rating: number;
+  ratingCount: number;
 }

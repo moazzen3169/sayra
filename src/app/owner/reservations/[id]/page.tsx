@@ -13,7 +13,6 @@ import { useSearchParams } from "next/navigation";
 import { OwnerPageHeader } from "@/components/owner/OwnerPageHeader";
 import { GroupConfirmModal } from "@/components/owner/GroupConfirmModal";
 import { GroupCancelModal } from "@/components/owner/GroupCancelModal";
-import { GroupProposeTimeModal } from "@/components/owner/GroupProposeTimeModal";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AppImage } from "@/components/common/AppImage";
 import { Button } from "@/components/ui/Button";
@@ -35,17 +34,13 @@ import {
   formatFullJalaliDateTime,
   getErrorMessage,
   getPaymentLabel,
-  getProposalStatusUi,
   getStationTypeLabel,
   getStatusUi,
   stationImageFor,
 } from "@/lib/reservationUi";
 import { ownerService } from "@/services/ownerService";
 import type { ReservationPaymentStatusInfo } from "@/types/owner";
-import type {
-  ReservationStatus,
-  ReservationTimeProposal,
-} from "@/types/reservation";
+import type { ReservationStatus } from "@/types/reservation";
 import { cn } from "@/lib/utils";
 
 /* ---------- Stepper & Terminal Status ---------- */
@@ -318,7 +313,6 @@ function ReservationDetailContent({ id }: { id: string }) {
   const { centerId, center } = useOwner();
 
   const [entry, setEntry] = useState<OwnerBookingEntry | null>(null);
-  const [proposals, setProposals] = useState<ReservationTimeProposal[]>([]);
   const [paymentStatus, setPaymentStatus] =
     useState<ReservationPaymentStatusInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -330,7 +324,6 @@ function ReservationDetailContent({ id }: { id: string }) {
   // Action states
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
-  const [proposeOpen, setProposeOpen] = useState(false);
   const [noShowConfirm, setNoShowConfirm] = useState(false);
   const [modalBusy, setModalBusy] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
@@ -430,38 +423,18 @@ function ReservationDetailContent({ id }: { id: string }) {
 
       setNoteDraft(primaryRes?.note ?? "");
 
-      // Fetch proposals and payment status in parallel (graceful fallback if unavailable)
+      // Fetch payment status (graceful fallback if unavailable)
       if (primaryRes?.id) {
-        const [proposalsRes, paymentRes] = await Promise.allSettled([
-          ownerService.listReservationProposals(
+        try {
+          const paymentRes = await ownerService.getReservationPaymentStatus(
             centerId,
             primaryRes.id,
             controller.signal
-          ),
-          ownerService.getReservationPaymentStatus(
-            centerId,
-            primaryRes.id,
-            controller.signal
-          ),
-        ]);
-
-        if (!active) return;
-
-        const embeddedProposals = Array.isArray(primaryRes.proposals)
-          ? primaryRes.proposals
-          : [];
-        if (
-          proposalsRes.status === "fulfilled" &&
-          proposalsRes.value.length > 0
-        ) {
-          setProposals(proposalsRes.value);
-        } else {
-          setProposals(embeddedProposals);
-        }
-
-        if (paymentRes.status === "fulfilled") {
-          setPaymentStatus(paymentRes.value);
-        } else {
+          );
+          if (!active) return;
+          setPaymentStatus(paymentRes);
+        } catch {
+          if (!active) return;
           setPaymentStatus(null);
         }
       }
@@ -693,40 +666,8 @@ function ReservationDetailContent({ id }: { id: string }) {
     [entry, modalBusy, allReservations, centerId]
   );
 
-  const handleProposeTime = useCallback(
-    async (newStartTime: string, newEndTime: string, note?: string) => {
-      if (!entry || modalBusy || actionLockRef.current) return;
-      actionLockRef.current = true;
-      setModalBusy(true);
-      setActionError(null);
-      setActionSuccess(null);
-      try {
-        const eligible = allReservations.filter(
-          (r) => r.status === "PENDING" || r.status === "CONFIRMED"
-        );
-        await mapWithConcurrency(eligible, 3, async (r) => {
-          await ownerService.proposeTime(centerId, r.id, {
-            startTime: newStartTime,
-            endTime: newEndTime,
-            note,
-          });
-        });
-        setProposeOpen(false);
-        setActionSuccess("پیشنهاد تاریخ و زمان جدید برای مشتری ارسال شد.");
-        setReloadToken((v) => v + 1);
-      } catch (e) {
-        setActionError(getErrorMessage(e));
-        throw e;
-      } finally {
-        setModalBusy(false);
-        actionLockRef.current = false;
-      }
-    },
-    [entry, modalBusy, allReservations, centerId]
-  );
-
   const handleSessionAction = useCallback(
-    async (action: "start" | "pause" | "resume" | "stop") => {
+    async (action: "start" | "stop") => {
       if (!entry || actionBusy || actionLockRef.current) return;
       actionLockRef.current = true;
       setActionBusy(true);
@@ -798,14 +739,6 @@ function ReservationDetailContent({ id }: { id: string }) {
   const isTerminalState = status === "CANCELED" || status === "NO_SHOW";
   const canManagePendingOrConfirmed =
     status === "PENDING" || status === "CONFIRMED";
-
-  const sortedProposals = useMemo(
-    () =>
-      [...proposals].sort(
-        (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)
-      ),
-    [proposals]
-  );
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-12">
@@ -1020,29 +953,16 @@ function ReservationDetailContent({ id }: { id: string }) {
                   )}
 
                   {canManagePendingOrConfirmed && (
-                    <>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="md"
-                        disabled={modalBusy || actionBusy}
-                        onClick={() => setProposeOpen(true)}
-                      >
-                        <Icon name="calendar" size={16} />
-                        <span>پیشنهاد تاریخ و زمان جدید</span>
-                      </Button>
-
-                      <Button
-                        type="button"
-                        variant="danger"
-                        size="md"
-                        disabled={modalBusy || actionBusy}
-                        onClick={() => setCancelOpen(true)}
-                      >
-                        <Icon name="close" size={16} />
-                        <span>لغو رزرو</span>
-                      </Button>
-                    </>
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="md"
+                      disabled={modalBusy || actionBusy}
+                      onClick={() => setCancelOpen(true)}
+                    >
+                      <Icon name="close" size={16} />
+                      <span>لغو رزرو</span>
+                    </Button>
                   )}
 
                   {status === "CONFIRMED" && !noShowConfirm && (
@@ -1059,36 +979,16 @@ function ReservationDetailContent({ id }: { id: string }) {
                   )}
 
                   {status === "IN_PROGRESS" && (
-                    <>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="md"
-                        disabled={actionBusy}
-                        onClick={() => handleSessionAction("pause")}
-                      >
-                        توقف موقت سانس
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="md"
-                        disabled={actionBusy}
-                        onClick={() => handleSessionAction("resume")}
-                      >
-                        ادامه سانس
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="danger"
-                        size="md"
-                        isLoading={actionBusy}
-                        disabled={actionBusy}
-                        onClick={() => handleSessionAction("stop")}
-                      >
-                        پایان سانس
-                      </Button>
-                    </>
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="md"
+                      isLoading={actionBusy}
+                      disabled={actionBusy}
+                      onClick={() => handleSessionAction("stop")}
+                    >
+                      پایان سانس
+                    </Button>
                   )}
                 </div>
 
@@ -1123,79 +1023,6 @@ function ReservationDetailContent({ id }: { id: string }) {
                     </span>
                   </InlineAlert>
                 )}
-              </section>
-            )}
-
-            {/* 3. Time Proposals History */}
-            {sortedProposals.length > 0 && (
-              <section className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 sm:p-5 flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-section-title text-[var(--text-white)]">
-                    تاریخچه پیشنهادات تغییر زمان ({toPersianDigits(sortedProposals.length)})
-                  </h2>
-                </div>
-
-                <div className="flex flex-col gap-2.5">
-                  {sortedProposals.map((p) => {
-                    const pUi = getProposalStatusUi(p.status);
-                    return (
-                      <div
-                        key={p.id}
-                        className="rounded-child bg-[var(--bg-body)]/60 border border-[var(--border-subtle)] p-3 flex flex-col gap-2"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span
-                            className={cn(
-                              "px-2.5 py-1 rounded-full text-xs font-bold",
-                              pUi.className
-                            )}
-                          >
-                            {pUi.label}
-                          </span>
-                          <span className="text-xs text-[var(--text-muted)]">
-                            ثبت: {formatFullJalaliDateTime(p.createdAt)}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-[var(--text-muted)]">
-                              زمان قبلی:
-                            </span>
-                            <span className="text-[var(--text-white)] opacity-80">
-                              {formatDayLabel(p.originalStartTime)}،{" "}
-                              {formatClock(p.originalStartTime, true)} تا{" "}
-                              {formatClock(p.originalEndTime, true)}
-                            </span>
-                          </div>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-[var(--text-muted)]">
-                              زمان پیشنهادی جدید:
-                            </span>
-                            <span className="font-bold text-[var(--primary)]">
-                              {formatDayLabel(p.proposedStartTime)}،{" "}
-                              {formatClock(p.proposedStartTime, true)} تا{" "}
-                              {formatClock(p.proposedEndTime, true)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {p.note && (
-                          <p className="text-xs text-[var(--text-muted)] pt-1.5 border-t border-[var(--border-subtle)]/50">
-                            توضیح: {p.note}
-                          </p>
-                        )}
-
-                        {p.customerRespondedAt && (
-                          <span className="text-xs text-[var(--text-muted)]">
-                            زمان پاسخ مشتری:{" "}
-                            {formatFullJalaliDateTime(p.customerRespondedAt)}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
               </section>
             )}
 
@@ -1689,18 +1516,6 @@ function ReservationDetailContent({ id }: { id: string }) {
           onCancel={handleCancel}
           group={entry.isGroup ? entry : null}
           single={!entry.isGroup ? entry.reservation : null}
-          busy={modalBusy}
-        />
-      )}
-
-      {proposeOpen && entry && (
-        <GroupProposeTimeModal
-          isOpen={true}
-          onClose={() => setProposeOpen(false)}
-          onSubmit={handleProposeTime}
-          group={entry.isGroup ? entry : null}
-          single={!entry.isGroup ? entry.reservation : null}
-          gamingCenterSlug={center?.slug || centerId}
           busy={modalBusy}
         />
       )}

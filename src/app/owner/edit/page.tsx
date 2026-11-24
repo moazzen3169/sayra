@@ -63,8 +63,15 @@ export default function OwnerEditPage() {
       return null;
     };
 
+    const centerPromise =
+      verificationStatus === "APPROVED"
+        ? ownerService.findCenter(centerId, controller.signal, {
+            allowListFallback: false,
+          })
+        : Promise.resolve(centerRef.current);
+
     Promise.allSettled([
-      ownerService.findCenter(centerId, controller.signal),
+      centerPromise,
       ownerService.listAddresses(centerId, controller.signal),
     ]).then(([centerRes, addressesRes]) => {
       if (!active) return;
@@ -136,7 +143,7 @@ export default function OwnerEditPage() {
       active = false;
       controller.abort();
     };
-  }, [centerId]);
+  }, [centerId, verificationStatus]);
 
   const centerMapOnRegion = (provName: string, nextCity: string) => {
     if (geocodeAbortRef.current) {

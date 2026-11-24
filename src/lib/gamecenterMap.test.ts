@@ -48,6 +48,8 @@ describe("gamecenterMap utilities", () => {
         name: "گیم‌نت شتاب",
         latitude: 35.7152,
         longitude: 51.4043,
+        rating: 4.6,
+        ratingCount: 12,
       },
       {
         lat: "38.078023",
@@ -91,7 +93,11 @@ describe("gamecenterMap utilities", () => {
       lng: 51.4043,
       displayLat: 35.7152,
       displayLng: 51.4043,
+      rating: 4.6,
+      ratingCount: 12,
     });
+    expect(normalized[1].rating).toBe(0);
+    expect(normalized[1].ratingCount).toBe(0);
   });
 
   it("resolves city fallback viewport for known cities and defaults to Iran", () => {

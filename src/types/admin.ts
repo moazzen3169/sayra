@@ -315,7 +315,9 @@ export interface AdminCampaign {
   usedCount: number;
   perUserUsageLimit?: number;
   createdAt: string;
+  createdAtRaw?: string;
   updatedAt?: string;
+  createdBy?: string | null;
 }
 
 export interface AdminCampaignInput {

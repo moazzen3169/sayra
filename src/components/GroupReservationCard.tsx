@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ReservationCodeStrip } from "@/components/ReservationCodeStrip";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
+import { RatingHeartIcon } from "@/components/ui/RatingHeartIcon";
 import { formatPrice, toPersianDigits } from "@/lib/format";
 import { formatReservationWhen } from "@/lib/reservationUi";
 import type { GroupBookingItem } from "@/types/reservation";
@@ -92,7 +93,7 @@ export const GroupReservationCard: React.FC<GroupReservationCardProps> = ({
         <div className="flex items-center justify-end border-t border-[var(--border-subtle)] pt-2.5">
           {alreadyRated ? (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--primary)]/25 bg-[var(--primary)]/10 px-2.5 py-1 text-[11px] font-bold text-[var(--primary)]">
-              <Icon name="gamepad" size={13} />
+              <RatingHeartIcon size={14} />
               <span>امتیاز ثبت شد</span>
             </span>
           ) : (
@@ -105,7 +106,7 @@ export const GroupReservationCard: React.FC<GroupReservationCardProps> = ({
               }}
               className="inline-flex items-center gap-1.5 rounded-full bg-[var(--primary)] hover:bg-[#D1FF78] px-3 py-1.5 text-[11px] font-extrabold text-[var(--text-on-primary)] transition-transform active:scale-95"
             >
-              <Icon name="gamepad" size={14} />
+              <RatingHeartIcon size={14} />
               <span>ثبت امتیاز</span>
             </button>
           )}

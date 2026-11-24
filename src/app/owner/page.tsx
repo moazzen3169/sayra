@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import { useOwner } from "@/context/OwnerContext";
 import { OwnerHeader } from "@/components/owner/OwnerHeader";
 import { BottomBar } from "@/components/BottomBar";
@@ -44,6 +45,8 @@ const ICONS = {
     "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M11 5.882a3 3 0 00-3-3H5a2 2 0 00-2 2v6a2 2 0 002 2h3a3 3 0 003-3",
   support:
     "M4 14v-2a8 8 0 0116 0v2M4 14h3v5H5a1 1 0 01-1-1v-4zm16 0h-3v5h2a1 1 0 001-1v-4zM17 19c0 1.5-2 2-5 2",
+  logout:
+    "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
 };
 
 interface MenuItem {
@@ -131,6 +134,8 @@ const MENU_GROUPS: MenuGroup[] = [
 
 export default function OwnerDashboardPage() {
   const router = useRouter();
+  const { logout } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
   const {
     me,
     centerId,
@@ -239,6 +244,22 @@ export default function OwnerDashboardPage() {
     e.preventDefault();
     const q = query.trim();
     router.push(q ? `/owner/reservations?q=${encodeURIComponent(q)}` : "/owner/reservations");
+  };
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      try {
+        localStorage.removeItem("sayra_owner_center_id");
+      } catch {
+        // ignore
+      }
+      await logout();
+      router.replace("/");
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   const logoMedia = React.useMemo(
@@ -585,6 +606,26 @@ export default function OwnerDashboardPage() {
               </div>
             </section>
           ))}
+        </div>
+
+        {/* خروج از حساب */}
+        <div className="rounded-card bg-[var(--bg-card)] border border-[var(--border-subtle)] overflow-hidden">
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="w-full flex items-center justify-between gap-3 px-4 h-14 text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 transition-colors cursor-pointer disabled:opacity-60"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="w-8 h-8 rounded-lg bg-[var(--accent-red)]/15 text-[var(--accent-red)] flex items-center justify-center shrink-0">
+                <TileIcon d={ICONS.logout} />
+              </span>
+              <span className="text-sm font-bold truncate">
+                {loggingOut ? "در حال خروج..." : "خروج از حساب"}
+              </span>
+            </div>
+            <Icon name="arrow-left" size={16} className="text-[var(--accent-red)]/70 shrink-0" />
+          </button>
         </div>
       </main>
 

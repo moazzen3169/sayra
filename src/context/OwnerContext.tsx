@@ -187,22 +187,71 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         // Resolve accessible centers
         let accessibleCenters: PublicCenter[] = [];
+        let initialVerification: GamingCenterVerificationStatusResponse | null = null;
 
         // 1. Primary path: User is linked to a gamingCenter via gamingCenterId foreign key
         if (profile.gamingCenterId) {
-          const fetchedCenter = await ownerService.findCenter(profile.gamingCenterId, controller.signal).catch(() => null);
+          // دریافت وضعیت احراز هویت (احرازشده برای مالک) پیش از درخواست عمومی جزئیات گیم‌نت:
+          // گیم‌نت‌های تاییدنشده در اندپوینت عمومی GET /gamingCenters/{id} خطای ۴۰۴ می‌دهند،
+          // اما اندپوینت احرازشدهٔ verification همیشه نام واقعی گیم‌نت و وضعیت احراز هویت را برمی‌گرداند.
+          const verificationRes = await ownerService
+            .getVerificationStatus(profile.gamingCenterId, controller.signal)
+            .catch(() => null);
+          if (!active) return;
+
+          if (verificationRes) {
+            initialVerification = verificationRes;
+            setVerificationInfo(verificationRes);
+            setVerificationStatusState(verificationRes.verificationStatus);
+          }
+
+          const resolvedVerifStatus =
+            verificationRes?.verificationStatus ?? profile.verificationStatus;
+
+          let fetchedCenter: PublicCenter | null = null;
+          if (resolvedVerifStatus === "APPROVED") {
+            fetchedCenter = await ownerService
+              .findCenter(profile.gamingCenterId, controller.signal, {
+                allowListFallback: false,
+              })
+              .catch(() => null);
+          }
+
           if (fetchedCenter) {
-            accessibleCenters = [{
-              ...fetchedCenter,
-              slug: fetchedCenter.slug || profile.gamingCenterSlug || profile.gamingCenter?.slug || "",
-            }];
+            accessibleCenters = [
+              {
+                ...fetchedCenter,
+                name:
+                  fetchedCenter.name ||
+                  verificationRes?.name ||
+                  profile.gamingCenter?.name ||
+                  "گیم‌نت",
+                slug:
+                  fetchedCenter.slug ||
+                  profile.gamingCenterSlug ||
+                  profile.gamingCenter?.slug ||
+                  "",
+                verificationStatus: resolvedVerifStatus,
+              },
+            ];
           } else {
-            accessibleCenters = [{
-              id: profile.gamingCenterId,
-              name: profile.gamingCenter?.name || "گیم‌نت",
-              slug: profile.gamingCenterSlug || profile.gamingCenter?.slug || "",
-              isActive: profile.gamingCenter?.isActive ?? true,
-            }];
+            accessibleCenters = [
+              {
+                id: profile.gamingCenterId,
+                name:
+                  verificationRes?.name ||
+                  profile.gamingCenter?.name ||
+                  "گیم‌نت",
+                slug:
+                  profile.gamingCenterSlug ||
+                  profile.gamingCenter?.slug ||
+                  "",
+                verificationStatus: resolvedVerifStatus,
+                isActive:
+                  profile.gamingCenter?.isActive ??
+                  resolvedVerifStatus === "APPROVED",
+              },
+            ];
           }
         } else if (profile.gamingCenters && profile.gamingCenters.length > 0) {
           // Multi-center ref list if present
@@ -213,37 +262,48 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             description: gc.description,
             isActive: gc.isActive ?? true,
           }));
-        } else if (actorType === "USER" || role === "MANAGER" || role === "ADMIN") {
-          // Fallback only for manager/admin/staff users if no direct center ID is bound
+        } else if (role === "ADMIN") {
+          // Fallback only for platform/center admins if no direct center ID is bound
           const allCenters = await ownerService.listCenters(controller.signal).catch(() => []);
           accessibleCenters = allCenters;
         }
 
         // 2. If storedCenterId exists but is not yet in accessibleCenters (e.g. freshly created or profile lag),
-        // attempt to fetch this specific center via GET /gamingCenters/{id} before giving up or clearing it!
+        // check via authenticated verification endpoint first instead of public list/detail endpoints!
         if (storedCenterId && !accessibleCenters.some((c) => c.id === storedCenterId)) {
           try {
-            const fetchedStored = await ownerService.findCenter(storedCenterId, controller.signal);
-            if (fetchedStored && (fetchedStored.id || fetchedStored.name)) {
-              accessibleCenters = [
-                ...accessibleCenters,
-                {
-                  id: fetchedStored.id || storedCenterId,
-                  name: fetchedStored.name || "گیم‌نت",
-                  slug: fetchedStored.slug || "",
-                  description: fetchedStored.description,
-                  isActive: fetchedStored.isActive ?? true,
-                },
-              ];
-            } else {
-              // Center truly doesn't exist or not found
-              try {
-                localStorage.removeItem(OWNER_CENTER_KEY);
-              } catch {
-                // ignore
-              }
-              storedCenterId = null;
+            const storedVerification = await ownerService.getVerificationStatus(
+              storedCenterId,
+              controller.signal
+            );
+            if (!active) return;
+
+            initialVerification = storedVerification;
+            setVerificationInfo(storedVerification);
+            setVerificationStatusState(storedVerification.verificationStatus);
+
+            let fetchedStored: PublicCenter | null = null;
+            if (storedVerification.verificationStatus === "APPROVED") {
+              fetchedStored = await ownerService
+                .findCenter(storedCenterId, controller.signal, {
+                  allowListFallback: false,
+                })
+                .catch(() => null);
             }
+
+            accessibleCenters = [
+              ...accessibleCenters,
+              {
+                id: fetchedStored?.id || storedVerification.gamingCenterId || storedCenterId,
+                name: fetchedStored?.name || storedVerification.name || "گیم‌نت",
+                slug: fetchedStored?.slug || "",
+                description: fetchedStored?.description,
+                verificationStatus: storedVerification.verificationStatus,
+                isActive:
+                  fetchedStored?.isActive ??
+                  storedVerification.verificationStatus === "APPROVED",
+              },
+            ];
           } catch (err: any) {
             const errStatus = err?.status;
             // Only clear storedCenterId if explicitly rejected (404/403)
@@ -257,6 +317,8 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           }
         }
+
+        void initialVerification;
 
         if (!active) return;
         setCenters(accessibleCenters);
@@ -345,6 +407,20 @@ export const OwnerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (!active) return;
         setVerificationInfo(res);
         setVerificationStatusState(res.verificationStatus);
+        if (res.name) {
+          setCenter((prev) =>
+            prev && prev.id === centerId && prev.name !== res.name
+              ? { ...prev, name: res.name }
+              : prev
+          );
+          setCenters((prev) =>
+            prev.map((c) =>
+              c.id === centerId && c.name !== res.name
+                ? { ...c, name: res.name }
+                : c
+            )
+          );
+        }
       } catch (err: unknown) {
         if (!active || isAbortError(err)) return;
         const msg =

@@ -8,6 +8,7 @@ import { AdminStatCard } from "@/components/admin/AdminStatCard";
 import { AnalyticsChart } from "@/components/admin/AnalyticsChart";
 import { AdminDataTable, Column } from "@/components/admin/AdminDataTable";
 import { Icon } from "@/components/ui/Icon";
+import { RatingHeartIcon } from "@/components/ui/RatingHeartIcon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { formatPrice } from "@/lib/format";
@@ -87,9 +88,9 @@ export default function ReportsAdminPage() {
       key: "rating",
       header: "امتیاز",
       render: (item) => (
-        <div className="flex items-center gap-1 text-warning font-bold font-mono">
+        <div className="flex items-center gap-1 text-[var(--text-white)] font-bold font-mono">
           <span>{item.rating}</span>
-          <Icon name="star" size={12} />
+          <RatingHeartIcon size={13} />
         </div>
       ),
     },

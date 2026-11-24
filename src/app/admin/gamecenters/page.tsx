@@ -8,6 +8,7 @@ import { AdminFilterBar } from "@/components/admin/AdminFilterBar";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
+import { RatingHeartIcon } from "@/components/ui/RatingHeartIcon";
 import { GamecenterFormModal } from "@/components/admin/gamecenters/GamecenterFormModal";
 import { GamecenterMediaModal } from "@/components/admin/gamecenters/GamecenterMediaModal";
 import { DeleteConfirmationModal } from "@/components/admin/gamecenters/DeleteConfirmationModal";
@@ -184,7 +185,7 @@ export default function GamecentersAdminPage() {
       header: "امتیاز",
       render: (gc) => (
         <div className="flex items-center gap-1.5 text-xs font-bold text-warning">
-          <Icon name="star" size={14} />
+          <RatingHeartIcon size={14} />
           <span>{typeof gc.rating === "number" ? gc.rating.toFixed(1) : "-"}</span>
         </div>
       ),

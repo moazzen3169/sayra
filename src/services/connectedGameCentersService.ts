@@ -45,6 +45,8 @@ const DEV_MOCK_CONNECTED_CENTERS: GamingCenterMapItem[] = [
     name: "سایرا",
     latitude: 38.078023,
     longitude: 46.295439,
+    rating: 4.8,
+    ratingCount: 16,
   },
 ];
 

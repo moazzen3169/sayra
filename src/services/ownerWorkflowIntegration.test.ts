@@ -219,26 +219,6 @@ describe("Phase 9 Task 3: Owner Workflow Tests", () => {
     expect(capturedBody?.reason).toBe("لغو به دلیل تعمیرات");
   });
 
-  it("7. proposes a new reservation time via verified endpoint", async () => {
-    let capturedBody: any = null;
-    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
-      capturedBody = JSON.parse(String(init?.body));
-      return new Response(JSON.stringify({ success: true }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    }) as unknown as typeof fetch;
-
-    await ownerService.proposeTime("gc-10", "res-1", {
-      startTime: "2026-04-10T14:00:00.000Z",
-      endTime: "2026-04-10T16:00:00.000Z",
-      note: "تغییر زمان به درخواست کاربر",
-    });
-
-    expect(capturedBody.startTime).toBe("2026-04-10T14:00:00.000Z");
-    expect(capturedBody.note).toBe("تغییر زمان به درخواست کاربر");
-  });
-
   it("8. controls session start, stop, pause, resume via OpenAPI routes", async () => {
     const urls: string[] = [];
     globalThis.fetch = (async (url: string | URL | Request) => {

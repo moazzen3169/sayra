@@ -42,7 +42,6 @@ import type {
   Ticket,
   VerificationStatus,
 } from "@/types/owner";
-import type { ReservationTimeProposal } from "@/types/reservation";
 
 const asArray = <T,>(v: unknown): T[] =>
   Array.isArray(v) ? (v as T[]) : [];
@@ -260,10 +259,19 @@ export const ownerService = {
       }
     }
 
+    const resolvedFullName =
+      (typeof profile?.fullName === "string" && profile.fullName.trim()) ||
+      [profile?.firstName, profile?.lastName]
+        .filter((v): v is string => typeof v === "string" && Boolean(v.trim()))
+        .map((v) => v.trim())
+        .join(" ") ||
+      undefined;
+
     return {
       ...profile,
       id: resolvedId,
       actorId: profile?.actorId || resolvedId,
+      fullName: resolvedFullName,
       actorType: profile?.actorType,
       sessionId: profile?.sessionId,
       role: resolvedRole,
@@ -520,9 +528,11 @@ export const ownerService = {
   /** دریافت مشخصات مرکز بر اساس شناسه یا اسلاگ */
   async findCenter(
     id: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    options?: { allowListFallback?: boolean }
   ): Promise<PublicCenter | null> {
     if (!id) return null;
+    const allowListFallback = options?.allowListFallback ?? true;
 
     try {
       try {
@@ -551,7 +561,7 @@ export const ownerService = {
               ? centerObj.slug
               : "";
 
-          if (!resolvedSlug) {
+          if (!resolvedSlug && allowListFallback) {
             const centers = await ownerService.listCenters(signal).catch(() => []);
             const matched = centers.find(
               (c) => c.id === (centerObj.id || id) || c.slug === id
@@ -578,7 +588,11 @@ export const ownerService = {
           };
         }
       } catch {
-        // در صورت شکست درخواست مستقیم، از لیست مراکز استفاده می‌شود.
+        // در صورت شکست درخواست مستقیم، فقط در صورت مجاز بودن از لیست مراکز استفاده می‌شود.
+      }
+
+      if (!allowListFallback) {
+        return null;
       }
 
       const centers = await ownerService.listCenters(signal);
@@ -838,57 +852,6 @@ export const ownerService = {
     );
 
     return data;
-  },
-
-  async proposeTime(
-    centerId: string,
-    reservationId: string,
-    payload: {
-      startTime?: string;
-      endTime?: string;
-      date?: string;
-      slotTime?: string;
-      durationHours?: number;
-      note?: string;
-    }
-  ): Promise<void> {
-    const body: Record<string, unknown> = {};
-    if (payload.startTime) body.startTime = payload.startTime;
-    if (payload.endTime) body.endTime = payload.endTime;
-    if (payload.date) body.date = payload.date;
-    if (payload.slotTime) body.slotTime = payload.slotTime;
-    if (typeof payload.durationHours === "number") body.durationHours = payload.durationHours;
-    if (payload.note) body.note = payload.note;
-
-    await apiClient.post(
-      ENDPOINTS.owner.proposeTime(centerId, reservationId),
-      body
-    );
-  },
-
-  async listReservationProposals(
-    centerId: string,
-    reservationId: string,
-    signal?: AbortSignal
-  ): Promise<ReservationTimeProposal[]> {
-    const { data } = await apiClient.get<
-      ReservationTimeProposal[] | { data?: ReservationTimeProposal[] }
-    >(
-      ENDPOINTS.owner.proposals(centerId, reservationId),
-      { signal }
-    );
-
-    if (Array.isArray(data)) return data;
-
-    if (
-      data &&
-      typeof data === "object" &&
-      Array.isArray((data as any).data)
-    ) {
-      return (data as any).data;
-    }
-
-    return [];
   },
 
   async getReservationPaymentStatus(

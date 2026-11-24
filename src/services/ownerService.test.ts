@@ -344,31 +344,6 @@ describe("ownerService.getMe & center resolution", () => {
     expect(detail.user?.fullName).toBe("علی رضایی");
   });
 
-  it("sends time proposal with preserved duration and ISO date-times", async () => {
-    let capturedUrl = "";
-    let capturedBody: any = null;
-
-    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
-      capturedUrl = String(url);
-      capturedBody = JSON.parse(String(init?.body));
-      return new Response(
-        JSON.stringify({ success: true }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
-    }) as unknown as typeof fetch;
-
-    await ownerService.proposeTime("gc-100", "res-777", {
-      startTime: "2026-04-10T16:00:00.000Z",
-      endTime: "2026-04-10T18:00:00.000Z",
-      note: "دستگاه قبلی نیاز به سرویس دارد",
-    });
-
-    expect(capturedUrl).toContain("/gamingCenters/gc-100/reservation/res-777/propose-time");
-    expect(capturedBody.startTime).toBe("2026-04-10T16:00:00.000Z");
-    expect(capturedBody.endTime).toBe("2026-04-10T18:00:00.000Z");
-    expect(capturedBody.note).toBe("دستگاه قبلی نیاز به سرویس دارد");
-  });
-
   it("calls exact OpenAPI session routes for start, stop, pause, and resume", async () => {
     const calledUrls: string[] = [];
 

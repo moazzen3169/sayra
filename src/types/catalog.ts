@@ -3,7 +3,14 @@
  * Matches Central Hardware Device and Video Game Catalogs (Playnest / Sayra API)
  */
 
-export type DeviceTypeCategory = "PC" | "PLAYSTATION" | "XBOX" | "SWITCH" | "VR";
+export type DeviceTypeCategory =
+  | "PC"
+  | "PLAYSTATION"
+  | "PLAYSTATION 4"
+  | "PLAYSTATION 5"
+  | "XBOX"
+  | "SWITCH"
+  | "VR";
 export type DeviceType = DeviceTypeCategory | string;
 
 export interface DynamicDeviceType {

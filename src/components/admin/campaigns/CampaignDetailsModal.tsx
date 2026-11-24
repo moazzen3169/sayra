@@ -275,7 +275,7 @@ export const CampaignDetailsModal: React.FC<CampaignDetailsModalProps> = ({
               }}
               className="flex items-center gap-1.5"
             >
-              <Icon name="user" size={16} />
+              <Icon name="edit" size={16} />
               <span>ویرایش این کمپین</span>
             </Button>
           )}

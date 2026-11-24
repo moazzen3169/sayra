@@ -26,7 +26,6 @@ interface OwnerGroupReservationCardProps {
   detailsHref: string;
   onConfirm: () => void;
   onCancel: () => void;
-  onProposeTime: () => void;
 }
 
 export const OwnerGroupReservationCard: React.FC<
@@ -37,7 +36,6 @@ export const OwnerGroupReservationCard: React.FC<
   detailsHref,
   onConfirm,
   onCancel,
-  onProposeTime,
 }) => {
   const [, setApi] = useState<CarouselApi>();
 
@@ -183,28 +181,16 @@ export const OwnerGroupReservationCard: React.FC<
           )}
 
           {canManageStatus && (
-            <>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={busy}
-                onClick={onProposeTime}
-              >
-                <Icon name="calendar" size={16} />
-                <span>پیشنهاد تاریخ جدید</span>
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                size="sm"
-                disabled={busy}
-                onClick={onCancel}
-              >
-                <Icon name="close" size={16} />
-                <span>لغو رزرو</span>
-              </Button>
-            </>
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              disabled={busy}
+              onClick={onCancel}
+            >
+              <Icon name="close" size={16} />
+              <span>لغو رزرو</span>
+            </Button>
           )}
         </div>
 
