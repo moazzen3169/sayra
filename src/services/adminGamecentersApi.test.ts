@@ -323,5 +323,86 @@ describe("Admin Authentication & Gamecenters API Suite", () => {
       expect(interceptedRequests[0].method).toBe("POST");
       expect(interceptedRequests[0].url).toContain("/gamingCenters/gc-101/media/upload");
     });
+
+    it("fetches single gaming center from GET /platform-admin/gaming-centers/{id} with booking and verification fields", async () => {
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method || "GET";
+        interceptedRequests.push({ url, method });
+
+        if (url.includes("/platform-admin/gaming-centers/gc-101")) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                id: "gc-101",
+                name: "گیمنت گرگدن",
+                slug: "gorgodan",
+                isActive: true,
+                allowOnlineBooking: false,
+                verificationStatus: "APPROVED",
+                city: "تهران",
+                address: "خیابان ولیعصر",
+                ownerName: "علی رضایی",
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(JSON.stringify({ success: false }), { status: 404 });
+      }) as typeof fetch;
+
+      const gc = await adminService.getGamecenterById("gc-101");
+      expect(gc?.id).toBe("gc-101");
+      expect(gc?.allowOnlineBooking).toBe(false);
+      expect(gc?.verificationStatus).toBe("APPROVED");
+      expect(interceptedRequests[0].url).toContain("/platform-admin/gaming-centers/gc-101");
+    });
+
+    it("toggles online booking via PATCH /gamingCenters/{id}/settings", async () => {
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method || "GET";
+        const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+        interceptedRequests.push({ url, method, body });
+
+        if (url.includes("/gamingCenters/gc-101/settings") && method === "PATCH") {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: { allowOnlineBooking: false },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(JSON.stringify({ success: false }), { status: 404 });
+      }) as typeof fetch;
+
+      const result = await adminService.toggleGamecenterOnlineBooking("gc-101", false);
+      expect(result).toBe(false);
+      expect(interceptedRequests[0].method).toBe("PATCH");
+      expect(interceptedRequests[0].url).toContain("/gamingCenters/gc-101/settings");
+      expect(interceptedRequests[0].body.allowOnlineBooking).toBe(false);
+    });
+
+    it("deletes gaming center media via DELETE /gamingCenters/{gamingCenterId}/media/{mediaId}", async () => {
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method || "GET";
+        interceptedRequests.push({ url, method });
+
+        if (url.includes("/gamingCenters/gc-101/media/med-1") && method === "DELETE") {
+          return new Response(null, { status: 204 });
+        }
+
+        return new Response(JSON.stringify({ success: false }), { status: 404 });
+      }) as typeof fetch;
+
+      await adminService.deleteGamecenterMedia("gc-101", "med-1");
+      expect(interceptedRequests[0].method).toBe("DELETE");
+      expect(interceptedRequests[0].url).toContain("/gamingCenters/gc-101/media/med-1");
+    });
   });
 });

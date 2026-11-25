@@ -40,6 +40,7 @@ export const ENDPOINTS = {
   gamingCenter: {
     list: "/gamingCenters",
     adminList: "/platform-admin/gaming-centers",
+    adminDetail: (id: string) => `/platform-admin/gaming-centers/${enc(id)}`,
     adminStatus: (id: string) => `/platform-admin/gaming-centers/${enc(id)}/status`,
     detail: (slug: string) => `/public/gamingCenters/${enc(slug)}`,
     byId: (id: string) => `/gamingCenters/${enc(id)}`,
@@ -151,6 +152,7 @@ export const ENDPOINTS = {
     financialsOverview: "/platform-admin/financials/overview",
     auditLogs: "/platform-admin/audit-logs",
     gamingCenters: "/platform-admin/gaming-centers",
+    gamingCenterById: (id: string) => `/platform-admin/gaming-centers/${enc(id)}`,
     gamingCenterStatus: (id: string) => `/platform-admin/gaming-centers/${enc(id)}/status`,
     users: "/platform-admin/users",
     userById: (id: string) => `/platform-admin/users/${enc(id)}`,

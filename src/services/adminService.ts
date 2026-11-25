@@ -2,6 +2,9 @@ import {
   AdminDashboardData,
   AdminGamecenter,
   AdminGamecenterInput,
+  AdminGamecenterSettings,
+  AdminGamecenterStation,
+  AdminGamecenterVerificationStatus,
   AdminUser,
   AdminUserInput,
   AdminTicket,
@@ -507,10 +510,82 @@ export const adminService = {
               ? primaryAddress.longitude
               : null;
 
+    const rawVerificationStatus =
+      raw.verificationStatus ??
+      raw.verification_status ??
+      raw.verification?.status ??
+      raw.latestVerification?.status;
+    let verificationStatus: AdminGamecenterVerificationStatus | undefined;
+    if (
+      rawVerificationStatus === "NOT_SUBMITTED" ||
+      rawVerificationStatus === "PENDING" ||
+      rawVerificationStatus === "APPROVED" ||
+      rawVerificationStatus === "REJECTED"
+    ) {
+      verificationStatus = rawVerificationStatus;
+    } else if (raw.isVerified === true || raw.verified === true) {
+      verificationStatus = "APPROVED";
+    }
+
+    const allowOnlineBooking =
+      typeof raw.allowOnlineBooking === "boolean"
+        ? raw.allowOnlineBooking
+        : typeof raw.allow_online_booking === "boolean"
+          ? raw.allow_online_booking
+          : typeof raw.settings?.allowOnlineBooking === "boolean"
+            ? raw.settings.allowOnlineBooking
+            : undefined;
+
+    const normalizedAddresses = addresses.map((a: any) => ({
+      id: a?.id ? String(a.id) : undefined,
+      city: toSafeText(a?.city) || undefined,
+      addressLine: toSafeText(a?.addressLine || a?.address) || undefined,
+      lat:
+        typeof a?.lat === "number"
+          ? a.lat
+          : typeof a?.latitude === "number"
+            ? a.latitude
+            : null,
+      lng:
+        typeof a?.lng === "number"
+          ? a.lng
+          : typeof a?.longitude === "number"
+            ? a.longitude
+            : null,
+      isPrimary: Boolean(a?.isPrimary),
+    }));
+
+    const deviceCounts =
+      raw.deviceCounts && typeof raw.deviceCounts === "object"
+        ? (raw.deviceCounts as Record<string, number>)
+        : undefined;
+
+    const deviceCountsSum = deviceCounts
+      ? Object.values(deviceCounts).reduce(
+          (sum, val) => sum + (typeof val === "number" ? val : 0),
+          0,
+        )
+      : 0;
+
+    const pcCount = typeof raw.pcCount === "number" ? raw.pcCount : undefined;
+    const consoleCount =
+      typeof raw.consoleCount === "number" ? raw.consoleCount : undefined;
+
+    const computedStationsCount =
+      typeof raw.stationsCount === "number"
+        ? raw.stationsCount
+        : Array.isArray(raw.stations)
+          ? raw.stations.length
+          : deviceCountsSum > 0
+            ? deviceCountsSum
+            : (pcCount ?? 0) + (consoleCount ?? 0);
+
     return {
       id: String(raw.id ?? raw.gamingCenterId ?? raw.slug ?? ""),
       name: toSafeText(raw.name, "بدون نام"),
       slug: toSafeText(raw.slug, String(raw.id ?? raw.gamingCenterId ?? "")),
+      ownerId: raw.ownerId ? String(raw.ownerId) : raw.owner?.id ? String(raw.owner.id) : undefined,
+      managerId: raw.managerId ? String(raw.managerId) : raw.manager?.id ? String(raw.manager.id) : undefined,
       ownerName,
       ownerPhone,
       city: cityName,
@@ -518,15 +593,52 @@ export const adminService = {
       lat: rawLat !== null && Number.isFinite(rawLat) ? rawLat : null,
       lng: rawLng !== null && Number.isFinite(rawLng) ? rawLng : null,
       primaryAddressId: primaryAddress?.id ? String(primaryAddress.id) : undefined,
+      addresses: normalizedAddresses.length > 0 ? normalizedAddresses : undefined,
       description: toSafeText(raw.description, ""),
       isActive: raw.isActive !== undefined ? Boolean(raw.isActive) : true,
+      verificationStatus,
+      verifiedAt: raw.verifiedAt
+        ? formatDayLabel(String(raw.verifiedAt)) || String(raw.verifiedAt)
+        : undefined,
+      verificationRejectionReason:
+        toSafeText(raw.rejectionReason || raw.verification?.rejectionReason) || undefined,
+      allowOnlineBooking,
+      subscriptionStatus: toSafeText(raw.subscriptionStatus) || undefined,
+      isOpen:
+        typeof raw.is_open === "boolean"
+          ? raw.is_open
+          : typeof raw.isOpen === "boolean"
+            ? raw.isOpen
+            : undefined,
       rating: rawRating,
-      stationsCount:
-        typeof raw.stationsCount === "number"
-          ? raw.stationsCount
-          : Array.isArray(raw.stations)
-            ? raw.stations.length
-            : 0,
+      commentCount:
+        typeof raw.comment_count === "number"
+          ? raw.comment_count
+          : typeof raw.commentCount === "number"
+            ? raw.commentCount
+            : undefined,
+      stationsCount: computedStationsCount,
+      pcCount,
+      consoleCount,
+      deviceCounts,
+      hourlyRate: typeof raw.hourlyRate === "number" ? raw.hourlyRate : undefined,
+      hasDiscount:
+        typeof raw.hasDiscount === "boolean"
+          ? raw.hasDiscount
+          : typeof raw.has_discount === "boolean"
+            ? raw.has_discount
+            : undefined,
+      pricing:
+        raw.pricing && typeof raw.pricing === "object" ? raw.pricing : undefined,
+      cancellationHours:
+        typeof raw.cancellationHours === "number" ? raw.cancellationHours : undefined,
+      cancellationWindowMinutes:
+        typeof raw.cancellationWindowMinutes === "number"
+          ? raw.cancellationWindowMinutes
+          : undefined,
+      games: Array.isArray(raw.games)
+        ? raw.games.map((g: any) => (typeof g === "string" ? g : toSafeText(g?.name || g?.title))).filter(Boolean)
+        : undefined,
       createdAt: formattedCreatedAt,
       updatedAt: raw.updatedAt ? formatDayLabel(String(raw.updatedAt)) || undefined : undefined,
       phone: toSafeText(raw.phone) || (ownerPhone !== "-" ? ownerPhone : undefined),
@@ -608,6 +720,48 @@ export const adminService = {
 
     let items = rawArray.map((item) => adminService.mapRawGamingCenterToAdmin(item));
 
+    // تکمیل وضعیت احراز هویت از اندپوینت رسمی GET /platform-admin/verifications در صورت نبود در لیست اصلی
+    if (items.some((gc) => !gc.verificationStatus)) {
+      try {
+        const verRes = await apiClient.get<any>(
+          ENDPOINTS.platformAdmin.verifications,
+          { query: { page: 1, limit: 100 }, signal },
+        );
+        const verRaw = Array.isArray(verRes.data)
+          ? verRes.data
+          : Array.isArray(verRes.data?.data)
+            ? verRes.data.data
+            : Array.isArray(verRes.data?.items)
+              ? verRes.data.items
+              : [];
+
+        const statusByGcId = new Map<string, AdminGamecenterVerificationStatus>();
+        for (const v of verRaw) {
+          const gcId = String(v?.gamingCenterId ?? v?.gamingCenter?.id ?? "");
+          const st = v?.status;
+          if (
+            gcId &&
+            (st === "NOT_SUBMITTED" ||
+              st === "PENDING" ||
+              st === "APPROVED" ||
+              st === "REJECTED")
+          ) {
+            if (!statusByGcId.has(gcId)) {
+              statusByGcId.set(gcId, st);
+            }
+          }
+        }
+
+        items = items.map((gc) => ({
+          ...gc,
+          verificationStatus:
+            gc.verificationStatus ?? statusByGcId.get(gc.id) ?? "NOT_SUBMITTED",
+        }));
+      } catch {
+        // در صورت عدم دسترسی یا خطا، لیست اصلی بدون تغییر برگردانده می‌شود
+      }
+    }
+
     if (status === "active") {
       items = items.filter((gc) => gc.isActive);
     } else if (status === "inactive") {
@@ -648,6 +802,7 @@ export const adminService = {
 
   /**
    * دریافت اطلاعات تکمیلی یک گیمنت با شناسه
+   * اولویت با اندپوینت رسمی ادمین: GET /platform-admin/gaming-centers/{id}
    */
   async getGamecenterById(
     id: string,
@@ -657,7 +812,7 @@ export const adminService = {
 
     try {
       const response = await apiClient.get<any>(
-        ENDPOINTS.gamingCenter.byId(id),
+        ENDPOINTS.gamingCenter.adminDetail(id),
         { signal },
       );
       const resData = response.data?.data || response.data;
@@ -666,6 +821,21 @@ export const adminService = {
       }
     } catch {
       // ادامه به اندپوینت بعدی
+    }
+
+    if (!resolved) {
+      try {
+        const response = await apiClient.get<any>(
+          ENDPOINTS.gamingCenter.byId(id),
+          { signal },
+        );
+        const resData = response.data?.data || response.data;
+        if (resData && typeof resData === "object" && !Array.isArray(resData)) {
+          resolved = adminService.mapRawGamingCenterToAdmin(resData);
+        }
+      } catch {
+        // ادامه به اندپوینت بعدی
+      }
     }
 
     if (!resolved) {
@@ -772,12 +942,24 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     games: [] as string[],
   };
 
-  // در صورت خطای سرور، خطا به صفحه فراخواننده منتقل می‌شود.
-  // ثبت محلی جعلی انجام نمی‌دهیم.
-  const response = await apiClient.post<any>(
-    ENDPOINTS.gamingCenter.list,
-    payload
-  );
+  // اولویت با اندپوینت رسمی پلتفرم ادمین: POST /platform-admin/gaming-centers
+  // و در صورت 403/404 فال‌بک به POST /gamingCenters
+  let response: any;
+  try {
+    response = await apiClient.post<any>(
+      ENDPOINTS.gamingCenter.adminList,
+      payload
+    );
+  } catch (err: any) {
+    if (err?.status === 403 || err?.status === 404) {
+      response = await apiClient.post<any>(
+        ENDPOINTS.gamingCenter.list,
+        payload
+      );
+    } else {
+      throw err;
+    }
+  }
 
   const resData =
     response.data?.data ??
@@ -827,28 +1009,67 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
 },
 
   /**
-   * ویرایش کامل گیمنت شامل نام، اسلاگ، آدرس، تلفن و تنظیمات:
-   * PATCH /gamingCenters/{id}
-   * و در صورت تغییر وضعیت: PATCH /platform-admin/gaming-centers/{id}/status
+   * ویرایش کامل گیمنت طبق آخرین نسخه OpenAPI:
+   * 1) PATCH /platform-admin/gaming-centers/{id} (برای name, slug, isActive, subscriptionStatus, ownerId)
+   * 2) PATCH /gamingCenters/{id} (برای name, address, phone, description)
+   * 3) PATCH /platform-admin/gaming-centers/{id}/status (فال‌بک وضعیت فعال/غیرفعال)
+   * 4) PATCH /gamingCenters/{id}/settings (برای allowOnlineBooking)
    */
   async updateGamecenter(
     id: string,
     input: Partial<AdminGamecenterInput>,
   ): Promise<AdminGamecenter> {
-    const patchBody: Record<string, unknown> = {};
-    if (input.name !== undefined) patchBody.name = input.name;
-    if (input.address !== undefined) patchBody.address = input.address;
-    if (input.phone !== undefined || input.ownerPhone !== undefined) {
-      patchBody.phone = input.phone || input.ownerPhone;
+    const adminPatchBody: Record<string, unknown> = {};
+    if (input.name !== undefined) adminPatchBody.name = input.name;
+    if (input.slug !== undefined) adminPatchBody.slug = input.slug;
+    if (input.isActive !== undefined) adminPatchBody.isActive = input.isActive;
+    if (input.subscriptionStatus !== undefined) {
+      adminPatchBody.subscriptionStatus = input.subscriptionStatus;
     }
-    if (input.slug !== undefined) patchBody.slug = input.slug;
-    if (input.description !== undefined) patchBody.description = input.description;
+    if (input.ownerId !== undefined && input.ownerId.trim()) {
+      adminPatchBody.ownerId = input.ownerId.trim();
+    }
+
+    const centerPatchBody: Record<string, unknown> = {};
+    if (input.name !== undefined) centerPatchBody.name = input.name;
+    if (input.address !== undefined) centerPatchBody.address = input.address;
+    if (input.phone !== undefined || input.ownerPhone !== undefined) {
+      centerPatchBody.phone = input.phone || input.ownerPhone;
+    }
+    if (input.slug !== undefined) centerPatchBody.slug = input.slug;
+    if (input.description !== undefined) centerPatchBody.description = input.description;
 
     let latestRaw: any = null;
+    let adminPatchSucceeded = false;
 
-    if (Object.keys(patchBody).length > 0) {
-      const patchRes = await apiClient.patch<any>(ENDPOINTS.gamingCenter.byId(id), patchBody);
-      latestRaw = patchRes.data?.data || patchRes.data;
+    if (Object.keys(adminPatchBody).length > 0) {
+      try {
+        const adminRes = await apiClient.patch<any>(
+          ENDPOINTS.gamingCenter.adminDetail(id),
+          adminPatchBody,
+        );
+        latestRaw = adminRes.data?.data || adminRes.data || latestRaw;
+        adminPatchSucceeded = true;
+      } catch (err: any) {
+        if (err?.status !== 403 && err?.status !== 404 && err?.status !== 405) {
+          throw err;
+        }
+      }
+    }
+
+    const needsCenterPatch =
+      !adminPatchSucceeded ||
+      input.address !== undefined ||
+      input.phone !== undefined ||
+      input.ownerPhone !== undefined ||
+      input.description !== undefined;
+
+    if (needsCenterPatch && Object.keys(centerPatchBody).length > 0) {
+      const patchRes = await apiClient.patch<any>(
+        ENDPOINTS.gamingCenter.byId(id),
+        centerPatchBody,
+      );
+      latestRaw = patchRes.data?.data || patchRes.data || latestRaw;
     }
 
     const hasCoords =
@@ -880,11 +1101,20 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
       }
     }
 
-    if (input.isActive !== undefined) {
+    if (input.isActive !== undefined && !adminPatchSucceeded) {
       const statusRes = await apiClient.patch<any>(ENDPOINTS.gamingCenter.adminStatus(id), {
         isActive: input.isActive,
       });
       latestRaw = statusRes.data?.data || statusRes.data || latestRaw;
+    }
+
+    if (typeof input.allowOnlineBooking === "boolean") {
+      await apiClient.patch<any>(ENDPOINTS.owner.settings(id), {
+        allowOnlineBooking: input.allowOnlineBooking,
+      });
+      if (latestRaw && typeof latestRaw === "object") {
+        latestRaw = { ...latestRaw, allowOnlineBooking: input.allowOnlineBooking };
+      }
     }
 
     if (latestRaw && typeof latestRaw === "object") {
@@ -929,6 +1159,173 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
     const refreshed = await adminService.getGamecenterById(id);
     if (refreshed) return { ...refreshed, isActive: newStatus };
     throw new Error("بروزرسانی وضعیت گیمنت انجام نشد.");
+  },
+
+  /**
+   * تغییر سریع وضعیت رزرو آنلاین گیمنت
+   * PATCH /gamingCenters/{gamingCenterId}/settings
+   */
+  async toggleGamecenterOnlineBooking(
+    id: string,
+    allowOnlineBooking: boolean,
+  ): Promise<boolean> {
+    await apiClient.patch<any>(ENDPOINTS.owner.settings(id), {
+      allowOnlineBooking,
+    });
+    return allowOnlineBooking;
+  },
+
+  /**
+   * دریافت تنظیمات رزرو و ساعات کاری گیمنت
+   * GET /gamingCenters/{gamingCenterId}/settings
+   */
+  async getGamecenterSettings(
+    id: string,
+    signal?: AbortSignal,
+  ): Promise<AdminGamecenterSettings | null> {
+    try {
+      const response = await apiClient.get<any>(ENDPOINTS.owner.settings(id), {
+        signal,
+      });
+      const raw = response.data?.data || response.data;
+      if (!raw || typeof raw !== "object") return null;
+      return {
+        timeZone: toSafeText(raw.timeZone) || undefined,
+        workStartTime: toSafeText(raw.workStartTime || raw.openingTime) || undefined,
+        workEndTime: toSafeText(raw.workEndTime || raw.closingTime) || undefined,
+        openingTime: toSafeText(raw.openingTime || raw.workStartTime) || undefined,
+        closingTime: toSafeText(raw.closingTime || raw.workEndTime) || undefined,
+        allowOnlineBooking:
+          typeof raw.allowOnlineBooking === "boolean"
+            ? raw.allowOnlineBooking
+            : undefined,
+        onlineBookingAutoConfirm:
+          typeof raw.onlineBookingAutoConfirm === "boolean"
+            ? raw.onlineBookingAutoConfirm
+            : undefined,
+        preventOverlaps:
+          typeof raw.preventOverlaps === "boolean" ? raw.preventOverlaps : undefined,
+        requireOtpForPublicBooking:
+          typeof raw.requireOtpForPublicBooking === "boolean"
+            ? raw.requireOtpForPublicBooking
+            : undefined,
+        maxAdvanceBookingDays:
+          typeof raw.maxAdvanceBookingDays === "number"
+            ? raw.maxAdvanceBookingDays
+            : undefined,
+        minAdvanceBookingMinutes:
+          typeof raw.minAdvanceBookingMinutes === "number"
+            ? raw.minAdvanceBookingMinutes
+            : undefined,
+        cancellationHours:
+          typeof raw.cancellationHours === "number" ? raw.cancellationHours : undefined,
+        cancellationWindowMinutes:
+          typeof raw.cancellationWindowMinutes === "number"
+            ? raw.cancellationWindowMinutes
+            : undefined,
+        noShowPenaltyAmount:
+          typeof raw.noShowPenaltyAmount === "number"
+            ? raw.noShowPenaltyAmount
+            : undefined,
+        autoReleaseUnpaidMinutes:
+          typeof raw.autoReleaseUnpaidMinutes === "number"
+            ? raw.autoReleaseUnpaidMinutes
+            : undefined,
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * دریافت وضعیت احراز هویت (KYC) یک گیمنت
+   * GET /gamingCenters/{gamingCenterId}/verification
+   */
+  async getGamecenterVerification(
+    id: string,
+    signal?: AbortSignal,
+  ): Promise<{
+    verificationStatus: AdminGamecenterVerificationStatus;
+    verifiedAt?: string;
+    rejectionReason?: string;
+    verificationId?: string;
+    businessLicenseUrl?: string;
+  } | null> {
+    try {
+      const response = await apiClient.get<any>(ENDPOINTS.owner.verification(id), {
+        signal,
+      });
+      const raw = response.data?.data || response.data;
+      if (!raw || typeof raw !== "object") return null;
+      const st = raw.verificationStatus ?? raw.status;
+      const verificationStatus: AdminGamecenterVerificationStatus =
+        st === "APPROVED" ||
+        st === "PENDING" ||
+        st === "REJECTED" ||
+        st === "NOT_SUBMITTED"
+          ? st
+          : "NOT_SUBMITTED";
+      const licenseRaw =
+        raw.latestVerification?.businessLicenseUrl || raw.businessLicenseUrl;
+      return {
+        verificationStatus,
+        verifiedAt: raw.verifiedAt
+          ? formatDayLabel(String(raw.verifiedAt)) || String(raw.verifiedAt)
+          : undefined,
+        rejectionReason: toSafeText(raw.rejectionReason) || undefined,
+        verificationId: raw.latestVerification?.id
+          ? String(raw.latestVerification.id)
+          : undefined,
+        businessLicenseUrl:
+          typeof licenseRaw === "string" && licenseRaw
+            ? normalizeMediaUrl(licenseRaw)
+            : undefined,
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * دریافت لیست دستگاه‌ها (Stations) یک گیمنت
+   * GET /gamingCenters/{gamingCenterId}/stations
+   */
+  async getGamecenterStations(
+    id: string,
+    signal?: AbortSignal,
+  ): Promise<AdminGamecenterStation[]> {
+    try {
+      const response = await apiClient.get<any>(ENDPOINTS.owner.stations(id), {
+        signal,
+      });
+      const rawList = Array.isArray(response.data)
+        ? response.data
+        : Array.isArray(response.data?.data)
+          ? response.data.data
+          : Array.isArray(response.data?.items)
+            ? response.data.items
+            : [];
+      return rawList.map((s: any, idx: number) => ({
+        id: String(s?.id ?? `station-${idx}`),
+        name: toSafeText(s?.name || s?.title, `دستگاه ${idx + 1}`),
+        type: toSafeText(s?.type || s?.deviceType?.code || s?.category) || undefined,
+        deviceTypeName:
+          toSafeText(
+            s?.deviceType?.name || s?.deviceTypeName || s?.device?.name || s?.type,
+          ) || undefined,
+        hourlyRate:
+          typeof s?.hourlyRate === "number"
+            ? s.hourlyRate
+            : typeof s?.pricePerHour === "number"
+              ? s.pricePerHour
+              : undefined,
+        isActive: s?.isActive !== undefined ? Boolean(s.isActive) : true,
+        capacity: typeof s?.capacity === "number" ? s.capacity : undefined,
+        description: toSafeText(s?.description) || undefined,
+      }));
+    } catch {
+      return [];
+    }
   },
 
   /**
@@ -1029,17 +1426,14 @@ async createGamecenter(input: AdminGamecenterInput): Promise<AdminGamecenter> {
   },
 
   /**
-   * حذف تصویر گیمنت
-   * مستندات OpenAPI در نسخه v1.0-LOCKED متد DELETE برای تصاویر ثبت نکرده است.
-   * به همین دلیل تا پیاده‌سازی متد اختصاصی سرور، از حدس زدن اندپوینت جلوگیری شده و پیام شفاف بازمی‌گرداند.
+   * حذف تصویر گیمنت طبق آخرین نسخه OpenAPI:
+   * DELETE /gamingCenters/{gamingCenterId}/media/{mediaId}
    */
   async deleteGamecenterMedia(
-    _gamingCenterId: string,
-    _mediaId: string,
+    gamingCenterId: string,
+    mediaId: string,
   ): Promise<void> {
-    throw new Error(
-      "عملیات حذف تصویر در نسخه فعلی OpenAPI v1.0-LOCKED فاقد اندپوینت است و پس از ارائه توسط تیم بک‌اند فعال خواهد شد.",
-    );
+    await apiClient.delete(ENDPOINTS.owner.mediaDelete(gamingCenterId, mediaId));
   },
 
   // ==================== TICKETS ====================

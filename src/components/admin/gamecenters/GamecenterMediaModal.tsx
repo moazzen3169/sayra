@@ -114,8 +114,7 @@ export const GamecenterMediaModal: React.FC<GamecenterMediaModalProps> = ({
     } catch (err: any) {
       showFeedback(
         "danger",
-        err?.message ||
-          "طبق مستندات OpenAPI، اندپوینت حذف عکس توسط بک‌اند ارائه نشده است."
+        err?.message || "خطا در حذف تصویر گیمنت. لطفا دوباره تلاش کنید."
       );
     }
   };

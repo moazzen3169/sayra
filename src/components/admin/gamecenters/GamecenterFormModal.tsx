@@ -63,6 +63,7 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
     primaryAddressId: undefined,
     description: "",
     isActive: true,
+    allowOnlineBooking: true,
     phone: "",
   });
 
@@ -91,6 +92,8 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
         primaryAddressId: initialData.primaryAddressId,
         description: initialData.description || "",
         isActive: initialData.isActive ?? true,
+        allowOnlineBooking: initialData.allowOnlineBooking ?? true,
+        phone: initialData.phone || initialData.ownerPhone || "",
       });
     } else {
       setFormData({
@@ -105,6 +108,8 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
         primaryAddressId: undefined,
         description: "",
         isActive: true,
+        allowOnlineBooking: true,
+        phone: "",
       });
     }
     setSelectedOwnerId("");
@@ -445,7 +450,7 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
             <div className="flex flex-col gap-0.5">
               <span className="text-xs font-bold text-[var(--text-white)]">وضعیت فعال در سایت</span>
               <span className="text-xs text-[var(--text-muted)]">
-                در صورت غیرفعال بودن، امکان رزرو این مرکز برای کاربران وجود نخواهد داشت.
+                در صورت غیرفعال بودن، این مرکز در سایت نمایش داده نخواهد شد.
               </span>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -458,6 +463,28 @@ export const GamecenterFormModal: React.FC<GamecenterFormModalProps> = ({
               <div className="w-11 h-6 bg-[var(--foreground)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--accent-green)]"></div>
             </label>
           </div>
+
+          {isEdit && (
+            <div className="flex items-center justify-between p-3 rounded-card bg-[var(--foreground)]/20 border border-[var(--border-subtle)]">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs font-bold text-[var(--text-white)]">
+                  وضعیت فعال بودن رزرو آنلاین
+                </span>
+                <span className="text-xs text-[var(--text-muted)]">
+                  امکان ثبت رزرو آنلاین توسط کاربران برای این گیمنت را کنترل می‌کند.
+                </span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={Boolean(formData.allowOnlineBooking ?? true)}
+                  onChange={(e) => handleChange("allowOnlineBooking", e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-[var(--foreground)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--accent-green)]"></div>
+              </label>
+            </div>
+          )}
         </div>
 
         {/* دکمه‌های عملیاتی */}

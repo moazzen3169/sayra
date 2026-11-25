@@ -46,10 +46,47 @@ export interface AdminDashboardData {
   recentReservations: AdminRecentReservation[];
 }
 
+export type AdminGamecenterVerificationStatus =
+  | "NOT_SUBMITTED"
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED";
+
+export interface AdminGamecenterSettings {
+  timeZone?: string;
+  workStartTime?: string;
+  workEndTime?: string;
+  openingTime?: string;
+  closingTime?: string;
+  allowOnlineBooking?: boolean;
+  onlineBookingAutoConfirm?: boolean;
+  preventOverlaps?: boolean;
+  requireOtpForPublicBooking?: boolean;
+  maxAdvanceBookingDays?: number;
+  minAdvanceBookingMinutes?: number;
+  cancellationHours?: number;
+  cancellationWindowMinutes?: number;
+  noShowPenaltyAmount?: number;
+  autoReleaseUnpaidMinutes?: number;
+}
+
+export interface AdminGamecenterStation {
+  id: string;
+  name: string;
+  type?: string;
+  deviceTypeName?: string;
+  hourlyRate?: number;
+  isActive?: boolean;
+  capacity?: number;
+  description?: string;
+}
+
 export interface AdminGamecenter {
   id: string;
   name: string;
   slug: string;
+  ownerId?: string;
+  managerId?: string;
   ownerName: string;
   ownerPhone: string;
   city: string;
@@ -57,10 +94,40 @@ export interface AdminGamecenter {
   lat?: number | null;
   lng?: number | null;
   primaryAddressId?: string;
+  addresses?: Array<{
+    id?: string;
+    city?: string;
+    addressLine?: string;
+    lat?: number | null;
+    lng?: number | null;
+    isPrimary?: boolean;
+  }>;
   description?: string;
   isActive: boolean;
+  verificationStatus?: AdminGamecenterVerificationStatus;
+  verifiedAt?: string;
+  verificationRejectionReason?: string;
+  allowOnlineBooking?: boolean;
+  subscriptionStatus?: string;
+  isOpen?: boolean;
   rating?: number;
+  commentCount?: number;
   stationsCount?: number;
+  pcCount?: number;
+  consoleCount?: number;
+  deviceCounts?: Record<string, number>;
+  hourlyRate?: number;
+  hasDiscount?: boolean;
+  pricing?: {
+    originalPrice: number;
+    discountPercentage: number;
+    discountAmount: number;
+    finalPrice: number;
+    hasDiscount: boolean;
+  };
+  cancellationHours?: number;
+  cancellationWindowMinutes?: number;
+  games?: string[];
   createdAt: string;
   updatedAt?: string;
   phone?: string;
@@ -82,6 +149,8 @@ export interface AdminGamecenterInput {
   primaryAddressId?: string;
   description?: string;
   isActive: boolean;
+  allowOnlineBooking?: boolean;
+  subscriptionStatus?: string;
   phone?: string;
 }
 
