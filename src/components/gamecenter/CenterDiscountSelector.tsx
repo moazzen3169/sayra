@@ -93,8 +93,8 @@ export const CenterDiscountSelector: React.FC<CenterDiscountSelectorProps> = ({
           </span>
         </div>
         {discounts.length > 1 && (
-          <span className="text-[11px] text-[var(--text-muted)] shrink-0">
-            یک مورد قابل انتخاب
+          <span className="">
+           
           </span>
         )}
       </div>
@@ -102,7 +102,7 @@ export const CenterDiscountSelector: React.FC<CenterDiscountSelectorProps> = ({
       <div
         role="radiogroup"
         aria-label="انتخاب تخفیف"
-        className="flex items-stretch gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex  w-full items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {discounts.map((item) => {
           const key = discountSelectionKey(item.type, item.id);
@@ -119,7 +119,7 @@ export const CenterDiscountSelector: React.FC<CenterDiscountSelectorProps> = ({
               disabled={disabled}
               onClick={() => onSelect(item)}
               className={cn(
-                "group flex shrink-0 items-center gap-2.5 rounded-card border px-3 py-2 text-right transition-colors duration-150 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
+                "group flex shrink-0 items-center gap-3 rounded-card border px-3 py-3 text-right transition-colors duration-150 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
                 disabled
                   ? "cursor-not-allowed opacity-50 border-[var(--border-subtle)] bg-[var(--bg-card)]"
                   : isSelected
@@ -142,21 +142,21 @@ export const CenterDiscountSelector: React.FC<CenterDiscountSelectorProps> = ({
 
               <div className="flex min-w-0 flex-col gap-0.5">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-extrabold text-[var(--primary)] leading-none">
+                  <span className="text-[14px] font-extrabold text-[var(--primary)] leading-none">
                     {formatCompactValue(item)}
                   </span>
                   <span
                     className={cn(
-                      "rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none",
+                      " px-1.5 py-0.5 text-[14px] font-medium leading-none",
                       badge.highlight
-                        ? "bg-[var(--primary)]/15 text-[var(--primary)]"
-                        : "bg-[var(--foreground)] text-[var(--text-muted)]"
+                        ? " text-[var(--primary)]"
+                        : " text-[var(--text-muted)]"
                     )}
                   >
                     {badge.label}
                   </span>
                 </div>
-                <span className="max-w-[165px] truncate text-[11px] font-medium text-[var(--text-white)]/90 sm:max-w-[190px]">
+                <span className="max-w-[165px] truncate text-[13px] font-medium text-[var(--text-white)]/90 sm:max-w-[190px]">
                   {item.title}
                 </span>
               </div>

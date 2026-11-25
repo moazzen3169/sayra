@@ -93,7 +93,12 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
 
         {discountBadgeText && (
           <div className="absolute top-2.5 left-2.5 z-10">
-            <Badge variant="primary">{discountBadgeText}</Badge>
+            <Badge
+              variant="primary"
+              className="px-3 py-1.5 text-[13px] font-medium"
+            >
+              {discountBadgeText}
+            </Badge>
           </div>
         )}
       </div>
@@ -104,11 +109,13 @@ export const DiscountedGamecenterCard: React.FC<DiscountedGamecenterCardProps> =
             {name}
           </h3>
           {rating > 0 && (
-            <span className="inline-flex items-center gap-1 shrink-0 text-secondary text-[var(--text-white)] font-bold">
-              <RatingHeartIcon size={15} />
-              <span>{toPersianDigits(rating.toFixed(1))}</span>
+            <span className="inline-flex items-center gap-1 shrink-0 text-xs leading-none text-[var(--text-white)] font-bold tabular-nums">
+              <RatingHeartIcon size={14} className="-translate-y-[1px]" />
+              <span className="leading-none">
+                {toPersianDigits(rating.toFixed(1))}
+              </span>
               {reviewsCount > 0 && (
-                <span className="text-[var(--text-muted)] font-normal">
+                <span className="leading-none text-[var(--text-muted)] font-normal">
                   ({toPersianDigits(reviewsCount)})
                 </span>
               )}

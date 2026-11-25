@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Header } from "@/components/Header";
 import { BottomBar } from "@/components/BottomBar";
@@ -8,9 +8,13 @@ import { DiscountedGamecenterCard } from "@/components/DiscountedGamecenterCard"
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Icon } from "@/components/ui/Icon";
-import { Button } from "@/components/ui/Button";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { CardSkeleton } from "@/components/ui/Skeleton";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from "@/components/ui/carousel";
 import type { GamecenterListItem } from "@/services/gamecentersPageService";
 import {
   searchService,
@@ -60,10 +64,36 @@ const SORT_OPTIONS: { id: UiSortKey; name: string }[] = [
   { id: "price_desc", name: "گران‌ترین" },
 ];
 
+function getPaginationItems(
+  currentPage: number,
+  totalPages: number
+): Array<number | "ellipsis"> {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  const pages = new Set<number>([1, totalPages]);
+  for (let p = currentPage - 1; p <= currentPage + 1; p += 1) {
+    if (p > 1 && p < totalPages) {
+      pages.add(p);
+    }
+  }
+
+  const sorted = Array.from(pages).sort((a, b) => a - b);
+  const result: Array<number | "ellipsis"> = [];
+  for (let i = 0; i < sorted.length; i += 1) {
+    if (i > 0 && sorted[i] - sorted[i - 1] > 1) {
+      result.push("ellipsis");
+    }
+    result.push(sorted[i]);
+  }
+  return result;
+}
+
 function GamecentersGridSkeleton() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {Array.from({ length: 8 }).map((_, i) => (
+      {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
         <CardSkeleton key={i} />
       ))}
     </div>
@@ -102,21 +132,34 @@ export function GamecentersPageClient({
     searchParams.get("hasDiscount") === "true" ||
     categoryParam.toLowerCase() === "discounted";
   const sortParam = (searchParams.get("sort") as UiSortKey) || "default";
+  const rawPageParam = Number(searchParams.get("page"));
+  const pageParam =
+    Number.isInteger(rawPageParam) && rawPageParam > 0 ? rawPageParam : 1;
 
-  const [centers, setCenters] = useState<GamecenterListItem[]>(initialCenters);
+  const [centers, setCenters] = useState<GamecenterListItem[]>(
+    initialCenters.slice(0, ITEMS_PER_PAGE)
+  );
   const [totalItems, setTotalItems] = useState<number>(
     initialTotal ?? initialCenters.length
   );
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(initialTotalPages);
+  const [currentPage, setCurrentPage] = useState<number>(pageParam);
+  const [totalPages, setTotalPages] = useState<number>(
+    Math.max(
+      1,
+      initialTotalPages ||
+        Math.ceil((initialTotal ?? initialCenters.length) / ITEMS_PER_PAGE)
+    )
+  );
   const [facets, setFacets] = useState<SearchFacetsDto | undefined>(undefined);
   const [resolvedGames, setResolvedGames] = useState<ResolvedSearchGameDto[]>([]);
   const [suggestions, setSuggestions] = useState<ZeroResultSuggestionDto[]>([]);
 
-  const [isLoading, setIsLoading] = useState<boolean>(initialCenters.length === 0);
-  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(
+    initialCenters.length === 0 || pageParam > 1
+  );
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const isFirstFetchRef = useRef(true);
 
   const [catalogDevices, setCatalogDevices] =
     useState<DeviceCatalogItem[]>(initialCatalog);
@@ -220,6 +263,7 @@ export function GamecentersPageClient({
     const isDefaultInitialState =
       initialCenters.length > 0 &&
       reloadToken === 0 &&
+      pageParam === 1 &&
       !queryParam &&
       !gameParam &&
       !gameIdParam &&
@@ -233,11 +277,13 @@ export function GamecentersPageClient({
       sortParam === "default" &&
       (!cityParam || cityParam === selectedCity);
 
-    if (isDefaultInitialState) {
+    if (isFirstFetchRef.current && isDefaultInitialState) {
+      isFirstFetchRef.current = false;
       return;
     }
 
     if (!isCityReady || needsCatalogResolution) return;
+    isFirstFetchRef.current = false;
 
     let active = true;
     const controller = new AbortController();
@@ -246,7 +292,7 @@ export function GamecentersPageClient({
       try {
         setIsLoading(true);
         setError(null);
-        setCurrentPage(1);
+        setCurrentPage(pageParam);
 
         const targetCity = cityParam || selectedCity;
 
@@ -291,16 +337,25 @@ export function GamecentersPageClient({
           hasDiscount: hasDiscountParam || resolvedDevice.isDiscounted ? true : undefined,
           sort: mapUiSortToSearchSort(sortParam, hasSearchIntent),
           includeFacets: true,
-          page: 1,
+          page: pageParam,
           limit: ITEMS_PER_PAGE,
           signal: controller.signal,
         });
 
         if (!active) return;
-        setCenters(payload.data.map(mapSearchGameCenterToListItem));
-        setTotalItems(payload.meta.total);
-        setCurrentPage(payload.meta.page);
-        setTotalPages(payload.meta.totalPages);
+        const nextTotal = payload.meta.total;
+        const nextTotalPages = Math.max(
+          1,
+          payload.meta.totalPages || Math.ceil(nextTotal / ITEMS_PER_PAGE)
+        );
+        setCenters(
+          payload.data
+            .map(mapSearchGameCenterToListItem)
+            .slice(0, ITEMS_PER_PAGE)
+        );
+        setTotalItems(nextTotal);
+        setCurrentPage(payload.meta.page || pageParam);
+        setTotalPages(nextTotalPages);
         setFacets(payload.facets);
         setResolvedGames(payload.resolvedGames);
         setSuggestions(payload.suggestions ?? []);
@@ -338,56 +393,23 @@ export function GamecentersPageClient({
     isOpenParam,
     hasDiscountParam,
     sortParam,
+    pageParam,
     reloadToken,
     initialCenters.length,
   ]);
 
-  const handleLoadMore = async () => {
-    if (isLoadingMore || currentPage >= totalPages) return;
-    const nextPage = currentPage + 1;
-    setIsLoadingMore(true);
-
-    try {
-      const targetCity = cityParam || selectedCity;
-      const hasSearchIntent = Boolean(
-        queryParam.trim() || gameParam.trim() || gameIdParam.trim() || gameSlugParam.trim()
-      );
-
-      const payload = await searchService.searchGameCenters({
-        q: queryParam || undefined,
-        game: !gameIdParam && gameParam ? gameParam : undefined,
-        gameId: gameIdParam || undefined,
-        gameSlug: gameSlugParam || undefined,
-        city: targetCity,
-        neighborhood: neighborhoodParam || undefined,
-        deviceType: resolvedDevice.deviceType,
-        isOpen: isOpenParam ? true : undefined,
-        hasDiscount: hasDiscountParam || resolvedDevice.isDiscounted ? true : undefined,
-        sort: mapUiSortToSearchSort(sortParam, hasSearchIntent),
-        includeFacets: false,
-        page: nextPage,
-        limit: ITEMS_PER_PAGE,
-      });
-
-      const nextItems = payload.data.map(mapSearchGameCenterToListItem);
-      setCenters((prev) => {
-        const seen = new Set(prev.map((c) => c.id));
-        const merged = [...prev];
-        for (const item of nextItems) {
-          if (!seen.has(item.id)) {
-            seen.add(item.id);
-            merged.push(item);
-          }
-        }
-        return merged;
-      });
-      setCurrentPage(payload.meta.page);
-      setTotalPages(payload.meta.totalPages);
-      setTotalItems(payload.meta.total);
-    } catch {
-      // Keep existing items on load-more failure
-    } finally {
-      setIsLoadingMore(false);
+  const handlePageChange = (nextPage: number) => {
+    if (nextPage < 1 || nextPage > totalPages || nextPage === currentPage) return;
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextPage === 1) {
+      params.delete("page");
+    } else {
+      params.set("page", String(nextPage));
+    }
+    const queryString = params.toString();
+    router.push(queryString ? `${pathname}?${queryString}` : pathname);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -505,7 +527,10 @@ export function GamecentersPageClient({
     return gameSlugParam || "";
   }, [gameParam, gameSlugParam, resolvedGames]);
 
-  const hasMore = currentPage < totalPages;
+  const paginationItems = useMemo(
+    () => getPaginationItems(currentPage, totalPages),
+    [currentPage, totalPages]
+  );
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg-body)] text-[var(--text-white)] pb-[calc(var(--bottom-bar-h)+1.5rem)] lg:pb-12">
@@ -592,106 +617,124 @@ export function GamecentersPageClient({
             </div>
           )}
 
-          {/* Filter & Device Bar */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scroll-smooth -mx-4 px-4 lg:mx-0 lg:px-0">
-            <button
-              type="button"
-              onClick={() => setIsSortOpen(true)}
-              className="relative shrink-0 h-11 px-3.5 rounded-full bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--border-color)] text-xs font-bold text-[var(--text-white)] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Icon name="sort" size={16} />
-              <span>مرتب‌سازی</span>
-              {sortParam !== "default" && (
-                <span
-                  aria-hidden="true"
-                  className="w-2 h-2 rounded-full bg-[var(--primary)]"
-                />
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                updateQueryParams({ isOpen: isOpenParam ? null : "true" })
-              }
-              aria-pressed={isOpenParam}
-              className={cn(
-                "shrink-0 h-11 px-3.5 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 border cursor-pointer",
-                isOpenParam
-                  ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/50"
-                  : "bg-[var(--bg-card)] text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
-              )}
-            >
-              <Icon name="clock" size={15} />
-              <span>باز است</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                updateQueryParams({
-                  hasDiscount: hasDiscountParam ? null : "true",
-                  category:
-                    hasDiscountParam && categoryParam.toLowerCase() === "discounted"
-                      ? null
-                      : categoryParam || undefined,
-                })
-              }
-              aria-pressed={hasDiscountParam}
-              className={cn(
-                "shrink-0 h-11 px-3.5 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 border cursor-pointer",
-                hasDiscountParam
-                  ? "bg-[var(--primary-muted)] text-[var(--primary)] border-[var(--primary)]"
-                  : "bg-[var(--bg-card)] text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
-              )}
-            >
-              <Icon name="tag" size={15} />
-              <span>تخفیف‌دار</span>
-            </button>
-
-            {deviceTabs.map((tab) => {
-              const isAllTab = tab.id === "all";
-              const isActive = isAllTab
-                ? !resolvedDevice.deviceType && !categoryParam && !stationTypeParam && !deviceTypeParam
-                : categoryParam === tab.id ||
-                  Boolean(
-                    resolvedDevice.matchedCatalogDevice?.id &&
-                      resolvedDevice.matchedCatalogDevice.id === tab.id
-                  ) ||
-                  Boolean(
-                    tab.deviceType &&
-                      resolvedDevice.deviceType &&
-                      tab.deviceType === resolvedDevice.deviceType &&
-                      !resolvedDevice.matchedCatalogDevice
-                  );
-
-              const facetCount = tab.deviceType
-                ? facetCountByDeviceType.get(tab.deviceType)
-                : undefined;
-
-              return (
+          {/* Filter & Device Carousel Bar (Mobile & Desktop) */}
+          <Carousel
+            opts={{
+              direction: "rtl",
+              align: "start",
+              dragFree: true,
+              containScroll: "trimSnaps",
+            }}
+            className="w-full"
+            aria-label="فیلترهای گیم‌نت‌ها"
+          >
+            <CarouselContent className="-mr-2 py-0.5 cursor-grab active:cursor-grabbing select-none">
+              <CarouselItem className="basis-auto pr-2">
                 <button
-                  key={tab.id}
                   type="button"
-                  onClick={() => handleSelectDeviceTab(tab)}
-                  aria-pressed={isActive}
+                  onClick={() => setIsSortOpen(true)}
+                  className="relative shrink-0 h-11 px-3.5 rounded-full bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--border-color)] text-xs font-bold text-[var(--text-white)] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Icon name="sort" size={16} />
+                  <span>مرتب‌سازی</span>
+                  {sortParam !== "default" && (
+                    <span
+                      aria-hidden="true"
+                      className="w-2 h-2 rounded-full bg-[var(--primary)]"
+                    />
+                  )}
+                </button>
+              </CarouselItem>
+
+              <CarouselItem className="basis-auto pr-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateQueryParams({ isOpen: isOpenParam ? null : "true" })
+                  }
+                  aria-pressed={isOpenParam}
                   className={cn(
-                    "shrink-0 h-11 px-4 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 border cursor-pointer",
-                    isActive
+                    "shrink-0 h-11 px-3.5 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 border cursor-pointer",
+                    isOpenParam
+                      ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/50"
+                      : "bg-[var(--bg-card)] text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
+                  )}
+                >
+                  <Icon name="clock" size={15} />
+                  <span>باز است</span>
+                </button>
+              </CarouselItem>
+
+              <CarouselItem className="basis-auto pr-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateQueryParams({
+                      hasDiscount: hasDiscountParam ? null : "true",
+                      category:
+                        hasDiscountParam && categoryParam.toLowerCase() === "discounted"
+                          ? null
+                          : categoryParam || undefined,
+                    })
+                  }
+                  aria-pressed={hasDiscountParam}
+                  className={cn(
+                    "shrink-0 h-11 px-3.5 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 border cursor-pointer",
+                    hasDiscountParam
                       ? "bg-[var(--primary-muted)] text-[var(--primary)] border-[var(--primary)]"
                       : "bg-[var(--bg-card)] text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
                   )}
                 >
-                  <span>{tab.name}</span>
-                  {typeof facetCount === "number" && facetCount > 0 && (
-                    <span className="text-[11px] opacity-75">
-                      ({toPersianDigits(facetCount)})
-                    </span>
-                  )}
+                  <Icon name="tag" size={15} />
+                  <span>تخفیف‌دار</span>
                 </button>
-              );
-            })}
-          </div>
+              </CarouselItem>
+
+              {deviceTabs.map((tab) => {
+                const isAllTab = tab.id === "all";
+                const isActive = isAllTab
+                  ? !resolvedDevice.deviceType && !categoryParam && !stationTypeParam && !deviceTypeParam
+                  : categoryParam === tab.id ||
+                    Boolean(
+                      resolvedDevice.matchedCatalogDevice?.id &&
+                        resolvedDevice.matchedCatalogDevice.id === tab.id
+                    ) ||
+                    Boolean(
+                      tab.deviceType &&
+                        resolvedDevice.deviceType &&
+                        tab.deviceType === resolvedDevice.deviceType &&
+                        !resolvedDevice.matchedCatalogDevice
+                    );
+
+                const facetCount = tab.deviceType
+                  ? facetCountByDeviceType.get(tab.deviceType)
+                  : undefined;
+
+                return (
+                  <CarouselItem key={tab.id} className="basis-auto pr-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectDeviceTab(tab)}
+                      aria-pressed={isActive}
+                      className={cn(
+                        "shrink-0 h-11 px-4 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 border cursor-pointer",
+                        isActive
+                          ? "bg-[var(--primary-muted)] text-[var(--primary)] border-[var(--primary)]"
+                          : "bg-[var(--bg-card)] text-[var(--text-white)] border-[var(--border-subtle)] hover:border-[var(--border-color)]"
+                      )}
+                    >
+                      <span>{tab.name}</span>
+                      {typeof facetCount === "number" && facetCount > 0 && (
+                        <span className="text-[11px] opacity-75">
+                          ({toPersianDigits(facetCount)})
+                        </span>
+                      )}
+                    </button>
+                  </CarouselItem>
+                );
+              })}
+            </CarouselContent>
+          </Carousel>
         </section>
 
         {error ? (
@@ -740,18 +783,71 @@ export function GamecentersPageClient({
               ))}
             </div>
 
-            {hasMore && (
-              <div className="flex justify-center pt-2">
-                <Button
-                  variant="secondary"
-                  size="md"
-                  disabled={isLoadingMore}
-                  onClick={handleLoadMore}
-                  className="min-w-[200px]"
+            {totalPages > 1 && (
+              <nav
+                aria-label="صفحه‌بندی گیم‌نت‌ها"
+                className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 pt-2"
+              >
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                  aria-label="صفحه قبلی"
+                  className={cn(
+                    "h-10 px-3 rounded-card border text-xs font-bold inline-flex items-center gap-1 transition-colors",
+                    currentPage <= 1
+                      ? "border-[var(--border-subtle)] bg-[var(--bg-card)]/50 text-[var(--text-muted)] opacity-45 cursor-not-allowed"
+                      : "border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] hover:border-[var(--primary)] hover:text-[var(--primary)] cursor-pointer"
+                  )}
                 >
-                  {isLoadingMore ? "در حال بارگذاری..." : "مشاهده بیشتر"}
-                </Button>
-              </div>
+                  <Icon name="back" size={15} />
+                  <span className="hidden sm:inline">قبلی</span>
+                </button>
+
+                {paginationItems.map((item, idx) =>
+                  item === "ellipsis" ? (
+                    <span
+                      key={`ellipsis-${idx}`}
+                      aria-hidden="true"
+                      className="h-10 min-w-8 px-1 inline-flex items-center justify-center text-xs text-[var(--text-muted)] select-none"
+                    >
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => handlePageChange(item)}
+                      aria-label={`صفحه ${toPersianDigits(item)}`}
+                      aria-current={item === currentPage ? "page" : undefined}
+                      className={cn(
+                        "h-10 min-w-10 px-3 rounded-card border text-xs font-bold inline-flex items-center justify-center transition-colors",
+                        item === currentPage
+                          ? "border-[var(--primary)] bg-[var(--primary)] text-on-primary cursor-default"
+                          : "border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] hover:border-[var(--primary)] hover:text-[var(--primary)] cursor-pointer"
+                      )}
+                    >
+                      {toPersianDigits(item)}
+                    </button>
+                  )
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage >= totalPages}
+                  aria-label="صفحه بعدی"
+                  className={cn(
+                    "h-10 px-3 rounded-card border text-xs font-bold inline-flex items-center gap-1 transition-colors",
+                    currentPage >= totalPages
+                      ? "border-[var(--border-subtle)] bg-[var(--bg-card)]/50 text-[var(--text-muted)] opacity-45 cursor-not-allowed"
+                      : "border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-white)] hover:border-[var(--primary)] hover:text-[var(--primary)] cursor-pointer"
+                  )}
+                >
+                  <span className="hidden sm:inline">بعدی</span>
+                  <Icon name="back" size={15} className="rotate-180" />
+                </button>
+              </nav>
             )}
           </div>
         )}

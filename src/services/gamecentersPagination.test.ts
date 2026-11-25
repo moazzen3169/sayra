@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { gamecentersPageService, GamecenterListItem } from "./gamecentersPageService";
+import type { GamecenterListItem } from "./gamecentersPageService";
 import fs from "fs";
 import path from "path";
 
@@ -45,15 +45,22 @@ describe("Gamecenters Pagination and Grid Configuration", () => {
     expect(page3[5].id).toBe("center-30");
   });
 
-  it("verifies gamecenters page file includes ITEMS_PER_PAGE = 12 and 4 columns on desktop", () => {
-    const filePath = path.resolve(process.cwd(), "src/app/gamecenters/page.tsx");
+  it("verifies gamecenters page client includes ITEMS_PER_PAGE = 12, carousel filters, and pagination controls", () => {
+    const filePath = path.resolve(
+      process.cwd(),
+      "src/components/gamecenters/GamecentersPageClient.tsx"
+    );
     const content = fs.readFileSync(filePath, "utf-8");
 
     // Check pagination constant
     expect(content).toContain("ITEMS_PER_PAGE = 12");
 
-    // Check desktop grid class has 4 columns (lg:grid-cols-4)
-    expect(content).toContain("lg:grid-cols-4");
+    // Check desktop grid class has 4 columns
+    expect(content).toContain("xl:grid-cols-4");
+
+    // Check filter bar uses Carousel
+    expect(content).toContain("<Carousel");
+    expect(content).toContain("<CarouselItem");
 
     // Check pagination controls exist
     expect(content).toContain("handlePageChange");
